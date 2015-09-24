@@ -1,0 +1,24 @@
+language: go
+
+go:
+  - 1.4
+  - 1.5
+
+before_install:
+- go get github.com/axw/gocov/gocov
+- go get github.com/golang/lint/golint
+- go get github.com/mattn/goveralls
+- go get github.com/laher/goxc
+-  if ! go get code.google.com/p/go.tools/cmd/cover; then go get golang.org/x/tools/cmd/cover; fi
+- export PATH=$PATH:$GOPATH/bin
+
+script:
+- go test -v -covermode=count -coverprofile=coverage.out
+
+after_script:
+- $HOME/gopath/bin/goveralls -coverprofile=coverage.out -service=travis-ci
+- ! golint . 2>&1 | read
+- golint .
+- ! gofmt -d . 2>&1 | read
+- gofmt -d .
+- if  [ ${TRAVIS_GO_VERSION} == "1.5" ]; then goxc;cd ..; fi
