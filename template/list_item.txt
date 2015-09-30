@@ -1,0 +1,35 @@
+{{$root:=.}}
+{# Saku Gateway List Item.
+ # Copyright (c) 2005-2014 shinGETsu Project.
+ #}
+<li>
+{{ if .Isadmin and .Remove }}
+  <label style="display:inline-block">
+  <input type="checkbox" name="file" value="{{.Cache.Datfile}}" style="display:inline-block" />
+{{ end }}
+{{ if .Target eq "recent" }}
+  <span class="stamp" id="s{{.Cache.Recent_stamp}}">{{.Localtime .Cache.Recent_stamp}}</span>
+{{ else }}
+  <span class="stamp" id="s{{.Cache.Valid_stamp}}">{{.Localtime .Cache.Valid_stamp}}</span>
+{{ end }}
+{{ if .Isadmin and .Remove }}
+  </label>
+{{ end }}
+
+<a href="{{index .Appli .Cache.Type}}/{{.Str_title}}{{.Str_opts}}">{{.Title}}</a>
+({{.Cache.Len}}/{{.toMB .Cache.Size}}{{.Message.Mb}})
+{{ if .Tags }}
+  <span class="tags">
+  {{ range $tag:=.Tags }}
+    <a href="{{.Gateway_cgi}}/{{.Target}}?tag={{.Str_encode $tag}}" class="tag">{{$tag}}</a>
+  {{ end }}
+  </span>
+{{ end }}
+{{ if .Sugtags }}
+  <span class="sugtags">
+  {{ range $tag:=.Sugtags }}
+    <a href="{{.Gateway_cgi}}/{{.Target}}?tag={{.Str_encode $tag}}" class="tag">{{$tag}}</a>
+  {{ end }}
+  </span>
+{{ end }}
+</li>

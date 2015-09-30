@@ -1,0 +1,30 @@
+{{$root:=.}}
+{# Saku Gateway Thread Page Navigation.
+ # Copyright (c) 2007,2014 shinGETsu Project.
+ #}
+{{ if .Cache.Len }}
+  |
+{{ end }}
+{{ if (.Page gt 0) or .Id }}
+  <a href="{{.Thread_cgi}}/{{.Str_path}}">{{.Message.Last_page}}</a>
+{{ end }}
+{{ if .Page gt 1 }}
+  <a href="{{.Thread_cgi}}/{{.Str_path}}/p{{.Add .Page -1}}">{{.Message.New_page}}</a>
+{{ end }}
+{{ if .First gt 1 }}
+  {{ range $p:=.First }}
+    {{ if not .Id and ($p eq .Page) }}
+      {{$p}}
+    {{else}}
+      {{ if not .Id and ($p eq 0) }}
+        <a href="{{.Thread_cgi}}/{{.Str_path}}">{{$p}}</a>
+      {{ else }}
+         <a href="{{.Thread_cgi}}/{{.Str_path}}/p{{$p}}">{{$p}}</a>
+      {{ end }}
+    {{ end }}
+  {{ end }}
+{{ end }}
+{{$ppp:=.Add .Page +1}}
+{{ if not .Id and .Last $ppp  lt .Cache.Len }}
+     <a href="{{.Thread_cgi}}/{{.Str_path}}/p{{.Add .Page +1}}">{{.Message.Old_page}}</a>
+{{ end }}

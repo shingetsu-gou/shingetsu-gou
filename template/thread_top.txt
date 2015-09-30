@@ -1,0 +1,26 @@
+{{$root:=.}}
+{#
+ # Saku Gateway Thrad Top.
+ # Copyright (c) 2005-2014 shinGETsu Project.
+ #}
+{{ if (.Isfriend or .Isadmin) and .Cache.Len eq 0 }}
+  <form method="get" action="{{.Thread_cgi}}/{{.Str_path}}"><p>
+    <input type="hidden" name="search_new_file" value="yes" />
+    <input type="submit" value="{{.Message.Sync_from_network}}" class="btn" />
+  </p></form>
+{{ end }}
+{{ if .Isadmin }}
+  <form method="post" action="{{.Admin_cgi}}">
+  <p id="pagenavi">
+  <input type="hidden" name="cmd" value="rdel" />
+  <input type="hidden" name="file" value="{{.Cache.Datfile}}" />
+{{ else }}
+  <p id="pagenavi">
+{{ end }}
+{{ if .Lastrec }}
+  {{.Res_anchor index .Lastrec.Id 0 1 2 3 4 5 6 7 .Thread_cgi .Path}}{{.Message.Last_article}}</a>
+{{ else}}
+  {{ if .Cache.Len gt 0 }}
+    <a href="#bottom">{{.Message.Bottom_of_page}}</a>
+  {{ end }}
+{{ end }}

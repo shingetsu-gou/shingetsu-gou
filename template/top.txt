@@ -1,0 +1,54 @@
+{{$root:=.}}
+{# Saku Gateway Toppage.
+ # Copyright (c) 2005-2015 shinGETsu Project.
+ #}
+<ul class="topmenu">
+  <li>{{.Gateway_link .Gateway_cgi "changes"}}</li>
+  <li>{{.Gateway_link .Gateway_cgi "index"}}</li>
+{{ if .Iisfriend or .Isadmin }}
+    <li>{{$root.Gateway_link .Gateway_cgi "recent"}}</li>
+    <li>{{$root.Gateway_link .Gateway_cgi "new"}}</li>
+{{ end }}
+{{ if .Isadmin }}
+    <li>{{$root.Gateway_link .Admin_cgi "search"}}</li>
+    <li>{{$root.Gateway_link .Admin_cgi "status"}}</li>
+{{ end }}
+<li><a href="http://www.Shingetsu.Info/">{{.Message.Site}}</a></li>
+<li><a href="{{.Gateway_cgi}}/motd">{{.Message.Agreement}}</a></li>
+{{ if .Mch_url }}
+  <li><a href="{{.Mch_url}}">{{.Message.Mch}}</a></li>
+{{ end }}
+<li><a href="{{.Gateway_cgi}}/rss">{{.Message.Rss}}</a></li>
+</ul>
+
+<h2>{{.Message.Recent_changes}}</h2>
+<ul id="top_index">
+{{ range $cache:=.Cachelist }}
+  {{ if $cache.Type eq $root.Types }}
+    {{$root.Make_list_item $cache false .Target}}
+  {{ end }}
+{{ end }}
+</ul>
+{{ if (not .Cachelist) and (.Isfriend or .Isadmin) }}
+  <p>{{printf .Message.Empty_list .Gateway_link .Gateway_cgi "recent"}}</p>
+{{ end }}
+
+{{ if .Taglist }}
+  <h2>{{.Message.Tag}}</h2>
+  <ul class="topmenu">
+  {{ range $t:=.Taglist }}
+    <li><a href="{{$root.Gateway_cgi}}/{{$root.Target}}?tag={{.Str_encode $t}}">{{$t}}</a></li>
+  {{ end }}
+  </ul>
+{{ end }}
+
+{{ if .Mch_url }}
+  <h2>{{.Message.Mch_categories}}</h2>
+  <ul class="topmenu">
+    <li><a href="{{.Mch_url}}">{{.Message.All}}</a></li>
+  {{ range $category:=.Mch_categories }}
+    <li><a href="{{$category.Url}}">{{$category.Text}}</a></li>
+  {{ end }}
+  </ul>
+{{ end }}
+

@@ -1,0 +1,15 @@
+{{$root:=.}}
+<html><head><meta http-equiv="Content-Type" content="text/html";>
+<title>ＥＲＲＯＲ！</title>
+</head>
+
+<body bgcolor="#FFFFFF" "-webkit-user-select: auto;"><!-- 2ch_X:error -->
+<font size="+1" color="#FF0000"><b>ＥＲＲＯＲ：{{.Message}}</b></font>
+<ul><br>
+ホスト<b>{{.Host}}</b><br>
+名前： <b>{{.Name}}</b><br>
+E-mail： {{.Mail}}<br>
+内容：{{.Body}}<br><br>
+</ul>
+<hr>
+</body></html>

@@ -1,0 +1,9 @@
+{{$root:=.}}
+{# Saku Gateway Thrad Bottom.
+ # Copyright (c) 2005-2014 shinGETsu Project.
+ #}
+{{ if .Ccache.Len }}
+  <p><a href="#top"
+  onclick="window.scroll(0,0); return false;"
+  onkeypress="window.scroll(0,0); return false;">{{.Message.Top_of_page}}</a>
+{{ end }}

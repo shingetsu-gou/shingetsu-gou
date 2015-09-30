@@ -1,0 +1,17 @@
+{{$root:=.}}
+{# Saku Gateway Status Page.
+ # Copyright (c) 2005-2014 shinGETsu Project.
+ #}
+<table summary="{{.Message.Status}}" class="solid">
+{{ range $p:=.Status }}
+  <tr><td>{{index .Message index $p 0}}</td><td>{{index $p 1}}</td></tr>
+{{ end }}
+</table>
+{{ range $p:=.Node_status }}
+  <h2>{{index .Message index $p 0}}</h2>
+  <ul>
+  {{ range $node:=index $p 1 }}
+    <li>{{$node}}</li>
+  {{ end }}
+  </ul>
+{{ end }}

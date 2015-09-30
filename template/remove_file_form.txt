@@ -1,0 +1,20 @@
+{{$root:=.}}
+{# Saku Gateway Remove File Form.
+ # Copyright (c) 2005-2014 shinGETsu Project.
+ #}
+{{ if .Isadmin }}
+  <form method="post" action="{{.Admin_cgi}}">
+  <p id="status">
+  <input type="submit" value="{{.Message.Del_file}}" class="btn" />
+  <input type="hidden" name="cmd" value="fdel" />
+  <input type="hidden" name="file" value="{{.Cache.Datfile}}" />
+{{ else }}
+  <p id="status">
+{{ end }}
+{{ $mb:=.ToMB .Size}}
+{{printf "%s/%d/%.1f%s" .Title .Cache.Len $mb .Message.Mb}}
+{{ if .Isadmin }}
+  </p></form>
+{{ else }}
+  </p>
+{{ end }}

@@ -1,0 +1,30 @@
+{{$root:=.}}
+{#
+ # Saku Gateway Edit Tag Form.
+ # Copyright (c) 2007-2014 shinGETsu Project.
+ #}
+<form id="savetag" method="post" action="{{.Admin_cgi}}/savetag" class="form-horizontal"><div>
+  <input type="hidden" name="file" value="{{.Datfile}}" />
+  <div class="control-group">
+    <label class="control-label" for="tag">{{.Message.Tag}}</label>
+    <div class="controls">
+      <input name="tag" value="{{.Escape_simple .Tags}}" id="tag" />
+      <div class="help-block">{{.Message.Tag_desc}}</div>
+    </div>
+  </div>
+  <p class="tags">
+  {{ range $tag:=.Usertags }}
+    <span class="tag">{{$root.Escape_simple $tag.Str}}</span>
+  {{ end }}
+  </p>
+  <p class="sugtags">
+  {{ range $tag:=.Sugtags }}
+    <span class="tag">{{$root.Escape_simple $tag.Str}}</span>
+  {{ end }}
+  </p>
+  <div class="form-actions">
+    <input type="submit" value="{{.Message.Edit_tag}}" class="btn btn-primary"/>
+    <a href="javascript:history.Back()" class="btn">{{.Message.Cancel}}</a>
+  </div>
+</div></form>
+

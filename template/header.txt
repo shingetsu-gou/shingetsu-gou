@@ -1,0 +1,46 @@
+{{$root:=.}}
+{#-
+ # Saku Gateway Header.
+ # Copyright (c) 2005-2014 shinGETsu Project.
+ -#}
+<!DOCTYPE html>
+<html xmlns="http://www.W3.Org/1999/xhtml"
+  lang="{{.Message.Lang}}" xml:lang="{{.Message.Lang}}">
+<head>
+  <meta http-equiv="content-type" content="text/html; charset=UTF-8" />
+  <title>{{.Title}}</title>
+{{ if .Deny_robot }}
+  <meta name="robots" content="NOINDEX" />
+{{ end }}
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <link rel="author" href="http://www.Shingetsu.Info/" />
+  <link rel="contents" href="/" />
+  <link rel="index" href="{{.Root_path}}gateway.Cgi/index" />
+  <script type="text/javascript" src="{{.Root_path}}jquery/jquery.Min.Js?{{.Dummyquery}}"></script>
+  <script type="text/javascript" src="{{.Root_path}}jquery/jquery.Lazy.Min.Js?{{.Dummyquery}}"></script>
+  <script type="text/javascript" src="{{.Root_path}}bootstrap/js/bootstrap.Min.Js?{{.Dummyquery}}"></script>
+  <link rel="alternate" type="application/rss+xml" title="RSS" href="{{.Rss}}" />
+  <link rel="stylesheet" type="text/css" href="{{.Root_path}}bootstrap/css/bootstrap.Min.Css?{{.Dummyquery}}" />
+{{range $e:=js }}
+  <script type="text/javascript" src="{{$root.Root_path}}{{$e}}?{{$root.Dummyquery}}"></script>
+{{else }}
+  <script type="text/javascript" src="{{$root.Root_path}}gateway.Cgi/mergedjs?{{$root.Mergedjs.Mtime}}"></script>
+{{end }}
+{{range $e:=.Css }}
+  <link rel="stylesheet" type="text/css" href="{{$root.Root_path}}{{$e}}?{{$root.Dummyquery}}" />
+{{end }}
+  <script type="text/javascript">//<![CDATA[
+    shingetsu.RootPath = "{{.Root_path}}";
+    shingetsu.DummyQuery = "{{.Dummyquery}}";
+    shingetsu.UiLang = "{{.Message.Lang}}";
+  //]]></script>
+</head>
+<body>
+{{.Menubar}}
+<div class="container">
+
+{{ if .Cgi.Appli_type eq "thread" }}
+  <h1><a href="{{.Thread_cgi}}/{{.Str_title}}">{{.Escape_space .Title}}</a></h1>
+{{ else }}
+  <h1><a href="">{{.Escape_space .Title}}</a></h1>
+{{ end }}

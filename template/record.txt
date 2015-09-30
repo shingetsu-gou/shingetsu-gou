@@ -1,0 +1,40 @@
+{{$root:=.}}
+{# Saku Gateway Thread Record.
+ # Copyright (c) 2005-2014 shinGETsu Project.
+ #}
+<dt id="r{{.Sid}}" data-record-id="{{.Sid}}">
+{{ if .Isadmin }}
+  <input type="checkbox" name="record" value="{{.Rec.Stamp}}_{{.Rec.Id}}" />
+{{ end }}
+<a href="{{.Thread_cgi}}/{{.Str_path}}/{{.Sid}}" class="id" id="i{{.Sid}}" name="i{{.Sid}}">{{.Sid}}</a>
+{{ if .Rec.Get "name" "" }}
+  <span class="name">{{.Rec.Name}}</span>
+{{ else }}
+  <span class="name">{{.Message.Anonymous}}</span>
+{{ end }}
+{{ if .Rec.Get "mail" "" }}
+  [{{.Rec.Mail}}]
+{{ end }}
+{{ if .Rec.Get "pubkey" "" }}
+  <span class="sign" title="{{.Message.Signature}}:{{.Rec.Target}}">{{.Rec.Pubkey}}</span>
+{{ end }}
+<span class="stamp" data-stamp="{{.Rec.Stamp}}">{{.Localtime .Rec.Stamp}}</span>
+{{ if "attach" eq .Rec }}
+  <a href="{{.Thread_cgi}}/{{.Cache.Datfile}}/{{.Rec.Id}}/{{.Rec.Stamp}}.{{.Suffix}}">{{.Rec.Stamp}}.{{.Suffix}}</a>
+  ({{.toKB .Attach_size}}{{.Message.Kb}})
+{{ end }}
+</dt>
+<dd id="b{{.Sid}}">{{.Body}}
+{{ if ("remove_id" eq .Rec) and ("remove_stamp" eq .Rec) }}
+  <br />[[{{.Message.Remove}}]:
+  {{.Res_anchor  index .Rec.Remove_id 0 1 2 3 4 5 6 7 .Thread_cgi .Path}}{{index .Rec.Remove_id 0 1 2 3 4 5 6 7}}</a>]
+{{ end }}
+{{ if .Thumbnail }}
+  <br /><a href="{{.Thread_cgi}}/{{.Cache.Datfile}}/{{.Rec.Id}}/{{.Rec.Stamp}}.{{.Suffix}}">
+    <img src="/x.Gif" data-lazyimg data-src="{{.Thread_cgi}}/{{.Cache.Datfile}}/{{.Rec.Id}}/s{{.Rec.Stamp}}.{{.Thumbnail}}.{{.Suffix}}" alt="" /></a>
+{{ else}}
+  {{if ("attach" eq .Rec) and (.Suffix eq "jpg" "gif" "png") }}
+  <br /><img src="/x.Gif" data-lazyimg data-src="{{.Thread_cgi}}/{{.Cache.Datfile}}/{{.Rec.Id}}/{{.Rec.Stamp}}.{{.Suffix}}" height="210" alt="" /></a>
+{{ end }}
+{{ end }}
+</dd>

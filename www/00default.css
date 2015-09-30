@@ -1,0 +1,89 @@
+/* Saku Default CSS
+ * Copyright (c) 2005-2012 shinGETsu Project.
+ */
+body {
+    background-color: #fff;
+}
+h1, h1 a {
+    color: #00e;
+    text-decoration: none;
+}
+dt {
+    background-color: #ccf;
+}
+dt.newpost {
+    background-color: #fcc;
+}
+dd {
+    margin-bottom: 1em;
+}
+div.address {
+    text-align: center;
+    font-style: italic;
+}
+a:hover {
+    color: #000;
+    background-color: #aaf;
+}
+.name {
+    color: #000;
+    font-weight: bold;
+}
+.sign {
+    color: red;
+}
+table.solid td {
+    border: 1px solid #ccc; 
+    padding: 5px 5px 5px 1em;
+    text-align: right;
+}
+.popup > * {
+    background-color: #aff;
+}
+.popup > dl > dt,
+.popup > dl > dd {
+    padding-right: 1em;
+    padding-left: 1em;
+}
+.popup > div {
+    padding: 1em;
+}
+#preview {
+    border: 1px solid #000;
+    padding: 5px;
+    margin: 5px;
+    white-space: pre;
+}
+ul.topmenu li { 
+    display: inline;
+    margin-left: 1ex;
+}
+li .tag {
+    font-size: smaller;
+}
+.tag {
+    text-decoration: none;
+}
+.tags .tag {
+    color: red;
+}
+.sugtags .tag {
+    color: green;
+}
+p.tags, p.sugtags {
+    color: #333;
+    margin-bottom: 0;
+    margin-top: 0;
+}
+form#filterform {
+    margin-bottom: 0;
+    padding-bottom: 0;
+}
+form#tagform {
+    margin-top: 0;
+    padding-top: 0;
+}
+dd {
+    font-size: 16px;
+    font-family: "MS PGothic", Mona, IPAMonaPGothic, sans-serif;
+}

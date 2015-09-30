@@ -1,0 +1,13 @@
+{{$root:=.}}
+{#
+ # Saku Gateway Thread Tags.
+ # Copyright (c) 2007-2014 shinGETsu Project.
+ #}
+<p class="{{.Classname}}">
+{{ range $tag:=.Tags }}
+  <a href="{{.Gateway_cgi}}/{{.Target}}?tag={{.Str_encode $tag}}" class="tag">{{$tag}}</a>
+{{ end }}
+{{ if (.Classname eq "tags") and .Isadmin }}
+  <a href="{{.Admin_cgi}}/edittag?file={{.Cache.Datfile}}" class="btn">{{.Message.Edit_tag}}</a>
+{{ end }}
+</p>

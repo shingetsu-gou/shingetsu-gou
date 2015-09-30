@@ -1,0 +1,56 @@
+{{$root:=.}}
+{#
+ # Saku Gateway Index List.
+ # Copyright (c) 2005-2014 shinGETsu Project.
+ #}
+{{ if .Target }}
+  <form method="get" action="{{.Gateway_cgi}}/{{.Target}}" id="filterform" class="form-horizontal"><div>
+    <label>{{.Message.Filter}} ({{.Message.String}})<br />
+    <input name="filter" value="{{.Filter}}" class="form-control" size="40" /></label>
+    <button class="btn"><i class="glyphicon glyphicon-search"></i> {{.Message.Show}}</button>
+  </div></form>
+  <form method="get" action="{{.Gateway_cgi}}/{{.Target}}" id="tagform" class="form-search"><div>
+    <label>{{.Message.Tag}} ({{.Message.String}})<br />
+    <input name="tag" value="{{.Tag}}" class="form-control" size="40" /></label>
+    <button class="btn"><i class="glyphicon glyphicon-tag"></i> {{.Message.Show}}</button>
+  </div></form>
+{{ end }}
+
+{{ if .Isadmin }}
+  <form method="post" action="{{.Admin_cgi}}">
+  <p><input type="hidden" name="cmd" value="fdel" /></p>
+{{ end }}
+
+{{ if .Target }}
+  <p class="tags">
+  {{ range $t:=.Taglist }}
+    <a href="{{.Gateway_cgi}}/{{.Target}}?tag={{.Str_encode .T}}" class="tag">{{.T}}</a>
+  {{ end }}
+  </p>
+{{ end }}
+
+{{ range $type:=.Types }}
+  <ul id="{{$type}}_index">
+  {{ range $cache:=.Cachelist }}
+    {{ if $cache.Type eq $type }}
+      {{$root.Make_list_item $cache $root.Target $root.Search_new_file}}
+    {{ end }}
+  {{ end }}
+  </ul>
+{{ end }}
+{{ if (not .Cachelist) and (.Isfriend or .Isadmin) }}
+  <p>{{printf .Message.Empty_list .Gateway_link .Gateway_cgi "recent"}}</p>
+{{ end }}
+
+{{ if .Isadmin }}
+  <p><input type="submit" value="{{.Message.Del_file}}" class="btn" /></p>
+  </form>
+{{ end }}
+
+{{ if .Target }}
+  <p><a href="{{.Gateway_cgi}}/csv/{{.Target}}/file,stamp,date,path,uri,type,title,records,size,tag,sugtag" class="btn">CSV</a>
+  {{ if .Target eq "recent" }}
+  <a href="{{.Gateway_cgi}}/recent_rss" class="btn">RSS</a>
+  {{ end }}
+  </p>
+{{ end }}
