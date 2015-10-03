@@ -448,7 +448,9 @@ func (c *cache) search(searchlist *searchList, myself *node) bool {
 }
 
 type cacheList struct {
-	caches []*cache
+	caches  []*cache
+	key     string
+	reverse bool
 }
 
 func newCacheList() *cacheList {
@@ -459,10 +461,31 @@ func newCacheList() *cacheList {
 	return c
 }
 
+func (c *cacheList) sort(key string, reverse bool) {
+	c.key = key
+	if !reverse {
+		sort.Sort(c)
+	} else {
+		sort.Sort(sort.Reverse(c))
+	}
+}
+
 func (c *cacheList) append(cc *cache) {
 	c.caches = append(c.caches, cc)
 }
-
+func (c *cacheList) Less(i, j int) bool {
+	switch c.key {
+	case "validStamp":
+		return c.caches[i].validStamp < c.caches[j].validStamp
+	case "velocity_count":
+		if c.caches[i].velocity != c.caches[j].velocity {
+			return c.caches[i].velocity < c.caches[j].velocity
+		}
+		return c.caches[i].count < c.caches[j].count
+	}
+	log.Fatal(c.key, "is invalid for sort key")
+	return false
+}
 func (c *cacheList) Len() int {
 	return len(c.caches)
 }
@@ -573,12 +596,21 @@ func (c *cacheList) getall(timelimit int64) {
 	}
 }
 
-func (c *cacheList) search(query *regexp.Regexp) []*cache {
+type caches []*cache
+
+func (c caches) Get(i int) string {
+	return c[i].datfile
+}
+func (c caches) Len() int {
+	return len(c)
+}
+
+func (c *cacheList) search(query *regexp.Regexp) caches {
 	result := make([]*cache, 0)
 	for _, ca := range c.caches {
 		for _, rec := range ca.recs {
 			rec.loadBody()
-			if query.Match([]byte(rec.recstr)) {
+			if query.MatchString(rec.recstr) {
 				result = append(result, ca)
 				rec.free()
 				break

@@ -30,6 +30,7 @@ package gou
 
 import (
 	"bufio"
+	"bytes"
 	"crypto/md5"
 	"encoding/hex"
 	"fmt"
@@ -39,8 +40,10 @@ import (
 	"log"
 	"math/rand"
 	"mime"
+	"net/url"
 	"os"
 	"path/filepath"
+	"regexp"
 	"sort"
 	"strings"
 )
@@ -48,6 +51,54 @@ import (
 func md5digest(dat string) string {
 	sum := md5.Sum([]byte(dat))
 	return hex.EncodeToString(sum[:])
+}
+
+func strEncode(query string) string {
+	str := url.QueryEscape(query)
+	return strings.Replace(str, "~", "%7E", -1)
+}
+
+func escapeSpace(msg string) string {
+	msg = strings.Replace(msg, "  ", "&nbsp;&nbsp;", -1)
+	msg = strings.Replace(msg, "<br> ", "<br>&nbsp;", -1)
+	reg := regexp.MustCompile("^ ")
+	msg = string(reg.ReplaceAllString(msg, "&nbsp;"))
+	reg = regexp.MustCompile(" $")
+	msg = string(reg.ReplaceAllString(msg, "&nbsp;"))
+	msg = strings.Replace(msg, "<br>", "<br />\n", -1)
+	return msg
+}
+
+func cgiEscape(msg string, quote bool) string {
+	msg = strings.Replace(msg, "&", "&amp;", -1)
+	msg = strings.Replace(msg, "<", "&lt", -1)
+	msg = strings.Replace(msg, ">", "&gt;", -1)
+	if quote {
+		msg = strings.Replace(msg, "\"", "&guote;", -1)
+	}
+	return msg
+}
+
+func escape(msg string) string {
+	if msg == "" {
+		return ""
+	}
+	msg = strings.Replace(msg, "&", "&amp;", -1)
+	reg := regexp.MustCompile("&amp;(#\\d+|#[Xx][0-9A-Fa-f]+|[A-Za-z0-9]+);")
+	msg = string(reg.ReplaceAllString(msg, "&\\1;"))
+	msg = strings.Replace(msg, "<", "&lt", -1)
+	msg = strings.Replace(msg, ">", "&gt;", -1)
+	msg = strings.Replace(msg, "\r", "", -1)
+	msg = strings.Replace(msg, "\n", "<br>", -1)
+	return msg
+}
+
+func strDecode(query string) string {
+	str, err := url.QueryUnescape(query)
+	if err != nil {
+		return ""
+	}
+	return str
 }
 
 //from spam.py
@@ -185,23 +236,22 @@ func writeMap(path string, ary map[string][]string) error {
 	return nil
 }
 
-func executeTemplate(file string, st interface{}, wr io.Writer) {
-	basename := template_dir + "/" + file + "/" + template_suffix
+func renderTemplate(file string, st interface{}, wr io.Writer) {
+	basename := template_dir + "/" + file + template_suffix
 	tpl, err := template.ParseFiles(basename)
 	if err != nil {
 		log.Println(err)
 		return
 	}
-	funcMap := template.FuncMap{
-		"add":  func(a, b int) int { return a + b },
-		"mul":  func(a, b int) int { return a * b },
-		"toKB": func(a int) float64 { return float64(a) / 1024 },
-		"toMB": func(a int) float64 { return float64(a) / (1024 * 1024) },
-	}
-	tpl.Funcs(funcMap)
 	if err := tpl.Execute(wr, st); err != nil {
 		fmt.Println(err)
 	}
+}
+
+func executeTemplate(file string, st interface{}) string {
+	var doc bytes.Buffer
+	renderTemplate(file, st, &doc)
+	return doc.String()
 }
 
 func eachFiles(dir string, handler func(dir os.FileInfo) error) error {
@@ -262,9 +312,9 @@ func moveFile(dst, src string) error {
 	return os.Remove(src)
 }
 
-type shufflable interface{
+type shufflable interface {
 	Len() int
-	Swap(i int,j int)
+	Swap(i int, j int)
 }
 
 func shuffle(slc shufflable) {

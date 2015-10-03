@@ -70,6 +70,13 @@ func newUpdateList(updateFile string, updateRange int64) *updateList {
 func (u *updateList) append(r *record) {
 	u.tiedlist = append(u.tiedlist, r)
 }
+func (u *updateList) Less(i, j int) bool {
+	return u.tiedlist[i].stamp < u.tiedlist[j].stamp
+}
+
+func (u *updateList) Swap(i, j int) {
+	u.tiedlist[i], u.tiedlist[j] = u.tiedlist[j], u.tiedlist[i]
+}
 
 func (u *updateList) Len() int {
 	return len(u.tiedlist)

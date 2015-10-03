@@ -32,6 +32,7 @@ import (
 	"html"
 	"io"
 	"log"
+	"sort"
 	"strings"
 	"time"
 )
@@ -72,7 +73,7 @@ type rss struct {
 	uri         string
 	description string
 	xsl         string
-	items       []*item
+	items       map[string]*item
 }
 
 func newRss(encode, lang, title, parent, link, uri, description, xsl string) *rss {
@@ -85,7 +86,7 @@ func newRss(encode, lang, title, parent, link, uri, description, xsl string) *rs
 		xsl:         xsl,
 		link:        link,
 		uri:         uri,
-		items:       make([]*item, 0),
+		items:       make(map[string]*item),
 	}
 	if parent != "" && parent[len(parent)-1] != '/' {
 		r.parent += "/"
@@ -104,17 +105,29 @@ func (r *rss) append(link, title, creator, description, content string, subject 
 		link = r.parent + link
 	}
 	i := newItem(link, title, creator, description, content, subject, date)
-	r.items = append(r.items, i)
+	r.items[link] = i
+}
+func (r *rss) keys() []string {
+	items := make([]string, len(r.items))
+	i := 0
+	for k, _ := range r.items {
+		items[i] = k
+		i++
+	}
+	sort.Strings(items)
+	return items
 }
 
-func (r *rss) make(wr io.Writer) {
+func (r *rss) makeRSS1(wr io.Writer) {
 	items := make([]*item, len(r.items))
-	for i, it := range r.items {
-		items[i] = it
+	i := 0
+	for _, v := range r.items {
+		items[i] = v
+		i++
 	}
 
 	param := rssParam{r, items}
-	executeTemplate("rss1", param, wr)
+	renderTemplate("rss1", param, wr)
 }
 
 type rssParam struct {

@@ -54,6 +54,16 @@ func newJsCache(path string) *jsCache {
 	return j
 }
 
+func (j *jsCache) getLatest() int64 {
+	var l *time.Time
+	for _, v := range j.files {
+		if l == nil || v.mtime.After(*l) {
+			l = v.mtime
+		}
+	}
+	return l.Unix()
+}
+
 func (j *jsCache) getContent() string {
 	j.update()
 	var cont string

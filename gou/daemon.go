@@ -121,5 +121,6 @@ func StartDaemon() {
 	}
 	sm.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
 	})
+	
 	log.Fatal(s.ListenAndServe())
 }

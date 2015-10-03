@@ -76,7 +76,6 @@ func primize(x *big.Int) *big.Int {
 			x.Add(x, tmp.SetInt64(2))
 		}
 	}
-	return x
 }
 
 type privateKey struct {

@@ -72,9 +72,8 @@ func newNode(nodestr string) *node {
 		log.Fatal("nodestr must not empty")
 	}
 	nodestr = strings.Trim(nodestr, " \n\r")
-	r := regexp.MustCompile("\\d+/[^: ]+$")
-	if !r.Match([]byte(nodestr)) {
-		log.Fatal("bad format")
+	if match, err := regexp.MatchString("\\d+/[^: ]+$", nodestr); !match || err != nil {
+		log.Fatal("bad format", err)
 	}
 	n.nodestr = strings.Replace(nodestr, "+", "/", -1)
 	return n
@@ -98,7 +97,7 @@ func (n *node) talk(message string) ([]string, error) {
 	if !strings.HasPrefix(message, "/get") {
 		timeout = get_timeout
 	} else {
-		timeout = timeout
+		timeout = default_timeout
 	}
 
 	message = "http://" + n.nodestr + message

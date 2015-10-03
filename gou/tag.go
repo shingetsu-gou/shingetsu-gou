@@ -32,7 +32,6 @@ import (
 	"log"
 	"sort"
 	"strings"
-	"sync"
 )
 
 var tagCache = make(map[string]*tagList)
@@ -46,7 +45,6 @@ type tagList struct {
 	datfile string
 	path    string
 	tags    []*tag
-	mutex   sync.Mutex
 }
 
 func (a tagList) Len() int {
@@ -90,35 +88,39 @@ func tagSliceTostringSlice(tags []*tag) []string {
 	return result
 }
 
+func (t *tagList) string() string {
+	var result string
+	for _, v := range t.tags {
+		result += v.tagstr
+	}
+	return result
+
+}
+
 func (t *tagList) checkAppend(val string) {
-	t.mutex.Lock()
-	defer t.mutex.Unlock()
 	if strings.ContainsAny(val, "<>&") || hasString(t, val) {
 		return
 	}
 	t.tags = append(t.tags, &tag{val, 1})
 }
 
-func (t *tagList) update(val []*tag) {
-	t.mutex.Lock()
-	defer t.mutex.Unlock()
+func (t *tagList) update(val []string) {
 	t.tags = t.tags[:0]
 	for _, v := range val {
-		t.tags = append(t.tags, v)
+		ta := &tag{
+			tagstr: v,
+		}
+		t.tags = append(t.tags, ta)
 	}
 }
 
 func (t *tagList) addString(vals []string) {
-	t.mutex.Lock()
-	defer t.mutex.Unlock()
 	for _, val := range vals {
 		t.checkAppend(val)
 	}
 }
 
 func (t *tagList) add(vals []*tag) {
-	t.mutex.Lock()
-	defer t.mutex.Unlock()
 	for _, val := range vals {
 		if i := findString(t, val.tagstr); i >= 0 {
 			t.tags[i].weight++
@@ -129,8 +131,6 @@ func (t *tagList) add(vals []*tag) {
 }
 
 func (t *tagList) sync() error {
-	t.mutex.Lock()
-	defer t.mutex.Unlock()
 	return writeSlice(t.path, t)
 }
 
@@ -239,7 +239,7 @@ func (u *userTagList) sync() {
 }
 func (u *userTagList) updateAll() {
 	cachelist := newCacheList()
-	u.update([]*tag{})
+	u.update([]string{})
 	for _, c := range cachelist.caches {
 		u.add(c.tags.tags)
 	}

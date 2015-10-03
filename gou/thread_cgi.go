@@ -31,6 +31,6 @@ package gou
 import "net/http"
 
 func threadSetup(s *http.ServeMux) {
-	s.HandleFunc("/thread.cgi", func(w http.ResponseWriter, r *http.Request) {
+	s.HandleFunc("/thread.cgi/", func(w http.ResponseWriter, r *http.Request) {
 	})
 }

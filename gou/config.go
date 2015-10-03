@@ -40,30 +40,30 @@ import (
 )
 
 const (
-	client_cycle        = 5 * time.Minute  // Seconds; Access client.cgi
-	ping_cycle          = 5 * time.Minute  // Seconds; Check nodes
-	sync_cycle          = 5 * time.Hour    // Seconds; Check cache
-	init_cycle          = 20 * time.Minute // Seconds; Check initial node
-	update_range        = 24 * time.Hour   // Seconds
-	wait_update         = 10 * time.Second // Seconds
-	time_error          = 60 * time.Second // Seconds
-	search_timeout      = 10 * time.Minute // Seconds
-	timeout             = 20 * time.Second // Seconds; Timeout for TCP
-	get_timeout         = 2 * time.Minute  // Seconds; Timeout for /get
-	client_timeout      = 30 * time.Minute // Seconds; client_timeout < sync_cycle
-	tk_save_warn        = 5 * time.Minute  // Seconds
-	retry               = 5                // Times; Common setting
-	retry_join          = 2                // Times; Join network
-	default_nodes       = 5                // Nodes keeping in node list
-	share_nodes         = 5                // Nodes having the file
-	search_depth        = 30               // Search node size
-	tiedfile_cache_size = 30
+	client_cycle                = 5 * time.Minute  // Seconds; Access client.cgi
+	ping_cycle                  = 5 * time.Minute  // Seconds; Check nodes
+	sync_cycle                  = 5 * time.Hour    // Seconds; Check cache
+	init_cycle                  = 20 * time.Minute // Seconds; Check initial node
+	update_range                = 24 * time.Hour   // Seconds
+	wait_update                 = 10 * time.Second // Seconds
+	time_error                  = 60 * time.Second // Seconds
+	search_timeout              = 10 * time.Minute // Seconds
+	default_timeout = 20 * time.Second // Seconds; Timeout for TCP
+	get_timeout                 = 2 * time.Minute  // Seconds; Timeout for /get
+	client_timeout              = 30 * time.Minute // Seconds; client_timeout < sync_cycle
+	tk_save_warn                = 5 * time.Minute  // Seconds
+	retry                       = 5                // Times; Common setting
+	retry_join                  = 2                // Times; Join network
+	default_nodes               = 5                // Nodes keeping in node list
+	share_nodes                 = 5                // Nodes having the file
+	search_depth                = 30               // Search node size
+	tiedfile_cache_size         = 30
 
 	broadcast_py = "../tool/broadcast.py" // Broadcast script path
 
-	rss_version = "1" // RSS version; must be "1"
-	google      = "http://www.google.co.jp/search"
-	language    = "en" // Language code (see RFC3066)
+	rss_version      = "1" // RSS version; must be "1"
+	google           = "http://www.google.co.jp/search"
+	default_language = "en" // Language code (see RFC3066)
 
 	// regexp
 	robot = "Google|bot|Yahoo|archiver|Wget|Crawler|Yeti|Baidu"
@@ -144,6 +144,7 @@ var (
 	force_thumbnail  = setting.getBoolValue("Application Thread", "force_thumbnail", false)
 
 	root_index  = setting.getStringValue("Gateway", "root_index", gateway_cgi)
+	application = map[string]string{"thread": thread_cgi}
 	use_cookie  = true
 	save_cookie = 7 * 24 * time.Hour
 	// Seconds

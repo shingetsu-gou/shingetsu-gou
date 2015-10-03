@@ -29,6 +29,7 @@
 package gou
 
 import (
+	"strconv"
 	"log"
 	"strings"
 	"sync"
@@ -47,8 +48,8 @@ func newUpdateQue() *updateQue {
 	return u
 }
 
-func (u *updateQue) append(datfile, stamp, id string, n *node) {
-	key := strings.Join([]string{stamp, id, datfile}, "<>")
+func (u *updateQue) append(datfile string, stamp int64, id string, n *node) {
+	key := strings.Join([]string{strconv.FormatInt(stamp,10), id, datfile}, "<>")
 	if u.queue[key] == nil {
 		u.queue[key] = make([]*node, 0)
 	}

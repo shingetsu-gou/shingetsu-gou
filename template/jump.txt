@@ -4,5 +4,5 @@
  #}
 <p>Click and jump to <a href="{{.Escape_simple .Next}}">{{.Escape_simple .Next}}</a></p>
 <script type="text/javascript">//<![CDATA[
-    window.location.href = "{{.escape_js .Nnext}}";
+    window.location.href = "{{.escape_js .Next}}";
 //]]></script>
