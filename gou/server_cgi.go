@@ -38,49 +38,51 @@ import (
 	"strconv"
 	"strings"
 	"time"
+
+	"github.com/gorilla/handlers"
 )
 
 func serverSetup(s *http.ServeMux) {
-	s.HandleFunc("/server.cgi/ping", func(w http.ResponseWriter, r *http.Request) {
+	s.Handle("/server.cgi/ping", handlers.CompressHandler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		a := newServerCGI(w, r)
 		a.doPing()
-	})
-	s.HandleFunc("/server.cgi/node", func(w http.ResponseWriter, r *http.Request) {
+	})))
+	s.Handle("/server.cgi/node", handlers.CompressHandler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		a := newServerCGI(w, r)
 		a.doNode()
-	})
-	s.HandleFunc("/server.cgi/join", func(w http.ResponseWriter, r *http.Request) {
+	})))
+	s.Handle("/server.cgi/join", handlers.CompressHandler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		a := newServerCGI(w, r)
 		a.doJoin()
-	})
-	s.HandleFunc("/server.cgi/bye", func(w http.ResponseWriter, r *http.Request) {
+	})))
+	s.Handle("/server.cgi/bye", handlers.CompressHandler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		a := newServerCGI(w, r)
 		a.doBye()
-	})
-	s.HandleFunc("/server.cgi/have", func(w http.ResponseWriter, r *http.Request) {
+	})))
+	s.Handle("/server.cgi/have", handlers.CompressHandler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		a := newServerCGI(w, r)
 		a.doHave()
-	})
-	s.HandleFunc("/server.cgi/get", func(w http.ResponseWriter, r *http.Request) {
+	})))
+	s.Handle("/server.cgi/get", handlers.CompressHandler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		a := newServerCGI(w, r)
 		a.doGetHead()
-	})
-	s.HandleFunc("/server.cgi/head", func(w http.ResponseWriter, r *http.Request) {
+	})))
+	s.Handle("/server.cgi/head", handlers.CompressHandler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		a := newServerCGI(w, r)
 		a.doGetHead()
-	})
-	s.HandleFunc("/server.cgi/update", func(w http.ResponseWriter, r *http.Request) {
+	})))
+	s.Handle("/server.cgi/update", handlers.CompressHandler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		a := newServerCGI(w, r)
 		a.doUpdate()
-	})
-	s.HandleFunc("/server.cgi/recent", func(w http.ResponseWriter, r *http.Request) {
+	})))
+	s.Handle("/server.cgi/recent", handlers.CompressHandler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		a := newServerCGI(w, r)
 		a.doRecent()
-	})
-	s.HandleFunc("/server.cgi/", func(w http.ResponseWriter, r *http.Request) {
+	})))
+	s.Handle("/server.cgi/", handlers.CompressHandler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		a := newServerCGI(w, r)
 		a.doMotd()
-	})
+	})))
 }
 
 type serverCGI struct {
@@ -275,7 +277,7 @@ func (s *serverCGI) doRecent() {
 			if ca.tags != nil {
 				tagstr = "tag:" + ca.tags.string()
 			}
-			line := fmt.Sprintf("%s<>%s<>%s%s\n", i.stamp, i.id, i.datfile, tagstr)
+			line := fmt.Sprintf("%d<>%s<>%s%s\n", i.stamp, i.id, i.datfile, tagstr)
 			fmt.Fprintf(s.wr, line)
 		}
 	}
@@ -318,7 +320,6 @@ func (s *serverCGI) parseStamp(stamp string, last int64) (int64, int64, string) 
 	default:
 		return nstamp, nid, id
 	}
-	return 0, 0, ""
 }
 
 func (s *serverCGI) doGetHead() {

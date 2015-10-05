@@ -29,22 +29,14 @@
 package gou
 
 import (
-	"bufio"
-	"bytes"
 	"crypto/md5"
 	"encoding/hex"
-	"fmt"
-	"html/template"
-	"io"
 	"io/ioutil"
 	"log"
-	"math/rand"
 	"mime"
 	"net/url"
-	"os"
 	"path/filepath"
 	"regexp"
-	"sort"
 	"strings"
 )
 
@@ -144,184 +136,56 @@ func isValidImage(mimetype, path string) bool {
 	return false
 }
 
-func eachIOLine(f io.ReadCloser, handler func(line string, num int) error) error {
-	defer f.Close()
-	scanner := bufio.NewScanner(f)
-	for i := 0; scanner.Scan(); i++ {
-		err := handler(scanner.Text(), i)
-		if err != nil {
-			return err
-		}
-	}
-	return scanner.Err()
+//from mch/util.py
+
+func saveTag(ca *cache, userTag string) {
+	ca.tags.update([]string{userTag})
+	ca.tags.sync()
+	utl := newUserTagList()
+	utl.sync()
 }
 
-func eachLine(path string, handler func(line string, num int) error) error {
-	f, err := os.Open(path)
+func getBoard(url string) string {
+	reg := regexp.MustCompile("/2ch_([^/]+)/")
+	m := reg.FindStringSubmatch(url)
+	if m == nil {
+		return ""
+	}
+	board, _ := fileDecode("dummy_" + m[1])
+	return board
+}
+
+
+//from title.py
+
+
+//Encode for filename.
+//    >>> file_encode('foo', 'a')
+//    'foo_61'
+//    >>> file_encode('foo', '~')
+//    'foo_7E'
+func fileEncode(t, query string) string {
+	return t + "_" + strings.ToUpper(hex.EncodeToString([]byte(query)))
+}
+
+//Decode file type.
+//    >>> file_decode_type('thread_41')
+//    'thread'
+func fileDecode(query string) (string, string) {
+	strs := strings.Split(query, "_")
+	if len(strs) < 2 {
+		return "", ""
+	}
+	b, err := hex.DecodeString(strs[1])
+	sb := string(b)
 	if err != nil {
-		return err
+		log.Println("illegal file name", query)
+		sb = ""
 	}
-	return eachIOLine(f, handler)
+	return strs[0], sb
 }
 
-func eachKeyValueLine(path string, handler func(key string, value []string, num int) error) error {
-	err := eachLine(path, func(line string, i int) error {
-		kv := strings.Split(line, "<>")
-		if len(kv) != 2 {
-			log.Fatal("illegal line in", lookup)
-		}
-		vs := strings.Split(kv[1], " ")
-		err := handler(kv[0], vs, i)
-		return err
-	})
-	return err
-}
-
-type stringerSlice interface {
-	Len() int
-	Get(int) string
-}
-
-type stringSlice []string
-
-func (s stringSlice) Len() int {
-	return len(s)
-}
-
-func (s stringSlice) Get(i int) string {
-	return s[i]
-}
-
-func hasString(ary stringerSlice, val string) bool {
-	return findString(ary, val) != -1
-}
-
-func findString(ary stringerSlice, val string) int {
-	for i := 0; i < ary.Len(); i++ {
-		if ary.Get(i) == val {
-			return i
-		}
-	}
-	return -1
-}
-
-func writeSlice(path string, ary stringerSlice) error {
-	f, err := os.Create(path)
-	if err != nil {
-		return err
-	}
-	defer f.Close()
-	for i := 0; i < ary.Len(); i++ {
-		f.WriteString(ary.Get(i) + "\n")
-	}
-	return nil
-}
-
-func writeMap(path string, ary map[string][]string) error {
-	f, err := os.Create(path)
-	if err != nil {
-		return err
-	}
-	defer f.Close()
-	for k, v := range ary {
-		f.WriteString(k + "<>")
-		for i, s := range v {
-			f.WriteString(s)
-			if i != len(v)-1 {
-				f.WriteString(" ")
-			}
-		}
-		f.WriteString("\n")
-	}
-	return nil
-}
-
-func renderTemplate(file string, st interface{}, wr io.Writer) {
-	basename := template_dir + "/" + file + template_suffix
-	tpl, err := template.ParseFiles(basename)
-	if err != nil {
-		log.Println(err)
-		return
-	}
-	if err := tpl.Execute(wr, st); err != nil {
-		fmt.Println(err)
-	}
-}
-
-func executeTemplate(file string, st interface{}) string {
-	var doc bytes.Buffer
-	renderTemplate(file, st, &doc)
-	return doc.String()
-}
-
-func eachFiles(dir string, handler func(dir os.FileInfo) error) error {
-	dirs, err := ioutil.ReadDir(dir)
-	if err != nil {
-		return err
-	}
-	for _, i := range dirs {
-		if err := handler(i); err != nil {
-			return err
-		}
-	}
-	return nil
-}
-
-func isFile(path string) bool {
-	fs, err := os.Stat(path)
-	if err != nil {
-		return false
-	}
-	return !fs.IsDir()
-}
-
-func isDir(path string) bool {
-	fs, err := os.Stat(path)
-	if err != nil {
-		return false
-	}
-	return fs.IsDir()
-}
-
-func sortKeys(m map[string]string) []string {
-	mk := make([]string, len(m))
-	i := 0
-	for k, _ := range m {
-		mk[i] = k
-		i++
-	}
-	sort.Strings(mk)
-	return mk
-}
-
-func moveFile(dst, src string) error {
-	in, err := os.Open(src)
-	if err != nil {
-		return err
-	}
-	defer in.Close()
-	out, err := os.Create(dst)
-	if err != nil {
-		return err
-	}
-	defer out.Close()
-	_, err = io.Copy(out, in)
-	if err != nil {
-		return err
-	}
-	return os.Remove(src)
-}
-
-type shufflable interface {
-	Len() int
-	Swap(i int, j int)
-}
-
-func shuffle(slc shufflable) {
-	N := slc.Len()
-	for i := 0; i < N; i++ {
-		// choose index uniformly in [i, N-1]
-		r := i + rand.Intn(N-i)
-		slc.Swap(r, i)
-	}
+//not implement except 'asis'
+func fileHash(query string) string {
+	return query
 }

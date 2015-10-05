@@ -39,100 +39,102 @@ import (
 	"strconv"
 	"strings"
 	"time"
+
+	"github.com/gorilla/handlers"
 )
 
 func gatewaySetup(s *http.ServeMux) {
-	s.HandleFunc("/gateway.cgi/motd", func(w http.ResponseWriter, r *http.Request) {
+	s.Handle("/gateway.cgi/motd", handlers.CompressHandler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		a := newGatewayCGI(w, r)
 		if a == nil {
 			return
 		}
 		a.printMotd()
-	})
-	s.HandleFunc("/gateway.cgi/mergedjs", func(w http.ResponseWriter, r *http.Request) {
+	})))
+	s.Handle("/gateway.cgi/mergedjs", handlers.CompressHandler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		a := newGatewayCGI(w, r)
 		if a == nil {
 			return
 		}
 		a.printMergedJS()
-	})
-	s.HandleFunc("/gateway.cgi/rss", func(w http.ResponseWriter, r *http.Request) {
+	})))
+	s.Handle("/gateway.cgi/rss", handlers.CompressHandler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		a := newGatewayCGI(w, r)
 		if a == nil {
 			return
 		}
 		a.printRSS()
-	})
-	s.HandleFunc("/gateway.cgi/recent_rss", func(w http.ResponseWriter, r *http.Request) {
+	})))
+	s.Handle("/gateway.cgi/recent_rss", handlers.CompressHandler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		a := newGatewayCGI(w, r)
 		if a == nil {
 			return
 		}
 		a.printRecentRSS()
-	})
-	s.HandleFunc("/gateway.cgi/index", func(w http.ResponseWriter, r *http.Request) {
+	})))
+	s.Handle("/gateway.cgi/index", handlers.CompressHandler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		a := newGatewayCGI(w, r)
 		if a == nil {
 			return
 		}
 		a.printIndex()
-	})
-	s.HandleFunc("/gateway.cgi/changes", func(w http.ResponseWriter, r *http.Request) {
+	})))
+	s.Handle("/gateway.cgi/changes", handlers.CompressHandler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		a := newGatewayCGI(w, r)
 		if a == nil {
 			return
 		}
 		a.printChanges()
-	})
-	s.HandleFunc("/gateway.cgi/recent", func(w http.ResponseWriter, r *http.Request) {
+	})))
+	s.Handle("/gateway.cgi/recent", handlers.CompressHandler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		a := newGatewayCGI(w, r)
 		if a == nil {
 			return
 		}
 		a.printRecent()
-	})
-	s.HandleFunc("/gateway.cgi/new", func(w http.ResponseWriter, r *http.Request) {
+	})))
+	s.Handle("/gateway.cgi/new", handlers.CompressHandler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		a := newGatewayCGI(w, r)
 		if a == nil {
 			return
 		}
 		a.printNew()
-	})
-	s.HandleFunc("/gateway.cgi/thread", func(w http.ResponseWriter, r *http.Request) {
+	})))
+	s.Handle("/gateway.cgi/thread", handlers.CompressHandler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		a := newGatewayCGI(w, r)
 		if a == nil {
 			return
 		}
 		a.printThread()
-	})
-	s.HandleFunc("/gateway.cgi/", func(w http.ResponseWriter, r *http.Request) {
+	})))
+	s.Handle("/gateway.cgi/", handlers.CompressHandler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		a := newGatewayCGI(w, r)
 		if a == nil {
 			return
 		}
 		a.printTitle()
-	})
-	s.HandleFunc("/gateway.cgi/csv/index/", func(w http.ResponseWriter, r *http.Request) {
+	})))
+	s.Handle("/gateway.cgi/csv/index/", handlers.CompressHandler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		a := newGatewayCGI(w, r)
 		if a == nil {
 			return
 		}
 		a.printCSVIndex()
-	})
-	s.HandleFunc("/gateway.cgi/csv/changes/", func(w http.ResponseWriter, r *http.Request) {
+	})))
+	s.Handle("/gateway.cgi/csv/changes/", handlers.CompressHandler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		a := newGatewayCGI(w, r)
 		if a == nil {
 			return
 		}
 		a.printCSVChanges()
-	})
-	s.HandleFunc("/gateway.cgi/csv/recent/", func(w http.ResponseWriter, r *http.Request) {
+	})))
+	s.Handle("/gateway.cgi/csv/recent/", handlers.CompressHandler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		a := newGatewayCGI(w, r)
 		if a == nil {
 			return
 		}
 		a.printCSVRecent()
-	})
+	})))
 }
 
 type gatewayCGI struct {
@@ -154,7 +156,7 @@ func newGatewayCGI(w http.ResponseWriter, r *http.Request) *gatewayCGI {
 		c.strTag = cgiEscape(tag, true)
 	}
 	c.host = server_name
-	if c.host != "" {
+	if c.host == "" {
 		c.host = r.Host
 	}
 	if !c.checkVisitor() {

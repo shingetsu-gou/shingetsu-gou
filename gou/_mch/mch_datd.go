@@ -26,9 +26,9 @@
  * POSSIBILITY OF SUCH DAMAGE.
  */
 
-package mch
+package gou
 
 import "net/http"
 
-func Setup(s *http.ServeMux) {
+func mchSetup(s *http.ServeMux) {
 }

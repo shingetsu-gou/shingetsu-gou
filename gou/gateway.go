@@ -247,7 +247,7 @@ func (c *cgi) makeListItem(ca *cache, remove bool, target string, search bool) s
 			cacheTags = append(cacheTags, ca.sugtags.tags...)
 		}
 		for _, t := range cacheTags {
-			if strings.ToLower(t.tagstr) == c.tag{
+			if strings.ToLower(t.tagstr) == c.tag {
 				matchtag = true
 				break
 			}
@@ -375,7 +375,7 @@ type Header struct {
 	Menu      Menubar
 }
 
-func (c *cgi) header(title, rss string, cookie *http.Cookie, denyRobot bool, menu *Menubar) {
+func (c *cgi) header(title, rss string, cookie []*http.Cookie, denyRobot bool, menu *Menubar) {
 	if rss == "" {
 		rss = gateway_cgi + "/rss"
 	}
@@ -396,11 +396,15 @@ func (c *cgi) header(title, rss string, cookie *http.Cookie, denyRobot bool, men
 		CSS:             c.extension("css", false),
 		Menu:            *menu,
 	}
-	http.SetCookie(c.wr, cookie)
+	if cookie != nil {
+		for _, co := range cookie {
+			http.SetCookie(c.wr, co)
+		}
+	}
 	renderTemplate("header", h, c.wr)
 }
 
-func (c *cgi) resAnchor(id, appli string, title string, absuri bool) string {
+func (c *cgi) ResAnchor(id, appli string, title string, absuri bool) string {
 	title = strEncode(title)
 	var prefix, innerlink string
 	if absuri {
@@ -423,7 +427,7 @@ func (c *cgi) htmlFormat(plain, appli string, title string, absuri bool) string 
 	buf = reg.ReplaceAllString(buf, "<a href=\"\\g<0>\">\\g<0></a>")
 	reg = regexp.MustCompile("(&gt;&gt;)([0-9a-f]{8})")
 	id := reg.ReplaceAllString(buf, "\\2")
-	buf = reg.ReplaceAllString(buf, c.resAnchor(id, appli, title, absuri)+"\\g<0></a>")
+	buf = reg.ReplaceAllString(buf, c.ResAnchor(id, appli, title, absuri)+"\\g<0></a>")
 
 	var tmp string
 	reg = regexp.MustCompile("\\[\\[([^<>]+?)\\]\\]")
@@ -755,6 +759,24 @@ func (c *cgi) printIndexList(cl *cacheList, target string, footer bool, searchNe
 		c.printNewElementForm()
 		c.footer(nil)
 	}
+}
+
+func (c *cgi) checkGetCache() bool {
+	if !c.isAdmin && !c.isFriend {
+		return false
+	}
+	reg, err := regexp.Compile(robot)
+	if err != nil {
+		log.Print(err)
+		return false
+	}
+	if reg.MatchString(c.req.Header.Get("User-Agent")) {
+		return false
+	}
+	if c.lock() {
+		return true
+	}
+	return false
 }
 
 func (c *cgi) checkVisitor() bool {

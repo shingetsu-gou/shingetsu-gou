@@ -29,38 +29,54 @@
 package gou
 
 import (
-	"encoding/hex"
-	"log"
-	"strings"
+	"errors"
+	"net/http"
+	"time"
+
+	"github.com/axgle/mahonia"
 )
 
-//Encode for filename.
-//    >>> file_encode('foo', 'a')
-//    'foo_61'
-//    >>> file_encode('foo', '~')
-//    'foo_7E'
-func fileEncode(t, query string) string {
-	return t + "_" + strings.ToUpper(hex.EncodeToString([]byte(query)))
+var spamError = errors.New("this is spam")
+
+func postComment(threadKey, name, mail, body, passwd, tag string) error {
+	stamp := time.Now().Unix()
+	recbody := make(map[string]string)
+	recbody["body"] = cgiEscape(body, true)
+	recbody["name"] = cgiEscape(name, true)
+	recbody["mail"] = cgiEscape(mail, true)
+
+	c := newCache(threadKey, nil, nil)
+	rec := newRecord(c.datfile, "")
+	id := rec.build(stamp, recbody, passwd)
+	if spamCheck(rec.recstr) {
+		return spamError
+	}
+	c.addData(rec, false)
+	c.syncStatus()
+	if tag != "" {
+		saveTag(c, tag)
+	}
+	queue.append(c.datfile, stamp, id, nil)
+	queue.run()
+	return nil
 }
 
-//Decode file type.
-//    >>> file_decode_type('thread_41')
-//    'thread'
-func fileDecode(query string) (string, string) {
-	strs := strings.Split(query, "_")
-	if len(strs) < 2 {
-		return "", ""
+func errorResp(msg string, wr http.ResponseWriter, host, name, mail, body string) string {
+	info := map[string]string{
+		"Message": msg,
+		"Host":    host,
+		"Name":    name,
+		"Mail":    mail,
+		"Body":    body,
 	}
-	b, err := hex.DecodeString(strs[1])
-	sb := string(b)
-	if err != nil {
-		log.Println("illegal file name", query)
-		sb = ""
-	}
-	return strs[0], sb
+	str := executeTemplate("2ch_error", info)
+	wr.Header().Set("Content-Type", "text/html; charset=Shift_JIS")
+	return mahonia.NewEncoder("cp932").ConvertString(str)
 }
 
-//not implement except 'asis'
-func fileHash(query string) string {
-	return query
+var successMsg = `<html lang="ja"><head><meta http-equiv="Content-Type" content="text/html"><title>書きこみました。</title></head>
+<body>書きこみが終わりました。<br><br></body></html>`
+
+func getCommentData(env map[string]string) []string {
+
 }

@@ -4,12 +4,18 @@ go:
   - 1.4
   - 1.5
 
+env:
+  global:
+    - secure: "VcYaGIZXbzyc1mwYk0PHiFrg84xP6ItXpuA129iGaqKotYFdNuCeeS05apLEqBv/MNohgDybvvzqNrvUCjL4DL66fSQjxkVDq2WyT504i6ITZQ9S5KOU1aXLCAkhc4MYYHew7jJlo8wHFh70c3fErXUq/QrrG0mrCY7a9q7BvwR6W71nHjzN/pzojZd4HjYv1wDg6uvFVzpK/NQBHhYO+RGRERV9xlWqyIRhTMV8zU25jxH8OTg/aYnkUsNL7jINE27Y73DAowmuUrQ0jRhCmwq2N1CzBYAc8gjcoEKMceYYGO5mW1UCovfR1GjnK21pJM+FdfUjJ6CUgQrbAJgdCWdPnc+Lm/cZ6ICCuevJGdfBUvaDHcN7EIy7sLYwY00GCdhZP401n1wBDLizLxgINlk9E/hQ/dYhGLlOwdg0GNhaz/b3FpaeS9an9iSbO050xqtEJNZpiSoaKY7xkDD06P9q6j0fVau6YpGJnpFN+FTqd4F57XKccHEj02mSqHqiCgl+tivVpyJuzEes/rfUePCxqRzuuptq1Ak32U7rn7PwD4uhdYyLOPNy3+S/GOYSHl8n53ZKMtn0hFaNNlahjxzEwnqdq7OzDmTcs6I5+eHpCFs2rSGRpusLge1afKiNGCLh8AsuaB2nSJWP0O+ezzEg+c/v1SMm0p/8lwLUtXQ="
+    - PACKAGE_VERSION: 0.0.0
+
+
 before_install:
 - go get github.com/axw/gocov/gocov
 - go get github.com/golang/lint/golint
 - go get github.com/mattn/goveralls
 - go get github.com/laher/goxc
--  if ! go get code.google.com/p/go.tools/cmd/cover; then go get golang.org/x/tools/cmd/cover; fi
+- if ! go get code.google.com/p/go.tools/cmd/cover; then go get golang.org/x/tools/cmd/cover; fi
 - export PATH=$PATH:$GOPATH/bin
 
 script:
@@ -21,4 +27,12 @@ after_script:
 - golint .
 - ! gofmt -d . 2>&1 | read
 - gofmt -d .
-- if  [ ${TRAVIS_GO_VERSION} == "1.5" ]; then goxc;cd ..; fi
+- if  [ ${TRAVIS_GO_VERSION} == "1.5" ]; then
+  goxc -wc default publish-github -owner=utamaro -repository="shingetsu-gou";
+  cat .goxc.json;
+  goxc -wlc default publish-github -apikey=${GITHUB_TOKEN}
+  goxc -pv ${PACKAGE_VERSION};
+  cd ..;
+  fi
+
+

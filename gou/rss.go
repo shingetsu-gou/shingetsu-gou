@@ -31,7 +31,6 @@ package gou
 import (
 	"html"
 	"io"
-	"log"
 	"sort"
 	"strings"
 	"time"
@@ -136,11 +135,8 @@ type rssParam struct {
 }
 
 func (r *rssParam) W3cdate(dat int64) string {
-	t, err := time.Parse(time.Unix(dat, 0).String(), "2006-01-02T15:04:05Z")
-	if err != nil {
-		log.Fatal(err)
-	}
-	return t.String()
+	t := time.Unix(dat, 0)
+	return t.Format("2006-01-02T15:04:05Z")
 }
 func (r *rssParam) Escape(str string) string {
 	return html.EscapeString(str)

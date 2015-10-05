@@ -38,7 +38,8 @@ import (
 	"strconv"
 	"time"
 
-	"github.com/shinGETsu-gou/shingetsu-gou/gou/mch"
+	"github.com/gorilla/handlers"
+
 	"gopkg.in/natefinch/lumberjack.v2"
 )
 
@@ -108,19 +109,19 @@ func StartDaemon() {
 	threadSetup(sm)
 
 	if enable2ch {
-		smm := http.NewServeMux()
-		ss := &http.Server{
-			Addr:           "0.0.0.0:" + strconv.Itoa(dat_port),
-			Handler:        smm,
-			ReadTimeout:    10 * time.Second,
-			WriteTimeout:   10 * time.Second,
-			MaxHeaderBytes: 1 << 20,
-		}
-		mch.Setup(smm)
-		go log.Fatal(ss.ListenAndServe())
+		//		smm := http.NewServeMux()
+		//		ss := &http.Server{
+		//			Addr:           "0.0.0.0:" + strconv.Itoa(dat_port),
+		//			Handler:        smm,
+		//			ReadTimeout:    10 * time.Second,
+		//			WriteTimeout:   10 * time.Second,
+		//			MaxHeaderBytes: 1 << 20,
+		//		}
+		mchSetup(sm)
+		//		go log.Fatal(ss.ListenAndServe())
 	}
-	sm.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
-	})
-	
+	sm.Handle("/", handlers.CompressHandler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	})))
+
 	log.Fatal(s.ListenAndServe())
 }

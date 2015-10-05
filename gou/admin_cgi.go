@@ -39,44 +39,46 @@ import (
 	"strconv"
 	"strings"
 	"time"
+
+	"github.com/gorilla/handlers"
 )
 
 func adminSetup(s *http.ServeMux) {
-	s.HandleFunc("/admin.cgi/status", func(w http.ResponseWriter, r *http.Request) {
+	s.Handle("/admin.cgi/status", handlers.CompressHandler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		a := newAdminCGI(w, r)
 		if a == nil {
 			return
 		}
 		a.printStatus()
-	})
-	s.HandleFunc("/admin.cgi/edittag", func(w http.ResponseWriter, r *http.Request) {
+	})))
+	s.Handle("/admin.cgi/edittag", handlers.CompressHandler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		a := newAdminCGI(w, r)
 		if a == nil {
 			return
 		}
 		a.printEdittag()
-	})
-	s.HandleFunc("/admin.cgi/savetag", func(w http.ResponseWriter, r *http.Request) {
+	})))
+	s.Handle("/admin.cgi/savetag", handlers.CompressHandler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		a := newAdminCGI(w, r)
 		if a == nil {
 			return
 		}
 		a.saveTag()
-	})
-	s.HandleFunc("/admin.cgi/search", func(w http.ResponseWriter, r *http.Request) {
+	})))
+	s.Handle("/admin.cgi/search", handlers.CompressHandler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		a := newAdminCGI(w, r)
 		if a == nil {
 			return
 		}
 		a.printSearch()
-	})
-	s.HandleFunc("/admin.cgi", func(w http.ResponseWriter, r *http.Request) {
+	})))
+	s.Handle("/admin.cgi", handlers.CompressHandler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		a := newAdminCGI(w, r)
 		if a == nil {
 			return
 		}
 		a.execCmd()
-	})
+	})))
 }
 
 type adminCGI struct {
