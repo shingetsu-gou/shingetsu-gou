@@ -1,6 +1,6 @@
-[![Build Status](https://travis-ci.org/shingetus-gou/shingetus-gou.svg?branch=master)](https://travis-ci.org/shingetus-gou/shingetus-gou)
-[![GoDoc](https://godoc.org/github.com/shingetus-gou/shingetus-gou?status.svg)](https://godoc.org/github.com/shingetus-gou/shingetus-gou)
-[![GitHub license](https://img.shields.io/badge/license-MIT-blue.svg)](https://raw.githubusercontent.com/shingetus-gou/shingetus-gou/master/LICENSE)
+[![Build Status](https://travis-ci.org/shingetsu-gou/shingetsu-gou.svg?branch=master)](https://travis-ci.org/shingetsu-gou/shingetsu-gou)
+[![GoDoc](https://godoc.org/github.com/shingetsu-gou/shingetsu-gou?status.svg)](https://godoc.org/github.com/shingetsu-gou/shingetsu-gou)
+[![GitHub license](https://img.shields.io/badge/license-MIT-blue.svg)](https://raw.githubusercontent.com/shingetsu-gou/shingetsu-gou/master/LICENSE)
 
 
 # Gou(合) 
