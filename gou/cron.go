@@ -37,7 +37,7 @@ import (
 
 func cron() {
 	for {
-		time.Sleep(client_cycle)
+		time.Sleep(clientCycle)
 		c := client{}
 		go c.run()
 	}
@@ -49,11 +49,11 @@ type status struct {
 
 func newStatus() *status {
 	s := &status{}
-	if !isFile(client_log) {
+	if !isFile(clientLog) {
 		return s
 	}
 	k := []string{"ping", "init", "sync"}
-	err := eachLine(client_log, func(line string, i int) error {
+	err := eachLine(clientLog, func(line string, i int) error {
 		var err error
 		s.dict[k[i]], err = strconv.ParseInt(line, 10, 64)
 		return err
@@ -65,13 +65,16 @@ func newStatus() *status {
 }
 
 func (s *status) sync() {
-	f, err := os.Create(client_log)
+	f, err := os.Create(clientLog)
 	if err != nil {
 		log.Fatal(err)
 	}
-	defer f.Close()
+	defer close(f)
 	for _, v := range []string{"ping", "init", "sync"} {
-		f.WriteString(strconv.FormatInt(s.dict[v], 10) + "\n")
+		_, err := f.WriteString(strconv.FormatInt(s.dict[v], 10) + "\n")
+		if err != nil {
+			log.Println(err)
+		}
 	}
 }
 
@@ -85,8 +88,8 @@ type client struct {
 
 func (c *client) run() {
 	s := newStatus()
-	c.timelimit = time.Now().Add(client_timeout).Unix()
-	if time.Now().Unix()-s.dict["ping"] >= int64(ping_cycle) {
+	c.timelimit = time.Now().Add(clientTimeout).Unix()
+	if time.Now().Unix()-s.dict["ping"] >= int64(pingCycle) {
 		c.doPing()
 		s = newStatus()
 		c.doUpdate()
@@ -101,16 +104,16 @@ func (c *client) run() {
 		s = newStatus()
 	}
 
-	if time.Now().Unix()-s.dict["init"] > int64(init_cycle)*int64(nl.Len()) {
+	if time.Now().Unix()-s.dict["init"] > int64(initCycle)*int64(nl.Len()) {
 		c.doInit()
 		s = newStatus()
 	} else {
-		if nl.Len() < default_nodes {
+		if nl.Len() < defaultNodes {
 			c.doRejoin()
 			s = newStatus()
 		}
 	}
-	if time.Now().Unix()-s.dict["sync"] >= int64(sync_cycle) {
+	if time.Now().Unix()-s.dict["sync"] >= int64(syncCycle) {
 		c.doSync()
 	}
 }

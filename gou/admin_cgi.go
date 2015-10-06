@@ -30,6 +30,7 @@ package gou
 
 import (
 	"fmt"
+	"html"
 	"io/ioutil"
 	"log"
 	"math/rand"
@@ -45,39 +46,29 @@ import (
 
 func adminSetup(s *http.ServeMux) {
 	s.Handle("/admin.cgi/status", handlers.CompressHandler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		a := newAdminCGI(w, r)
-		if a == nil {
-			return
+		if a := newAdminCGI(w, r); a != nil {
+			a.printStatus()
 		}
-		a.printStatus()
 	})))
 	s.Handle("/admin.cgi/edittag", handlers.CompressHandler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		a := newAdminCGI(w, r)
-		if a == nil {
-			return
+		if a := newAdminCGI(w, r); a != nil {
+			a.printEdittag()
 		}
-		a.printEdittag()
 	})))
 	s.Handle("/admin.cgi/savetag", handlers.CompressHandler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		a := newAdminCGI(w, r)
-		if a == nil {
-			return
+		if a := newAdminCGI(w, r); a != nil {
+			a.saveTag()
 		}
-		a.saveTag()
 	})))
 	s.Handle("/admin.cgi/search", handlers.CompressHandler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		a := newAdminCGI(w, r)
-		if a == nil {
-			return
+		if a := newAdminCGI(w, r); a != nil {
+			a.printSearch()
 		}
-		a.printSearch()
 	})))
 	s.Handle("/admin.cgi", handlers.CompressHandler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		a := newAdminCGI(w, r)
-		if a == nil {
-			return
+		if a := newAdminCGI(w, r); a != nil {
+			a.execCmd()
 		}
-		a.execCmd()
 	})))
 }
 
@@ -87,11 +78,10 @@ type adminCGI struct {
 
 func newAdminCGI(w http.ResponseWriter, r *http.Request) *adminCGI {
 	c := newCGI(w, r)
-	if !c.isAdmin {
+	if c == nil || !c.isAdmin {
 		c.print403("")
 		return nil
 	}
-	r.ParseForm()
 	return &adminCGI{
 		c,
 	}
@@ -138,21 +128,23 @@ func (a *adminCGI) makeSid() string {
 		r += strconv.Itoa(rand.Int())
 	}
 	sid := md5digest(r)
-	err := ioutil.WriteFile(admin_sid, []byte(sid+"\n"), 0755)
+	err := ioutil.WriteFile(adminSid, []byte(sid+"\n"), 0755)
 	if err != nil {
-		log.Println(admin_sid, err)
+		log.Println(adminSid, err)
 	}
 	return sid
 }
 
 func (a *adminCGI) checkSid(sid string) bool {
-	bsaved, err := ioutil.ReadFile(admin_sid)
+	bsaved, err := ioutil.ReadFile(adminSid)
 	if err != nil {
-		log.Println(admin_sid, err)
+		log.Println(adminSid, err)
 		return false
 	}
 	saved := strings.TrimRight(string(bsaved), "\r\n")
-	os.Remove(admin_sid)
+	if err := os.Remove(adminSid); err != nil {
+		log.Println(err)
+	}
 	return sid == saved
 }
 
@@ -164,8 +156,11 @@ type DeleteRecord struct {
 }
 
 func (d *DeleteRecord) Getbody(rec *record) string {
-	rec.loadBody()
-	recstr := cgiEscape(rec.recstr, false)
+	err := rec.loadBody()
+	if err != nil {
+		log.Println(err)
+	}
+	recstr := html.EscapeString(rec.recstr)
 	rec.free()
 	return recstr
 }
@@ -188,15 +183,14 @@ func (a *adminCGI) printDeleteRecord(datfile string, records []string) {
 }
 
 func (a *adminCGI) doDeleteRecord(datfile string, records []string, dopost string) {
-	d, _ := fileDecode(datfile)
 	var next string
 	for _, t := range types {
-		title := strEncode(d)
+		title := strEncode(fileDecode(datfile))
 		if strings.HasPrefix(title, t+"_") {
-			next = application[t] + query_separator + title
+			next = application[t] + querySeparator + title
 			break
 		}
-		next = root_path
+		next = rootPath
 	}
 	ca := newCache(datfile, nil, nil)
 	for _, r := range records {
@@ -226,8 +220,7 @@ type DelFile struct {
 func (d *DelFile) Gettitle(ca *cache) string {
 	for _, t := range types {
 		if strings.HasPrefix(ca.datfile, t+"_") {
-			f, _ := fileDecode(ca.datfile)
-			return f
+			return fileDecode(ca.datfile)
 		}
 	}
 	return ca.datfile
@@ -236,7 +229,10 @@ func (d *DelFile) Gettitle(ca *cache) string {
 func (d *DelFile) GetContents(ca *cache) []string {
 	contents := make([]string, 0, 2)
 	for _, rec := range ca.recs {
-		rec.loadBody()
+		err := rec.loadBody()
+		if err != nil {
+			log.Println(err)
+		}
 		contents = append(contents, escape(rec.recstr))
 		rec.free()
 		if len(contents) > 2 {
@@ -291,7 +287,7 @@ func (a *adminCGI) doDeleteFile(files []string) {
 		ca := newCache(c, nil, nil)
 		ca.remove()
 	}
-	a.print302(gateway_cgi + query_separator + "changes")
+	a.print302(gatewayCgi + querySeparator + "changes")
 }
 
 func (a *adminCGI) printSearchForm(query string) {
@@ -306,12 +302,12 @@ func (a *adminCGI) printSearchForm(query string) {
 }
 
 func (a *adminCGI) printSearchResult(query string) {
-	strQuery := cgiEscape(query, true)
+	strQuery := html.EscapeString(query)
 	title := fmt.Sprintf("%s: %s", a.m["search"], strQuery)
 	a.header(title, "", nil, true, nil)
 	a.printParagraph(a.m["desc_search"])
 	a.printSearchForm(strQuery)
-	reg, err := regexp.Compile(cgiEscape(query, false))
+	reg, err := regexp.Compile(html.EscapeString(query))
 	if err != nil {
 		a.printParagraph(a.m["regexp_error"])
 		a.footer(nil)
@@ -323,8 +319,7 @@ func (a *adminCGI) printSearchResult(query string) {
 		if hasString(stringerSlice(result), i.datfile) {
 			continue
 		}
-		datfile, _ := fileDecode(i.datfile)
-		if reg.MatchString(datfile) {
+		if reg.MatchString(fileDecode(i.datfile)) {
 			result = append(result, i)
 		}
 	}
@@ -400,7 +395,7 @@ func (a *adminCGI) printEdittag() {
 	datfile := a.req.FormValue("file")
 	strTitle := fileEncode(datfile, "")
 	ca := newCache(datfile, nil, nil)
-	datfile = cgiEscape(datfile, false)
+	datfile = html.EscapeString(datfile)
 
 	if !ca.exists() {
 		a.print404(nil, "")
@@ -440,13 +435,12 @@ func (a *adminCGI) saveTag() {
 	utl.sync()
 	var next string
 	for _, t := range types {
-		f, _ := fileDecode(datfile)
-		title := strEncode(f)
+		title := strEncode(fileDecode(datfile))
 		if strings.HasPrefix(datfile, t+"_") {
-			next = application[t] + query_separator + title
+			next = application[t] + querySeparator + title
 			break
 		}
-		next = root_path
+		next = rootPath
 	}
 	a.print302(next)
 }

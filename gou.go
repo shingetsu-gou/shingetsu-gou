@@ -34,6 +34,7 @@ import (
 	"github.com/shinGETsu-gou/shingetsu-gou/gou"
 )
 
+//init initialize all variables and logger by arguments
 func init() {
 	gou.InitConfig()
 

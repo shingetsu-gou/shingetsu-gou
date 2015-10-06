@@ -101,10 +101,9 @@ type mchCGI struct {
 
 func newMchCGI(w http.ResponseWriter, r *http.Request) *mchCGI {
 	c := newCGI(w, r)
-	r.ParseForm()
 	isopen := c.isAdmin || c.isFriend || c.isVisitor
 	logRequest(r)
-	if !isopen {
+	if c == nil || !isopen {
 		w.WriteHeader(403)
 		br := bytes.NewReader([]byte("403 Forbidden"))
 		http.ServeContent(w, r, "a.txt", time.Time{}, br)
@@ -219,7 +218,7 @@ func (m *mchCGI) makeSubjectCachelist(board string) []*cache {
 			cl.append(c)
 		}
 	}
-	result := make([]*cache, 0)
+	var result []*cache
 	for _, c := range cl.caches {
 		if c.typee == "thread" {
 			result = append(result, c)
@@ -229,7 +228,7 @@ func (m *mchCGI) makeSubjectCachelist(board string) []*cache {
 	if board == "" {
 		return result
 	}
-	result2 := make([]*cache, 0)
+	var result2 []*cache
 	sugtags := newSuggestedTagTable()
 	for _, c := range result {
 		if m.hasTag(c, board, sugtags) {
@@ -262,7 +261,7 @@ func (m *mchCGI) subjectApp(board string) {
 		boardEncoded = strDecode(ma[1])
 	}
 	if boardEncoded != "" {
-		boardName, _ = fileDecode("dummy_" + boardEncoded)
+		boardName = fileDecode("dummy_" + boardEncoded)
 	}
 	subject, lastStamp := m.makeSubject(boardName)
 	m.wr.WriteHeader(200)
@@ -272,7 +271,7 @@ func (m *mchCGI) subjectApp(board string) {
 
 func (m *mchCGI) makeSubject(board string) ([]string, int64) {
 	loadFromNet := m.checkGetCache()
-	subjects := make([]string, 0)
+	var subjects []string
 	cl := m.makeSubjectCachelist(board)
 	var lastStamp int64
 	for _, c := range cl {
@@ -287,7 +286,7 @@ func (m *mchCGI) makeSubject(board string) ([]string, int64) {
 			log.Println(err)
 			continue
 		}
-		titleStr, _ := fileDecode(c.datfile)
+		titleStr := fileDecode(c.datfile)
 		if titleStr != "" {
 			titleStr = strings.Replace(titleStr, "\n", "", -1)
 		}
@@ -300,10 +299,13 @@ func (m *mchCGI) makeSubject(board string) ([]string, int64) {
 func (m *mchCGI) headApp() {
 	m.wr.Header().Set("Content-Type", "text/plain; charset=Shift_JIS")
 	var body string
-	eachLine(motd, func(line string, i int) error {
+	err := eachLine(motd, func(line string, i int) error {
 		line = strings.TrimSpace(line)
 		body += line + "<br>\n"
 		return nil
 	})
+	if err != nil {
+		log.Println(err)
+	}
 	m.serveContent("a.txt", time.Time{}, body)
 }

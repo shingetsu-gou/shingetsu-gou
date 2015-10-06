@@ -48,7 +48,7 @@ func newUpdateList(updateFile string, updateRange int64) *updateList {
 		updateFile = update
 	}
 	if updateRange == 0 {
-		updateRange = int64(update_range)
+		updateRange = int64(updateRange)
 	}
 	u := &updateList{
 		updateFile:  updateFile,
@@ -116,7 +116,10 @@ func (u *updateList) makeRecord(line string) *record {
 	if len(buf) > 2 && buf[0] != "" && buf[1] != "" && buf[2] != "" {
 		idstr := buf[0] + "_" + buf[1]
 		vr := newRecord(buf[2], idstr)
-		vr.parse(line)
+		err := vr.parse(line)
+		if err != nil {
+			log.Println(err)
+		}
 		return vr
 	}
 	return nil
@@ -127,7 +130,10 @@ func (u *updateList) sync() {
 		if u.updateRange > 0 && r.stamp+u.updateRange < time.Now().Unix() {
 			u.remove(r)
 		}
-		writeSlice(u.updateFile, u)
+		err := writeSlice(u.updateFile, u)
+		if err != nil {
+			log.Println(err)
+		}
 	}
 }
 
@@ -136,7 +142,7 @@ type recentList struct {
 }
 
 func newRecentList() *recentList {
-	r := newUpdateList(recent, int64(recent_range))
+	r := newUpdateList(recent, int64(recentRange))
 	return &recentList{r}
 }
 
@@ -146,8 +152,8 @@ func (r *recentList) getAll() {
 	lt.clear()
 	st := newSuggestedTagTable()
 	var begin int64
-	if recent_range > 0 {
-		begin = time.Now().Unix() - int64(recent_range)
+	if recentRange > 0 {
+		begin = time.Now().Unix() - int64(recentRange)
 	}
 	var res []string
 	for count, n := range sl.tiedlist {
@@ -164,7 +170,7 @@ func (r *recentList) getAll() {
 				ca := newCache(rec.datfile, st, nil)
 				tags := strings.Split(strings.TrimSpace(rec.Get("tag", "")), " \t\r\n")
 				shuffle(sort.StringSlice(tags))
-				tags = tags[tag_size:]
+				tags = tags[tagSize:]
 				if len(tags) > 0 {
 					ca.sugtags.addString(tags)
 					ca.sugtags.sync()
@@ -172,7 +178,7 @@ func (r *recentList) getAll() {
 				}
 			}
 		}
-		if count >= search_depth {
+		if count >= searchDepth {
 			break
 		}
 	}

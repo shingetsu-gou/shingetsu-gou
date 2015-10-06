@@ -30,6 +30,7 @@ package gou
 
 import (
 	"errors"
+	"html"
 	"log"
 	"regexp"
 	"strconv"
@@ -39,20 +40,20 @@ import (
 	"github.com/axgle/mahonia"
 )
 
-var spamError = errors.New("this is spam")
+var errSpam = errors.New("this is spam")
 
 func (m *mchCGI) postComment(threadKey, name, mail, body, passwd, tag string) error {
 	stamp := time.Now().Unix()
 	recbody := make(map[string]string)
-	recbody["body"] = cgiEscape(body, true)
-	recbody["name"] = cgiEscape(name, true)
-	recbody["mail"] = cgiEscape(mail, true)
+	recbody["body"] = html.EscapeString(body)
+	recbody["name"] = html.EscapeString(name)
+	recbody["mail"] = html.EscapeString(mail)
 
 	c := newCache(threadKey, nil, nil)
 	rec := newRecord(c.datfile, "")
 	id := rec.build(stamp, recbody, passwd)
 	if spamCheck(rec.recstr) {
-		return spamError
+		return errSpam
 	}
 	c.addData(rec, false)
 	c.syncStatus()
@@ -90,7 +91,6 @@ func (m *mchCGI) getCommentData() map[string]string {
 }
 
 func (m *mchCGI) postCommentApp() string {
-	var err error
 	if m.req.Method != "POST" {
 		m.wr.Header().Set("Content-Type", "text/plain")
 		m.wr.WriteHeader(404)
@@ -107,6 +107,7 @@ func (m *mchCGI) postCommentApp() string {
 	if info["subject"] != "" {
 		key = fileEncode("thread", info["subject"])
 	} else {
+		var err error
 		key, err = dkTable.getFilekey(info["key"])
 		if err != nil {
 			return ""
@@ -117,7 +118,7 @@ func (m *mchCGI) postCommentApp() string {
 	reg := regexp.MustCompile("/2ch_([^/]+)/")
 	var tag string
 	if m := reg.FindStringSubmatch(referer); m != nil && hasAuth {
-		tag, _ = fileDecode("dummy_" + m[1])
+		tag = fileDecode("dummy_" + m[1])
 	}
 
 	switch {
@@ -154,8 +155,8 @@ func (m *mchCGI) postCommentApp() string {
 	if passwd != "" && !m.isAdmin {
 		return m.errorResp("自ノード以外で署名機能は使えません", info)
 	}
-	err = m.postComment(key, name, info["mail"], body, passwd, tag)
-	if err == spamError {
+	err := m.postComment(key, name, info["mail"], body, passwd, tag)
+	if err == errSpam {
 		return m.errorResp("スパムとみなされました", info)
 	}
 	m.wr.Header().Set("Content-Type", "text/html; charset=Shift_JIS")

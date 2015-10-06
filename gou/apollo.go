@@ -36,9 +36,9 @@ import (
 )
 
 var (
-	rsa_public_e      = big.NewInt(0x10001)
-	rsa_create_giveup = 300
-	sprp_test_count   = 10
+	rsaPublicE      = big.NewInt(0x10001)
+	rsaCreateGiveup = 300
+	sprpTestCount   = 10
 
 	base64en = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/"
 
@@ -70,11 +70,10 @@ func primize(x *big.Int) *big.Int {
 		x.Add(x, tmp.SetInt64(1))
 	}
 	for {
-		if x.ProbablyPrime(sprp_test_count) {
+		if x.ProbablyPrime(sprpTestCount) {
 			return x
-		} else {
-			x.Add(x, tmp.SetInt64(2))
 		}
+		x.Add(x, tmp.SetInt64(2))
 	}
 }
 
@@ -93,18 +92,18 @@ func newPrivateKey(qSeed, pSeed big.Int) *privateKey {
 	var tmp big.Int
 	test := big.NewInt(0x7743)
 	var q1, phi, keyD, keyN big.Int
-	for count := 0; count < rsa_create_giveup; count++ {
+	for count := 0; count < rsaCreateGiveup; count++ {
 		q = primize(q)
 		q1.Add(q, tmp.SetInt64(-1))
 		p = primize(p)
 		phi.Add(p, tmp.SetInt64(-1))
 		phi.Mul(&phi, &q1)
-		keyD.ModInverse(rsa_public_e, &phi)
+		keyD.ModInverse(rsaPublicE, &phi)
 		if keyD.Cmp(tmp.SetInt64(0)) == 0 {
 			continue
 		}
 		keyN.Mul(p, q)
-		tmp.Exp(test, rsa_public_e, &keyN)
+		tmp.Exp(test, rsaPublicE, &keyN)
 		tmp.Exp(&tmp, &keyD, &keyN)
 		if tmp.Cmp(test) == 0 {
 			return &privateKey{&keyN, &keyD}
@@ -155,7 +154,7 @@ func verify(mesg, testsig, publicKey string) bool {
 	m.SetBytes([]byte(mesg))
 	n := base64ToInt(publicKey)
 	intSig := base64ToInt(testsig)
-	decrypted.Exp(intSig, rsa_public_e, n)
+	decrypted.Exp(intSig, rsaPublicE, n)
 
 	if decrypted.Cmp(&m) == 0 {
 		return true

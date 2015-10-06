@@ -46,7 +46,7 @@ import (
 func SetLogger(printLog, isSilent bool) {
 	log.SetFlags(log.Ldate | log.Ltime | log.Lshortfile)
 	l := &lumberjack.Logger{
-		Filename:   log_dir + "gou.log",
+		Filename:   logDir + "gou.log",
 		MaxSize:    1, // megabytes
 		MaxBackups: 2,
 		MaxAge:     28, //days
@@ -68,16 +68,19 @@ func SetupDaemon() {
 		log.Fatal(err)
 	}
 	absDocroot = path.Join(dir, docroot)
-	for _, j := range []string{run_dir, cache_dir} {
+	for _, j := range []string{runDir, cacheDir} {
 		i := path.Join(docroot, j)
 		if !isDir(i) {
-			os.Mkdir(i, 07555)
+			err := os.Mkdir(i, 07555)
+			if err != nil {
+				log.Println(err)
+			}
 		}
 	}
 }
 
 func StartDaemon() {
-	for _, lock := range []string{lock, search_lock, admin_search} {
+	for _, lock := range []string{lock, searchLock, adminSearch} {
 		l := path.Join(docroot, lock)
 		if !isFile(l) {
 			err := os.Remove(l)
@@ -95,7 +98,7 @@ func StartDaemon() {
 
 	sm := http.NewServeMux()
 	s := &http.Server{
-		Addr:           "0.0.0.0:" + strconv.Itoa(default_port),
+		Addr:           "0.0.0.0:" + strconv.Itoa(defaultPort),
 		Handler:        sm,
 		ReadTimeout:    10 * time.Second,
 		WriteTimeout:   10 * time.Second,

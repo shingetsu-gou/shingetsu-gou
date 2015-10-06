@@ -44,44 +44,54 @@ import (
 
 func serverSetup(s *http.ServeMux) {
 	s.Handle("/server.cgi/ping", handlers.CompressHandler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		a := newServerCGI(w, r)
-		a.doPing()
+		if a := newServerCGI(w, r); a != nil {
+			a.doPing()
+		}
 	})))
 	s.Handle("/server.cgi/node", handlers.CompressHandler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		a := newServerCGI(w, r)
-		a.doNode()
+		if a := newServerCGI(w, r); a != nil {
+			a.doNode()
+		}
 	})))
 	s.Handle("/server.cgi/join", handlers.CompressHandler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		a := newServerCGI(w, r)
-		a.doJoin()
+		if a := newServerCGI(w, r); a != nil {
+			a.doJoin()
+		}
 	})))
 	s.Handle("/server.cgi/bye", handlers.CompressHandler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		a := newServerCGI(w, r)
-		a.doBye()
+		if a := newServerCGI(w, r); a != nil {
+			a.doBye()
+		}
 	})))
 	s.Handle("/server.cgi/have", handlers.CompressHandler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		a := newServerCGI(w, r)
-		a.doHave()
+		if a := newServerCGI(w, r); a != nil {
+			a.doHave()
+		}
 	})))
 	s.Handle("/server.cgi/get", handlers.CompressHandler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		a := newServerCGI(w, r)
-		a.doGetHead()
+		if a := newServerCGI(w, r); a != nil {
+			a.doGetHead()
+		}
 	})))
 	s.Handle("/server.cgi/head", handlers.CompressHandler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		a := newServerCGI(w, r)
-		a.doGetHead()
+		if a := newServerCGI(w, r); a != nil {
+			a.doGetHead()
+		}
 	})))
 	s.Handle("/server.cgi/update", handlers.CompressHandler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		a := newServerCGI(w, r)
-		a.doUpdate()
+		if a := newServerCGI(w, r); a != nil {
+			a.doUpdate()
+		}
 	})))
 	s.Handle("/server.cgi/recent", handlers.CompressHandler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		a := newServerCGI(w, r)
-		a.doRecent()
+		if a := newServerCGI(w, r); a != nil {
+			a.doRecent()
+		}
 	})))
 	s.Handle("/server.cgi/", handlers.CompressHandler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		a := newServerCGI(w, r)
-		a.doMotd()
+		if a := newServerCGI(w, r); a != nil {
+			a.doMotd()
+		}
 	})))
 }
 
@@ -91,7 +101,9 @@ type serverCGI struct {
 
 func newServerCGI(w http.ResponseWriter, r *http.Request) *serverCGI {
 	c := newCGI(w, r)
-	r.ParseForm()
+	if c == nil {
+		return nil
+	}
 	w.Header().Set("Content-Type", "text/plain")
 
 	if r.Method != "GET" && r.Method != "HEAD" {
@@ -160,13 +172,13 @@ func (s *serverCGI) doJoin() {
 	}
 	nl := newNodeList()
 	sl := newSearchList()
-	if !node_allow.check(n.nodestr) && node_deny.check(n.nodestr) {
+	if !nodeAllow.check(n.nodestr) && nodeDeny.check(n.nodestr) {
 		return
 	}
 	if _, ok := n.ping(); !ok {
 		return
 	}
-	if nl.Len() < default_nodes {
+	if nl.Len() < defaultNodes {
 		nl.append(n)
 		nl.sync()
 		sl.append(n)
@@ -231,7 +243,7 @@ func (s *serverCGI) doUpdate() {
 	}
 
 	n := makeNode(host, path, port)
-	if !node_allow.check(n.nodestr) && node_deny.check(n.nodestr) {
+	if !nodeAllow.check(n.nodestr) && nodeDeny.check(n.nodestr) {
 		return
 	}
 	sl := newSearchList()
@@ -247,7 +259,7 @@ func (s *serverCGI) doUpdate() {
 		return
 	}
 
-	if nstamp < now-int64(update_range) || nstamp > now+int64(update_range) {
+	if nstamp < now-int64(updateRange) || nstamp > now+int64(updateRange) {
 		return
 	}
 	rec := newRecord(datfile, stamp+"_"+id)
@@ -268,7 +280,7 @@ func (s *serverCGI) doRecent() {
 	}
 	stamp := m[1]
 	recent := newRecentList()
-	last := time.Now().Unix() + int64(recent_range)
+	last := time.Now().Unix() + int64(recentRange)
 	begin, end, _ := s.parseStamp(stamp, last)
 	for _, i := range recent.tiedlist {
 		if begin <= i.stamp && i.stamp <= end {
@@ -335,7 +347,10 @@ func (s *serverCGI) doGetHead() {
 	for _, r := range ca.recs {
 		if begin <= r.stamp && r.stamp <= end && (id == "" || strings.HasSuffix(r.idstr, id)) {
 			if method == "get" {
-				r.load()
+				err := r.load()
+				if err != nil {
+					log.Println(err)
+				}
 				fmt.Fprintf(s.wr, r.recstr)
 				r.free()
 			} else {

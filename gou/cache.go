@@ -73,7 +73,7 @@ func newCache(datfile string, sugtagtable *suggestedTagTable, recentlist *recent
 		removed: make(map[string]string),
 		recs:    make(map[string]*record),
 	}
-	c.datpath = cache_dir + c.dathash
+	c.datpath = cacheDir + c.dathash
 	c.stamp = c.loadStatus("stamp")
 	c.recentStamp = c.stamp
 	c.validStamp = c.loadStatus("validstamp")
@@ -106,11 +106,11 @@ func newCache(datfile string, sugtagtable *suggestedTagTable, recentlist *recent
 		}
 	}
 
-	c.saveRecord = save_record[c.typee]
-	c.saveSize = save_size[c.typee]
-	c.getRange = get_range[c.typee]
-	c.syncRange = sync_range[c.typee]
-	c.saveRemoved = save_removed[c.typee]
+	c.saveRecord = saveRecord[c.typee]
+	c.saveSize = savesize[c.typee]
+	c.getRange = getRange[c.typee]
+	c.syncRange = syncRange[c.typee]
+	c.saveRemoved = saveRemoved[c.typee]
 
 	if c.syncRange == 0 {
 		c.saveRecord = 0
@@ -121,12 +121,12 @@ func newCache(datfile string, sugtagtable *suggestedTagTable, recentlist *recent
 	}
 	return c
 }
-func (s *cache) Len() int {
-	return len(s.recs)
+func (c *cache) Len() int {
+	return len(c.recs)
 }
 
-func (s *cache) Get(i string, def *record) *record {
-	if v, exist := s.recs[i]; exist {
+func (c *cache) Get(i string, def *record) *record {
+	if v, exist := c.recs[i]; exist {
 		return v
 	}
 	return def
@@ -179,7 +179,7 @@ func (c *cache) loadStatus(key string) int64 {
 	return r
 }
 
-func (c *cache) saveStatus(key string, val interface{}) error {
+func (c *cache) saveStatus(key string, val interface{}) {
 	p := path.Join(c.datpath, key+".stat")
 	var err error
 	switch v := val.(type) {
@@ -194,9 +194,7 @@ func (c *cache) saveStatus(key string, val interface{}) error {
 	}
 	if err != nil {
 		log.Println(err)
-		return err
 	}
-	return nil
 }
 
 func (c *cache) syncStatus() {
@@ -234,10 +232,13 @@ func (c *cache) checkData(res []string, stamp int64, id string, begin, end int64
 			(id != "" || r.dict["id"] == id) &&
 			begin <= r.stamp && r.stamp <= end && r.md5check() {
 			flagGot = true
-			if len(i) > record_limit*1024 || spamCheck(i) {
+			if len(i) > recordLimit*1024 || spamCheck(i) {
 				log.Println("warning:", c.datfile, "/", r.idstr, ": too larg or spamn record")
 				c.addData(r, false)
-				r.remove()
+				err := r.remove()
+				if err != nil {
+					log.Println(err)
+				}
 				flagSpam = true
 			} else {
 				c.addData(r, true)
@@ -334,7 +335,7 @@ func (c *cache) getWithRange(n *node) bool {
 	return count > 0
 }
 func (c *cache) checkBody() {
-	dir := path.Join(cache_dir, c.dathash, "body")
+	dir := path.Join(cacheDir, c.dathash, "body")
 	err := eachFiles(dir, func(d os.FileInfo) error {
 		rec := newRecord(c.datfile, d.Name())
 		if !isFile(rec.path) {
@@ -351,7 +352,7 @@ func (c *cache) checkBody() {
 }
 
 func (c *cache) checkAttach() {
-	dir := path.Join(cache_dir, c.dathash, "attach")
+	dir := path.Join(cacheDir, c.dathash, "attach")
 	err := eachFiles(dir, func(d os.FileInfo) error {
 		idstr := d.Name()
 		if i := strings.IndexRune(idstr, '.'); i > 0 {
@@ -374,12 +375,11 @@ func (c *cache) checkAttach() {
 	}
 }
 
-func (c *cache) remove() error {
+func (c *cache) remove() {
 	err := os.RemoveAll(c.datpath)
 	if err != nil {
 		log.Println(err)
 	}
-	return err
 }
 
 func (c *cache) removeRecords(now int64, limit int64) {
@@ -390,7 +390,10 @@ func (c *cache) removeRecords(now int64, limit int64) {
 			for _, r := range ids {
 				rec := c.recs[r]
 				if rec.stamp+limit < time.Now().Unix() {
-					rec.remove()
+					err := rec.remove()
+					if err != nil {
+						log.Println(err)
+					}
 					delete(c.recs, r)
 					c.count--
 				}
@@ -401,7 +404,10 @@ func (c *cache) removeRecords(now int64, limit int64) {
 	for r, rec := range c.recs {
 		if !isFile(rec.path) {
 			if _, exist := once[rec.id]; exist {
-				rec.remove()
+				err := rec.remove()
+				if err != nil {
+					log.Println(err)
+				}
 				delete(c.recs, r)
 				c.count--
 			} else {
@@ -433,7 +439,7 @@ func (c *cache) search(searchlist *searchList, myself *node) bool {
 		}
 		c.getWithRange(n)
 		if !c.node.has(n) {
-			for c.node.Len() >= share_nodes {
+			for c.node.Len() >= shareNodes {
 				n = c.node.random()
 				c.node.remove(n)
 			}
@@ -441,16 +447,13 @@ func (c *cache) search(searchlist *searchList, myself *node) bool {
 			c.node.sync()
 		}
 		return true
-	} else {
-		c.syncStatus()
-		return false
 	}
+	c.syncStatus()
+	return false
 }
 
 type cacheList struct {
-	caches  []*cache
-	key     string
-	reverse bool
+	caches []*cache
 }
 
 func newCacheList() *cacheList {
@@ -480,7 +483,7 @@ func (c *cacheList) load() {
 	sugtagtable := newSuggestedTagTable()
 	recentlist := newRecentList()
 	c.caches = c.caches[:0]
-	err := eachFiles(cache_dir, func(f os.FileInfo) error {
+	err := eachFiles(cacheDir, func(f os.FileInfo) error {
 		cc := newCache(f.Name(), sugtagtable, recentlist)
 		c.caches = append(c.caches, cc)
 		return nil
@@ -493,10 +496,9 @@ func (c *cacheList) load() {
 
 func (c *cacheList) rehash() {
 	toreload := false
-	err := eachFiles(cache_dir, func(f os.FileInfo) error {
-		datStatFile := path.Join(cache_dir, f.Name(), "dat.stat")
+	err := eachFiles(cacheDir, func(f os.FileInfo) error {
+		datStatFile := path.Join(cacheDir, f.Name(), "dat.stat")
 		var datStat string
-		var err error
 		if isFile(datStatFile) {
 			datStatt, err := ioutil.ReadFile(datStatFile)
 			if err != nil {
@@ -507,7 +509,7 @@ func (c *cacheList) rehash() {
 			datStat = strings.Trim(strings.Split(string(datStat), "\n")[0], "\r\n")
 		} else {
 			datStat = f.Name()
-			err = ioutil.WriteFile(datStatFile, []byte(datStat+"\n"), 0755)
+			err := ioutil.WriteFile(datStatFile, []byte(datStat+"\n"), 0755)
 			if err != nil {
 				log.Println("rehash err", err)
 				return nil
@@ -518,7 +520,10 @@ func (c *cacheList) rehash() {
 			return nil
 		}
 		log.Println("rehash", f.Name(), "to", hash)
-		moveFile(path.Join(cache_dir, f.Name()), path.Join(cache_dir, hash))
+		err := moveFile(path.Join(cacheDir, f.Name()), path.Join(cacheDir, hash))
+		if err != nil {
+			return err
+		}
 		toreload = true
 		return nil
 	})
@@ -615,10 +620,13 @@ func (c sortByVelocity) Less(i, j int) bool {
 }
 
 func (c *cacheList) search(query *regexp.Regexp) caches {
-	result := make([]*cache, 0)
+	var result []*cache
 	for _, ca := range c.caches {
 		for _, rec := range ca.recs {
-			rec.loadBody()
+			err := rec.loadBody()
+			if err != nil {
+				log.Println(err)
+			}
 			if query.MatchString(rec.recstr) {
 				result = append(result, ca)
 				rec.free()

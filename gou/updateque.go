@@ -77,7 +77,7 @@ func (u *updateQue) doUpdateNode(rec *record, n *node) bool {
 	var flagGot, flagSpam bool
 	switch {
 	case !ca.exists():
-		if sl.Len() < search_depth {
+		if sl.Len() < searchDepth {
 			nl.tellUpdate(ca, rec.stamp, rec.id, n)
 		}
 		return true
@@ -97,7 +97,7 @@ func (u *updateQue) doUpdateNode(rec *record, n *node) bool {
 		if !flagSpam {
 			nl.tellUpdate(ca, rec.stamp, rec.id, nil)
 		}
-		if !nl.has(n) && nl.Len() < default_nodes {
+		if !nl.has(n) && nl.Len() < defaultNodes {
 			nl.join(n)
 			nl.sync()
 		}
@@ -131,8 +131,8 @@ func (u *updateQue) doUpdate(updateid string) {
 			rl.append(rec)
 			rl.sync()
 			return
-		} else {
-			u.queue[updateid] = append(u.queue[updateid][:i], u.queue[updateid][i:]...)
 		}
+		u.queue[updateid] = append(u.queue[updateid][:i], u.queue[updateid][i:]...)
+
 	}
 }

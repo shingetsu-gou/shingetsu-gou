@@ -32,7 +32,6 @@ import (
 	"crypto/md5"
 	"encoding/hex"
 	"fmt"
-	"io/ioutil"
 	"log"
 	"mime"
 	"net/http"
@@ -42,16 +41,19 @@ import (
 	"strings"
 )
 
+//md5digest returns hex string of md5sum
 func md5digest(dat string) string {
 	sum := md5.Sum([]byte(dat))
 	return hex.EncodeToString(sum[:])
 }
 
+//strEncode returns enscaped string for url , including "~"
 func strEncode(query string) string {
 	str := url.QueryEscape(query)
 	return strings.Replace(str, "~", "%7E", -1)
 }
 
+//escapeSpace converts spaces into html space.
 func escapeSpace(msg string) string {
 	msg = strings.Replace(msg, "  ", "&nbsp;&nbsp;", -1)
 	msg = strings.Replace(msg, "<br> ", "<br>&nbsp;", -1)
@@ -63,20 +65,8 @@ func escapeSpace(msg string) string {
 	return msg
 }
 
-func cgiEscape(msg string, quote bool) string {
-	msg = strings.Replace(msg, "&", "&amp;", -1)
-	msg = strings.Replace(msg, "<", "&lt", -1)
-	msg = strings.Replace(msg, ">", "&gt;", -1)
-	if quote {
-		msg = strings.Replace(msg, "\"", "&guote;", -1)
-	}
-	return msg
-}
-
+//escape is like a html.escapestring, except &#xxxx and \n
 func escape(msg string) string {
-	if msg == "" {
-		return ""
-	}
 	msg = strings.Replace(msg, "&", "&amp;", -1)
 	reg := regexp.MustCompile("&amp;(#\\d+|#[Xx][0-9A-Fa-f]+|[A-Za-z0-9]+);")
 	msg = string(reg.ReplaceAllString(msg, "&\\1;"))
@@ -87,6 +77,7 @@ func escape(msg string) string {
 	return msg
 }
 
+//strDecode decode from url query
 func strDecode(query string) string {
 	str, err := url.QueryUnescape(query)
 	if err != nil {
@@ -97,32 +88,19 @@ func strDecode(query string) string {
 
 //from spam.py
 
+//spamCheck checks whethere it is listed in spamlist
 func spamCheck(recstr string) bool {
-	if cached_rule == nil {
-		cached_rule = newRegexpList(spam_list)
+	if cachedRule == nil {
+		cachedRule = newRegexpList(spamList)
 	} else {
-		cached_rule.update()
+		cachedRule.update()
 	}
-	return cached_rule.check(recstr)
-}
-
-//fsdiff checks a difference between file and string.
-//Return same data or not.
-func fsdiff(f, s string) bool {
-	cont, err := ioutil.ReadFile(f)
-	if err != nil {
-		log.Println(err)
-		return false
-	}
-	if string(cont) == s {
-		return true
-	}
-	return false
+	return cachedRule.check(recstr)
 }
 
 //from attachutil.py
 
-//Type of path is same as mimetype or not.
+//isValidImage checks type of path is same as mimetype or not.
 func isValidImage(mimetype, path string) bool {
 	ext := filepath.Ext(path)
 	if ext == "" {
@@ -140,23 +118,26 @@ func isValidImage(mimetype, path string) bool {
 
 //from mch/util.py
 
+//saveTag saves tags into cache and user tag list
 func saveTag(ca *cache, userTag string) {
 	ca.tags.update([]string{userTag})
 	ca.tags.sync()
 	utl := newUserTagList()
+	utl.addString([]string{userTag})
 	utl.sync()
 }
 
+//getBoard returns decoded board name.
 func getBoard(url string) string {
 	reg := regexp.MustCompile("/2ch_([^/]+)/")
 	m := reg.FindStringSubmatch(url)
 	if m == nil {
 		return ""
 	}
-	board, _ := fileDecode("dummy_" + m[1])
-	return board
+	return fileDecode("dummy_" + m[1])
 }
 
+//logRequest logs request paramrs
 func logRequest(req *http.Request) {
 	msg := fmt.Sprintf("%s %s %s %s %s %s %s", req.FormValue("REMOTE_ADDR"),
 		req.FormValue("HTTP_X_FORWARDED_FOR"),
@@ -171,7 +152,7 @@ func logRequest(req *http.Request) {
 
 //from title.py
 
-//Encode for filename.
+//fileEncode encodes filename.
 //    >>> file_encode('foo', 'a')
 //    'foo_61'
 //    >>> file_encode('foo', '~')
@@ -180,24 +161,23 @@ func fileEncode(t, query string) string {
 	return t + "_" + strings.ToUpper(hex.EncodeToString([]byte(query)))
 }
 
-//Decode file type.
-//    >>> file_decode_type('thread_41')
-//    'thread'
-func fileDecode(query string) (string, string) {
+//fileDecode decodes filename.
+//    >>> file_decode('foo_7E')
+//    '~'
+func fileDecode(query string) string {
 	strs := strings.Split(query, "_")
 	if len(strs) < 2 {
-		return "", ""
+		return ""
 	}
 	b, err := hex.DecodeString(strs[1])
-	sb := string(b)
 	if err != nil {
 		log.Println("illegal file name", query)
-		sb = ""
+		return ""
 	}
-	return strs[0], sb
+	return string(b)
 }
 
-//not implement except 'asis'
+//filehash simply returns itself, because it not implement except 'asis'
 func fileHash(query string) string {
 	return query
 }

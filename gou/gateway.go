@@ -40,12 +40,12 @@ import (
 	"regexp"
 	"sort"
 	"strings"
-	"sync"
 	"time"
 
 	"golang.org/x/text/language"
 )
 
+/*
 //Connection Counter.
 type counter struct {
 	N     int
@@ -63,7 +63,7 @@ func (c *counter) decrement() {
 	defer c.mutex.Unlock()
 	c.N--
 }
-
+*/
 type message map[string]string
 
 func newMessage(file string) message {
@@ -95,7 +95,7 @@ func (m message) get(k string) string {
 }
 
 func searchMessage(acceptLanguage string) message {
-	lang := make([]string, 0)
+	var lang []string
 	if acceptLanguage != "" {
 		tags, _, err := language.ParseAcceptLanguage(acceptLanguage)
 		if err != nil {
@@ -106,11 +106,11 @@ func searchMessage(acceptLanguage string) message {
 			}
 		}
 	}
-	lang = append(lang, default_language)
+	lang = append(lang, defaultLanguage)
 	for _, l := range lang {
 		slang := strings.Split(l, "-")[0]
 		for _, j := range []string{l, slang} {
-			file := path.Join(file_dir, "message-"+j+".txt")
+			file := path.Join(fileDir, "message-"+j+".txt")
 			if isFile(file) {
 				return newMessage(file)
 			}
@@ -159,15 +159,11 @@ func (d *DefaultVariable) StrEncode(query string) string {
 func (d *DefaultVariable) Escape(msg string) string {
 	return escape(msg)
 }
-func (d *DefaultVariable) EscapeSimple(msg string) string {
-	return cgiEscape(msg, false)
-}
+
 func (d *DefaultVariable) EscapeSpace(msg string) string {
 	return escapeSpace(msg)
 }
-func (d *DefaultVariable) EscapeJS(msg string) string {
-	return strings.Replace(strings.Replace(msg, "\"", "\\\"", -1), "]]>", "", -1)
-}
+
 func (d *DefaultVariable) FileDecode(query, t string) string {
 	q := strings.Split(query, "_")
 	if len(q) < 2 {
@@ -176,7 +172,7 @@ func (d *DefaultVariable) FileDecode(query, t string) string {
 	return q[0]
 }
 
-func (c *DefaultVariable) makeGatewayLink(cginame, command string) string {
+func (d *DefaultVariable) makeGatewayLink(cginame, command string) string {
 	g := struct {
 		CGIname     string
 		Command     string
@@ -184,7 +180,7 @@ func (c *DefaultVariable) makeGatewayLink(cginame, command string) string {
 	}{
 		CGIname:     cginame,
 		Command:     command,
-		Description: c.Message.get("desc_" + command),
+		Description: d.Message.get("desc_" + command),
 	}
 	var doc bytes.Buffer
 	renderTemplate("gateway_link", g, &doc)
@@ -201,8 +197,8 @@ type cgi struct {
 	remoteaddr string
 	isAdmin    bool
 	isFriend   bool
-	jc         *jsCache
 	isVisitor  bool
+	jc         *jsCache
 	req        *http.Request
 	wr         http.ResponseWriter
 }
@@ -222,16 +218,21 @@ func newCGI(w http.ResponseWriter, r *http.Request) *cgi {
 		wr:         w,
 	}
 	c.m = newMessage(r.Header.Get("Accept-Language"))
-	c.isAdmin = match(re_admin, c.remoteaddr)
-	c.isFriend = match(re_friend, c.remoteaddr)
-	c.isVisitor = match(re_visitor, c.remoteaddr)
+	c.isAdmin = match(reAdmin, c.remoteaddr)
+	c.isFriend = match(reFriend, c.remoteaddr)
+	c.isVisitor = match(reVisitor, c.remoteaddr)
 	c.req = r
+	err := r.ParseForm()
+	if err != nil {
+		log.Println(err)
+		return nil
+	}
 
 	return c
 }
 
 func (c *cgi) makeListItem(ca *cache, remove bool, target string, search bool) string {
-	x, _ := fileDecode(ca.datfile)
+	x := fileDecode(ca.datfile)
 	if x == "" {
 		return ""
 	}
@@ -240,7 +241,7 @@ func (c *cgi) makeListItem(ca *cache, remove bool, target string, search bool) s
 		return ""
 	}
 	if c.tag != "" {
-		cacheTags := make([]*tag, 0)
+		var cacheTags []*tag
 		matchtag := false
 		cacheTags = append(cacheTags, ca.tags.tags...)
 		if target == "recent" {
@@ -261,7 +262,7 @@ func (c *cgi) makeListItem(ca *cache, remove bool, target string, search bool) s
 	if search {
 		strOpts = "?search_new_file=yes"
 	}
-	sugtags := make([]*tag, 0)
+	var sugtags []*tag
 	if target == "recent" {
 		strTags := make([]string, ca.tags.Len())
 		for i, v := range ca.tags.tags {
@@ -300,9 +301,9 @@ func (c *cgi) makeListItem(ca *cache, remove bool, target string, search bool) s
 }
 
 func (c *cgi) extension(suffix string, useMerged bool) []string {
-	filename := make([]string, 0)
+	var filename []string
 	var merged string
-	eachFiles(absDocroot, func(f os.FileInfo) error {
+	err := eachFiles(absDocroot, func(f os.FileInfo) error {
 		i := f.Name()
 		if strings.HasSuffix(i, "."+suffix) && (!strings.HasPrefix(i, ".") || strings.HasPrefix(i, "_")) {
 			filename = append(filename, i)
@@ -313,6 +314,10 @@ func (c *cgi) extension(suffix string, useMerged bool) []string {
 		}
 		return nil
 	})
+	if err != nil {
+		log.Println(err)
+	}
+
 	if merged != "" {
 		return []string{merged}
 	}
@@ -322,14 +327,14 @@ func (c *cgi) extension(suffix string, useMerged bool) []string {
 
 type Menubar struct {
 	*DefaultVariable
-	Id  string
+	ID  string
 	RSS string
 }
 
 func (c *cgi) makeMenubar(id, rss string) *Menubar {
 	g := &Menubar{
 		DefaultVariable: c.makeDefaultVariable(),
-		Id:              id,
+		ID:              id,
 		RSS:             rss,
 	}
 	return g
@@ -377,9 +382,8 @@ type Header struct {
 
 func (c *cgi) header(title, rss string, cookie []*http.Cookie, denyRobot bool, menu *Menubar) {
 	if rss == "" {
-		rss = gateway_cgi + "/rss"
+		rss = gatewayCgi + "/rss"
 	}
-	c.req.ParseForm()
 	var js []string
 	if c.req.FormValue("__debug_js") != "" {
 		js = c.extension("js", false)
@@ -412,7 +416,7 @@ func (c *cgi) ResAnchor(id, appli string, title string, absuri bool) string {
 	} else {
 		innerlink = " class=\"innderlink\""
 	}
-	return fmt.Sprintf("<a href=\"%s%s%s%s/%s\"%s>", prefix, appli, query_separator, title, id, innerlink)
+	return fmt.Sprintf("<a href=\"%s%s%s%s/%s\"%s>", prefix, appli, querySeparator, title, id, innerlink)
 }
 
 func group(str string, i int, loc []int) string {
@@ -452,25 +456,25 @@ func (c *cgi) bracketLink(link, appli string, absuri bool) string {
 	}
 	reg := regexp.MustCompile("^/(thread)/([^/]+)/([0-9a-f]{8})$")
 	if m := reg.FindStringSubmatch(link); m != nil {
-		url := prefix + thread_cgi + query_separator + strEncode(m[2]) + "/" + m[3]
+		url := prefix + threadCgi + querySeparator + strEncode(m[2]) + "/" + m[3]
 		return "<a href=\"" + url + "\" class=\"reclink\">[[" + link + "]]</a>"
 	}
 
 	reg = regexp.MustCompile("^/(thread)/([^/]+)$")
 	if m := reg.FindStringSubmatch(link); m != nil {
-		uri := prefix + application[m[1]] + query_separator + strEncode(m[2])
+		uri := prefix + application[m[1]] + querySeparator + strEncode(m[2])
 		return "<a href=\"" + uri + "\">[[" + link + "]]</a>"
 	}
 
 	reg = regexp.MustCompile("^([^/]+)/([0-9a-f]{8})$")
 	if m := reg.FindStringSubmatch(link); m != nil {
-		uri := prefix + appli + query_separator + strEncode(m[1]) + "/" + m[2]
+		uri := prefix + appli + querySeparator + strEncode(m[1]) + "/" + m[2]
 		return "<a href=\"" + uri + "\" class=\"reclink\">[[" + link + "]]</a>"
 	}
 
 	reg = regexp.MustCompile("^([^/]+)$")
 	if m := reg.FindStringSubmatch(link); m != nil {
-		uri := prefix + appli + query_separator + strEncode(m[1])
+		uri := prefix + appli + querySeparator + strEncode(m[1])
 		return "<a href=\"" + uri + "\">[[" + link + "]]</a>"
 	}
 	return "[[" + link + "]]"
@@ -487,20 +491,20 @@ func (c *cgi) removeFileForm(ca *cache, title string) {
 	renderTemplate("remove_file_form", s, c.wr)
 }
 
-func (c *cgi) mchUrl() string {
+func (c *cgi) mchURL() string {
 	path := "/2ch/subject.txt"
 	if !enable2ch {
 		return ""
 	}
-	if server_name != "" {
-		return "//" + server_name + path
+	if serverName != "" {
+		return "//" + serverName + path
 	}
 	reg := regexp.MustCompile(":\\d+")
 	host := reg.ReplaceAllString(c.req.Host, "")
 	if host == "" {
 		return ""
 	}
-	return fmt.Sprintf("//%s:%d%s", host, dat_port, path)
+	return fmt.Sprintf("//%s:%d%s", host, datPort, path)
 }
 
 type mchCategory struct {
@@ -509,20 +513,24 @@ type mchCategory struct {
 }
 
 func (c *cgi) mchCategories() []*mchCategory {
-	categories := make([]*mchCategory, 0)
+	var categories []*mchCategory
 	if !enable2ch {
 		return categories
 	}
-	mchUrl := c.mchUrl()
-	eachLine(run_dir+"/tag.txt", func(line string, i int) error {
+	mchURL := c.mchURL()
+	err := eachLine(runDir+"/tag.txt", func(line string, i int) error {
 		tag := strings.TrimRight(line, "\r\n")
-		catUrl := strings.Replace(mchUrl, "2ch", fileEncode("2ch", tag), -1)
+		catURL := strings.Replace(mchURL, "2ch", fileEncode("2ch", tag), -1)
 		categories = append(categories, &mchCategory{
-			url:  catUrl,
+			url:  catURL,
 			text: tag,
 		})
 		return nil
 	})
+	if err != nil {
+		log.Println(err)
+	}
+
 	return categories
 }
 
@@ -556,23 +564,20 @@ func (c *cgi) print404(ca *cache, id string) {
 	}
 	c.footer(nil)
 }
-func touch(fname string) error {
+func touch(fname string) {
 	f, err := os.Create(fname)
+	defer close(f)
 	if err != nil {
 		log.Println(err)
-		return err
-	} else {
-		f.Close()
 	}
-	return nil
 }
 
 func (c *cgi) lock() bool {
 	var lockfile string
 	if c.isAdmin {
-		lockfile = admin_search
+		lockfile = adminSearch
 	} else {
-		lockfile = search_lock
+		lockfile = searchLock
 	}
 	if !isFile(lockfile) {
 		touch(lockfile)
@@ -583,25 +588,24 @@ func (c *cgi) lock() bool {
 		log.Println(err)
 		return false
 	}
-	if s.ModTime().Add(search_timeout).Before(time.Now()) {
+	if s.ModTime().Add(searchTimeout).Before(time.Now()) {
 		touch(lockfile)
 		return true
 	}
 	return false
 }
 
-func (c *cgi) unlock() error {
+func (c *cgi) unlock() {
 	var lockfile string
 	if c.isAdmin {
-		lockfile = admin_search
+		lockfile = adminSearch
 	} else {
-		lockfile = search_lock
+		lockfile = searchLock
 	}
 	err := os.Remove(lockfile)
 	if err != nil {
 		log.Println(err)
 	}
-	return err
 }
 
 func (c *cgi) getCache(ca *cache) bool {
@@ -621,7 +625,7 @@ func (c *cgi) printNewElementForm() {
 	}{
 		c.makeDefaultVariable(),
 		"",
-		gateway_cgi,
+		gatewayCgi,
 	}
 	renderTemplate("new_element_form", s, c.wr)
 }
@@ -632,8 +636,7 @@ type attached struct {
 }
 
 func (c *cgi) parseAttached() (*attached, error) {
-	c.req.ParseForm()
-	err := c.req.ParseMultipartForm(int64(record_limit) << 10)
+	err := c.req.ParseMultipartForm(int64(recordLimit) << 10)
 	if err != nil {
 		return nil, err
 	}
@@ -642,11 +645,11 @@ func (c *cgi) parseAttached() (*attached, error) {
 		filename := attach.Value["filename"][0]
 		fpStrAttach := attach.File[filename][0]
 		f, err := fpStrAttach.Open()
-		defer f.Close()
+		defer close(f)
 		if err != nil {
 			return nil, err
 		}
-		var strAttach = make([]byte, record_limit<<10)
+		var strAttach = make([]byte, recordLimit<<10)
 		_, err = f.Read(strAttach)
 		if err == nil || err.Error() != "EOF" {
 			c.header(c.m["big_file"], "", nil, true, nil)
@@ -708,7 +711,7 @@ func (c *cgi) doPost() string {
 	proxyClient := c.req.Header.Get("X_FORWARDED_FOR")
 	log.Printf("post %s/%d_%s from %s/%s\n", ca.datfile, stamp, id, c.remoteaddr, proxyClient)
 
-	if len(rec.recstr) > record_limit<<10 {
+	if len(rec.recstr) > recordLimit<<10 {
 		c.header(c.m["big_file"], "", nil, true, nil)
 		c.footer(nil)
 		return ""
@@ -791,10 +794,10 @@ func (c *cgi) makeDefaultVariable() *DefaultVariable {
 		Message:     c.m,
 		Lang:        c.m["lang"],
 		Aappl:       application,
-		GatewayCgi:  gateway_cgi,
-		ThreadCgi:   thread_cgi,
-		AdminCgi:    admin_cgi,
-		RootPath:    root_path,
+		GatewayCgi:  gatewayCgi,
+		ThreadCgi:   threadCgi,
+		AdminCgi:    adminCgi,
+		RootPath:    rootPath,
 		Types:       types,
 		Isadmin:     c.isAdmin,
 		Isfriend:    c.isFriend,

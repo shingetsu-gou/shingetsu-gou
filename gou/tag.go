@@ -47,14 +47,14 @@ type tagList struct {
 	tags    []*tag
 }
 
-func (a tagList) Len() int {
-	return len(a.tags)
+func (t tagList) Len() int {
+	return len(t.tags)
 }
-func (a tagList) Swap(i, j int) {
-	a.tags[i], a.tags[j] = a.tags[j], a.tags[i]
+func (t tagList) Swap(i, j int) {
+	t.tags[i], t.tags[j] = t.tags[j], t.tags[i]
 }
-func (a tagList) Less(i, j int) bool {
-	return a.tags[i].weight < a.tags[j].weight
+func (t tagList) Less(i, j int) bool {
+	return t.tags[i].weight < t.tags[j].weight
 }
 
 func (t *tagList) Get(i int) string {
@@ -69,10 +69,13 @@ func newTagList(datfile, path string, caching bool) *tagList {
 		path: path,
 		tags: make([]*tag, 0),
 	}
-	eachLine(path, func(line string, i int) error {
+	err := eachLine(path, func(line string, i int) error {
 		t.tags = append(t.tags, &tag{line, 0})
 		return nil
 	})
+	if err != nil {
+		log.Println(err)
+	}
 	if caching {
 		tagCache[path] = t
 	}
@@ -130,8 +133,11 @@ func (t *tagList) add(vals []*tag) {
 	}
 }
 
-func (t *tagList) sync() error {
-	return writeSlice(t.path, t)
+func (t *tagList) sync() {
+	err := writeSlice(t.path, t)
+	if err != nil {
+		log.Println(err)
+	}
 }
 
 type suggestedTagTable struct {
@@ -178,13 +184,16 @@ func (s *suggestedTagTable) keys() []string {
 	return ary
 }
 
-func (s *suggestedTagTable) sync() error {
+func (s *suggestedTagTable) sync() {
 	m := make(map[string][]string)
 	for k, v := range s.tieddict {
 		s := tagSliceTostringSlice(v.tags)
 		m[k] = s
 	}
-	return writeMap(s.datfile, m)
+	err := writeMap(s.datfile, m)
+	if err != nil {
+		log.Println(err)
+	}
 }
 
 func (s *suggestedTagTable) prune(recentlist *recentList) {
@@ -194,7 +203,7 @@ func (s *suggestedTagTable) prune(recentlist *recentList) {
 			tmp = append(tmp[:l], tmp[l:]...)
 		}
 		if v, exist := s.tieddict[r.datfile]; exist {
-			v.prune(tag_size)
+			v.prune(tagSize)
 		}
 	}
 	for _, datfile := range tmp {

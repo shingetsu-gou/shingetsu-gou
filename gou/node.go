@@ -38,9 +38,9 @@ import (
 	"time"
 )
 
-var init_node = newConfList(initnode_list, default_init_node)
-var node_allow = newRegexpList(node_allow_file)
-var node_deny = newRegexpList(node_deny_file)
+var initNode = newConfList(initnodeList, defaultInitNode)
+var nodeAllow = newRegexpList(nodeAllowFile)
+var nodeDeny = newRegexpList(nodeDenyFile)
 
 func urlopen(url string, timeout time.Duration) ([]string, error) {
 	req, err := http.NewRequest("GET", url, nil)
@@ -53,7 +53,7 @@ func urlopen(url string, timeout time.Duration) ([]string, error) {
 		Timeout: timeout,
 	}
 	resp, err := client.Do(req)
-	lines := make([]string, 0)
+	var lines []string
 	err = eachIOLine(resp.Body, func(line string, i int) error {
 		strings.Trim(line, "\r\n")
 		lines = append(lines, line)
@@ -95,9 +95,9 @@ func (n *node) talk(message string) ([]string, error) {
 	}
 	var timeout time.Duration
 	if !strings.HasPrefix(message, "/get") {
-		timeout = get_timeout
+		timeout = getTimeout
 	} else {
-		timeout = default_timeout
+		timeout = defaultTimeout
 	}
 
 	message = "http://" + n.nodestr + message
@@ -120,7 +120,7 @@ func (n *node) ping() (string, bool) {
 }
 
 func (n *node) isAllowed() bool {
-	if !node_allow.check(n.nodestr) && node_deny.check(n.nodestr) {
+	if !nodeAllow.check(n.nodestr) && nodeDeny.check(n.nodestr) {
 		return false
 	}
 	return true
@@ -130,8 +130,8 @@ func (n *node) join() (bool, *node) {
 	if n.isAllowed() {
 		return false, nil
 	}
-	path := strings.Replace(server_cgi, "/", "+", -1)
-	port := strconv.Itoa(default_port)
+	path := strings.Replace(serverCgi, "/", "+", -1)
+	port := strconv.Itoa(defaultPort)
 	res, err := n.talk("/join/" + dnsname + ":" + port + path)
 	if err != nil {
 		return false, nil
@@ -149,8 +149,8 @@ func (n *node) getNode() *node {
 }
 
 func (n *node) bye() bool {
-	path := strings.Replace(server_cgi, "/", "+", -1)
-	port := strconv.Itoa(default_port)
+	path := strings.Replace(serverCgi, "/", "+", -1)
+	port := strconv.Itoa(defaultPort)
 	res, err := n.talk("/bye/" + dnsname + ":" + port + path)
 	if err != nil {
 		log.Println("/bye", n.nodestr, "error")
@@ -200,7 +200,10 @@ func (t *rawNodeList) Get(i int) string {
 }
 
 func (t *rawNodeList) sync() {
-	writeSlice(t.filepath, t)
+	err := writeSlice(t.filepath, t)
+	if err != nil {
+		log.Println(err)
+	}
 }
 
 func (t *rawNodeList) random() *node {
@@ -241,7 +244,7 @@ type nodeList struct {
 
 func newNodeList() *nodeList {
 	r := &rawNodeList{
-		filepath: node_file,
+		filepath: nodeFile,
 		tiedlist: make([]*node, 0),
 		//caching:true
 	}
@@ -249,61 +252,61 @@ func newNodeList() *nodeList {
 	return nl
 }
 
-func (n *nodeList) initialize() {
+func (nl *nodeList) initialize() {
 	var inode *node
-	for _, i := range init_node.data {
+	for _, i := range initNode.data {
 		inode = newNode(i)
 		if _, ok := inode.ping(); ok {
-			n.join(inode)
+			nl.join(inode)
 			break
 		}
 	}
-	my := n.myself()
-	if my != nil && n.has(my) {
-		n.remove(my)
+	my := nl.myself()
+	if my != nil && nl.has(my) {
+		nl.remove(my)
 	}
-	if n.Len() == 0 {
+	if nl.Len() == 0 {
 		return
 	}
 	done := make(map[string]int)
 
 	for {
-		if n.Len() == 0 {
+		if nl.Len() == 0 {
 			break
 		}
-		nn := n.random()
+		nn := nl.random()
 		newN := nn.getNode()
 		if _, exist := done[newN.nodestr]; newN != nil && !exist {
-			n.join(newN)
+			nl.join(newN)
 			done[newN.nodestr] = 1
 		}
 		done[nn.nodestr]++
-		if done[nn.nodestr] > retry && n.Len() >= default_nodes {
+		if done[nn.nodestr] > retry && nl.Len() >= defaultNodes {
 			break
 		}
 	}
-	if n.Len() > default_nodes {
+	if nl.Len() > defaultNodes {
 		inode.bye()
-		n.remove(inode)
+		nl.remove(inode)
 	} else {
-		if n.Len() <= 1 {
+		if nl.Len() <= 1 {
 			log.Println("few linked nodes")
 		}
-		for n.Len() > default_nodes {
-			nn := n.random()
+		for nl.Len() > defaultNodes {
+			nn := nl.random()
 			nn.bye()
-			n.remove(nn)
+			nl.remove(nn)
 		}
 	}
 }
 
 func (nl *nodeList) myself() *node {
 	if dnsname == "" {
-		return makeNode(dnsname, server_cgi, default_port)
+		return makeNode(dnsname, serverCgi, defaultPort)
 	}
 	for _, n := range nl.rawNodeList.tiedlist {
 		if host, ok := n.ping(); ok {
-			return makeNode(host, server_cgi, default_port)
+			return makeNode(host, serverCgi, defaultPort)
 		}
 		log.Println("myself() failed at", n.nodestr)
 	}
@@ -321,7 +324,7 @@ func (nl *nodeList) pingAll() {
 
 func (nl *nodeList) join(n *node) bool {
 	flag := false
-	for count := 0; count < retry_join && len(nl.tiedlist) < default_nodes; count++ {
+	for count := 0; count < retryJoin && len(nl.tiedlist) < defaultNodes; count++ {
 		welcome, extnode := n.join()
 		if welcome && extnode == nil {
 			nl.append(n)
@@ -342,7 +345,7 @@ func (nl *nodeList) join(n *node) bool {
 func (nl *nodeList) rejoin(searchlist *searchList) {
 	doJoin := false
 	for _, n := range searchlist.tiedlist {
-		if len(nl.tiedlist) >= default_nodes {
+		if len(nl.tiedlist) >= defaultNodes {
 			break
 		}
 		if nl.has(n) {
@@ -371,7 +374,7 @@ func (nl *nodeList) tellUpdate(c *cache, stamp int64, id string, node *node) {
 	case dnsname != "":
 		tellstr = nl.myself().toxstring()
 	default:
-		tellstr = ":" + strconv.Itoa(default_port) + strings.Replace(server_cgi, "/", "+", -1)
+		tellstr = ":" + strconv.Itoa(defaultPort) + strings.Replace(serverCgi, "/", "+", -1)
 	}
 	arg := strings.Join([]string{"/update/", c.datfile, strconv.FormatInt(stamp, 10), id, tellstr}, "/")
 	go broadcast(arg, c)
@@ -381,7 +384,10 @@ func broadcast(msg string, c *cache) {
 	nlist := newNodeList()
 	for _, n := range c.node.tiedlist {
 		if _, ok := n.ping(); ok || nlist.find(n) != -1 {
-			n.talk(msg)
+			_, err := n.talk(msg)
+			if err != nil {
+				log.Println(err)
+			}
 		} else {
 			c.node.remove(n)
 			c.node.sync()
@@ -389,7 +395,10 @@ func broadcast(msg string, c *cache) {
 	}
 	for _, n := range nlist.tiedlist {
 		if c.node.find(n) == -1 {
-			n.talk(msg)
+			_, err := n.talk(msg)
+			if err != nil {
+				log.Println(err)
+			}
 		}
 	}
 }
@@ -417,47 +426,50 @@ func newLookupTable() *lookupTable {
 	}
 	return r
 }
-func (s *lookupTable) Len() int {
-	return len(s.tieddict)
+func (lt *lookupTable) Len() int {
+	return len(lt.tieddict)
 }
 
-func (s *lookupTable) Get(i string, def []*node) []*node {
-	if v, exist := s.tieddict[i]; exist {
+func (lt *lookupTable) Get(i string, def []*node) []*node {
+	if v, exist := lt.tieddict[i]; exist {
 		return v.tiedlist
 	}
 	return def
 }
 
-func (t *lookupTable) stringMap() map[string][]string {
+func (lt *lookupTable) stringMap() map[string][]string {
 	result := make(map[string][]string)
-	for k, v := range t.tieddict {
+	for k, v := range lt.tieddict {
 		result[k] = v.stringSlice()
 	}
 	return result
 }
 
-func (t *lookupTable) sync(force bool) {
-	if t.tosave || force {
-		writeMap(lookup, t.stringMap())
+func (lt *lookupTable) sync(force bool) {
+	if lt.tosave || force {
+		err := writeMap(lookup, lt.stringMap())
+		if err != nil {
+			log.Println(err)
+		}
 	}
 }
 
-func (t *lookupTable) add(datfile string, n *node) {
-	if ns, exist := t.tieddict[datfile]; exist {
+func (lt *lookupTable) add(datfile string, n *node) {
+	if ns, exist := lt.tieddict[datfile]; exist {
 		ns.append(n)
-		t.tosave = true
+		lt.tosave = true
 	}
 }
 
-func (t *lookupTable) remove(datfile string, n *node) {
-	if ns, exist := t.tieddict[datfile]; exist {
+func (lt *lookupTable) remove(datfile string, n *node) {
+	if ns, exist := lt.tieddict[datfile]; exist {
 		ns.remove(n)
-		t.tosave = true
+		lt.tosave = true
 	}
 }
 
-func (t *lookupTable) clear() {
-	t.tieddict = make(map[string]*rawNodeList)
+func (lt *lookupTable) clear() {
+	lt.tieddict = make(map[string]*rawNodeList)
 }
 
 type searchList struct {
@@ -465,7 +477,7 @@ type searchList struct {
 }
 
 func newSearchList() *searchList {
-	r := newRawNodeList(search_file, true)
+	r := newRawNodeList(searchFile, true)
 	return &searchList{rawNodeList: r}
 }
 
@@ -502,7 +514,7 @@ func (sl *searchList) search(c *cache, myself *node, nodes []*node) *node {
 		if rl, exist := tbl.tieddict[c.datfile]; exist {
 			rl.remove(n)
 		}
-		if count > search_depth {
+		if count > searchDepth {
 			break
 		}
 	}

@@ -38,7 +38,7 @@ import (
 	"time"
 )
 
-var dkTable = newDatakeyTable(run_dir + "/datakey.txt")
+var dkTable = newDatakeyTable(runDir + "/datakey.txt")
 
 type datakeyTable struct {
 	file            string
@@ -56,7 +56,7 @@ func newDatakeyTable(file string) *datakeyTable {
 }
 
 func (d *datakeyTable) loadInternal() {
-	eachLine(d.file, func(line string, i int) error {
+	err := eachLine(d.file, func(line string, i int) error {
 		dat := strings.Split(strings.TrimSpace(line), "<>")
 		stamp, err := strconv.ParseInt(dat[0], 10, 64)
 		if err != nil {
@@ -66,6 +66,9 @@ func (d *datakeyTable) loadInternal() {
 		d.setEntry(stamp, dat[1])
 		return nil
 	})
+	if err != nil {
+		log.Println(err)
+	}
 }
 
 func (d *datakeyTable) load() {

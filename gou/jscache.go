@@ -43,9 +43,8 @@ type finfo struct {
 }
 
 type jsCache struct {
-	path   string
-	script string
-	files  map[string]*finfo
+	path  string
+	files map[string]*finfo
 }
 
 func newJsCache(path string) *jsCache {

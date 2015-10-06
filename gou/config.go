@@ -40,39 +40,32 @@ import (
 )
 
 const (
-	client_cycle        = 5 * time.Minute  // Seconds; Access client.cgi
-	ping_cycle          = 5 * time.Minute  // Seconds; Check nodes
-	sync_cycle          = 5 * time.Hour    // Seconds; Check cache
-	init_cycle          = 20 * time.Minute // Seconds; Check initial node
-	update_range        = 24 * time.Hour   // Seconds
-	wait_update         = 10 * time.Second // Seconds
-	time_error          = 60 * time.Second // Seconds
-	search_timeout      = 10 * time.Minute // Seconds
-	default_timeout     = 20 * time.Second // Seconds; Timeout for TCP
-	get_timeout         = 2 * time.Minute  // Seconds; Timeout for /get
-	client_timeout      = 30 * time.Minute // Seconds; client_timeout < sync_cycle
-	tk_save_warn        = 5 * time.Minute  // Seconds
-	retry               = 5                // Times; Common setting
-	retry_join          = 2                // Times; Join network
-	default_nodes       = 5                // Nodes keeping in node list
-	share_nodes         = 5                // Nodes having the file
-	search_depth        = 30               // Search node size
-	tiedfile_cache_size = 30
+	clientCycle = 5 * time.Minute  // Seconds; Access client.cgi
+	pingCycle   = 5 * time.Minute  // Seconds; Check nodes
+	syncCycle   = 5 * time.Hour    // Seconds; Check cache
+	initCycle   = 20 * time.Minute // Seconds; Check initial node
+	updateRange = 24 * time.Hour   // Seconds
+	//	time_error          = 60 * time.Second // Seconds
+	searchTimeout  = 10 * time.Minute // Seconds
+	defaultTimeout = 20 * time.Second // Seconds; Timeout for TCP
+	getTimeout     = 2 * time.Minute  // Seconds; Timeout for /get
+	clientTimeout  = 30 * time.Minute // Seconds; client_timeout < sync_cycle
+	retry          = 5                // Times; Common setting
+	retryJoin      = 2                // Times; Join network
+	defaultNodes   = 5                // Nodes keeping in node list
+	shareNodes     = 5                // Nodes having the file
+	searchDepth    = 30               // Search node size
 
-	broadcast_py = "../tool/broadcast.py" // Broadcast script path
-
-	rss_version      = "1" // RSS version; must be "1"
-	google           = "http://www.google.co.jp/search"
-	default_language = "en" // Language code (see RFC3066)
+	defaultLanguage = "en" // Language code (see RFC3066)
 
 	// regexp
 	robot = "Google|bot|Yahoo|archiver|Wget|Crawler|Yeti|Baidu"
 
-	dnsname         = ""  // Server name for shinGETsu protocol
-	query_separator = "/" // Must be "/"
-	root_path       = "/" // path of URI for root
+	dnsname        = ""  // Server name for shinGETsu protocol
+	querySeparator = "/" // Must be "/"
+	rootPath       = "/" // path of URI for root
 
-	template_suffix = ".txt"
+	templateSuffix = ".txt"
 )
 
 var (
@@ -80,91 +73,82 @@ var (
 
 	types = []string{"thread"}
 
-	save_record  = make(map[string]int)
-	save_size    = make(map[string]int) // It is not seconds, but number.
-	get_range    = make(map[string]int)
-	sync_range   = make(map[string]int)
-	save_removed = make(map[string]int)
+	saveRecord  = make(map[string]int)
+	savesize    = make(map[string]int) // It is not seconds, but number.
+	getRange    = make(map[string]int)
+	syncRange   = make(map[string]int)
+	saveRemoved = make(map[string]int)
 
-	default_port   = setting.getIntValue("Network", "port", 8000)
-	dat_port       = setting.getIntValue("Network", "dat_port", 8001)
-	max_connection = setting.getIntValue("Network", "max_connection", 20)
+	defaultPort = setting.getIntValue("Network", "port", 8000)
+	datPort     = setting.getIntValue("Network", "dat_port", 8001)
+	//	max_connection = setting.getIntValue("Network", "max_connection", 20)
 
-	docroot         = setting.getPathValue("Path", "docroot", "./www")
-	log_dir         = setting.getPathValue("Path", "log_dir", "./log")
-	run_dir         = setting.getPathValue("Path", "run_dir", "../run")
-	file_dir        = setting.getPathValue("Path", "file_dir", "../file")
-	cache_dir       = setting.getPathValue("Path", "cache_dir", "../cache")
-	template_dir    = setting.getPathValue("Path", "template_dir", "../template")
-	spam_list       = setting.getPathValue("Path", "spam_list", "../file/spam.txt")
-	initnode_list   = setting.getPathValue("Path", "initnode_list", "../file/initnode.txt")
-	node_allow_file = setting.getPathValue("Path", "node_allow", "../file/node_allow.txt")
-	node_deny_file  = setting.getPathValue("Path", "node_deny", "../file/node_deny.txt")
-	apache_docroot  = setting.getPathValue("Path", "apache_docroot", "/var/local/www/shingetsu")
-	archive_dir     = setting.getPathValue("Path", "archive_dir", "/var/local/www/archive")
+	docroot       = setting.getPathValue("Path", "docroot", "./www")
+	logDir        = setting.getPathValue("Path", "log_dir", "./log")
+	runDir        = setting.getPathValue("Path", "run_dir", "../run")
+	fileDir       = setting.getPathValue("Path", "file_dir", "../file")
+	cacheDir      = setting.getPathValue("Path", "cache_dir", "../cache")
+	templateDir   = setting.getPathValue("Path", "template_dir", "../template")
+	spamList      = setting.getPathValue("Path", "spam_list", "../file/spam.txt")
+	initnodeList  = setting.getPathValue("Path", "initnode_list", "../file/initnode.txt")
+	nodeAllowFile = setting.getPathValue("Path", "node_allow", "../file/node_allow.txt")
+	nodeDenyFile  = setting.getPathValue("Path", "node_deny", "../file/node_deny.txt")
 
-	re_admin          = setting.getStringValue("Gateway", "admin", "^127")
-	re_friend         = setting.getStringValue("Gateway", "friend", "^127")
-	re_visitor        = setting.getStringValue("Gateway", "visitor", ".")
-	server_name       = setting.getStringValue("Gateway", "server_name", "")
-	tag_size          = setting.getIntValue("Gateway", "tag_size", 20)
-	rss_range         = setting.getIntValue("Gateway", "rss_range", 3*24*60*60)
-	top_recent_range  = setting.getIntValue("Gateway", "top_recent_range", 3*24*60*60)
-	recent_range      = setting.getIntValue("Gateway", "recent_range", 31*24*60*60)
-	record_limit      = setting.getIntValue("Gateway", "record_limit", 2048)
-	proxy_destination = setting.getStringValue("Gateway", "proxy_destination", "")
-	archive_uri       = setting.getStringValue("Gateway", "archive_uri", "http://archive.shingetsu.info/")
-	enable2ch         = setting.getBoolValue("Gateway", "enable_2ch", false)
+	reAdmin        = setting.getStringValue("Gateway", "admin", "^127")
+	reFriend       = setting.getStringValue("Gateway", "friend", "^127")
+	reVisitor      = setting.getStringValue("Gateway", "visitor", ".")
+	serverName     = setting.getStringValue("Gateway", "server_name", "")
+	tagSize        = setting.getIntValue("Gateway", "tag_size", 20)
+	rssRange       = setting.getIntValue("Gateway", "rss_range", 3*24*60*60)
+	topRecentRange = setting.getIntValue("Gateway", "top_recent_range", 3*24*60*60)
+	recentRange    = setting.getIntValue("Gateway", "recent_range", 31*24*60*60)
+	recordLimit    = setting.getIntValue("Gateway", "record_limit", 2048)
+	enable2ch      = setting.getBoolValue("Gateway", "enable_2ch", false)
 
-	motd         = file_dir + "/motd.txt"
-	node_file    = run_dir + "/node.txt"
-	search_file  = run_dir + "/search.txt"
-	update       = run_dir + "/update.txt"
-	recent       = run_dir + "/recent.txt"
-	client_log   = run_dir + "/client.txt"
-	lock         = run_dir + "/lock.txt"
-	search_lock  = run_dir + "/touch.txt"
-	admin_search = run_dir + "/admintouch.txt"
-	admin_sid    = run_dir + "/sid.txt"
-	pid          = run_dir + "/pid.txt"
-	lookup       = run_dir + "/lookup.txt"
-	taglist      = run_dir + "/tag.txt"
-	sugtag       = run_dir + "/sugtag.txt"
-	read_status  = run_dir + "/readstatus.txt"
+	motd        = fileDir + "/motd.txt"
+	nodeFile    = runDir + "/node.txt"
+	searchFile  = runDir + "/search.txt"
+	update      = runDir + "/update.txt"
+	recent      = runDir + "/recent.txt"
+	clientLog   = runDir + "/client.txt"
+	lock        = runDir + "/lock.txt"
+	searchLock  = runDir + "/touch.txt"
+	adminSearch = runDir + "/admintouch.txt"
+	adminSid    = runDir + "/sid.txt"
+	pid         = runDir + "/pid.txt"
+	lookup      = runDir + "/lookup.txt"
+	taglist     = runDir + "/tag.txt"
+	sugtag      = runDir + "/sugtag.txt"
 
-	server_cgi  = root_path + "server.cgi"
-	client_cgi  = root_path + "client.cgi"
-	gateway_cgi = root_path + "gateway.cgi"
-	thread_cgi  = root_path + "thread.cgi"
-	admin_cgi   = root_path + "admin.cgi"
-	xsl         = root_path + "rss1.xsl"
+	serverCgi  = rootPath + "server.cgi"
+	gatewayCgi = rootPath + "gateway.cgi"
+	threadCgi  = rootPath + "thread.cgi"
+	adminCgi   = rootPath + "admin.cgi"
+	xsl        = rootPath + "rss1.xsl"
 
-	thread_page_size = setting.getIntValue("Application Thread", "page_size", 50)
-	thumbnail_size   = setting.getStringValue("Application Thread", "thumbnail_size", "")
-	force_thumbnail  = setting.getBoolValue("Application Thread", "force_thumbnail", false)
+	threadPageSize       = setting.getIntValue("Application Thread", "page_size", 50)
+	defaultThumbnailSize = setting.getStringValue("Application Thread", "thumbnail_size", "")
+	forceThumbnail       = setting.getBoolValue("Application Thread", "force_thumbnail", false)
 
-	root_index  = setting.getStringValue("Gateway", "root_index", gateway_cgi)
-	application = map[string]string{"thread": thread_cgi}
-	use_cookie  = true
-	save_cookie = 7 * 24 * time.Hour
+	application = map[string]string{"thread": threadCgi}
+	useCookie   = true
+	saveCookie  = 7 * 24 * time.Hour
 	// Seconds
-	title_limit = 30 // Charactors
 
 	// asis, md5, sha1, sha224, sha256, sha384, or sha512
-	cache_hash_method = "asis"
+	//	cache_hash_method = "asis"
 	//others are not implemented for gou for now.
 
 	version = getVersion()
 
-	default_init_node = []string{
+	defaultInitNode = []string{
 		"node.shingetsu.info:8000/server.cgi",
 		"pushare.zenno.info:8000/server.cgi",
 	}
 
-	flags       []string // It is set by script
-	cached_rule = newRegexpList(spam_list)
-	absDocroot  string
-	queue       = newUpdateQue()
+	cachedRule = newRegexpList(spamList)
+	absDocroot string
+	queue      = newUpdateQue()
 )
 
 type config struct {
@@ -215,10 +199,10 @@ func (c *config) getPathValue(section, key string, vdefault string) string {
 func getVersion() string {
 	ver := "0.0.1"
 
-	version_file := docroot + "/" + file_dir + "/version.txt"
-	f, err := os.Open(version_file)
+	versionFile := docroot + "/" + fileDir + "/version.txt"
+	f, err := os.Open(versionFile)
 	if err == nil {
-		defer f.Close()
+		defer close(f)
 		cont, err := ioutil.ReadAll(f)
 		if err == nil {
 			ver += "; git/" + string(cont)
@@ -231,10 +215,10 @@ func InitConfig() {
 
 	for _, t := range types {
 		ctype := "Application " + strings.ToUpper(t)
-		save_record[t] = setting.getIntValue(ctype, "save_record", 0)
-		save_size[t] = setting.getIntValue(ctype, "save_size", 1)
-		get_range[t] = setting.getIntValue(ctype, "get_range", 31*24*60*60)
-		sync_range[t] = setting.getIntValue(ctype, "sync_range", 10*24*60*60)
-		save_removed[t] = setting.getIntValue(ctype, "save_removed", 50*24*60*60)
+		saveRecord[t] = setting.getIntValue(ctype, "save_record", 0)
+		savesize[t] = setting.getIntValue(ctype, "save_size", 1)
+		getRange[t] = setting.getIntValue(ctype, "get_range", 31*24*60*60)
+		syncRange[t] = setting.getIntValue(ctype, "sync_range", 10*24*60*60)
+		saveRemoved[t] = setting.getIntValue(ctype, "save_removed", 50*24*60*60)
 	}
 }

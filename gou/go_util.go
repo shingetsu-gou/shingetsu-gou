@@ -42,8 +42,9 @@ import (
 	"strings"
 )
 
+//eachIOLine iterates each line to  a ReadCloser and calls func.
 func eachIOLine(f io.ReadCloser, handler func(line string, num int) error) error {
-	defer f.Close()
+	defer close(f)
 	scanner := bufio.NewScanner(f)
 	for i := 0; scanner.Scan(); i++ {
 		err := handler(scanner.Text(), i)
@@ -54,6 +55,7 @@ func eachIOLine(f io.ReadCloser, handler func(line string, num int) error) error
 	return scanner.Err()
 }
 
+//eachLine iterates each line and calls a func.
 func eachLine(path string, handler func(line string, num int) error) error {
 	f, err := os.Open(path)
 	if err != nil {
@@ -62,6 +64,7 @@ func eachLine(path string, handler func(line string, num int) error) error {
 	return eachIOLine(f, handler)
 }
 
+//eachKeyValueLine calls func for each line which contains key and value separated with "<>"
 func eachKeyValueLine(path string, handler func(key string, value []string, num int) error) error {
 	err := eachLine(path, func(line string, i int) error {
 		kv := strings.Split(line, "<>")
@@ -75,25 +78,31 @@ func eachKeyValueLine(path string, handler func(key string, value []string, num 
 	return err
 }
 
+//stringerslice is a interface whose values are sting.
 type stringerSlice interface {
 	Len() int
 	Get(int) string
 }
 
+//stringSlice is to make []string to stringerSlice
 type stringSlice []string
 
+//Len returns length of ary
 func (s stringSlice) Len() int {
 	return len(s)
 }
 
+//Get returns ary value
 func (s stringSlice) Get(i int) string {
 	return s[i]
 }
 
+//hasString returns true if ary has val.
 func hasString(ary stringerSlice, val string) bool {
 	return findString(ary, val) != -1
 }
 
+//findString search val in ary and returns index. it returns -1 if not found.
 func findString(ary stringerSlice, val string) int {
 	for i := 0; i < ary.Len(); i++ {
 		if ary.Get(i) == val {
@@ -103,39 +112,46 @@ func findString(ary stringerSlice, val string) int {
 	return -1
 }
 
+//writeSlice write ary into a path.
 func writeSlice(path string, ary stringerSlice) error {
 	f, err := os.Create(path)
 	if err != nil {
+		log.Println(err)
 		return err
 	}
-	defer f.Close()
+	defer close(f)
+
 	for i := 0; i < ary.Len(); i++ {
-		f.WriteString(ary.Get(i) + "\n")
+		_, err := f.WriteString(ary.Get(i) + "\n")
+		if err != nil {
+			return err
+		}
 	}
 	return nil
 }
 
+//writeSlice write map into a path.
 func writeMap(path string, ary map[string][]string) error {
 	f, err := os.Create(path)
 	if err != nil {
+		log.Println(err)
 		return err
 	}
-	defer f.Close()
+	defer close(f)
+
 	for k, v := range ary {
-		f.WriteString(k + "<>")
-		for i, s := range v {
-			f.WriteString(s)
-			if i != len(v)-1 {
-				f.WriteString(" ")
-			}
+		_, err := f.WriteString(k + "<>" + strings.Join(v, " ") + "\n")
+		if err != nil {
+			log.Println(err)
+			return err
 		}
-		f.WriteString("\n")
 	}
 	return nil
 }
 
+//renderTemplate executes template and write to wr.
 func renderTemplate(file string, st interface{}, wr io.Writer) {
-	basename := template_dir + "/" + file + template_suffix
+	basename := templateDir + "/" + file + templateSuffix
 	tpl, err := template.ParseFiles(basename)
 	if err != nil {
 		log.Println(err)
@@ -146,12 +162,14 @@ func renderTemplate(file string, st interface{}, wr io.Writer) {
 	}
 }
 
+//executeTemplate executes template and returns it as string.
 func executeTemplate(file string, st interface{}) string {
 	var doc bytes.Buffer
 	renderTemplate(file, st, &doc)
 	return doc.String()
 }
 
+//eachFiles iterates each files in dir and calls handler.
 func eachFiles(dir string, handler func(dir os.FileInfo) error) error {
 	dirs, err := ioutil.ReadDir(dir)
 	if err != nil {
@@ -165,6 +183,7 @@ func eachFiles(dir string, handler func(dir os.FileInfo) error) error {
 	return nil
 }
 
+//isFiles returns true is path is an existing file.
 func isFile(path string) bool {
 	fs, err := os.Stat(path)
 	if err != nil {
@@ -173,6 +192,7 @@ func isFile(path string) bool {
 	return !fs.IsDir()
 }
 
+//isDir returns true is path is an existing dir.
 func isDir(path string) bool {
 	fs, err := os.Stat(path)
 	if err != nil {
@@ -181,6 +201,7 @@ func isDir(path string) bool {
 	return fs.IsDir()
 }
 
+//sortKeys sorts keys of m and return as string ary.
 func sortKeys(m map[string]string) []string {
 	mk := make([]string, len(m))
 	i := 0
@@ -192,17 +213,20 @@ func sortKeys(m map[string]string) []string {
 	return mk
 }
 
+//moveFile moves a file from src to dest.
 func moveFile(dst, src string) error {
 	in, err := os.Open(src)
 	if err != nil {
 		return err
 	}
-	defer in.Close()
+	defer close(in)
+
 	out, err := os.Create(dst)
 	if err != nil {
 		return err
 	}
-	defer out.Close()
+	defer close(out)
+
 	_, err = io.Copy(out, in)
 	if err != nil {
 		return err
@@ -210,16 +234,25 @@ func moveFile(dst, src string) error {
 	return os.Remove(src)
 }
 
+//shufflable interface is for shuffle ary.
 type shufflable interface {
 	Len() int
 	Swap(i int, j int)
 }
 
+//shuffle shuffles shufflable ary.
 func shuffle(slc shufflable) {
 	N := slc.Len()
 	for i := 0; i < N; i++ {
 		// choose index uniformly in [i, N-1]
 		r := i + rand.Intn(N-i)
 		slc.Swap(r, i)
+	}
+}
+
+//close closes io.Close, if err exists ,println err.
+func close(f io.Closer) {
+	if err := f.Close(); err != nil {
+		log.Println(err)
 	}
 }

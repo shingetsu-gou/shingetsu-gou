@@ -30,6 +30,7 @@ package gou
 
 import (
 	"fmt"
+	"html"
 	"io"
 	"log"
 	"mime"
@@ -52,39 +53,34 @@ func threadSetup(s *http.ServeMux) {
 		a.printIndex()
 	})))
 	rtr.Handle("/thread.cgi/thread_{datfile:[0-9A-F]+)/{stamp:[0-9a-f]{32}}/s{id:\\d+}\\.{thumbnailSize:\\d+x\\d+}\\.{suffix:.*}", handlers.CompressHandler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		a := newThreadCGI(w, r)
-		if a != nil {
-			return
+		if a := newThreadCGI(w, r); a != nil {
+			m := mux.Vars(r)
+			a.printAttach(m["datfile"], m["stamp"], m["id"], m["thumbnailSize"], m["suffix"])
 		}
-		a.printAttach(mux.Vars(r))
 	})))
 	rtr.Handle("/thread.cgi/thread_{datfile:[0-9A-F]+)/{stamp:[0-9a-f]{32}}/{id:\\d+}\\.{suffix:.*}", handlers.CompressHandler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		a := newThreadCGI(w, r)
-		if a != nil {
-			return
+		if a := newThreadCGI(w, r); a != nil {
+			m := mux.Vars(r)
+			a.printAttach(m["datfile"], m["stamp"], m["id"], "", m["suffix"])
 		}
-		a.printAttach(mux.Vars(r))
 	})))
 	rtr.Handle("/thread.cgi/{path:[^/]+}/?$", handlers.CompressHandler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		a := newThreadCGI(w, r)
-		if a == nil {
-			return
+		if a := newThreadCGI(w, r); a != nil {
+			m := mux.Vars(r)
+			a.printThread(m["path"], "", "")
 		}
-		a.printThread(mux.Vars(r))
 	})))
 	rtr.Handle("/thread.cgi/{path:([^/]+}/{id:[0-9a-f]{8}}$", handlers.CompressHandler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		a := newThreadCGI(w, r)
-		if a == nil {
-			return
+		if a := newThreadCGI(w, r); a != nil {
+			m := mux.Vars(r)
+			a.printThread(m["path"], m["id"], "")
 		}
-		a.printThread(mux.Vars(r))
 	})))
 	rtr.Handle("/thread.cgi/{path:[^/]+}/p{page:[0-9]+}$", handlers.CompressHandler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		a := newThreadCGI(w, r)
-		if a == nil {
-			return
+		if a := newThreadCGI(w, r); a != nil {
+			m := mux.Vars(r)
+			a.printThread(m["path"], "", m["page"])
 		}
-		a.printThread(mux.Vars(r))
 	})))
 	s.Handle("/", handlers.CompressHandler(rtr))
 }
@@ -95,15 +91,15 @@ type threadCGI struct {
 
 func newThreadCGI(w http.ResponseWriter, r *http.Request) *threadCGI {
 	c := newCGI(w, r)
-	r.ParseForm()
 
-	c.host = server_name
-	if c.host == "" {
-		c.host = r.Host
-	}
-	if !c.checkVisitor() {
+	if c == nil || !c.checkVisitor() {
 		c.print403("")
 		return nil
+	}
+
+	c.host = serverName
+	if c.host == "" {
+		c.host = r.Host
 	}
 	return &threadCGI{
 		c,
@@ -116,32 +112,29 @@ func (t *threadCGI) printIndex() {
 			return
 		}
 		datfile := t.req.FormValue("file")
-		f, _ := fileDecode(datfile)
-		title := strEncode(f)
-		t.print302(thread_cgi + query_separator + title + "#r" + id)
+		title := strEncode(fileDecode(datfile))
+		t.print302(threadCgi + querySeparator + title + "#r" + id)
 	}
 	t.print404(nil, "")
 }
 
 func (t *threadCGI) setCookie(ca *cache, access string) []*http.Cookie {
 	c := http.Cookie{}
-	c.Expires = time.Now().Add(save_cookie)
-	f, _ := fileDecode(ca.datfile)
-	c.Path = thread_cgi + query_separator + strEncode(f)
+	c.Expires = time.Now().Add(saveCookie)
+	c.Path = threadCgi + querySeparator + strEncode(fileDecode(ca.datfile))
 	c.Name = "access"
 	c.Value = strconv.FormatInt(time.Now().Unix(), 10)
 	if access == "" {
 		return []*http.Cookie{&c}
-	} else {
-		cc := http.Cookie{}
-		cc.Name = "tmpaccess"
-		cc.Value = access
-		return []*http.Cookie{&c, &cc}
 	}
+	cc := http.Cookie{}
+	cc.Name = "tmpaccess"
+	cc.Value = access
+	return []*http.Cookie{&c, &cc}
 }
 func (t *threadCGI) printPageNavi(page string, ca *cache, path, strPath, id string) {
-	first := ca.Len() / thread_page_size
-	if ca.Len() == 0%thread_page_size {
+	first := ca.Len() / threadPageSize
+	if ca.Len() == 0%threadPageSize {
 		first++
 	}
 	s := struct {
@@ -180,8 +173,7 @@ func (t *threadCGI) printTag(ca *cache) {
 	renderTemplate("thread_tags", s, t.wr)
 }
 
-func (t *threadCGI) printThread(param map[string]string) {
-	id := param["id"]
+func (t *threadCGI) printThread(path, id, page string) {
 	strPath := strEncode(t.req.URL.Path)
 	filePath := fileEncode("thread", t.req.URL.Path)
 	ca := newCache(filePath, nil, nil)
@@ -204,13 +196,12 @@ func (t *threadCGI) printThread(param map[string]string) {
 	}
 	var access string
 	var newcookie []*http.Cookie
-	page := param["page"]
 	nPage, err := strconv.Atoi(page)
 	if err != nil {
 		log.Println(err)
 		return
 	}
-	if use_cookie && ca.Len() > 0 && id == "" && page == "" {
+	if useCookie && ca.Len() > 0 && id == "" && page == "" {
 		cookie, err := t.req.Cookie("access")
 		if err != nil {
 			access = cookie.Value
@@ -219,7 +210,7 @@ func (t *threadCGI) printThread(param map[string]string) {
 		}
 		newcookie = t.setCookie(ca, access)
 	}
-	rss := gateway_cgi + "/rss"
+	rss := gatewayCgi + "/rss"
 	t.header(t.req.URL.Path, rss, newcookie, false, nil)
 	tags := strings.Split(strings.Trim(t.req.FormValue("tag"), "\r\n"), " \t")
 	if t.isAdmin && len(tags) > 0 {
@@ -258,9 +249,9 @@ func (t *threadCGI) printThread(param map[string]string) {
 	case id != "":
 		inrange = ids
 	case t.req.URL.Path != "":
-		inrange = ids[len(ids)-thread_page_size*(nPage+1) : len(ids)-thread_page_size*nPage]
+		inrange = ids[len(ids)-threadPageSize*(nPage+1) : len(ids)-threadPageSize*nPage]
 	default:
-		inrange = ids[len(ids)-thread_page_size*(nPage+1):]
+		inrange = ids[len(ids)-threadPageSize*(nPage+1):]
 	}
 	for _, k := range inrange {
 		rec := ca.Get(k, nil)
@@ -270,7 +261,7 @@ func (t *threadCGI) printThread(param map[string]string) {
 		rec.free()
 	}
 	fmt.Fprintln(t.wr, "</dl>")
-	escapedPath := cgiEscape(t.req.URL.Path, false)
+	escapedPath := html.EscapeString(t.req.URL.Path)
 	escapedPath = strings.Replace(escapedPath, "  ", "&nbsp;&nbsp;", -1)
 	ss := struct {
 		*DefaultVariable
@@ -324,11 +315,11 @@ func (t *threadCGI) printRecord(ca *cache, rec *record, path, strPath string) {
 			typ = "text/plain"
 		}
 		if isValidImage(typ, attachFile) {
-			thumbnailSize = thumbnail_size
+			thumbnailSize = defaultThumbnailSize
 		}
 	}
 	body := rec.getDict("body", "")
-	body = t.htmlFormat(body, thread_cgi, path, false)
+	body = t.htmlFormat(body, threadCgi, path, false)
 	s := struct {
 		*DefaultVariable
 		Cache      *cache
@@ -373,14 +364,14 @@ func (t *threadCGI) printPostForm(ca *cache) {
 		t.makeDefaultVariable(),
 		ca,
 		mimes,
-		record_limit * 3 >> 2,
+		recordLimit * 3 >> 2,
 	}
 	renderTemplate("post_form", s, t.wr)
 }
 
-func (t *threadCGI) printAttach(param map[string]string) {
-	ca := newCache(param["datfile"], nil, nil)
-	typ := mime.TypeByExtension(param["suffix"])
+func (t *threadCGI) printAttach(datfile, stampStr, id, thumbnailSize, suffix string) {
+	ca := newCache(datfile, nil, nil)
+	typ := mime.TypeByExtension("suffix")
 	if typ == "" {
 		typ = "text/plain"
 	}
@@ -392,18 +383,16 @@ func (t *threadCGI) printAttach(param map[string]string) {
 		t.print404(ca, "")
 		return
 	}
-	rec := newRecord(ca.datfile, param["stamp"]+"_"+param["id"])
+	rec := newRecord(ca.datfile, stampStr+"_"+id)
 	if !rec.exists() {
 		t.print404(ca, "")
 		return
 	}
-	thumbnailSize := param["thumbnailSize"]
-	suffix := param["suffix"]
-	attachFile := rec.attachPath(param["suffix"], thumbnailSize)
-	if thumbnail_size != "" && !isFile(attachFile) && (force_thumbnail || thumbnailSize == thumbnail_size) {
+	attachFile := rec.attachPath(suffix, thumbnailSize)
+	if thumbnailSize != "" && !isFile(attachFile) && (forceThumbnail || thumbnailSize == thumbnailSize) {
 		rec.makeThumbnail(suffix, thumbnailSize)
 	}
-	stamp, err := strconv.ParseInt(param["stamp"], 10, 64)
+	stamp, err := strconv.ParseInt(stampStr, 10, 64)
 	if err != nil {
 		log.Println(err)
 		t.print404(ca, "")
@@ -416,11 +405,15 @@ func (t *threadCGI) printAttach(param map[string]string) {
 			t.wr.Header().Set("Content-Disposition", "attachmentLast-Modified")
 		}
 		f, err := os.Open(attachFile)
-		defer f.Close()
+		defer close(f)
+
 		if err != nil {
 			log.Println(err)
 			t.print404(ca, "")
 		}
-		io.Copy(t.wr, f)
+		_, err = io.Copy(t.wr, f)
+		if err != nil {
+			log.Println(err)
+		}
 	}
 }

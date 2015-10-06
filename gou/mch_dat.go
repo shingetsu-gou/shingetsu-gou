@@ -74,7 +74,10 @@ func makeDat(ca *cache, host string, board string) []string {
 
 	for i, k := range ca.keys() {
 		rec := ca.Get(k, nil)
-		rec.load()
+		err := rec.load()
+		if err != nil {
+			log.Println(err)
+		}
 		name := rec.Get("name", "")
 		if name == "" {
 			name = "名無しさん"
@@ -85,8 +88,7 @@ func makeDat(ca *cache, host string, board string) []string {
 		comment := fmt.Sprintf("%s<>%s<>%s<>%s<>",
 			name, rec.Get("main", ""), datestr2ch(rec.Get("stamp", "")), makeBody(rec, host, board, table))
 		if i == 0 {
-			d, _ := fileDecode(ca.datfile)
-			comment += d
+			comment += fileDecode(ca.datfile)
 		}
 		comment += "\n"
 		dat[i] = comment
@@ -98,18 +100,18 @@ func makeDat(ca *cache, host string, board string) []string {
 
 func makeBody(rec *record, host, board string, table *resTable) string {
 	var datHost, sakuHost string
-	if server_name != "" {
-		datHost = server_name
-		sakuHost = server_name
+	if serverName != "" {
+		datHost = serverName
+		sakuHost = serverName
 	} else {
 		tcp, err := net.ResolveTCPAddr("tcp", host)
 		if err != nil {
 			log.Println(err)
 			return ""
 		}
-		tcp.Port = dat_port
+		tcp.Port = datPort
 		datHost = tcp.String()
-		tcp.Port = default_port
+		tcp.Port = defaultPort
 		sakuHost = tcp.String()
 	}
 	body := makeAttachLink(rec, sakuHost)

@@ -134,9 +134,9 @@ func (r *record) setpath() {
 		return
 	}
 	r.dathash = fileHash(r.datfile)
-	r.path = filepath.Join(cache_dir, r.dathash, "record", r.idstr)
-	r.bodyPath = filepath.Join(cache_dir, r.dathash, "body", r.idstr)
-	r.rmPath = filepath.Join(cache_dir, r.dathash, "removed", r.idstr)
+	r.path = filepath.Join(cacheDir, r.dathash, "record", r.idstr)
+	r.bodyPath = filepath.Join(cacheDir, r.dathash, "body", r.idstr)
+	r.rmPath = filepath.Join(cacheDir, r.dathash, "removed", r.idstr)
 }
 
 func (r *record) parse(recstr string) error {
@@ -188,23 +188,34 @@ func (r *record) size() int64 {
 
 func (r *record) remove() error {
 	err := moveFile(r.path, r.rmPath)
+	defer r.free()
 	if err != nil {
 		log.Println(err)
-		r.free()
 		return err
 	}
 	for _, path := range r.allthumbnailPath() {
-		os.Remove(path)
+		err := os.Remove(path)
+		if err != nil {
+			log.Println(err)
+		}
 	}
-	os.Remove(r.attachPath("", ""))
-	os.Remove(r.bodyPath)
-	r.free()
+	err = os.Remove(r.attachPath("", ""))
+	if err != nil {
+		log.Println(err)
+	}
+	err = os.Remove(r.bodyPath)
+	if err != nil {
+		log.Println(err)
+	}
 	return nil
 }
 
 func (r *record) _load(filename string) error {
 	if r.size() <= 0 {
-		r.remove()
+		err := r.remove()
+		if err != nil {
+			log.Println(err)
+		}
 		return errors.New("file not found")
 	}
 	c, err := ioutil.ReadFile(filename)
@@ -217,7 +228,10 @@ func (r *record) _load(filename string) error {
 
 func (r *record) load() error {
 	if !r.flagLoad {
-		return r._load(r.path)
+		err := r._load(r.path)
+		if err != nil {
+			return err
+		}
 	}
 	return nil
 }
@@ -277,8 +291,8 @@ func (r *record) md5check() bool {
 }
 
 func (r *record) allthumbnailPath() []string {
-	dir := filepath.Join(cache_dir, r.dathash, "attach")
-	thumbnail := make([]string, 0)
+	dir := filepath.Join(cacheDir, r.dathash, "attach")
+	var thumbnail []string
 	err := eachFiles(dir, func(fi os.FileInfo) error {
 		dname := fi.Name()
 		if strings.HasPrefix(dname, "s"+r.idstr) {
@@ -293,7 +307,7 @@ func (r *record) allthumbnailPath() []string {
 }
 
 func (r *record) attachPath(suffix string, thumbnailSize string) string {
-	dir := filepath.Join(cache_dir, r.dathash, "attach")
+	dir := filepath.Join(cacheDir, r.dathash, "attach")
 	if suffix != "" {
 		if thumbnailSize != "" {
 			return filepath.Join(dir, "/", "s"+r.idstr+"."+thumbnailSize+"."+suffix)
@@ -337,7 +351,7 @@ func (r *record) writeFile(path, data string) error {
 
 func (r *record) makeThumbnail(suffix string, thumbnailSize string) {
 	if thumbnailSize == "" {
-		thumbnailSize = thumbnail_size
+		thumbnailSize = defaultThumbnailSize
 	}
 	if thumbnailSize == "" {
 		return
@@ -366,7 +380,8 @@ func (r *record) makeThumbnail(suffix string, thumbnailSize string) {
 		log.Println(err)
 		return
 	}
-	defer file.Close()
+	defer close(file)
+
 	img, _, err := image.Decode(file)
 	if err != nil {
 		log.Println(err)
@@ -378,16 +393,19 @@ func (r *record) makeThumbnail(suffix string, thumbnailSize string) {
 		log.Println(err)
 		return
 	}
-	defer out.Close()
+	defer close(out)
 	switch suffix {
 	case "jpg", "jpeg":
-		jpeg.Encode(out, m, nil)
+		err = jpeg.Encode(out, m, nil)
 	case "png":
-		png.Encode(out, m)
+		err = png.Encode(out, m)
 	case "gif":
-		gif.Encode(out, m, nil)
+		err = gif.Encode(out, m, nil)
 	default:
 		log.Println("illegal format", suffix)
+	}
+	if err != nil {
+		log.Println(err)
 	}
 }
 
@@ -403,7 +421,11 @@ func (r *record) sync(force bool) {
 		return
 	}
 	if force || !isFile(r.path) {
-		r.writeFile(r.path, r.recstr+"\n")
+		err := r.writeFile(r.path, r.recstr+"\n")
+		if err != nil {
+			log.Println(err)
+			return
+		}
 	}
 	body := r.bodyString() + "\n"
 	if v, exist := r.dict["attach"]; exist {
@@ -413,15 +435,27 @@ func (r *record) sync(force bool) {
 			return
 		}
 		attachPath := r.attachPath(r.getDict("suffix", "txt"), "")
-		thumbnailPath := r.attachPath(r.getDict("suffix", "jpg"), thumbnail_size)
-		r.writeFile(r.bodyPath, body)
-		r.writeFile(attachPath, string(attach))
+		thumbnailPath := r.attachPath(r.getDict("suffix", "jpg"), defaultThumbnailSize)
+		err = r.writeFile(r.bodyPath, body)
+		if err != nil {
+			log.Println(err)
+			return
+		}
+		err = r.writeFile(attachPath, string(attach))
+		if err != nil {
+			log.Println(err)
+			return
+		}
 		if force || !isFile(thumbnailPath) {
 			r.makeThumbnail("", "")
 		}
 	}
 	if _, exist := r.dict["sign"]; exist {
-		r.writeFile(r.bodyPath, body)
+		err := r.writeFile(r.bodyPath, body)
+		if err != nil {
+			log.Println(err)
+			return
+		}
 	}
 }
 
@@ -469,7 +503,7 @@ func (r *record) checkSign() bool {
 }
 
 func getRecords(datfile string, n *node, head []string) []string {
-	result := make([]string, 0)
+	var result []string
 	for _, h := range head {
 		rec := newRecord(datfile, strings.Replace(strings.TrimSpace(h), "<>", "_", -1))
 		if !isFile(rec.path) && !isFile(rec.rmPath) {
