@@ -171,7 +171,7 @@ func (s *suggestedTagTable) Get(i string, def *suggestedTagList) *suggestedTagLi
 func (s *suggestedTagTable) keys() []string {
 	ary := make([]string, len(s.tieddict))
 	i := 0
-	for k, _ := range s.tieddict {
+	for k := range s.tieddict {
 		ary[i] = k
 		i++
 	}

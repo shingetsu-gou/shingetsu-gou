@@ -169,7 +169,7 @@ func (m *mchCGI) boardApp() {
         <title>{text}</title>
         <meta name="description" content="{text}">
         </head><body>
-        <h1>{text}</h1>
+        <h1>%s</h1>
         </body></html>`, text)
 	m.serveContent("a.html", time.Time{}, htmlStr)
 }
@@ -291,7 +291,7 @@ func (m *mchCGI) makeSubject(board string) ([]string, int64) {
 		if titleStr != "" {
 			titleStr = strings.Replace(titleStr, "\n", "", -1)
 		}
-		subjects = append(subjects, fmt.Sprintf("%s.dat<>%s (%d)\n",
+		subjects = append(subjects, fmt.Sprintf("%d.dat<>%s (%d)\n",
 			key, titleStr, len(c.recs)))
 	}
 	return subjects, lastStamp

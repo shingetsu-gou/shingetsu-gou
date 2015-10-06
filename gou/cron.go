@@ -38,7 +38,7 @@ import (
 func cron() {
 	for {
 		time.Sleep(client_cycle)
-		c:=client{}
+		c := client{}
 		go c.run()
 	}
 }

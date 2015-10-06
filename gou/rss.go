@@ -109,7 +109,7 @@ func (r *rss) append(link, title, creator, description, content string, subject 
 func (r *rss) keys() []string {
 	items := make([]string, len(r.items))
 	i := 0
-	for k, _ := range r.items {
+	for k := range r.items {
 		items[i] = k
 		i++
 	}

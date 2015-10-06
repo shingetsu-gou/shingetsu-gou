@@ -29,8 +29,8 @@
 package gou
 
 import (
-	"strconv"
 	"log"
+	"strconv"
 	"strings"
 	"sync"
 )
@@ -49,7 +49,7 @@ func newUpdateQue() *updateQue {
 }
 
 func (u *updateQue) append(datfile string, stamp int64, id string, n *node) {
-	key := strings.Join([]string{strconv.FormatInt(stamp,10), id, datfile}, "<>")
+	key := strings.Join([]string{strconv.FormatInt(stamp, 10), id, datfile}, "<>")
 	if u.queue[key] == nil {
 		u.queue[key] = make([]*node, 0)
 	}
@@ -60,7 +60,7 @@ func (u *updateQue) run() {
 	u.mutex.Lock()
 	defer u.mutex.Unlock()
 	u.running = true
-	for updateid, _ := range u.queue {
+	for updateid := range u.queue {
 		u.doUpdate(updateid)
 	}
 	u.running = false

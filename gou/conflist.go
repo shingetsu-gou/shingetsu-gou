@@ -53,7 +53,6 @@ func newConfList(path string, defaultList []string) *confList {
 	return r
 }
 
-
 func (r *confList) update() {
 	if r.path == "" {
 		return
@@ -88,7 +87,7 @@ type regexpList struct {
 }
 
 func newRegexpList(path string) *regexpList {
-	c := newConfList(path,[]string{})
+	c := newConfList(path, []string{})
 	r := &regexpList{}
 	r.regs = make([]*regexp.Regexp, 0)
 	r.confList = c

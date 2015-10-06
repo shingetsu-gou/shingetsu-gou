@@ -97,8 +97,8 @@ func (r *record) Get(k string, def string) string {
 	return def
 }
 
-func (r *record)add(k,v string){
-	r.dict[k]=v	
+func (r *record) add(k, v string) {
+	r.dict[k] = v
 }
 
 func (r *record) virtualRecordString() string {

@@ -184,7 +184,7 @@ func isDir(path string) bool {
 func sortKeys(m map[string]string) []string {
 	mk := make([]string, len(m))
 	i := 0
-	for k, _ := range m {
+	for k := range m {
 		mk[i] = k
 		i++
 	}

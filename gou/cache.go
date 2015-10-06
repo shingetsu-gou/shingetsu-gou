@@ -136,7 +136,7 @@ func (c *cache) keys() []string {
 	c.load()
 	r := make([]string, len(c.recs))
 	i := 0
-	for k, _ := range c.recs {
+	for k := range c.recs {
 		r[i] = k
 		i++
 	}
@@ -461,7 +461,6 @@ func newCacheList() *cacheList {
 	return c
 }
 
-
 func (c *cacheList) append(cc *cache) {
 	c.caches = append(c.caches, cc)
 }
@@ -614,7 +613,6 @@ func (c sortByVelocity) Less(i, j int) bool {
 	}
 	return c.caches[i].count < c.caches[j].count
 }
-
 
 func (c *cacheList) search(query *regexp.Regexp) caches {
 	result := make([]*cache, 0)
