@@ -482,7 +482,7 @@ func (r *record) bodyString() string {
 
 func (r *record) checkSign() bool {
 	for _, k := range []string{"pubkey", "sign", "target"} {
-		if hasString(stringSlice(sortKeys(r.dict)), k) {
+		if _, exist := r.dict[k]; !exist {
 			return false
 		}
 	}

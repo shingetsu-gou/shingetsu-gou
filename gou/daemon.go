@@ -38,11 +38,10 @@ import (
 	"strconv"
 	"time"
 
-	"github.com/gorilla/handlers"
-
 	"gopkg.in/natefinch/lumberjack.v2"
 )
 
+//SetupLogger setups logger. whici outputs nothing, or file , or file and stdout
 func SetLogger(printLog, isSilent bool) {
 	log.SetFlags(log.Ldate | log.Ltime | log.Lshortfile)
 	l := &lumberjack.Logger{
@@ -62,6 +61,7 @@ func SetLogger(printLog, isSilent bool) {
 	}
 }
 
+//SetupDaemon setups document root and necessary dirs.
 func SetupDaemon() {
 	dir, err := os.Getwd()
 	if err != nil {
@@ -79,6 +79,7 @@ func SetupDaemon() {
 	}
 }
 
+//StartDaemon rm lock files, save pid, start cron job and a http server.
 func StartDaemon() {
 	for _, lock := range []string{lock, searchLock, adminSearch} {
 		l := path.Join(docroot, lock)
@@ -112,19 +113,8 @@ func StartDaemon() {
 	threadSetup(sm)
 
 	if enable2ch {
-		//		smm := http.NewServeMux()
-		//		ss := &http.Server{
-		//			Addr:           "0.0.0.0:" + strconv.Itoa(dat_port),
-		//			Handler:        smm,
-		//			ReadTimeout:    10 * time.Second,
-		//			WriteTimeout:   10 * time.Second,
-		//			MaxHeaderBytes: 1 << 20,
-		//		}
 		mchSetup(sm)
-		//		go log.Fatal(ss.ListenAndServe())
 	}
-	sm.Handle("/", handlers.CompressHandler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-	})))
 
 	log.Fatal(s.ListenAndServe())
 }

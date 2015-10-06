@@ -244,7 +244,7 @@ func (m *mchCGI) hasTag(c *cache, board string, sugtag *suggestedTagTable) bool 
 	if tl := sugtag.Get(c.datfile, nil); tl != nil {
 		tags.tags = append(tags.tags, tl.tags...)
 	}
-	return hasString(stringSlice(tagSliceTostringSlice(tags.tags)), board)
+	return hasString(stringSlice(tags.tags.toStringSlice()), board)
 }
 
 func (m *mchCGI) subjectApp(board string) {

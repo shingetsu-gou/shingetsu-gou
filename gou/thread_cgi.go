@@ -166,7 +166,7 @@ func (t *threadCGI) printTag(ca *cache) {
 	}{
 		t.makeDefaultVariable(),
 		ca,
-		tagSliceTostringSlice(ca.tags.tags),
+		ca.tags.tags.toStringSlice(),
 		"tags",
 		"changes",
 	}

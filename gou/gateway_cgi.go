@@ -97,17 +97,22 @@ func gatewaySetup(s *http.ServeMux) {
 	})))
 	s.Handle("/gateway.cgi/csv/index/", handlers.CompressHandler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if a := newGatewayCGI(w, r); a != nil {
-			a.printCSVIndex()
+			a.printCSV(false)
 		}
 	})))
 	s.Handle("/gateway.cgi/csv/changes/", handlers.CompressHandler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if a := newGatewayCGI(w, r); a != nil {
-			a.printCSVChanges()
+			a.printCSV(true)
 		}
 	})))
 	s.Handle("/gateway.cgi/csv/recent/", handlers.CompressHandler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if a := newGatewayCGI(w, r); a != nil {
 			a.printCSVRecent()
+		}
+	})))
+	s.Handle("/", handlers.CompressHandler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if a := newGatewayCGI(w, r); a != nil {
+			a.printTitle()
 		}
 	})))
 }
@@ -220,16 +225,14 @@ func (g *gatewayCGI) printThread() {
 	g.print302(uri)
 }
 
-func (g *gatewayCGI) printCSVIndex() {
+func (g *gatewayCGI) printCSV(doSort bool) {
 	cl := newCacheList()
+	if doSort {
+		sort.Sort(sort.Reverse(sortByValidStamp{cl.caches}))
+	}
 	g.renderCSV(cl)
 }
 
-func (g *gatewayCGI) printCSVChanges() {
-	cl := newCacheList()
-	sort.Sort(sort.Reverse(sortByValidStamp{cl.caches}))
-	g.renderCSV(cl)
-}
 func (g *gatewayCGI) printCSVRecent() {
 	if !g.isFriend && !g.isAdmin {
 		g.print403("")
@@ -299,7 +302,7 @@ func (g *gatewayCGI) printRSS() {
 				if ca.typee == "thread" {
 					permpath = fmt.Sprintf("%s/%s", path[1:], r.id[:8])
 				}
-				rsss.append(permpath, title, g.rssTextFormat(r.Get("name", "")), desc, content, tagSliceTostringSlice(ca.tags.tags), r.stamp, false)
+				rsss.append(permpath, title, g.rssTextFormat(r.Get("name", "")), desc, content, ca.tags.tags.toStringSlice(), r.stamp, false)
 				r.free()
 			}
 		}

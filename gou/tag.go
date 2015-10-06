@@ -44,7 +44,7 @@ type tag struct {
 type tagList struct {
 	datfile string
 	path    string
-	tags    []*tag
+	tags    tagSlice
 }
 
 func (t tagList) Len() int {
@@ -83,9 +83,11 @@ func newTagList(datfile, path string, caching bool) *tagList {
 	return t
 }
 
-func tagSliceTostringSlice(tags []*tag) []string {
-	result := make([]string, len(tags))
-	for i, v := range tags {
+type tagSlice []*tag
+
+func (ts tagSlice)toStringSlice() []string {
+	result := make([]string, len(ts))
+	for i, v := range ts {
 		result[i] = v.tagstr
 	}
 	return result
@@ -187,7 +189,7 @@ func (s *suggestedTagTable) keys() []string {
 func (s *suggestedTagTable) sync() {
 	m := make(map[string][]string)
 	for k, v := range s.tieddict {
-		s := tagSliceTostringSlice(v.tags)
+		s := v.tags.toStringSlice()
 		m[k] = s
 	}
 	err := writeMap(s.datfile, m)
