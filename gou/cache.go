@@ -461,31 +461,11 @@ func newCacheList() *cacheList {
 	return c
 }
 
-func (c *cacheList) sort(key string, reverse bool) {
-	c.key = key
-	if !reverse {
-		sort.Sort(c)
-	} else {
-		sort.Sort(sort.Reverse(c))
-	}
-}
 
 func (c *cacheList) append(cc *cache) {
 	c.caches = append(c.caches, cc)
 }
-func (c *cacheList) Less(i, j int) bool {
-	switch c.key {
-	case "validStamp":
-		return c.caches[i].validStamp < c.caches[j].validStamp
-	case "velocity_count":
-		if c.caches[i].velocity != c.caches[j].velocity {
-			return c.caches[i].velocity < c.caches[j].velocity
-		}
-		return c.caches[i].count < c.caches[j].count
-	}
-	log.Fatal(c.key, "is invalid for sort key")
-	return false
-}
+
 func (c *cacheList) Len() int {
 	return len(c.caches)
 }
@@ -604,6 +584,37 @@ func (c caches) Get(i int) string {
 func (c caches) Len() int {
 	return len(c)
 }
+func (c caches) Swap(i, j int) {
+	c[i], c[j] = c[j], c[i]
+}
+
+type sortByRecentStamp struct {
+	caches
+}
+
+func (c sortByRecentStamp) Less(i, j int) bool {
+	return c.caches[i].recentStamp < c.caches[j].recentStamp
+}
+
+type sortByValidStamp struct {
+	caches
+}
+
+func (c sortByValidStamp) Less(i, j int) bool {
+	return c.caches[i].validStamp < c.caches[j].validStamp
+}
+
+type sortByVelocity struct {
+	caches
+}
+
+func (c sortByVelocity) Less(i, j int) bool {
+	if c.caches[i].velocity != c.caches[j].velocity {
+		return c.caches[i].velocity < c.caches[j].velocity
+	}
+	return c.caches[i].count < c.caches[j].count
+}
+
 
 func (c *cacheList) search(query *regexp.Regexp) caches {
 	result := make([]*cache, 0)

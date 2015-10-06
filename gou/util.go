@@ -31,9 +31,11 @@ package gou
 import (
 	"crypto/md5"
 	"encoding/hex"
+	"fmt"
 	"io/ioutil"
 	"log"
 	"mime"
+	"net/http"
 	"net/url"
 	"path/filepath"
 	"regexp"
@@ -155,9 +157,19 @@ func getBoard(url string) string {
 	return board
 }
 
+func logRequest(req *http.Request) {
+	msg := fmt.Sprintf("%s %s %s %s %s %s %s", req.FormValue("REMOTE_ADDR"),
+		req.FormValue("HTTP_X_FORWARDED_FOR"),
+		req.FormValue("REQUEST_METHOD"),
+		req.FormValue("PATH_INFO"),
+		req.FormValue("SERVER_PROTOCOL"),
+		req.FormValue("REFERER"),
+		req.FormValue("USER_AGENT"),
+	)
+	log.Println(msg)
+}
 
 //from title.py
-
 
 //Encode for filename.
 //    >>> file_encode('foo', 'a')

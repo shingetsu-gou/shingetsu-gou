@@ -46,7 +46,7 @@ This requires
     $ mkdir bin
     $ mkdir pkg
     $ exoprt GOPATH=`pwd`
-    $ go get github.com/shinGETus-gou/gou
+    $ go get github.com/shingetsu-gou/gou
 
 
 # Contribution

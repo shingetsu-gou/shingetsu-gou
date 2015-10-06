@@ -247,7 +247,7 @@ func (g *gatewayCGI) printCSVIndex() {
 
 func (g *gatewayCGI) printCSVChanges() {
 	cl := newCacheList()
-	cl.sort("validStamp", true)
+	sort.Sort(sort.Reverse(sortByValidStamp{cl.caches}))
 	g.renderCSV(cl)
 }
 func (g *gatewayCGI) printCSVRecent() {
@@ -353,7 +353,7 @@ func (g *gatewayCGI) printNew() {
 }
 func (g *gatewayCGI) printTitle() {
 	cl := newCacheList()
-	cl.sort("validStamp", true)
+	sort.Sort(sort.Reverse(sortByValidStamp{cl.caches}))
 	outputCachelist := make([]*cache, 0, cl.Len())
 	for _, ca := range cl.caches {
 		if time.Now().Unix() <= ca.validStamp+int64(top_recent_range) {
@@ -387,7 +387,7 @@ func (g *gatewayCGI) printIndex() {
 	g.header(title, "", nil, true, nil)
 	g.printParagraph(g.m["desc_index"])
 	cl := newCacheList()
-	cl.sort("velocity_count", true)
+	sort.Sort(sort.Reverse(sortByVelocity{cl.caches}))
 	g.printIndexList(cl, "index", false, false)
 }
 
@@ -399,7 +399,7 @@ func (g *gatewayCGI) printChanges() {
 	g.header(title, "", nil, true, nil)
 	g.printParagraph(g.m["desc_changes"])
 	cl := newCacheList()
-	cl.sort("validStamp", true)
+	sort.Sort(sort.Reverse(sortByValidStamp{cl.caches}))
 	g.printIndexList(cl, "changes", false, false)
 }
 
