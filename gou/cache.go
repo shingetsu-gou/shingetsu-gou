@@ -213,11 +213,13 @@ func (c *cache) setupDirectories() {
 	}
 }
 
-func (c *cache) checkData(res []string, stamp int64, id string, begin, end int64) (int, bool, bool) {
-	flagGot := false
-	flagSpam := false
+var errGet = errors.New("cannot get data")
+
+func (c *cache) checkData(res []string, stamp int64, id string, begin, end int64) (int, error) {
+	var err error
 	count := 0
 	var i string
+	flagGot := false
 	for count, i = range res {
 		r := newRecord(c.datfile, "")
 		if r.parse(i) == nil &&
@@ -232,7 +234,7 @@ func (c *cache) checkData(res []string, stamp int64, id string, begin, end int64
 				if err != nil {
 					log.Println(err)
 				}
-				flagSpam = true
+				err = errSpam
 			} else {
 				c.addData(r, true)
 			}
@@ -249,22 +251,25 @@ func (c *cache) checkData(res []string, stamp int64, id string, begin, end int64
 		}
 		r.free()
 	}
-	return count + 1, flagGot, flagSpam
+	if err == nil && !flagGot {
+		err = errGet
+	}
+	return count + 1, err
 }
 
-func (c *cache) getData(stamp int64, id string, n *node) (bool, bool) {
+func (c *cache) getData(stamp int64, id string, n *node) error {
 	res, err := n.talk("/get/" + c.datfile + "/" + strconv.FormatInt(stamp, 10) + "/" + id)
 	if err != nil {
 		log.Println(err)
-		return false, false
+		return errGet
 	}
-	count, flagGot, flagSpam := c.checkData(res, stamp, id, -1, -1)
+	count, err := c.checkData(res, stamp, id, -1, -1)
 	if count > 0 {
 		c.syncStatus()
 	} else {
 		log.Println(c.datfile, stamp, "records not found")
 	}
-	return flagGot, flagSpam
+	return err
 }
 func (c *cache) addData(rec *record, really bool) {
 	c.setupDirectories()
@@ -318,8 +323,8 @@ func (c *cache) getWithRange(n *node) bool {
 	if err != nil {
 		return false
 	}
-	count, _, _ := c.checkData(res, -1, "", begin, now)
-	if count > 0 {
+	count, err := c.checkData(res, -1, "", begin, now)
+	if err == nil || count > 0 {
 		c.syncStatus()
 		if oldcount == 0 {
 			c.loaded = true

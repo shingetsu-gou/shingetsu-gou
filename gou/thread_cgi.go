@@ -132,7 +132,7 @@ func (t *threadCGI) setCookie(ca *cache, access string) []*http.Cookie {
 	cc.Value = access
 	return []*http.Cookie{&c, &cc}
 }
-func (t *threadCGI) printPageNavi(page string, ca *cache, path, strPath, id string) {
+func (t *threadCGI) printPageNavi(page string, ca *cache, id string) {
 	first := ca.Len() / threadPageSize
 	if ca.Len() == 0%threadPageSize {
 		first++
@@ -149,8 +149,8 @@ func (t *threadCGI) printPageNavi(page string, ca *cache, path, strPath, id stri
 		t.makeDefaultVariable(),
 		page,
 		ca,
-		path,
-		strPath,
+		t.path,
+		strEncode(t.path),
 		id,
 		first,
 	}
@@ -174,11 +174,11 @@ func (t *threadCGI) printTag(ca *cache) {
 }
 
 func (t *threadCGI) printThread(path, id, page string) {
-	strPath := strEncode(t.req.URL.Path)
-	filePath := fileEncode("thread", t.req.URL.Path)
+	strPath := strEncode(t.path)
+	filePath := fileEncode("thread", t.path)
 	ca := newCache(filePath)
 	if id != "" && t.req.FormValue("ajax") != "" {
-		t.printThreadAjax(t.req.URL.Path, id)
+		t.printThreadAjax(id)
 		return
 	}
 	switch {
@@ -211,7 +211,7 @@ func (t *threadCGI) printThread(path, id, page string) {
 		newcookie = t.setCookie(ca, access)
 	}
 	rss := gatewayCgi + "/rss"
-	t.header(t.req.URL.Path, rss, newcookie, false, nil)
+	t.header(t.path, rss, newcookie, false, nil)
 	tags := strings.Fields(strings.TrimSpace(t.req.FormValue("tag")))
 	if t.isAdmin && len(tags) > 0 {
 		ca.tags.addString(tags)
@@ -234,20 +234,20 @@ func (t *threadCGI) printThread(path, id, page string) {
 		threadCGI *threadCGI
 	}{
 		t.makeDefaultVariable(),
-		t.req.URL.Path,
+		t.path,
 		strPath,
 		ca,
 		lastrec,
 		t,
 	}
 	renderTemplate("thread_top", s, t.wr)
-	t.printPageNavi(page, ca, t.req.URL.Path, strPath, id)
+	t.printPageNavi(page, ca, id)
 	fmt.Fprintln(t.wr, "</p>\n<dl id=\"records\">")
 	var inrange []string
 	switch {
 	case id != "":
 		inrange = ids
-	case t.req.URL.Path != "":
+	case t.path != "":
 		inrange = ids[len(ids)-threadPageSize*(nPage+1) : len(ids)-threadPageSize*nPage]
 	default:
 		inrange = ids[len(ids)-threadPageSize*(nPage+1):]
@@ -255,12 +255,12 @@ func (t *threadCGI) printThread(path, id, page string) {
 	for _, k := range inrange {
 		rec := ca.get(k, nil)
 		if (id == "" || rec.id[:8] == id) && rec.loadBody() == nil {
-			t.printRecord(ca, rec, t.req.URL.Path, strPath)
+			t.printRecord(ca, rec)
 		}
 		rec.free()
 	}
 	fmt.Fprintln(t.wr, "</dl>")
-	escapedPath := html.EscapeString(t.req.URL.Path)
+	escapedPath := html.EscapeString(t.path)
 	escapedPath = strings.Replace(escapedPath, "  ", "&nbsp;&nbsp;", -1)
 	ss := struct {
 		*DefaultVariable
@@ -271,7 +271,7 @@ func (t *threadCGI) printThread(path, id, page string) {
 	}
 	renderTemplate("thread_bottom", ss, t.wr)
 	if ca.Len() > 0 {
-		t.printPageNavi(page, ca, t.req.URL.Path, strPath, id)
+		t.printPageNavi(page, ca, id)
 		fmt.Fprintf(t.wr, "</p>")
 	}
 	t.printPostForm(ca)
@@ -280,9 +280,8 @@ func (t *threadCGI) printThread(path, id, page string) {
 	t.footer(t.makeMenubar("bottom", rss))
 }
 
-func (t *threadCGI) printThreadAjax(path, id string) {
-	strPath := strEncode(path)
-	filePath := fileEncode("thread", path)
+func (t *threadCGI) printThreadAjax(id string) {
+	filePath := fileEncode("thread", t.path)
 	ca := newCache(filePath)
 	if !ca.hasRecord() {
 		return
@@ -290,14 +289,14 @@ func (t *threadCGI) printThreadAjax(path, id string) {
 	fmt.Fprintln(t.wr, "<dl>")
 	for _, rec := range ca.recs {
 		if id == "" || rec.id[:8] == id && rec.loadBody() == nil {
-			t.printRecord(ca, rec, path, strPath)
+			t.printRecord(ca, rec)
 		}
 		rec.free()
 	}
 	fmt.Fprintln(t.wr, "<dl>")
 }
 
-func (t *threadCGI) printRecord(ca *cache, rec *record, path, strPath string) {
+func (t *threadCGI) printRecord(ca *cache, rec *record) {
 	thumbnailSize := ""
 	var attachFile, suffix string
 	var attachSize int64
@@ -318,7 +317,7 @@ func (t *threadCGI) printRecord(ca *cache, rec *record, path, strPath string) {
 		}
 	}
 	body := rec.getDict("body", "")
-	body = t.htmlFormat(body, threadCgi, path, false)
+	body = t.htmlFormat(body, threadCgi, t.path, false)
 	s := struct {
 		*DefaultVariable
 		Cache      *cache
@@ -337,8 +336,8 @@ func (t *threadCGI) printRecord(ca *cache, rec *record, path, strPath string) {
 		ca,
 		rec,
 		rec.getDict("id", "")[:8],
-		path,
-		strPath,
+		t.path,
+		strEncode(t.path),
 		attachFile,
 		attachSize,
 		suffix,

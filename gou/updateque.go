@@ -71,34 +71,34 @@ func (u *updateQue) run() {
 	}
 }
 
+//doUpdateNode broadcast and get data for each new records.
 func (u *updateQue) doUpdateNode(rec *record, n *node) bool {
 	if updateList.hasRecord(rec) {
 		return true
 	}
 	ca := newCache(rec.datfile)
-	var flagGot, flagSpam bool
+	var err error
 	switch {
-	case !ca.exists():
+	case !ca.exists(): //no cache, only broadcast updates.
 		if searchList.Len() < searchDepth {
 			nodeList.tellUpdate(ca, rec.stamp, rec.id, n)
 		}
 		return true
-	case n == nil:
-	case ca.Len() > 0:
-		flagGot, flagSpam = ca.getData(rec.stamp, rec.id, n)
-	default:
-		ca.getWithRange(n)
-		flagGot = rec.exists()
-		flagSpam = false
-	}
-	if n == nil {
-		nodeList.tellUpdate(ca, rec.stamp, rec.id, n)
+	case n == nil: //broadcast with n=nil
+		nodeList.tellUpdate(ca, rec.stamp, rec.id, nil)
 		return true
-	}
-	if flagGot {
-		if !flagSpam {
-			nodeList.tellUpdate(ca, rec.stamp, rec.id, nil)
+	case ca.Len() > 0: //cache and records exists, get data from node n.
+		err = ca.getData(rec.stamp, rec.id, n)
+	default: //cache exists ,but no records. get data with range.
+		ca.getWithRange(n)
+		if flagGot := rec.exists(); !flagGot {
+			err = errGet
 		}
+	}
+	if err == nil {
+		nodeList.tellUpdate(ca, rec.stamp, rec.id, nil)
+	}
+	if err != errGet {
 		if !nodeList.hasNode(n) && nodeList.Len() < defaultNodes {
 			nodeList.join(n)
 			nodeList.sync()

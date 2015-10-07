@@ -153,7 +153,7 @@ func (m *mchCGI) boardApp() {
 	message := searchMessage(l)
 	m.wr.Header().Set("Content-Type", "text/html; charset=Shift_JIS")
 	m.wr.WriteHeader(200)
-	board := escape(getBoard(m.req.URL.Path))
+	board := escape(getBoard(m.path))
 	text := ""
 	if board != "" {
 		text = fmt.Sprintf("%s - %s - %s", message["logo"], message["description"], message["board"])

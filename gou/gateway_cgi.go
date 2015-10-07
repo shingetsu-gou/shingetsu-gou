@@ -151,7 +151,7 @@ func newGatewayCGI(w http.ResponseWriter, r *http.Request) *gatewayCGI {
 
 func (g *gatewayCGI) renderCSV(cl *cacheList) {
 	g.wr.Header().Set("Content-Type", "text/comma-separated-values;charset=UTF-8")
-	p := strings.Split(g.req.URL.Path, "/")
+	p := strings.Split(g.path, "/")
 	if len(p) < 3 {
 		g.print404(nil, "")
 		return
@@ -208,7 +208,7 @@ func (g *gatewayCGI) renderCSV(cl *cacheList) {
 
 func (g *gatewayCGI) printThread() {
 	reg := regexp.MustCompile("^/(thread)/?([^/]*)$")
-	m := reg.FindStringSubmatch(g.req.URL.Path)
+	m := reg.FindStringSubmatch(g.path)
 	var uri string
 	switch {
 	case m == nil:
@@ -445,7 +445,7 @@ func (g *gatewayCGI) rssTextFormat(plain string) string {
 	return buf
 }
 
-func (g *gatewayCGI) rssHTMLFormat(plain, appli, path string) string {
+func (g *gatewayCGI) rssHTMLFormat(plain, appli,path string) string {
 	title := strDecode(path)
 	buf := g.htmlFormat(plain, appli, title, true)
 	if buf != "" {

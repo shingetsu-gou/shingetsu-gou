@@ -325,7 +325,7 @@ func (a *adminCGI) printSearchResult(query string) {
 func (a *adminCGI) printSearch() {
 	query := a.req.FormValue("query")
 	if query == "" {
-		query = a.req.URL.Path[len("search/"):]
+		query = a.path[len("search/"):]
 	}
 	if query == "" {
 		query = strDecode(a.req.URL.RawQuery)

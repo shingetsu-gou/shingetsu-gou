@@ -203,6 +203,7 @@ type cgi struct {
 	jc         *jsCache
 	req        *http.Request
 	wr         http.ResponseWriter
+	path       string
 }
 
 func match(re string, val string) bool {
@@ -229,7 +230,7 @@ func newCGI(w http.ResponseWriter, r *http.Request) *cgi {
 		log.Println(err)
 		return nil
 	}
-
+	c.path = strings.Join(strings.Split(r.URL.Path, "/")[1:], "/")
 	return c
 }
 
@@ -421,10 +422,6 @@ func (c *cgi) ResAnchor(id, appli string, title string, absuri bool) string {
 	return fmt.Sprintf("<a href=\"%s%s%s%s/%s\"%s>", prefix, appli, querySeparator, title, id, innerlink)
 }
 
-func group(str string, i int, loc []int) string {
-	return str[loc[i]:loc[i+1]]
-}
-
 func (c *cgi) htmlFormat(plain, appli string, title string, absuri bool) string {
 	buf := strings.Replace(plain, "<br>", "\n", -1)
 	buf = strings.Replace(buf, "\t", "        ", -1)
@@ -438,10 +435,10 @@ func (c *cgi) htmlFormat(plain, appli string, title string, absuri bool) string 
 	var tmp string
 	reg = regexp.MustCompile("\\[\\[([^<>]+?)\\]\\]")
 	for buf != "" {
-		if m := reg.FindStringSubmatchIndex(buf); m != nil {
-			tmp += buf[:m[0]]
-			tmp += c.bracketLink(group(buf, 2, m), appli, absuri)
-			buf = buf[m[1]:]
+		if reg.MatchString(buf) {
+			reg.ReplaceAllStringFunc(buf, func(str string) string {
+				return c.bracketLink(str, appli, absuri)
+			})
 		} else {
 			tmp += buf
 			break

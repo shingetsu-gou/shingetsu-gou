@@ -146,7 +146,7 @@ func (s *serverCGI) getRemoteHostname(host string) string {
 
 func (s *serverCGI) makeNode(method string) *node {
 	reg := regexp.MustCompile("^/" + method + "/([^:]*):(\\d+)(.*)")
-	m := reg.FindStringSubmatch(s.req.URL.Path)
+	m := reg.FindStringSubmatch(s.path)
 	if m == nil {
 		log.Println("illegal url")
 		return nil
@@ -207,7 +207,7 @@ func (s *serverCGI) doBye() {
 
 func (s *serverCGI) doHave() {
 	reg := regexp.MustCompile("^/have/([0-9A-Za-z_]+)$")
-	m := reg.FindStringSubmatch(s.req.URL.Path)
+	m := reg.FindStringSubmatch(s.path)
 	if m == nil {
 		log.Println("illegal url")
 		return
@@ -222,7 +222,7 @@ func (s *serverCGI) doHave() {
 
 func (s *serverCGI) doUpdate() {
 	reg := regexp.MustCompile("^/update/(\\w+)/(\\d+)/(\\w+)/([^:]*):(\\d+)(.*)")
-	m := reg.FindStringSubmatch(s.req.URL.Path)
+	m := reg.FindStringSubmatch(s.path)
 	if m == nil || len(m) < 6 {
 		log.Println("illegal url")
 		return
@@ -266,7 +266,7 @@ func (s *serverCGI) doUpdate() {
 
 func (s *serverCGI) doRecent() {
 	reg := regexp.MustCompile("^/recent/?([-0-9A-Za-z/]*)$")
-	m := reg.FindStringSubmatch(s.req.URL.Path)
+	m := reg.FindStringSubmatch(s.path)
 	if m == nil {
 		log.Println("illegal url")
 		return
@@ -328,7 +328,7 @@ func (s *serverCGI) parseStamp(stamp string, last int64) (int64, int64, string) 
 
 func (s *serverCGI) doGetHead() {
 	reg := regexp.MustCompile("/(get|head)/([0-9A-Za-z_]+)/([-0-9A-Za-z/]*)$")
-	m := reg.FindStringSubmatch(s.req.URL.Path)
+	m := reg.FindStringSubmatch(s.path)
 	if m == nil {
 		log.Println("illegal url")
 		return
