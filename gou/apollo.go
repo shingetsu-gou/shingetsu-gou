@@ -26,6 +26,8 @@
  * POSSIBILITY OF SUCH DAMAGE.
  */
 
+//sign based on http://shingetsu.info/protocol/protocol-0.5-2.pdf page 8
+
 package gou
 
 import (
@@ -62,8 +64,8 @@ var (
 	}
 )
 
-//Make x a plime number.
-//    Result >= x.
+//primize makes x a prime number.
+//Result will be bigger than x.
 func primize(x *big.Int) *big.Int {
 	var tmp big.Int
 	if x.Bit(0) == 0 {
@@ -77,15 +79,18 @@ func primize(x *big.Int) *big.Int {
 	}
 }
 
+//privatekey reppresents private key,
 type privateKey struct {
 	keyN *big.Int
 	keyD *big.Int
 }
 
+//getKey returns base64 encoded private key
 func (p *privateKey) getKeys() (string, string) {
 	return intToBase64(*p.keyN), intToBase64(*p.keyD)
 }
 
+//newPrivateKey makes private key from seeds.
 func newPrivateKey(qSeed, pSeed big.Int) *privateKey {
 	q := &qSeed
 	p := &pSeed
@@ -115,6 +120,7 @@ func newPrivateKey(qSeed, pSeed big.Int) *privateKey {
 	return nil
 }
 
+//base64ToInt makes int from string.
 func base64ToInt(s string) *big.Int {
 	var tmp big.Int
 	sb := []byte(s)
@@ -125,6 +131,7 @@ func base64ToInt(s string) *big.Int {
 	return &tmp
 }
 
+//intToBase64 makes string from int.
 func intToBase64(n big.Int) string {
 	var result string
 	and := big.NewInt(0x3f)
@@ -135,10 +142,10 @@ func intToBase64(n big.Int) string {
 		result += string(base64en[bit])
 		n.Rsh(&n, 6)
 	}
-
 	return result
 }
 
+//sign signs mesg by p.
 func (p *privateKey) sign(mesg string) string {
 	var enc, m big.Int
 	m.SetBytes([]byte(mesg))
@@ -146,6 +153,7 @@ func (p *privateKey) sign(mesg string) string {
 	return intToBase64(enc)
 }
 
+//verify verifies testsig by publicKey.
 func verify(mesg, testsig, publicKey string) bool {
 	if len(mesg)*4 > len(publicKey)*3 {
 		return false
@@ -162,13 +170,14 @@ func verify(mesg, testsig, publicKey string) bool {
 	return false
 }
 
-//Cut KeyStr to 11words.
+//cutKey cuts key to 11words.
 func cutKey(key string) string {
 	digest := md5.Sum([]byte(key))
 	k := base64.StdEncoding.EncodeToString(digest[:])[:11]
 	return string(k)
 }
 
+//makePrivateKey makes privatekey from keystr
 func makePrivateKey(keystr string) *privateKey {
 	var seedbuf [64]byte
 

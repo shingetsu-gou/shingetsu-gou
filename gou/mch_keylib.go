@@ -38,7 +38,6 @@ import (
 	"time"
 )
 
-var dkTable = newDatakeyTable(runDir + "/datakey.txt")
 
 type datakeyTable struct {
 	file            string
@@ -77,8 +76,8 @@ func (d *datakeyTable) load() {
 		c.load()
 		d.setFromCache(c)
 	}
-	for _, rec := range newRecentList().tiedlist {
-		c := newCache(rec.datfile, nil, nil)
+	for _, rec := range recentList.records {
+		c := newCache(rec.datfile)
 		c.load()
 		c.recentStamp = rec.stamp
 		d.setFromCache(c)
@@ -92,7 +91,7 @@ func (d *datakeyTable) save() {
 	for stamp, filekey := range d.datakey2filekey {
 		str[i] = fmt.Sprintf("%s<>%s\n", strconv.FormatInt(stamp, 10), filekey)
 	}
-	err := writeSlice(d.file, stringSlice(str))
+	err := writeSlice(d.file, str)
 	if err != nil {
 		log.Println(err)
 	}
@@ -113,7 +112,7 @@ func (d *datakeyTable) setFromCache(ca *cache) {
 	if len(ca.keys()) == 0 {
 		firstStamp = ca.recentStamp
 	} else {
-		if rec := ca.Get(ca.keys()[0], nil); rec != nil {
+		if rec := ca.get(ca.keys()[0], nil); rec != nil {
 			firstStamp = rec.stamp
 		}
 	}
@@ -133,7 +132,7 @@ func (d *datakeyTable) getDatkey(filekey string) (int64, error) {
 	if v, exist := d.filekey2datkey[filekey]; exist {
 		return v, nil
 	}
-	c := newCache(filekey, nil, nil)
+	c := newCache(filekey)
 	c.load()
 	d.setFromCache(c)
 	d.save()

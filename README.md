@@ -48,6 +48,9 @@ This requires
     $ exoprt GOPATH=`pwd`
     $ go get github.com/shingetsu-gou/gou
 
+# Differences from Original Saku
+
+1. mch(2ch interface) listens to the same port as admin.cgi/gateway.cgi/serve.cgi/thread.cgi. dat_port setting in config.txt is ignored.
 
 # Contribution
 

@@ -83,9 +83,8 @@ func SetupDaemon() {
 func StartDaemon() {
 	for _, lock := range []string{lock, searchLock, adminSearch} {
 		l := path.Join(docroot, lock)
-		if !isFile(l) {
-			err := os.Remove(l)
-			if err != nil {
+		if isFile(l) {
+			if err := os.Remove(l); err != nil {
 				log.Println(err)
 			}
 		}

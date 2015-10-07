@@ -161,7 +161,7 @@ func (g *gatewayCGI) renderCSV(cl *cacheList) {
 	for _, ca := range cl.caches {
 		title := fileDecode(ca.datfile)
 		var t, p string
-		if hasString(stringSlice(types), ca.typee) {
+		if hasString(types, ca.typee) {
 			t = ca.typee
 			p = application[t] + querySeparator + strEncode(title)
 		}
@@ -264,7 +264,7 @@ func (g *gatewayCGI) printRecentRSS() {
 	g.wr.Header().Set("Content-Type", "text/xml; charset=UTF-8")
 	k := rsss.keys()
 	if len(k) != 0 {
-		g.wr.Header().Set("Last-Modified", g.rfc822Time(rsss.items[k[0]].date))
+		g.wr.Header().Set("Last-Modified", g.rfc822Time(rsss.Feeds[k[0]].Date))
 	}
 	rsss.makeRSS1(g.wr)
 
@@ -302,7 +302,7 @@ func (g *gatewayCGI) printRSS() {
 				if ca.typee == "thread" {
 					permpath = fmt.Sprintf("%s/%s", path[1:], r.id[:8])
 				}
-				rsss.append(permpath, title, g.rssTextFormat(r.Get("name", "")), desc, content, ca.tags.tags.toStringSlice(), r.stamp, false)
+				rsss.append(permpath, title, g.rssTextFormat(r.Get("name", "")), desc, content, ca.tags.getTagstrSlice(), r.stamp, false)
 				r.free()
 			}
 		}
@@ -310,7 +310,7 @@ func (g *gatewayCGI) printRSS() {
 	g.wr.Header().Set("Content-Type", "text/xml; charset=UTF-8")
 	k := rsss.keys()
 	if len(k) != 0 {
-		g.wr.Header().Set("Last-Modified", g.rfc822Time(rsss.items[k[0]].date))
+		g.wr.Header().Set("Last-Modified", g.rfc822Time(rsss.Feeds[k[0]].Date))
 	}
 	rsss.makeRSS1(g.wr)
 
@@ -355,13 +355,13 @@ func (g *gatewayCGI) printTitle() {
 	s := struct {
 		Cachelist     []*cache
 		Target        string
-		Taglist       *userTagList
+		Taglist       *UserTagList
 		MchURL        string
 		MchCategories []*mchCategory
 	}{
 		outputCachelist,
 		"changes",
-		newUserTagList(),
+		userTagList,
 		g.mchURL(),
 		g.mchCategories(),
 	}
@@ -387,13 +387,12 @@ func (g *gatewayCGI) printIndex(doChange bool) {
 }
 
 func (g *gatewayCGI) makeRecentCachelist() *cacheList {
-	rl := newRecentList()
-	sort.Sort(sort.Reverse(rl))
+	sort.Sort(sort.Reverse(recentList))
 	var cl []*cache
 	var check []string
-	for _, rec := range rl.tiedlist {
-		if !hasString(stringSlice(check), rec.datfile) {
-			ca := newCache(rec.datfile, nil, nil)
+	for _, rec := range recentList.records {
+		if !hasString(check, rec.datfile) {
+			ca := newCache(rec.datfile)
 			ca.recentStamp = rec.stamp
 			cl = append(cl, ca)
 			check = append(check, rec.datfile)
@@ -426,7 +425,7 @@ func (g *gatewayCGI) jumpNewFile() {
 	case t == "":
 		g.header(g.m["null_type"], "", nil, true, nil)
 		g.footer(nil)
-	case hasString(stringSlice(types), t):
+	case hasString(types, t):
 		tag := strEncode(g.req.FormValue("tag"))
 		search := strEncode(g.req.FormValue("search_new_file"))
 		g.print302(application[t] + querySeparator + strEncode(link) + "?tag=" + tag + "&search_new_filter" + search)

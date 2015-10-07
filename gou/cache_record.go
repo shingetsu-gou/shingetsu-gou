@@ -115,20 +115,6 @@ func (r *record) free() {
 	r.dict = make(map[string]string)
 }
 
-func (r *record) gt(y *record) bool {
-	if r.stamp != y.stamp {
-		return r.stamp > y.stamp
-	}
-	return r.idstr > y.idstr
-}
-
-func (r *record) lt(y *record) bool {
-	if r.stamp != y.stamp {
-		return r.stamp < y.stamp
-	}
-	return r.idstr < y.idstr
-}
-
 func (r *record) setpath() {
 	if r.idstr == "" || r.datfile == "" {
 		return

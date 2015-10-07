@@ -36,7 +36,7 @@ import (
 	"time"
 )
 
-//RegExp list.
+//confList represents regexp list.
 //    One regexp per one line.
 type confList struct {
 	mtime *time.Time
@@ -44,8 +44,9 @@ type confList struct {
 	data  []string
 }
 
+//newConfList makes a confList instance from path.
 func newConfList(path string, defaultList []string) *confList {
-	r := &confList{path: path, data: make([]string, 0)}
+	r := &confList{path: path}
 	r.update()
 	if len(r.data) == 0 {
 		r.data = defaultList
@@ -53,6 +54,7 @@ func newConfList(path string, defaultList []string) *confList {
 	return r
 }
 
+//update read the file if newer, and stores all lines in the file.
 func (r *confList) update() {
 	if r.path == "" {
 		return
@@ -79,13 +81,14 @@ func (r *confList) update() {
 	}
 }
 
-//RegExp list.
+//regexpList represents RegExp list.
 //    One regexp per one line.
 type regexpList struct {
 	*confList
 	regs []*regexp.Regexp
 }
 
+//newRegExpList make a regexpList and regexp.comples each lines in the file.
 func newRegexpList(path string) *regexpList {
 	c := newConfList(path, []string{})
 	r := &regexpList{}
@@ -95,7 +98,7 @@ func newRegexpList(path string) *regexpList {
 	return r
 }
 
-//Match target for all regexp.
+//check checks whethere target matches one of all regexps or not.
 func (r *regexpList) check(target string) bool {
 	r.update()
 	for _, r := range r.regs {
@@ -106,6 +109,7 @@ func (r *regexpList) check(target string) bool {
 	return false
 }
 
+//update read the file and regexp.comples each lines in the file if file is newer.
 func (r *regexpList) update() {
 	r.confList.update()
 	r.regs = r.regs[:0]

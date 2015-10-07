@@ -36,28 +36,24 @@ import (
 	"time"
 )
 
-type updateList struct {
+type UpdateList struct {
 	updateFile  string
 	updateRange int64
 	lookup      map[string]*record
-	tiedlist    []*record
+	records     []*record
 }
 
-func newUpdateList(updateFile string, updateRange int64) *updateList {
-	if updateFile == "" {
-		updateFile = update
-	}
-	if updateRange == 0 {
-		updateRange = int64(updateRange)
-	}
-	u := &updateList{
-		updateFile:  updateFile,
-		updateRange: updateRange,
+func newUpdateList() *UpdateList {
+	u := &UpdateList{
+		updateFile:  update,
+		updateRange: int64(defaultUpdateRange),
 		lookup:      make(map[string]*record),
-		tiedlist:    make([]*record, 0),
 	}
-	//cache:true
-	err := eachLine(updateFile, func(line string, i int) error {
+	u.loadFile()
+	return u
+}
+func (u *UpdateList) loadFile() {
+	err := eachLine(u.updateFile, func(line string, i int) error {
 		vr := u.makeRecord(line)
 		u.append(vr)
 		return nil
@@ -65,42 +61,43 @@ func newUpdateList(updateFile string, updateRange int64) *updateList {
 	if err != nil {
 		log.Fatal(err)
 	}
-	return u
-}
-func (u *updateList) append(r *record) {
-	u.tiedlist = append(u.tiedlist, r)
-}
-func (u *updateList) Less(i, j int) bool {
-	return u.tiedlist[i].stamp < u.tiedlist[j].stamp
 }
 
-func (u *updateList) Swap(i, j int) {
-	u.tiedlist[i], u.tiedlist[j] = u.tiedlist[j], u.tiedlist[i]
+func (u *UpdateList) append(r *record) {
+	u.records = append(u.records, r)
+}
+func (u *UpdateList) Less(i, j int) bool {
+	return u.records[i].stamp < u.records[j].stamp
 }
 
-func (u *updateList) Len() int {
-	return len(u.tiedlist)
+func (u *UpdateList) Swap(i, j int) {
+	u.records[i], u.records[j] = u.records[j], u.records[i]
 }
 
-func (u *updateList) find(r *record) int {
-	return findString(u, r.recstr)
+func (u *UpdateList) Len() int {
+	return len(u.records)
 }
 
-func (u *updateList) has(r *record) bool {
+func (u *UpdateList) find(r *record) int {
+	for i, v := range u.records {
+		if v.recstr == r.recstr {
+			return i
+		}
+	}
+	return -1
+}
+
+func (u *UpdateList) hasRecord(r *record) bool {
 	return u.find(r) != -1
 }
 
-func (u *updateList) Get(i int) string {
-	return u.tiedlist[i].recstr
-}
-
-func (u *updateList) remove(rec *record) {
+func (u *UpdateList) remove(rec *record) {
 	if l := u.find(rec); l != -1 {
-		u.tiedlist = append(u.tiedlist[:l], u.tiedlist[l:]...)
+		u.records = append(u.records[:l], u.records[l:]...)
 	}
 }
 
-func (u *updateList) addLookup(rec *record) {
+func (u *UpdateList) addLookup(rec *record) {
 	exist := false
 	for k, v := range u.lookup {
 		if k == rec.datfile && v.stamp < rec.stamp {
@@ -111,7 +108,7 @@ func (u *updateList) addLookup(rec *record) {
 		u.lookup[rec.datfile] = rec
 	}
 }
-func (u *updateList) makeRecord(line string) *record {
+func (u *UpdateList) makeRecord(line string) *record {
 	buf := strings.Split(strings.TrimRight(line, "\n\r"), "<>")
 	if len(buf) > 2 && buf[0] != "" && buf[1] != "" && buf[2] != "" {
 		idstr := buf[0] + "_" + buf[1]
@@ -125,38 +122,48 @@ func (u *updateList) makeRecord(line string) *record {
 	return nil
 }
 
-func (u *updateList) sync() {
-	for _, r := range u.tiedlist {
+func (u *UpdateList) getRecstrSlice() []string {
+	result := make([]string, len(u.records))
+	for i, v := range u.records {
+		result[i] = v.recstr
+	}
+	return result
+}
+
+func (u *UpdateList) sync() {
+	for _, r := range u.records {
 		if u.updateRange > 0 && r.stamp+u.updateRange < time.Now().Unix() {
 			u.remove(r)
 		}
-		err := writeSlice(u.updateFile, u)
+		err := writeSlice(u.updateFile, u.getRecstrSlice())
 		if err != nil {
 			log.Println(err)
 		}
 	}
 }
 
-type recentList struct {
-	*updateList
+type RecentList struct {
+	*UpdateList
 }
 
-func newRecentList() *recentList {
-	r := newUpdateList(recent, int64(recentRange))
-	return &recentList{r}
+func newRecentList() *RecentList {
+	r := &UpdateList{
+		updateFile:  recent,
+		updateRange: int64(recentRange),
+		lookup:      make(map[string]*record),
+	}
+	r.loadFile()
+	return &RecentList{r}
 }
 
-func (r *recentList) getAll() {
-	sl := newSearchList()
-	lt := newLookupTable()
-	lt.clear()
-	st := newSuggestedTagTable()
+func (r *RecentList) getAll() {
+	lookupTable.clear()
 	var begin int64
 	if recentRange > 0 {
 		begin = time.Now().Unix() - int64(recentRange)
 	}
 	var res []string
-	for count, n := range sl.tiedlist {
+	for count, n := range searchList.nodes {
 		var err error
 		res, err = n.talk("/recent/" + strconv.FormatInt(begin, 10) + "-")
 		if err != nil {
@@ -166,15 +173,15 @@ func (r *recentList) getAll() {
 		for _, line := range res {
 			rec := r.makeRecord(line)
 			if rec != nil {
-				r.tiedlist = append(r.tiedlist, rec)
-				ca := newCache(rec.datfile, st, nil)
-				tags := strings.Split(strings.TrimSpace(rec.Get("tag", "")), " \t\r\n")
+				r.records = append(r.records, rec)
+				ca := newCache(rec.datfile)
+				tags := strings.Fields(strings.TrimSpace(rec.Get("tag", "")))
 				shuffle(sort.StringSlice(tags))
 				tags = tags[tagSize:]
 				if len(tags) > 0 {
 					ca.sugtags.addString(tags)
 					ca.sugtags.sync()
-					lt.add(rec.datfile, n)
+					lookupTable.add(rec.datfile, n)
 				}
 			}
 		}
@@ -183,14 +190,14 @@ func (r *recentList) getAll() {
 		}
 	}
 	r.sync()
-	lt.sync(false)
-	st.prune(r)
-	st.sync()
+	lookupTable.sync(false)
+	suggestedTagTable.prune(r)
+	suggestedTagTable.sync()
 }
 
-func (r *recentList) uniq() {
+func (r *RecentList) uniq() {
 	date := make(map[string]*record)
-	for _, rec := range r.tiedlist {
+	for _, rec := range r.records {
 		if _, exist := date[rec.datfile]; !exist {
 			date[rec.datfile] = rec
 		} else {
@@ -204,7 +211,7 @@ func (r *recentList) uniq() {
 	}
 }
 
-func (r *recentList) sync() {
+func (r *RecentList) sync() {
 	r.uniq()
-	r.updateList.sync()
+	r.UpdateList.sync()
 }

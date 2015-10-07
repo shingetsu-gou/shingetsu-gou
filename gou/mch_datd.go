@@ -180,15 +180,15 @@ func (m *mchCGI) threadApp(board, datkey string) {
 		m.wr.WriteHeader(404)
 		m.serveContent("a.txt", time.Time{}, "404 Not Found")
 	}
-	data := newCache(key, nil, nil)
+	data := newCache(key)
 	data.load()
 
 	if m.checkGetCache() {
 		if data.exists() || data.Len() == 0 {
-			data.search(nil, nil)
+			data.search(nil)
 		} else {
 			if m.counterIsUpdate(key) {
-				go data.search(nil, nil)
+				go data.search(nil)
 			}
 		}
 	}
@@ -204,16 +204,15 @@ func (m *mchCGI) threadApp(board, datkey string) {
 }
 
 func (m *mchCGI) makeSubjectCachelist(board string) []*cache {
-	rl := newRecentList()
 	cl := newCacheList()
 	seen := make([]string, cl.Len())
 	for i, c := range cl.caches {
 		seen[i] = c.datfile
 	}
-	for _, rec := range rl.tiedlist {
-		if !hasString(stringSlice(seen), rec.datfile) {
+	for _, rec := range recentList.records {
+		if !hasString(seen, rec.datfile) {
 			seen = append(seen, rec.datfile)
-			c := newCache(rec.datfile, nil, nil)
+			c := newCache(rec.datfile)
 			c.recentStamp = rec.stamp
 			cl.append(c)
 		}
@@ -229,9 +228,8 @@ func (m *mchCGI) makeSubjectCachelist(board string) []*cache {
 		return result
 	}
 	var result2 []*cache
-	sugtags := newSuggestedTagTable()
 	for _, c := range result {
-		if m.hasTag(c, board, sugtags) {
+		if m.hasTag(c, board, suggestedTagTable) {
 			result2 = append(result2, c)
 
 		}
@@ -239,12 +237,12 @@ func (m *mchCGI) makeSubjectCachelist(board string) []*cache {
 	return result2
 }
 
-func (m *mchCGI) hasTag(c *cache, board string, sugtag *suggestedTagTable) bool {
+func (m *mchCGI) hasTag(c *cache, board string, sugtag *SuggestedTagTable) bool {
 	tags := c.tags
-	if tl := sugtag.Get(c.datfile, nil); tl != nil {
+	if tl := sugtag.get(c.datfile, nil); tl != nil {
 		tags.tags = append(tags.tags, tl.tags...)
 	}
-	return hasString(stringSlice(tags.tags.toStringSlice()), board)
+	return hasString(tags.getTagstrSlice(), board)
 }
 
 func (m *mchCGI) subjectApp(board string) {

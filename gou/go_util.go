@@ -78,34 +78,15 @@ func eachKeyValueLine(path string, handler func(key string, value []string, num 
 	return err
 }
 
-//stringerslice is a interface whose values are sting.
-type stringerSlice interface {
-	Len() int
-	Get(int) string
-}
-
-//stringSlice is to make []string to stringerSlice
-type stringSlice []string
-
-//Len returns length of ary
-func (s stringSlice) Len() int {
-	return len(s)
-}
-
-//Get returns ary value
-func (s stringSlice) Get(i int) string {
-	return s[i]
-}
-
 //hasString returns true if ary has val.
-func hasString(ary stringerSlice, val string) bool {
-	return findString(ary, val) != -1
+func hasString(s []string, val string) bool {
+	return findString(s, val) != -1
 }
 
 //findString search val in ary and returns index. it returns -1 if not found.
-func findString(ary stringerSlice, val string) int {
-	for i := 0; i < ary.Len(); i++ {
-		if ary.Get(i) == val {
+func findString(s []string, val string) int {
+	for i, v := range s {
+		if v == val {
 			return i
 		}
 	}
@@ -113,16 +94,16 @@ func findString(ary stringerSlice, val string) int {
 }
 
 //writeSlice write ary into a path.
-func writeSlice(path string, ary stringerSlice) error {
+func writeSlice(path string, ary []string) error {
 	f, err := os.Create(path)
+	defer close(f)
 	if err != nil {
 		log.Println(err)
 		return err
 	}
-	defer close(f)
 
-	for i := 0; i < ary.Len(); i++ {
-		_, err := f.WriteString(ary.Get(i) + "\n")
+	for _, v := range ary {
+		_, err := f.WriteString(v + "\n")
 		if err != nil {
 			return err
 		}

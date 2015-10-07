@@ -35,134 +35,128 @@ import (
 	"time"
 )
 
+//cron runs a cron job periditically.
 func cron() {
+	c := newClient()
 	for {
 		time.Sleep(clientCycle)
-		c := client{}
-		go c.run()
+		c.run()
 	}
 }
 
-type status struct {
-	dict map[string]int64
+//client is for updating everything and saves cron status, i.e. save pinged/inited/synced times.
+type client struct {
+	utime     map[string]time.Time
+	timelimit time.Time
 }
 
-func newStatus() *status {
-	s := &status{}
+//newClient read updated time from the file and creates client instance.
+func newClient() *client {
+	c := &client{utime: make(map[string]time.Time)}
 	if !isFile(clientLog) {
-		return s
+		return c
 	}
 	k := []string{"ping", "init", "sync"}
 	err := eachLine(clientLog, func(line string, i int) error {
 		var err error
-		s.dict[k[i]], err = strconv.ParseInt(line, 10, 64)
+		t, err := strconv.ParseInt(line, 10, 64)
+		c.utime[k[i]] = time.Unix(t, 0)
 		return err
 	})
 	if err != nil {
 		log.Fatal(err)
 	}
-	return s
+	return c
 }
 
-func (s *status) sync() {
+//sync saves updated times.
+func (c *client) sync() {
 	f, err := os.Create(clientLog)
 	if err != nil {
 		log.Fatal(err)
 	}
 	defer close(f)
 	for _, v := range []string{"ping", "init", "sync"} {
-		_, err := f.WriteString(strconv.FormatInt(s.dict[v], 10) + "\n")
+		_, err := f.WriteString(strconv.FormatInt(c.utime[v].Unix(), 10) + "\n")
 		if err != nil {
 			log.Println(err)
 		}
 	}
 }
 
-func (s *status) check(key string) {
-	s.dict[key] = time.Now().Unix()
+//check updates updated time.
+func (c *client) check(key string) {
+	c.utime[key] = time.Now()
+	c.sync()
 }
 
-type client struct {
-	timelimit int64
-}
-
+//run runs cron, and update everything if it is after specified cycle.
 func (c *client) run() {
-	s := newStatus()
-	c.timelimit = time.Now().Add(clientTimeout).Unix()
-	if time.Now().Unix()-s.dict["ping"] >= int64(pingCycle) {
+	t := time.Now()
+	c.timelimit = t.Add(clientTimeout)
+	if t.Sub(c.utime["ping"]) >= pingCycle {
 		c.doPing()
-		s = newStatus()
 		c.doUpdate()
 	}
-	nl := newNodeList()
-	if nl.Len() == 0 {
+	if nodeList.Len() == 0 {
 		c.doInit()
-		nl = newNodeList()
-		if nl != nil {
+		if nodeList.Len() != 0{
 			c.doSync()
 		}
-		s = newStatus()
 	}
 
-	if time.Now().Unix()-s.dict["init"] > int64(initCycle)*int64(nl.Len()) {
+	if t.Sub(c.utime["init"]) >= initCycle*time.Duration(nodeList.Len()) {
 		c.doInit()
-		s = newStatus()
 	} else {
-		if nl.Len() < defaultNodes {
+		if nodeList.Len() < defaultNodes {
 			c.doRejoin()
-			s = newStatus()
 		}
 	}
-	if time.Now().Unix()-s.dict["sync"] >= int64(syncCycle) {
+	if t.Sub(c.utime["sync"]) >= syncCycle {
 		c.doSync()
 	}
 }
 
-func (c *client) check(key string) {
-	s := newStatus()
-	s.check(key)
-	s.sync()
-}
-
+//doPing pins all nodes and sync.
 func (c *client) doPing() {
 	c.check("ping")
-	nl := newNodeList()
-	nl.pingAll()
-	nl.sync()
+	nodeList.pingAll()
+	nodeList.sync()
 	log.Println("nodelist.pingall finished")
 }
 
+//doUpdate tells updated records to nodes in the node list.
 func (c *client) doUpdate() {
 	q := newUpdateQue()
 	go q.run()
 	log.Println("updatequeue started")
 }
 
+//doInit tries to find nodes from initNode and also add them to the search list.
 func (c *client) doInit() {
 	c.check("init")
-	nl := newNodeList()
-	nl.initialize()
-	nl.sync()
-	sl := newSearchList()
-	sl.extend(nl.tiedlist)
-	sl.sync()
+	nodeList.initialize()
+	nodeList.sync()
+	searchList.extend(nodeList.nodes)
+	searchList.sync()
 	log.Println("nodelist.init finished")
 }
 
+//doRejoin checks nodes in the search list are alive and add them to the node list.
 func (c *client) doRejoin() {
-	nl := newNodeList()
-	sl := newSearchList()
-	nl.rejoin(sl)
+	nodeList.rejoin(searchList)
 	log.Println("nodelist.rejoin finished")
 }
 
+//doSync checks nodes in the nodelist are alive, reloads cachelist, removes old removed files,
+//reloads all tags from cachelist,reload srecent list from nodes in search list, 
+//and reloads cache info from files in the disk.
 func (c *client) doSync() {
 	c.check("sync")
-	nl := newNodeList()
-	for _, n := range nl.tiedlist {
-		nl.join(n)
+	for _, n := range nodeList.nodes {
+		nodeList.join(n)
 	}
-	nl.sync()
+	nodeList.sync()
 	log.Println("nodelist.josin finished")
 
 	cl := newCacheList()
@@ -175,12 +169,10 @@ func (c *client) doSync() {
 	cl.removeRemoved()
 	log.Println("cachelist.removeRemoved finished")
 
-	ut := newUserTagList()
-	ut.updateAll()
+	userTagList.updateAll()
 	log.Println("userTagList.updateAll finished")
 
-	rl := newRecentList()
-	rl.getAll()
+	recentList.getAll()
 	log.Println("recentList.getall finished")
 
 	cl.getall(c.timelimit)

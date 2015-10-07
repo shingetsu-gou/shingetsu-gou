@@ -28,57 +28,59 @@
 
 package gou
 
-import (
-	"log"
-	"strconv"
-	"strings"
-	"sync"
-)
+import "sync"
 
+//updateQue contains update records which will be informed to other nodes
 type updateQue struct {
-	queue   map[string][]*node
+	queue   map[*record][]*node
 	running bool
 	mutex   sync.Mutex
 }
 
+//newUpdateQue make updateQue object.
 func newUpdateQue() *updateQue {
 	u := &updateQue{
-		queue: make(map[string][]*node),
+		queue: make(map[*record][]*node),
 	}
 	return u
 }
 
-func (u *updateQue) append(datfile string, stamp int64, id string, n *node) {
-	key := strings.Join([]string{strconv.FormatInt(stamp, 10), id, datfile}, "<>")
-	if u.queue[key] == nil {
-		u.queue[key] = make([]*node, 0)
-	}
-	u.queue[key] = append(u.queue[key], n)
+//append adds a record and origina n to be broadcasted.
+func (u *updateQue) append(rec *record, n *node) {
+	u.mutex.Lock()
+	defer u.mutex.Unlock()
+	u.queue[rec] = append(u.queue[rec], n)
 }
 
+//run do doUpdateNode for each records using related nodes.
 func (u *updateQue) run() {
 	u.mutex.Lock()
 	defer u.mutex.Unlock()
-	u.running = true
-	for updateid := range u.queue {
-		u.doUpdate(updateid)
+	for rec, ns := range u.queue {
+		for i, n := range ns {
+			if u.doUpdateNode(rec, n) {
+				delete(u.queue, rec)
+				updateList.append(rec)
+				updateList.sync()
+				recentList.append(rec)
+				recentList.sync()
+				break
+			}
+			u.queue[rec] = append(u.queue[rec][:i], u.queue[rec][i:]...)
+		}
 	}
-	u.running = false
 }
 
 func (u *updateQue) doUpdateNode(rec *record, n *node) bool {
-	ul := newUpdateList("", -1)
-	if ul.has(rec) {
+	if updateList.hasRecord(rec) {
 		return true
 	}
-	ca := newCache(rec.datfile, nil, nil)
-	nl := newNodeList()
-	sl := newSearchList()
+	ca := newCache(rec.datfile)
 	var flagGot, flagSpam bool
 	switch {
 	case !ca.exists():
-		if sl.Len() < searchDepth {
-			nl.tellUpdate(ca, rec.stamp, rec.id, n)
+		if searchList.Len() < searchDepth {
+			nodeList.tellUpdate(ca, rec.stamp, rec.id, n)
 		}
 		return true
 	case n == nil:
@@ -90,49 +92,22 @@ func (u *updateQue) doUpdateNode(rec *record, n *node) bool {
 		flagSpam = false
 	}
 	if n == nil {
-		nl.tellUpdate(ca, rec.stamp, rec.id, n)
+		nodeList.tellUpdate(ca, rec.stamp, rec.id, n)
 		return true
 	}
 	if flagGot {
 		if !flagSpam {
-			nl.tellUpdate(ca, rec.stamp, rec.id, nil)
+			nodeList.tellUpdate(ca, rec.stamp, rec.id, nil)
 		}
-		if !nl.has(n) && nl.Len() < defaultNodes {
-			nl.join(n)
-			nl.sync()
+		if !nodeList.hasNode(n) && nodeList.Len() < defaultNodes {
+			nodeList.join(n)
+			nodeList.sync()
 		}
-		sl = newSearchList()
-		if !sl.has(n) {
-			sl.join(n)
-			sl.sync()
+		if !searchList.hasNode(n) {
+			searchList.join(n)
+			searchList.sync()
 		}
 		return true
 	}
 	return false
-}
-
-func (u *updateQue) doUpdate(updateid string) {
-	if _, exist := u.queue[updateid]; !exist {
-		return
-	}
-	ids := strings.Split(updateid, "<>")
-	if len(ids) < 3 {
-		log.Println("illegal format")
-		return
-	}
-	rec := newRecord(ids[2], ids[0]+"_"+ids[1])
-	for i, n := range u.queue[updateid] {
-		if u.doUpdateNode(rec, n) {
-			delete(u.queue, updateid)
-			ul := newUpdateList("", -1)
-			ul.append(rec)
-			ul.sync()
-			rl := newRecentList()
-			rl.append(rec)
-			rl.sync()
-			return
-		}
-		u.queue[updateid] = append(u.queue[updateid][:i], u.queue[updateid][i:]...)
-
-	}
 }

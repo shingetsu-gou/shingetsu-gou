@@ -192,7 +192,7 @@ func (a *adminCGI) doDeleteRecord(datfile string, records []string, dopost strin
 		}
 		next = rootPath
 	}
-	ca := newCache(datfile, nil, nil)
+	ca := newCache(datfile)
 	for _, r := range records {
 		rec := newRecord(datfile, r)
 		ca.size -= int(rec.size())
@@ -256,21 +256,18 @@ func (a *adminCGI) postDeleteMessage(ca *cache, rec *record) {
 	ca.addData(rec, true)
 	ca.syncStatus()
 
-	ul := newUpdateList("", -1)
-	ul.append(rec)
-	ul.sync()
-	rl := newRecentList()
-	rl.append(rec)
-	rl.sync()
-	nl := newNodeList()
-	nl.tellUpdate(ca, stamp, id, nil)
+	updateList.append(rec)
+	updateList.sync()
+	recentList.append(rec)
+	recentList.sync()
+	nodeList.tellUpdate(ca, stamp, id, nil)
 
 }
 func (a *adminCGI) printDeleteFile(files []string) {
 	sid := a.makeSid()
 	cas := make([]*cache, len(files))
 	for i, v := range files {
-		cas[i] = newCache(v, nil, nil)
+		cas[i] = newCache(v)
 	}
 	d := DelFile{
 		a.makeDefaultVariable(),
@@ -284,7 +281,7 @@ func (a *adminCGI) printDeleteFile(files []string) {
 
 func (a *adminCGI) doDeleteFile(files []string) {
 	for _, c := range files {
-		ca := newCache(c, nil, nil)
+		ca := newCache(c)
 		ca.remove()
 	}
 	a.print302(gatewayCgi + querySeparator + "changes")
@@ -316,7 +313,7 @@ func (a *adminCGI) printSearchResult(query string) {
 	cl := newCacheList()
 	result := cl.search(reg)
 	for _, i := range cl.caches {
-		if hasString(stringerSlice(result), i.datfile) {
+		if result.has(i) {
 			continue
 		}
 		if reg.MatchString(fileDecode(i.datfile)) {
@@ -344,8 +341,6 @@ func (a *adminCGI) printSearch() {
 }
 
 func (a *adminCGI) printStatus() {
-	nl := newNodeList()
-	sl := newSearchList()
 	cl := newCacheList()
 	records := 0
 	size := 0
@@ -353,7 +348,7 @@ func (a *adminCGI) printStatus() {
 		records += ca.Len()
 		size += ca.size
 	}
-	my := nl.myself()
+	my := nodeList.myself()
 	s := struct {
 		LinedNodes int
 		KnownNodes int
@@ -362,19 +357,19 @@ func (a *adminCGI) printStatus() {
 		CacheSize  string
 		SelfNode   *node
 	}{
-		nl.Len(),
-		sl.Len(),
+		nodeList.Len(),
+		searchList.Len(),
 		cl.Len(),
 		records,
 		fmt.Sprintf("%.1f%s", float64(size)/1024/1024, a.m["mb"]),
 		my,
 	}
 	ns := struct {
-		LinkedNodes nodeList
-		KnownNodes  searchList
+		LinkedNodes NodeList
+		KnownNodes  SearchList
 	}{
-		*nl,
-		*sl,
+		*nodeList,
+		*searchList,
 	}
 
 	d := struct {
@@ -394,7 +389,7 @@ func (a *adminCGI) printStatus() {
 func (a *adminCGI) printEdittag() {
 	datfile := a.req.FormValue("file")
 	strTitle := fileEncode(datfile, "")
-	ca := newCache(datfile, nil, nil)
+	ca := newCache(datfile)
 	datfile = html.EscapeString(datfile)
 
 	if !ca.exists() {
@@ -405,12 +400,12 @@ func (a *adminCGI) printEdittag() {
 		Datfile  string
 		Tags     string
 		Sugtags  suggestedTagList
-		Usertags userTagList
+		Usertags UserTagList
 	}{
 		datfile,
 		ca.tags.string(),
 		*ca.sugtags,
-		*newUserTagList(),
+		*userTagList,
 	}
 	a.header(fmt.Sprintf("%s: %s", a.m["edit_tag"], strTitle), "", nil, true, nil)
 	renderTemplate("edit_tag", d, a.wr)
@@ -423,16 +418,15 @@ func (a *adminCGI) saveTag() {
 	if datfile == "" {
 		return
 	}
-	ca := newCache(datfile, nil, nil)
+	ca := newCache(datfile)
 	if !ca.exists() {
 		a.print404(nil, "")
 	}
-	tl := strings.Split(tags, " \t\r\n")
+	tl := strings.Fields(tags)
 	ca.tags.update(tl)
 	ca.tags.sync()
-	utl := newUserTagList()
-	utl.addString(tl)
-	utl.sync()
+	userTagList.addString(tl)
+	userTagList.sync()
 	var next string
 	for _, t := range types {
 		title := strEncode(fileDecode(datfile))

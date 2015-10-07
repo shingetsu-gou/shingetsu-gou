@@ -61,7 +61,7 @@ func newResTable(ca *cache) *resTable {
 	}
 	ca.load()
 	for i, k := range ca.keys() {
-		rec := ca.Get(k, nil)
+		rec := ca.get(k, nil)
 		r.num2id[i+1] = rec.id[:8]
 		r.id2num[rec.id[:8]] = i + 1
 	}
@@ -73,7 +73,7 @@ func makeDat(ca *cache, host string, board string) []string {
 	table := newResTable(ca)
 
 	for i, k := range ca.keys() {
-		rec := ca.Get(k, nil)
+		rec := ca.get(k, nil)
 		err := rec.load()
 		if err != nil {
 			log.Println(err)
@@ -174,7 +174,7 @@ func makeBracketLink(body string, datHost, board string, table *resTable) string
 			url := fmt.Sprintf("http://%s/test/read.cgi/%s/%d/", datHost, board, datkey)
 			return fmt.Sprintf("[[%s(%s)]]", title, url)
 		}
-		ca := newCache(file, nil, nil)
+		ca := newCache(file)
 		table = newResTable(ca)
 		no := table.id2num[id]
 		url := fmt.Sprintf("http://%s/test/read.cgi/%s/%d/%d", datHost, board, datkey, no)

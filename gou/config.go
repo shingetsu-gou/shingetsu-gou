@@ -40,21 +40,21 @@ import (
 )
 
 const (
-	clientCycle = 5 * time.Minute  // Seconds; Access client.cgi
-	pingCycle   = 5 * time.Minute  // Seconds; Check nodes
-	syncCycle   = 5 * time.Hour    // Seconds; Check cache
-	initCycle   = 20 * time.Minute // Seconds; Check initial node
-	updateRange = 24 * time.Hour   // Seconds
-	//	time_error          = 60 * time.Second // Seconds
-	searchTimeout  = 10 * time.Minute // Seconds
-	defaultTimeout = 20 * time.Second // Seconds; Timeout for TCP
-	getTimeout     = 2 * time.Minute  // Seconds; Timeout for /get
-	clientTimeout  = 30 * time.Minute // Seconds; client_timeout < sync_cycle
-	retry          = 5                // Times; Common setting
-	retryJoin      = 2                // Times; Join network
-	defaultNodes   = 5                // Nodes keeping in node list
-	shareNodes     = 5                // Nodes having the file
-	searchDepth    = 30               // Search node size
+	clientCycle        = 5 * time.Minute  // Seconds; Access client.cgi
+	pingCycle          = 5 * time.Minute  // Seconds; Check nodes
+	syncCycle          = 5 * time.Hour    // Seconds; Check cache
+	initCycle          = 20 * time.Minute // Seconds; Check initial node
+	defaultUpdateRange = 24 * time.Hour   // Seconds
+	timeErrorSigma     = 60 * 60          // Seconds
+	searchTimeout      = 10 * time.Minute // Seconds
+	defaultTimeout     = 20 * time.Second // Seconds; Timeout for TCP
+	getTimeout         = 2 * time.Minute  // Seconds; Timeout for /get
+	clientTimeout      = 30 * time.Minute // Seconds; client_timeout < sync_cycle
+	retry              = 5                // Times; Common setting
+	retryJoin          = 2                // Times; Join network
+	defaultNodes       = 5                // Nodes keeping in node list
+	shareNodes         = 5                // Nodes having the file
+	searchDepth        = 30               // Search node size
 
 	defaultLanguage = "en" // Language code (see RFC3066)
 
@@ -149,12 +149,27 @@ var (
 	cachedRule = newRegexpList(spamList)
 	absDocroot string
 	queue      = newUpdateQue()
+
+	initNode  = newConfList(initnodeList, defaultInitNode)
+	nodeAllow = newRegexpList(nodeAllowFile)
+	nodeDeny  = newRegexpList(nodeDenyFile)
+	dkTable   = newDatakeyTable(runDir + "/datakey.txt")
+
+	suggestedTagTable *SuggestedTagTable
+	userTagList       *UserTagList
+	lookupTable       *LookupTable
+	searchList        *SearchList
+	nodeList          *NodeList
+	recentList        *RecentList
+	updateList        *UpdateList
 )
 
+//config represents ini file.
 type config struct {
 	i *ini.File
 }
 
+//newConfig make a config instance from the ini files and returns it.
 func newConfig() *config {
 	var err error
 	c := &config{}
@@ -173,18 +188,22 @@ func newConfig() *config {
 	return c
 }
 
+//getPathValue gets int value from ini file.
 func (c *config) getIntValue(section, key string, vdefault int) int {
 	return c.i.Section(section).Key(key).MustInt(vdefault)
 }
 
+//getStringValue gets string from ini file.
 func (c *config) getStringValue(section, key string, vdefault string) string {
 	return c.i.Section(section).Key(key).MustString(vdefault)
 }
 
+//getPathValue gets bool value from ini file.
 func (c *config) getBoolValue(section, key string, vdefault bool) bool {
 	return c.i.Section(section).Key(key).MustBool(vdefault)
 }
 
+//getPathValue gets path from ini file.
 func (c *config) getPathValue(section, key string, vdefault string) string {
 	p := c.i.Section(section).Key(key).MustString(vdefault)
 	usr, err := user.Current()
@@ -197,7 +216,7 @@ func (c *config) getPathValue(section, key string, vdefault string) string {
 
 //Get Gou version for useragent and servername.
 func getVersion() string {
-	ver := "0.0.1"
+	ver := "0.0.0"
 
 	versionFile := docroot + "/" + fileDir + "/version.txt"
 	f, err := os.Open(versionFile)
@@ -211,7 +230,15 @@ func getVersion() string {
 	return "shinGETsu/0.7 (Gou/" + ver + ")"
 }
 
-func InitConfig() {
+//InitVariables initializes some global and map vars.
+func InitVariables() {
+	suggestedTagTable = newSuggestedTagTable()
+	userTagList = newUserTagList()
+	lookupTable = newLookupTable()
+	searchList = newSearchList()
+	nodeList = newNodeList()
+	recentList = newRecentList()
+	updateList = newUpdateList()
 
 	for _, t := range types {
 		ctype := "Application " + strings.ToUpper(t)

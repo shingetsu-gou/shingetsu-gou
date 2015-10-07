@@ -166,7 +166,7 @@ func (t *threadCGI) printTag(ca *cache) {
 	}{
 		t.makeDefaultVariable(),
 		ca,
-		ca.tags.tags.toStringSlice(),
+		ca.tags.getTagstrSlice(),
 		"tags",
 		"changes",
 	}
@@ -176,7 +176,7 @@ func (t *threadCGI) printTag(ca *cache) {
 func (t *threadCGI) printThread(path, id, page string) {
 	strPath := strEncode(t.req.URL.Path)
 	filePath := fileEncode("thread", t.req.URL.Path)
-	ca := newCache(filePath, nil, nil)
+	ca := newCache(filePath)
 	if id != "" && t.req.FormValue("ajax") != "" {
 		t.printThreadAjax(t.req.URL.Path, id)
 		return
@@ -185,7 +185,7 @@ func (t *threadCGI) printThread(path, id, page string) {
 	case ca.hasRecord():
 	case t.checkGetCache():
 		if t.req.FormValue("search_new_file") != "" {
-			ca.standbyDirectories()
+			ca.setupDirectories()
 			t.unlock()
 		} else {
 			t.getCache(ca)
@@ -212,13 +212,12 @@ func (t *threadCGI) printThread(path, id, page string) {
 	}
 	rss := gatewayCgi + "/rss"
 	t.header(t.req.URL.Path, rss, newcookie, false, nil)
-	tags := strings.Split(strings.Trim(t.req.FormValue("tag"), "\r\n"), " \t")
+	tags := strings.Fields(strings.TrimSpace(t.req.FormValue("tag")))
 	if t.isAdmin && len(tags) > 0 {
 		ca.tags.addString(tags)
 		ca.tags.sync()
-		utl := newUserTagList()
-		utl.addString(tags)
-		utl.sync()
+		userTagList.addString(tags)
+		userTagList.sync()
 	}
 	t.printTag(ca)
 	var lastrec *record
@@ -254,7 +253,7 @@ func (t *threadCGI) printThread(path, id, page string) {
 		inrange = ids[len(ids)-threadPageSize*(nPage+1):]
 	}
 	for _, k := range inrange {
-		rec := ca.Get(k, nil)
+		rec := ca.get(k, nil)
 		if (id == "" || rec.id[:8] == id) && rec.loadBody() == nil {
 			t.printRecord(ca, rec, t.req.URL.Path, strPath)
 		}
@@ -284,7 +283,7 @@ func (t *threadCGI) printThread(path, id, page string) {
 func (t *threadCGI) printThreadAjax(path, id string) {
 	strPath := strEncode(path)
 	filePath := fileEncode("thread", path)
-	ca := newCache(filePath, nil, nil)
+	ca := newCache(filePath)
 	if !ca.hasRecord() {
 		return
 	}
@@ -370,7 +369,7 @@ func (t *threadCGI) printPostForm(ca *cache) {
 }
 
 func (t *threadCGI) printAttach(datfile, stampStr, id, thumbnailSize, suffix string) {
-	ca := newCache(datfile, nil, nil)
+	ca := newCache(datfile)
 	typ := mime.TypeByExtension("suffix")
 	if typ == "" {
 		typ = "text/plain"

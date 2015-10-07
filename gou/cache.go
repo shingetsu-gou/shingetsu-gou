@@ -55,7 +55,6 @@ type cache struct {
 	validStamp  int64
 	recentStamp int64
 	stamp       int64
-	recentlist  *recentList
 	removed     map[string]string
 	sugtags     *suggestedTagList
 	saveRecord  int
@@ -66,7 +65,7 @@ type cache struct {
 	recs        map[string]*record
 }
 
-func newCache(datfile string, sugtagtable *suggestedTagTable, recentlist *recentList) *cache {
+func newCache(datfile string) *cache {
 	c := &cache{
 		datfile: datfile,
 		dathash: fileHash(datfile),
@@ -80,23 +79,17 @@ func newCache(datfile string, sugtagtable *suggestedTagTable, recentlist *recent
 	c.size = int(c.loadStatus("size"))
 	c.count = int(c.loadStatus("count"))
 	c.velocity = int(c.loadStatus("velocity"))
-	if recentlist == nil {
-		c.recentlist = newRecentList()
-	}
-	if v, exist := recentlist.lookup[c.datfile]; exist {
+	if v, exist := recentList.lookup[c.datfile]; exist {
 		if c.recentStamp < v.stamp {
 			c.recentStamp = v.stamp
 		}
 	}
-	c.node = newRawNodeList(path.Join(c.datpath, "node.txt"), false)
-	c.tags = newTagList(c.datfile, path.Join(c.datfile, "tag.txt"), false)
-	if sugtagtable == nil {
-		sugtagtable = newSuggestedTagTable()
-	}
-	if v, exist := sugtagtable.tieddict[c.datfile]; exist {
+	c.node = newRawNodeList(path.Join(c.datpath, "node.txt"))
+	c.tags = newTagList(c.datfile, path.Join(c.datfile, "tag.txt"))
+	if v, exist := suggestedTagTable.tieddict[c.datfile]; exist {
 		c.sugtags = v
 	} else {
-		c.sugtags = newSuggestedTagList(sugtagtable, c.datfile, nil)
+		c.sugtags = newSuggestedTagList(c.datfile, nil)
 	}
 
 	for _, t := range types {
@@ -125,7 +118,7 @@ func (c *cache) Len() int {
 	return len(c.recs)
 }
 
-func (c *cache) Get(i string, def *record) *record {
+func (c *cache) get(i string, def *record) *record {
 	if v, exist := c.recs[i]; exist {
 		return v
 	}
@@ -208,13 +201,13 @@ func (c *cache) syncStatus() {
 	}
 }
 
-func (c *cache) standbyDirectories() {
+func (c *cache) setupDirectories() {
 	for _, d := range []string{"", "/attach", "/body", "/record", "/removed"} {
 		di := c.datpath + d
 		if !isDir(di) {
 			err := os.Mkdir(di, 0666)
 			if err != nil {
-				log.Println(err)
+				log.Fatal(err)
 			}
 		}
 	}
@@ -274,7 +267,7 @@ func (c *cache) getData(stamp int64, id string, n *node) (bool, bool) {
 	return flagGot, flagSpam
 }
 func (c *cache) addData(rec *record, really bool) {
-	c.standbyDirectories()
+	c.setupDirectories()
 	rec.sync(false)
 	if really {
 		c.recs[rec.idstr] = rec
@@ -421,27 +414,22 @@ func (c *cache) exists() bool {
 	return isDir(c.datpath)
 }
 
-func (c *cache) search(searchlist *searchList, myself *node) bool {
-	c.standbyDirectories()
-	if searchlist == nil {
-		searchlist = newSearchList()
-	}
+func (c *cache) search(myself *node) bool {
+	c.setupDirectories()
 	if myself != nil {
-		myself = newNodeList().myself()
+		myself = nodeList.myself()
 	}
-	lookuptable := newLookupTable()
-	n := searchlist.search(nil, myself, lookuptable.Get(c.datfile, nil))
+	n := searchList.search(nil, myself, lookupTable.Get(c.datfile, nil))
 	if n != nil {
-		nodelist := newNodeList()
-		if !nodelist.has(n) {
-			nodelist.append(n)
-			nodelist.sync()
+		if !nodeList.hasNode(n) {
+			nodeList.append(n)
+			nodeList.sync()
 		}
 		c.getWithRange(n)
-		if !c.node.has(n) {
+		if !c.node.hasNode(n) {
 			for c.node.Len() >= shareNodes {
 				n = c.node.random()
-				c.node.remove(n)
+				c.node.removeNode(n)
 			}
 			c.node.append(n)
 			c.node.sync()
@@ -471,20 +459,15 @@ func (c *cacheList) append(cc *cache) {
 func (c *cacheList) Len() int {
 	return len(c.caches)
 }
-func (c *cacheList) Get(i int) *cache {
-	return c.caches[i]
-}
 
 func (c *cacheList) Swap(i, j int) {
 	c.caches[i], c.caches[j] = c.caches[j], c.caches[i]
 }
 
 func (c *cacheList) load() {
-	sugtagtable := newSuggestedTagTable()
-	recentlist := newRecentList()
 	c.caches = c.caches[:0]
 	err := eachFiles(cacheDir, func(f os.FileInfo) error {
-		cc := newCache(f.Name(), sugtagtable, recentlist)
+		cc := newCache(f.Name())
 		c.caches = append(c.caches, cc)
 		return nil
 	})
@@ -535,21 +518,19 @@ func (c *cacheList) rehash() {
 	}
 }
 
-func (c *cacheList) getall(timelimit int64) {
-	now := time.Now().Unix()
+func (c *cacheList) getall(timelimit time.Time) {
+	now := time.Now()
 	shuffle(c)
-	nl := newNodeList()
-	my := nl.myself()
-	sl := newSearchList()
+	my := nodeList.myself()
 	for _, ca := range c.caches {
-		if now > timelimit {
+		if now.After(timelimit) {
 			log.Println("client timeout")
 			return
 		}
 		if !ca.exists() {
 			return
 		}
-		ca.search(sl, my)
+		ca.search(my)
 		ca.size = 0
 		ca.count = 0
 		ca.velocity = 0
@@ -567,7 +548,7 @@ func (c *cacheList) getall(timelimit int64) {
 				}
 				ca.size += rec.Len()
 				ca.count++
-				if now-int64(7*24*time.Hour) < rec.stamp {
+				if now.Add(-7 * 24 * time.Hour).Before(time.Unix(rec.stamp, 0)) {
 					ca.velocity++
 				}
 				rec.sync(false)
@@ -582,9 +563,15 @@ func (c *cacheList) getall(timelimit int64) {
 
 type caches []*cache
 
-func (c caches) Get(i int) string {
-	return c[i].datfile
+func (c caches) has(cc *cache) bool {
+	for _, c := range c {
+		if c.datfile == cc.datfile {
+			return true
+		}
+	}
+	return false
 }
+
 func (c caches) Len() int {
 	return len(c)
 }

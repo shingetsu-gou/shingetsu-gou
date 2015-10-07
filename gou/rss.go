@@ -29,87 +29,90 @@
 package gou
 
 import (
-	"html"
 	"io"
 	"sort"
 	"strings"
 	"time"
 )
 
-type item struct {
-	title       string
-	link        string
-	description string
-	creator     string
-	subject     []string
-	date        int64
-	content     string
+//Item represents RSS contents.
+type Item struct {
+	Title       string
+	Link        string
+	Description string
+	Creator     string
+	Subject     []string
+	Date        int64
+	Content     string
 }
 
-func newItem(link, title, creator, description, content string, subject []string, date int64) *item {
-	i := &item{
-		link:    link,
-		creator: creator,
-		date:    date,
-		content: content,
+//RSS represents RSS info.
+type RSS struct {
+	Encode      string
+	Lang        string
+	Title       string
+	Parent      string
+	Link        string
+	URI         string
+	Description string
+	XSL         string
+	Feeds       map[string]*Item
+}
+
+//newRSS makes RSS object.
+func newRss(encode, lang, title, parent, link, uri, description, xsl string) *RSS {
+	if encode == "" {
+		encode = "utf-8"
 	}
-	if subject == nil {
-		i.subject = make([]string, 0)
+	if lang == "" {
+		lang = "en"
 	}
-	r := strings.NewReplacer("\r", "", "\n", "")
-	i.title = r.Replace(title)
-	i.description = r.Replace(description)
-
-	return i
-}
-
-type rss struct {
-	encode      string
-	lang        string
-	title       string
-	parent      string
-	link        string
-	uri         string
-	description string
-	xsl         string
-	items       map[string]*item
-}
-
-func newRss(encode, lang, title, parent, link, uri, description, xsl string) *rss {
-	r := &rss{
-		encode:      encode,
-		lang:        lang,
-		title:       title,
-		description: description,
-		parent:      parent,
-		xsl:         xsl,
-		link:        link,
-		uri:         uri,
-		items:       make(map[string]*item),
+	r := &RSS{
+		Encode:      encode,
+		Lang:        lang,
+		Title:       title,
+		Description: description,
+		Parent:      parent,
+		XSL:         xsl,
+		Link:        link,
+		URI:         uri,
+		Feeds:       make(map[string]*Item),
 	}
 	if parent != "" && parent[len(parent)-1] != '/' {
-		r.parent += "/"
+		r.Parent += "/"
 	}
 	if link == "" {
-		r.link = parent
+		r.Link = parent
 	}
 	if uri == "" {
-		r.uri = parent + "rss.xml"
+		r.URI = parent + "rss.xml"
 	}
 	return r
 }
 
-func (r *rss) append(link, title, creator, description, content string, subject []string, date int64, abs bool) {
+//append adds RSS an item.
+func (r *RSS) append(link, title, creator, description, content string, subject []string, date int64, abs bool) {
 	if abs {
-		link = r.parent + link
+		link = r.Parent + link
 	}
-	i := newItem(link, title, creator, description, content, subject, date)
-	r.items[link] = i
+	i := &Item{
+		Title:       strings.TrimSpace(title),
+		Link:        link,
+		Description: strings.TrimSpace(description),
+		Creator:     creator,
+		Date:        date,
+		Subject:     subject,
+		Content:     content,
+	}
+
+	r.Feeds[link] = i
 }
-func (r *rss) keys() []string {
-	items := make([]string, len(r.items))
+
+//keys returns keys of feeds i.e. link .
+func (r *RSS) keys() []string {
+	items := make([]string, len(r.Feeds))
 	i := 0
-	for k := range r.items {
+	for k := range r.Feeds {
 		items[i] = k
 		i++
 	}
@@ -117,27 +120,13 @@ func (r *rss) keys() []string {
 	return items
 }
 
-func (r *rss) makeRSS1(wr io.Writer) {
-	items := make([]*item, len(r.items))
-	i := 0
-	for _, v := range r.items {
-		items[i] = v
-		i++
-	}
-
-	param := rssParam{r, items}
-	renderTemplate("rss1", param, wr)
+//makeRSS renders template.
+func (r *RSS) makeRSS1(wr io.Writer) {
+	renderTemplate("rss1", *r, wr)
 }
 
-type rssParam struct {
-	Rss  *rss
-	Feed []*item
-}
-
-func (r *rssParam) W3cdate(dat int64) string {
+//W3cdate returns RSS formated date string.
+func (r *RSS) W3cdate(dat int64) string {
 	t := time.Unix(dat, 0)
 	return t.Format("2006-01-02T15:04:05Z")
-}
-func (r *rssParam) Escape(str string) string {
-	return html.EscapeString(str)
 }

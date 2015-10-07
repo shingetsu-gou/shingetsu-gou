@@ -36,23 +36,27 @@ import (
 	"time"
 )
 
+//finfo contains file info,including mtime and content.
 type finfo struct {
 	mtime *time.Time
 	cont  []byte
 	exist bool
 }
 
+//jsCache contains js inf, i.e. path info and  finfo of each js files..
 type jsCache struct {
 	path  string
 	files map[string]*finfo
 }
 
+//newJsCache return jsCache instnace and parse all js files under path dir.
 func newJsCache(path string) *jsCache {
 	j := &jsCache{path: path, files: make(map[string]*finfo)}
 	j.update()
 	return j
 }
 
+//getLatest gets latest mtime of all jsCache.files.
 func (j *jsCache) getLatest() int64 {
 	var l *time.Time
 	for _, v := range j.files {
@@ -63,6 +67,7 @@ func (j *jsCache) getLatest() int64 {
 	return l.Unix()
 }
 
+//getContent concat contents of all js files.
 func (j *jsCache) getContent() string {
 	j.update()
 	var cont string
@@ -72,6 +77,7 @@ func (j *jsCache) getContent() string {
 	return cont
 }
 
+//update reloads all js files if mtime is newer.
 func (j *jsCache) update() {
 	for k := range j.files {
 		j.files[k].exist = false

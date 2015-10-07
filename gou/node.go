@@ -38,9 +38,6 @@ import (
 	"time"
 )
 
-var initNode = newConfList(initnodeList, defaultInitNode)
-var nodeAllow = newRegexpList(nodeAllowFile)
-var nodeDeny = newRegexpList(nodeDenyFile)
 
 func urlopen(url string, timeout time.Duration) ([]string, error) {
 	req, err := http.NewRequest("GET", url, nil)
@@ -55,7 +52,7 @@ func urlopen(url string, timeout time.Duration) ([]string, error) {
 	resp, err := client.Do(req)
 	var lines []string
 	err = eachIOLine(resp.Body, func(line string, i int) error {
-		strings.Trim(line, "\r\n")
+		strings.TrimSpace(line)
 		lines = append(lines, line)
 		return nil
 	})
@@ -71,7 +68,7 @@ func newNode(nodestr string) *node {
 	if nodestr == "" {
 		log.Fatal("nodestr must not empty")
 	}
-	nodestr = strings.Trim(nodestr, " \n\r")
+	nodestr = strings.TrimSpace(nodestr)
 	if match, err := regexp.MatchString("\\d+/[^: ]+$", nodestr); !match || err != nil {
 		log.Fatal("bad format", err)
 	}
@@ -161,17 +158,15 @@ func (n *node) bye() bool {
 
 type rawNodeList struct {
 	filepath string
-	tiedlist []*node
+	nodes    []*node
 }
 
-func newRawNodeList(filepath string, caching bool) *rawNodeList {
-	r := &rawNodeList{
-		filepath: filepath,
-		tiedlist: make([]*node, 0),
-	}
+func newRawNodeList(filepath string) *rawNodeList {
+	r := &rawNodeList{filepath: filepath}
+
 	err := eachLine(filepath, func(line string, i int) error {
 		n := newNode(line)
-		r.tiedlist = append(r.tiedlist, n)
+		r.nodes = append(r.nodes, n)
 		return nil
 	})
 	if err != nil {
@@ -180,39 +175,35 @@ func newRawNodeList(filepath string, caching bool) *rawNodeList {
 	return r
 }
 
-func (t *rawNodeList) stringSlice() []string {
-	r := make([]string, len(t.tiedlist))
-	for i, v := range t.tiedlist {
-		r[i] = v.nodestr
-	}
-	return r
-}
-
 func (t *rawNodeList) Len() int {
-	return len(t.tiedlist)
+	return len(t.nodes)
 }
 func (t *rawNodeList) Swap(i, j int) {
-	t.tiedlist[i], t.tiedlist[j] = t.tiedlist[j], t.tiedlist[i]
+	t.nodes[i], t.nodes[j] = t.nodes[j], t.nodes[i]
 }
 
-func (t *rawNodeList) Get(i int) string {
-	return t.tiedlist[i].nodestr
+func (t *rawNodeList) getNodestrSlice() []string {
+	result := make([]string, len(t.nodes))
+	for i, v := range t.nodes {
+		result[i] = v.nodestr
+	}
+	return result
 }
 
 func (t *rawNodeList) sync() {
-	err := writeSlice(t.filepath, t)
+	err := writeSlice(t.filepath, t.getNodestrSlice())
 	if err != nil {
 		log.Println(err)
 	}
 }
 
 func (t *rawNodeList) random() *node {
-	return t.tiedlist[rand.Intn(len(t.tiedlist))]
+	return t.nodes[rand.Intn(len(t.nodes))]
 }
 
 func (t *rawNodeList) append(n *node) {
-	if n.isAllowed() && !hasString(t, n.nodestr) {
-		t.tiedlist = append(t.tiedlist, n)
+	if n.isAllowed() && !hasString(t.getNodestrSlice(), n.nodestr) {
+		t.nodes = append(t.nodes, n)
 	}
 }
 
@@ -222,37 +213,33 @@ func (t *rawNodeList) extend(ns []*node) {
 	}
 }
 
-func (t *rawNodeList) has(n *node) bool {
-	return t.find(n) != -1
+func (t *rawNodeList) hasNode(n *node) bool {
+	return t.findNode(n) != -1
 }
 
-func (t *rawNodeList) find(n *node) int {
-	return findString(t, n.nodestr)
+func (t *rawNodeList) findNode(n *node) int {
+	return findString(t.getNodestrSlice(), n.nodestr)
 }
 
-func (t *rawNodeList) remove(n *node) bool {
-	if i := findString(t, n.nodestr); i >= 0 {
-		t.tiedlist = append(t.tiedlist[:i], t.tiedlist[i:]...)
+func (t *rawNodeList) removeNode(n *node) bool {
+	if i := findString(t.getNodestrSlice(), n.nodestr); i >= 0 {
+		t.nodes = append(t.nodes[:i], t.nodes[i:]...)
 		return true
 	}
 	return false
 }
 
-type nodeList struct {
+type NodeList struct {
 	*rawNodeList
 }
 
-func newNodeList() *nodeList {
-	r := &rawNodeList{
-		filepath: nodeFile,
-		tiedlist: make([]*node, 0),
-		//caching:true
-	}
-	nl := &nodeList{rawNodeList: r}
+func newNodeList() *NodeList {
+	r := newRawNodeList(nodeFile)
+	nl := &NodeList{rawNodeList: r}
 	return nl
 }
 
-func (nl *nodeList) initialize() {
+func (nl *NodeList) initialize() {
 	var inode *node
 	for _, i := range initNode.data {
 		inode = newNode(i)
@@ -262,8 +249,8 @@ func (nl *nodeList) initialize() {
 		}
 	}
 	my := nl.myself()
-	if my != nil && nl.has(my) {
-		nl.remove(my)
+	if my != nil && nl.hasNode(my) {
+		nl.removeNode(my)
 	}
 	if nl.Len() == 0 {
 		return
@@ -287,7 +274,7 @@ func (nl *nodeList) initialize() {
 	}
 	if nl.Len() > defaultNodes {
 		inode.bye()
-		nl.remove(inode)
+		nl.removeNode(inode)
 	} else {
 		if nl.Len() <= 1 {
 			log.Println("few linked nodes")
@@ -295,16 +282,16 @@ func (nl *nodeList) initialize() {
 		for nl.Len() > defaultNodes {
 			nn := nl.random()
 			nn.bye()
-			nl.remove(nn)
+			nl.removeNode(nn)
 		}
 	}
 }
 
-func (nl *nodeList) myself() *node {
+func (nl *NodeList) myself() *node {
 	if dnsname == "" {
 		return makeNode(dnsname, serverCgi, defaultPort)
 	}
-	for _, n := range nl.rawNodeList.tiedlist {
+	for _, n := range nl.rawNodeList.nodes {
 		if host, ok := n.ping(); ok {
 			return makeNode(host, serverCgi, defaultPort)
 		}
@@ -314,17 +301,17 @@ func (nl *nodeList) myself() *node {
 	return nil
 }
 
-func (nl *nodeList) pingAll() {
-	for _, n := range nl.rawNodeList.tiedlist {
+func (nl *NodeList) pingAll() {
+	for _, n := range nl.rawNodeList.nodes {
 		if _, ok := n.ping(); !ok {
-			nl.remove(n)
+			nl.removeNode(n)
 		}
 	}
 }
 
-func (nl *nodeList) join(n *node) bool {
+func (nl *NodeList) join(n *node) bool {
 	flag := false
-	for count := 0; count < retryJoin && len(nl.tiedlist) < defaultNodes; count++ {
+	for count := 0; count < retryJoin && len(nl.nodes) < defaultNodes; count++ {
 		welcome, extnode := n.join()
 		if welcome && extnode == nil {
 			nl.append(n)
@@ -335,38 +322,35 @@ func (nl *nodeList) join(n *node) bool {
 			n = extnode
 			flag = true
 		} else {
-			nl.remove(n)
+			nl.removeNode(n)
 			return flag
 		}
 	}
 	return flag
 }
 
-func (nl *nodeList) rejoin(searchlist *searchList) {
-	doJoin := false
-	for _, n := range searchlist.tiedlist {
-		if len(nl.tiedlist) >= defaultNodes {
-			break
+func (nl *NodeList) rejoin(searchlist *SearchList) {
+	for _, n := range searchlist.nodes {
+		if len(nl.nodes) >= defaultNodes {
+			return
 		}
-		if nl.has(n) {
+		if nl.hasNode(n) {
 			continue
 		}
-		doJoin = true
 		if _, ok := n.ping(); !ok || !nl.join(n) {
-			searchlist.remove(n)
+			searchlist.removeNode(n)
+			searchlist.sync()
+		} else {
+			nl.append(n)
+			nl.sync()
 		}
 	}
-	if doJoin {
-		searchlist.tiedlist = append(searchlist.tiedlist, nl.tiedlist...)
-		searchlist.sync()
-		nl.sync()
-	}
-	if len(nl.tiedlist) <= 1 {
+	if len(nl.nodes) <= 1 {
 		log.Println("Warning: Few linked nodes")
 	}
 }
 
-func (nl *nodeList) tellUpdate(c *cache, stamp int64, id string, node *node) {
+func (nl *NodeList) tellUpdate(c *cache, stamp int64, id string, node *node) {
 	var tellstr string
 	switch {
 	case node != nil:
@@ -381,20 +365,19 @@ func (nl *nodeList) tellUpdate(c *cache, stamp int64, id string, node *node) {
 }
 
 func broadcast(msg string, c *cache) {
-	nlist := newNodeList()
-	for _, n := range c.node.tiedlist {
-		if _, ok := n.ping(); ok || nlist.find(n) != -1 {
+	for _, n := range c.node.nodes {
+		if _, ok := n.ping(); ok || nodeList.findNode(n) != -1 {
 			_, err := n.talk(msg)
 			if err != nil {
 				log.Println(err)
 			}
 		} else {
-			c.node.remove(n)
+			c.node.removeNode(n)
 			c.node.sync()
 		}
 	}
-	for _, n := range nlist.tiedlist {
-		if c.node.find(n) == -1 {
+	for _, n := range nodeList.nodes {
+		if c.node.findNode(n) == -1 {
 			_, err := n.talk(msg)
 			if err != nil {
 				log.Println(err)
@@ -403,18 +386,18 @@ func broadcast(msg string, c *cache) {
 	}
 }
 
-type lookupTable struct {
+type LookupTable struct {
 	tosave   bool
 	tieddict map[string]*rawNodeList
 }
 
-func newLookupTable() *lookupTable {
-	r := &lookupTable{
+func newLookupTable() *LookupTable {
+	r := &LookupTable{
 		tosave:   false,
 		tieddict: make(map[string]*rawNodeList),
 	}
 	err := eachKeyValueLine(lookup, func(key string, value []string, i int) error {
-		nl := &rawNodeList{tiedlist: make([]*node, 0)}
+		nl := &rawNodeList{nodes: make([]*node, 0)}
 		for _, v := range value {
 			nl.append(newNode(v))
 		}
@@ -426,26 +409,26 @@ func newLookupTable() *lookupTable {
 	}
 	return r
 }
-func (lt *lookupTable) Len() int {
+func (lt *LookupTable) Len() int {
 	return len(lt.tieddict)
 }
 
-func (lt *lookupTable) Get(i string, def []*node) []*node {
+func (lt *LookupTable) Get(i string, def []*node) []*node {
 	if v, exist := lt.tieddict[i]; exist {
-		return v.tiedlist
+		return v.nodes
 	}
 	return def
 }
 
-func (lt *lookupTable) stringMap() map[string][]string {
+func (lt *LookupTable) stringMap() map[string][]string {
 	result := make(map[string][]string)
 	for k, v := range lt.tieddict {
-		result[k] = v.stringSlice()
+		result[k] = v.getNodestrSlice()
 	}
 	return result
 }
 
-func (lt *lookupTable) sync(force bool) {
+func (lt *LookupTable) sync(force bool) {
 	if lt.tosave || force {
 		err := writeMap(lookup, lt.stringMap())
 		if err != nil {
@@ -454,65 +437,64 @@ func (lt *lookupTable) sync(force bool) {
 	}
 }
 
-func (lt *lookupTable) add(datfile string, n *node) {
+func (lt *LookupTable) add(datfile string, n *node) {
 	if ns, exist := lt.tieddict[datfile]; exist {
 		ns.append(n)
 		lt.tosave = true
 	}
 }
 
-func (lt *lookupTable) remove(datfile string, n *node) {
+func (lt *LookupTable) remove(datfile string, n *node) {
 	if ns, exist := lt.tieddict[datfile]; exist {
-		ns.remove(n)
+		ns.removeNode(n)
 		lt.tosave = true
 	}
 }
 
-func (lt *lookupTable) clear() {
+func (lt *LookupTable) clear() {
 	lt.tieddict = make(map[string]*rawNodeList)
 }
 
-type searchList struct {
+type SearchList struct {
 	*rawNodeList
 }
 
-func newSearchList() *searchList {
-	r := newRawNodeList(searchFile, true)
-	return &searchList{rawNodeList: r}
+func newSearchList() *SearchList {
+	r := newRawNodeList(searchFile)
+	return &SearchList{rawNodeList: r}
 }
 
-func (sl *searchList) join(n *node) {
-	if !sl.has(n) {
+func (sl *SearchList) join(n *node) {
+	if !sl.hasNode(n) {
 		sl.append(n)
 	}
 }
 
-func (sl *searchList) search(c *cache, myself *node, nodes []*node) *node {
-	nl := &rawNodeList{tiedlist: make([]*node, 0)}
+func (sl *SearchList) search(c *cache, myself *node, nodes []*node) *node {
+	nl := &rawNodeList{nodes: make([]*node, 0)}
 	if nodes != nil {
 		nl.extend(nodes)
 	}
 	shuffle(nl)
 	count := 0
-	for _, n := range nl.tiedlist {
+	for _, n := range nl.nodes {
 		if (myself != nil && n.nodestr == myself.nodestr) || n.isAllowed() {
 			continue
 		}
 		count++
-		tbl := newLookupTable()
 		res, err := n.talk("/have" + c.datfile)
 		if err == nil && len(res) > 0 && res[0] == "YES" {
 			sl.sync()
-			tbl.add(c.datfile, n)
-			tbl.sync(false)
+			lookupTable.add(c.datfile, n)
+			lookupTable.sync(false)
 			return n
 		}
 		if _, ok := n.ping(); !ok {
-			sl.remove(n)
-			c.node.remove(n)
+			sl.removeNode(n)
+			c.node.removeNode(n)
 		}
-		if rl, exist := tbl.tieddict[c.datfile]; exist {
-			rl.remove(n)
+		if rl, exist := lookupTable.tieddict[c.datfile]; exist {
+			rl.removeNode(n)
 		}
 		if count > searchDepth {
 			break

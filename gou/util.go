@@ -122,9 +122,8 @@ func isValidImage(mimetype, path string) bool {
 func saveTag(ca *cache, userTag string) {
 	ca.tags.update([]string{userTag})
 	ca.tags.sync()
-	utl := newUserTagList()
-	utl.addString([]string{userTag})
-	utl.sync()
+	userTagList.addString([]string{userTag})
+	userTagList.sync()
 }
 
 //getBoard returns decoded board name.

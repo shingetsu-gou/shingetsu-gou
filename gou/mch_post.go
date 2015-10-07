@@ -49,9 +49,9 @@ func (m *mchCGI) postComment(threadKey, name, mail, body, passwd, tag string) er
 	recbody["name"] = html.EscapeString(name)
 	recbody["mail"] = html.EscapeString(mail)
 
-	c := newCache(threadKey, nil, nil)
+	c := newCache(threadKey)
 	rec := newRecord(c.datfile, "")
-	id := rec.build(stamp, recbody, passwd)
+	rec.build(stamp, recbody, passwd)
 	if spamCheck(rec.recstr) {
 		return errSpam
 	}
@@ -60,7 +60,7 @@ func (m *mchCGI) postComment(threadKey, name, mail, body, passwd, tag string) er
 	if tag != "" {
 		saveTag(c, tag)
 	}
-	queue.append(c.datfile, stamp, id, nil)
+	queue.append(rec, nil)
 	queue.run()
 	return nil
 }
@@ -122,7 +122,7 @@ func (m *mchCGI) postCommentApp() string {
 	}
 
 	switch {
-	case newCache(key, nil, nil).exists():
+	case newCache(key).exists():
 	case hasAuth:
 	case info["subject"] != "":
 		return m.errorResp("掲示版を作る権限がありません", info)
@@ -134,7 +134,7 @@ func (m *mchCGI) postCommentApp() string {
 		return m.errorResp("フォームが変です.", info)
 	}
 
-	table := newResTable(newCache(key, nil, nil))
+	table := newResTable(newCache(key))
 	reg = regexp.MustCompile(">>([1-9][0-9]*)")
 	body := reg.ReplaceAllStringFunc(info["body"], func(noStr string) string {
 		no, err := strconv.Atoi(noStr)

@@ -120,11 +120,10 @@ func (s *serverCGI) doPing() {
 }
 
 func (s *serverCGI) doNode() {
-	nodes := newNodeList()
-	if nodes.Len() > 0 {
-		fmt.Fprintln(s.wr, nodes.Get(0))
+	if nodeList.Len() > 0 {
+		fmt.Fprintln(s.wr, nodeList.nodes[0].nodestr)
 	} else {
-		fmt.Fprintln(s.wr, nodes.random().nodestr)
+		fmt.Fprintln(s.wr, nodeList.random().nodestr)
 	}
 }
 
@@ -170,27 +169,25 @@ func (s *serverCGI) doJoin() {
 	if n == nil {
 		return
 	}
-	nl := newNodeList()
-	sl := newSearchList()
 	if !nodeAllow.check(n.nodestr) && nodeDeny.check(n.nodestr) {
 		return
 	}
 	if _, ok := n.ping(); !ok {
 		return
 	}
-	if nl.Len() < defaultNodes {
-		nl.append(n)
-		nl.sync()
-		sl.append(n)
-		sl.sync()
+	if nodeList.Len() < defaultNodes {
+		nodeList.append(n)
+		nodeList.sync()
+		searchList.append(n)
+		searchList.sync()
 		fmt.Fprintln(s.wr, "WELCOME")
 		return
 	}
-	sl.append(n)
-	sl.sync()
-	suggest := nl.tiedlist[0]
-	nl.remove(suggest)
-	nl.sync()
+	searchList.append(n)
+	searchList.sync()
+	suggest := nodeList.nodes[0]
+	nodeList.removeNode(suggest)
+	nodeList.sync()
 	suggest.bye()
 	fmt.Fprintf(s.wr, "WELCOME\n%s\n", suggest)
 
@@ -202,9 +199,8 @@ func (s *serverCGI) doBye() {
 		return
 	}
 
-	nl := newNodeList()
-	if nl.remove(n) {
-		nl.sync()
+	if nodeList.removeNode(n) {
+		nodeList.sync()
 	}
 	fmt.Fprintln(s.wr, "BYEBYE")
 }
@@ -216,7 +212,7 @@ func (s *serverCGI) doHave() {
 		log.Println("illegal url")
 		return
 	}
-	ca := newCache(m[1], nil, nil)
+	ca := newCache(m[1])
 	if ca.Len() > 0 {
 		fmt.Fprintln(s.wr, "YES")
 	} else {
@@ -246,12 +242,10 @@ func (s *serverCGI) doUpdate() {
 	if !nodeAllow.check(n.nodestr) && nodeDeny.check(n.nodestr) {
 		return
 	}
-	sl := newSearchList()
-	sl.append(n)
-	sl.sync()
-	lt := newLookupTable()
-	lt.add(datfile, n)
-	lt.sync(false)
+	searchList.append(n)
+	searchList.sync()
+	lookupTable.add(datfile, n)
+	lookupTable.sync(false)
 	now := time.Now().Unix()
 	nstamp, err := strconv.ParseInt(stamp, 10, 64)
 	if err != nil {
@@ -259,13 +253,12 @@ func (s *serverCGI) doUpdate() {
 		return
 	}
 
-	if nstamp < now-int64(updateRange) || nstamp > now+int64(updateRange) {
+	if nstamp < now-int64(defaultUpdateRange) || nstamp > now+int64(defaultUpdateRange) {
 		return
 	}
 	rec := newRecord(datfile, stamp+"_"+id)
-	ul := newUpdateList("", -1)
-	if !ul.has(rec) {
-		queue.append(datfile, nstamp, id, n)
+	if !updateList.hasRecord(rec) {
+		queue.append(rec, n)
 		go queue.run()
 	}
 
@@ -279,12 +272,11 @@ func (s *serverCGI) doRecent() {
 		return
 	}
 	stamp := m[1]
-	recent := newRecentList()
 	last := time.Now().Unix() + int64(recentRange)
 	begin, end, _ := s.parseStamp(stamp, last)
-	for _, i := range recent.tiedlist {
+	for _, i := range recentList.records {
 		if begin <= i.stamp && i.stamp <= end {
-			ca := newCache(i.datfile, nil, nil)
+			ca := newCache(i.datfile)
 			var tagstr string
 			if ca.tags != nil {
 				tagstr = "tag:" + ca.tags.string()
@@ -342,7 +334,7 @@ func (s *serverCGI) doGetHead() {
 		return
 	}
 	method, datfile, stamp := m[1], m[2], m[3]
-	ca := newCache(datfile, nil, nil)
+	ca := newCache(datfile)
 	begin, end, id := s.parseStamp(stamp, ca.stamp)
 	for _, r := range ca.recs {
 		if begin <= r.stamp && r.stamp <= end && (id == "" || strings.HasSuffix(r.idstr, id)) {

@@ -33,6 +33,8 @@ import (
 	"errors"
 	"fmt"
 	"log"
+	"math"
+	"math/rand"
 	"net/http"
 	"net/url"
 	"os"
@@ -269,7 +271,7 @@ func (c *cgi) makeListItem(ca *cache, remove bool, target string, search bool) s
 			strTags[i] = strings.ToLower(v.tagstr)
 		}
 		for _, st := range ca.sugtags.tags {
-			if !hasString(stringSlice(strTags), strings.ToLower(st.tagstr)) {
+			if !hasString(strTags, strings.ToLower(st.tagstr)) {
 				sugtags = append(sugtags, st)
 			}
 		}
@@ -609,7 +611,7 @@ func (c *cgi) unlock() {
 }
 
 func (c *cgi) getCache(ca *cache) bool {
-	result := ca.search(nil, nil)
+	result := ca.search(nil)
 	c.unlock()
 	return result
 }
@@ -664,6 +666,13 @@ func (c *cgi) parseAttached() (*attached, error) {
 	return nil, errors.New("attached file not found")
 }
 
+//errorTime calculates gaussian distribution by box-muller transformation.
+func (c *cgi) errorTime() int64 {
+	x1 := rand.Float64()
+	x2 := rand.Float64()
+	return int64(timeErrorSigma*math.Sqrt(-2*math.Log(x1))*math.Cos(2*math.Pi*x2)) + time.Now().Unix()
+}
+
 func (c *cgi) doPost() string {
 	attached, attachedErr := c.parseAttached()
 	if attachedErr != nil {
@@ -688,8 +697,12 @@ func (c *cgi) doPost() string {
 	reg := regexp.MustCompile("[^0-9A-Za-z]")
 	suffix = reg.ReplaceAllString(suffix, "")
 
-	ca := newCache(c.req.FormValue("file"), nil, nil)
 	stamp := time.Now().Unix()
+	if c.req.FormValue("error") != "" {
+		stamp = c.errorTime()
+	}
+
+	ca := newCache(c.req.FormValue("file"))
 	body := make(map[string]string)
 	if value := c.req.FormValue("body"); value != "" {
 		body["body"] = escape(value)
@@ -697,7 +710,7 @@ func (c *cgi) doPost() string {
 
 	if attachedErr == nil {
 		body["attach"] = string(attached.data)
-		body["suffix"] = strings.Trim(suffix, "\r\n")
+		body["suffix"] = strings.TrimSpace(suffix)
 	}
 	if len(body) == 0 {
 		c.header(c.m["null_article"], "", nil, true, nil)
@@ -731,7 +744,7 @@ func (c *cgi) doPost() string {
 	}
 
 	if c.req.FormValue("dopost") != "" {
-		queue.append(ca.datfile, stamp, id, nil)
+		queue.append(rec, nil)
 		go queue.run()
 	}
 
@@ -742,18 +755,18 @@ func (c *cgi) doPost() string {
 func (c *cgi) printIndexList(cl *cacheList, target string, footer bool, searchNewFile bool) {
 	s := struct {
 		DefaultVariable *DefaultVariable
-		target          string
-		filter          string
-		tag             string
-		taglist         *userTagList
-		chachelist      *cacheList
-		searchNewFile   bool
+		Target          string
+		Filter          string
+		Tag             string
+		Taglist         *UserTagList
+		Chachelist      *cacheList
+		SearchNewFile   bool
 	}{
 		c.makeDefaultVariable(),
 		target,
 		c.strFilter,
 		c.strTag,
-		newUserTagList(),
+		userTagList,
 		cl,
 		searchNewFile,
 	}
