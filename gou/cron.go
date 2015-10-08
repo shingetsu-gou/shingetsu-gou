@@ -100,7 +100,7 @@ func (c *client) run() {
 	}
 	if nodeList.Len() == 0 {
 		c.doInit()
-		if nodeList.Len() != 0{
+		if nodeList.Len() != 0 {
 			c.doSync()
 		}
 	}
@@ -149,7 +149,7 @@ func (c *client) doRejoin() {
 }
 
 //doSync checks nodes in the nodelist are alive, reloads cachelist, removes old removed files,
-//reloads all tags from cachelist,reload srecent list from nodes in search list, 
+//reloads all tags from cachelist,reload srecent list from nodes in search list,
 //and reloads cache info from files in the disk.
 func (c *client) doSync() {
 	c.check("sync")

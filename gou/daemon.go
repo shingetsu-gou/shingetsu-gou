@@ -41,7 +41,7 @@ import (
 	"gopkg.in/natefinch/lumberjack.v2"
 )
 
-//SetupLogger setups logger. whici outputs nothing, or file , or file and stdout
+//SetLogger setups logger. whici outputs nothing, or file , or file and stdout
 func SetLogger(printLog, isSilent bool) {
 	log.SetFlags(log.Ldate | log.Ltime | log.Lshortfile)
 	l := &lumberjack.Logger{

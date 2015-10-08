@@ -108,13 +108,6 @@ func (r *record) virtualRecordEqual(rr *record) bool {
 	return r.stamp == rr.stamp && r.id == rr.id && r.datfile == rr.datfile
 }
 
-func (r *record) free() {
-	r.flagLoad = false
-	r.flagLoadBody = false
-	r.recstr = ""
-	r.dict = make(map[string]string)
-}
-
 func (r *record) setpath() {
 	if r.idstr == "" || r.datfile == "" {
 		return
@@ -174,7 +167,6 @@ func (r *record) size() int64 {
 
 func (r *record) remove() error {
 	err := moveFile(r.path, r.rmPath)
-	defer r.free()
 	if err != nil {
 		log.Println(err)
 		return err
@@ -335,6 +327,7 @@ func (r *record) writeFile(path, data string) error {
 	return nil
 }
 
+//toolong
 func (r *record) makeThumbnail(suffix string, thumbnailSize string) {
 	if thumbnailSize == "" {
 		thumbnailSize = defaultThumbnailSize
@@ -402,6 +395,7 @@ func (r *record) getDict(key, def string) string {
 	return def
 }
 
+//toolong
 func (r *record) sync(force bool) {
 	if isFile(r.rmPath) {
 		return

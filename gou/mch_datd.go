@@ -40,7 +40,6 @@ import (
 	"time"
 
 	"github.com/axgle/mahonia"
-	"github.com/gorilla/handlers"
 	"github.com/gorilla/mux"
 )
 
@@ -49,48 +48,58 @@ func mchSetup(s *http.ServeMux) {
 	dkTable.load()
 	rtr := mux.NewRouter()
 
-	rtr.Handle("/2ch/{board:[^/]+}/$", handlers.CompressHandler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		a := newMchCGI(w, r)
-		if a == nil {
-			return
-		}
-		a.boardApp()
-	})))
-	rtr.Handle("/2ch/(board:[^/]+}/dat/{datkey:([^.]+}\\.dat", handlers.CompressHandler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		a := newMchCGI(w, r)
-		if a == nil {
-			return
-		}
-		m := mux.Vars(r)
-		a.threadApp(m["board"], m["datkey"])
-	})))
-	rtr.Handle("/2ch/(board:[^/]+}/subject\\.txt", handlers.CompressHandler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		a := newMchCGI(w, r)
-		if a == nil {
-			return
-		}
-		m := mux.Vars(r)
-		a.subjectApp(m["board"])
-	})))
-	rtr.Handle("/2ch/test/bbs\\.cgi", handlers.CompressHandler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		a := newMchCGI(w, r)
-		if a == nil {
-			return
-		}
-		a.postCommentApp()
-	})))
-	rtr.Handle("/2ch/(board:[^/]+}/head\\.txt$", handlers.CompressHandler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		a := newMchCGI(w, r)
-		if a == nil {
-			return
-		}
-		a.headApp()
-	})))
-	rtr.Handle("/2ch/", handlers.CompressHandler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		w.WriteHeader(403)
-		br := bytes.NewReader([]byte("404 Not Found"))
-		http.ServeContent(w, r, "a.txt", time.Time{}, br)
-	})))
+	registToRouter(rtr, "/2ch/{board:[^/]+}/$", boardApp)
+	registToRouter(rtr, "/2ch/(board:[^/]+}/dat/{datkey:([^.]+}\\.dat", threadApp)
+	registToRouter(rtr, "/2ch/(board:[^/]+}/subject\\.txt", subjectApp)
+	registToRouter(rtr, "/2ch/test/bbs\\.cgi", postCommentApp)
+	registToRouter(rtr, "/2ch/(board:[^/]+}/head\\.txt$", headApp)
+	registToRouter(rtr, "/2ch/", notFound)
+}
+
+func boardApp(w http.ResponseWriter, r *http.Request) {
+	a := newMchCGI(w, r)
+	if a == nil {
+		return
+	}
+	a.boardApp()
+}
+
+func threadApp(w http.ResponseWriter, r *http.Request) {
+	a := newMchCGI(w, r)
+	if a == nil {
+		return
+	}
+	m := mux.Vars(r)
+	a.threadApp(m["board"], m["datkey"])
+}
+
+func subjectApp(w http.ResponseWriter, r *http.Request) {
+	a := newMchCGI(w, r)
+	if a == nil {
+		return
+	}
+	m := mux.Vars(r)
+	a.subjectApp(m["board"])
+}
+
+func postCommentApp(w http.ResponseWriter, r *http.Request) {
+	a := newMchCGI(w, r)
+	if a == nil {
+		return
+	}
+	a.postCommentApp()
+}
+func headApp(w http.ResponseWriter, r *http.Request) {
+	a := newMchCGI(w, r)
+	if a == nil {
+		return
+	}
+	a.headApp()
+}
+func notFound(w http.ResponseWriter, r *http.Request) {
+	w.WriteHeader(403)
+	br := bytes.NewReader([]byte("404 Not Found"))
+	http.ServeContent(w, r, "a.txt", time.Time{}, br)
 }
 
 type mchCGI struct {

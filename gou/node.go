@@ -38,7 +38,7 @@ import (
 	"time"
 )
 
-
+//urlopen retrievs html data from url
 func urlopen(url string, timeout time.Duration) ([]string, error) {
 	req, err := http.NewRequest("GET", url, nil)
 	if err != nil {
@@ -59,10 +59,12 @@ func urlopen(url string, timeout time.Duration) ([]string, error) {
 	return lines, err
 }
 
+//node represents node info.
 type node struct {
 	nodestr string
 }
 
+//newNode checks nodestr format and returns node obj.
 func newNode(nodestr string) *node {
 	n := &node{}
 	if nodestr == "" {
@@ -76,16 +78,27 @@ func newNode(nodestr string) *node {
 	return n
 }
 
+//equals return true is nodestr is equal.
+func (n *node) equals(nn *node) bool {
+	if nn == nil {
+		return false
+	}
+	return n.nodestr == nn.nodestr
+}
+
+//makeNode makes node from host info.
 func makeNode(host, path string, port int) *node {
 	n := &node{}
 	n.nodestr = host + ":" + strconv.Itoa(port) + strings.Replace(path, "+", "/", -1)
 	return n
 }
 
+//toxstring covnerts nodestr to saku node format.
 func (n *node) toxstring() string {
 	return strings.Replace(n.nodestr, "/", "+", -1)
 }
 
+//talk talks with n with the message and returns data.
 func (n *node) talk(message string) ([]string, error) {
 	if !strings.HasPrefix(message, "/") {
 		message = "/" + message
@@ -107,6 +120,7 @@ func (n *node) talk(message string) ([]string, error) {
 	return res, nil
 }
 
+//ping pings to n and return response and true if success.
 func (n *node) ping() (string, bool) {
 	res, err := n.talk("/ping")
 	if err == nil && res[0] == "PONG" && len(res) == 2 {
@@ -116,6 +130,7 @@ func (n *node) ping() (string, bool) {
 	return "", false
 }
 
+//isAllow returns fase if n is not allowed and denied.
 func (n *node) isAllowed() bool {
 	if !nodeAllow.check(n.nodestr) && nodeDeny.check(n.nodestr) {
 		return false
@@ -123,6 +138,7 @@ func (n *node) isAllowed() bool {
 	return true
 }
 
+//join requests n to join me and return true and other node name if success.
 func (n *node) join() (bool, *node) {
 	if n.isAllowed() {
 		return false, nil
@@ -136,6 +152,7 @@ func (n *node) join() (bool, *node) {
 	return (res[0] == "WELCOME"), newNode(res[1])
 }
 
+//getNode request n to pass me another node info and returns another node.
 func (n *node) getNode() *node {
 	res, err := n.talk("/node")
 	if err != nil {
@@ -145,6 +162,7 @@ func (n *node) getNode() *node {
 	return newNode(res[0])
 }
 
+//bye says goodbye to n and returns true if success.
 func (n *node) bye() bool {
 	path := strings.Replace(serverCgi, "/", "+", -1)
 	port := strconv.Itoa(defaultPort)
@@ -156,11 +174,13 @@ func (n *node) bye() bool {
 	return (res[0] == "BYEBYE")
 }
 
+//rawNodeList is base class representing list of nodes.
 type rawNodeList struct {
 	filepath string
 	nodes    []*node
 }
 
+//newRawNodeList read the file and returns rawNodeList obj .
 func newRawNodeList(filepath string) *rawNodeList {
 	r := &rawNodeList{filepath: filepath}
 
@@ -175,13 +195,17 @@ func newRawNodeList(filepath string) *rawNodeList {
 	return r
 }
 
+//Len returns size of nodes.
 func (t *rawNodeList) Len() int {
 	return len(t.nodes)
 }
+
+//Swap swaps nodes order.
 func (t *rawNodeList) Swap(i, j int) {
 	t.nodes[i], t.nodes[j] = t.nodes[j], t.nodes[i]
 }
 
+//getNodestrSlice returns nodestr slice of nodes.
 func (t *rawNodeList) getNodestrSlice() []string {
 	result := make([]string, len(t.nodes))
 	for i, v := range t.nodes {
@@ -190,6 +214,7 @@ func (t *rawNodeList) getNodestrSlice() []string {
 	return result
 }
 
+//sync saves nodestr to filepath.
 func (t *rawNodeList) sync() {
 	err := writeSlice(t.filepath, t.getNodestrSlice())
 	if err != nil {
@@ -197,30 +222,37 @@ func (t *rawNodeList) sync() {
 	}
 }
 
+//random select one node randomly.
 func (t *rawNodeList) random() *node {
 	return t.nodes[rand.Intn(len(t.nodes))]
 }
 
+//append add node n if it is allowd and list doesn't have it.
 func (t *rawNodeList) append(n *node) {
 	if n.isAllowed() && !hasString(t.getNodestrSlice(), n.nodestr) {
 		t.nodes = append(t.nodes, n)
 	}
 }
 
+//extend adds slice of nodes with check.
 func (t *rawNodeList) extend(ns []*node) {
 	for _, n := range ns {
 		t.append(n)
 	}
 }
 
+//hasNode returns true if nodelist has n.
 func (t *rawNodeList) hasNode(n *node) bool {
 	return t.findNode(n) != -1
 }
 
+//findNode returns location of node n, or -1 if not exist.
 func (t *rawNodeList) findNode(n *node) int {
 	return findString(t.getNodestrSlice(), n.nodestr)
 }
 
+//removeNode removes node n and return true if exists.
+//or returns false if not exists.
 func (t *rawNodeList) removeNode(n *node) bool {
 	if i := findString(t.getNodestrSlice(), n.nodestr); i >= 0 {
 		t.nodes = append(t.nodes[:i], t.nodes[i:]...)
@@ -229,16 +261,23 @@ func (t *rawNodeList) removeNode(n *node) bool {
 	return false
 }
 
+//NodeList represents adjacent node list.
 type NodeList struct {
 	*rawNodeList
 }
 
+//newNodeList reads the file and returns NodeList obj
 func newNodeList() *NodeList {
 	r := newRawNodeList(nodeFile)
 	nl := &NodeList{rawNodeList: r}
 	return nl
 }
 
+//initialize pings one of initNode except myself and added it if success,
+//and get another node info from each nodes in nodelist.
+//if can get sufficent nodes, removes initNode.
+//after that if over sufficient nodes, removes random nodes from nodelist.
+//toolong
 func (nl *NodeList) initialize() {
 	var inode *node
 	for _, i := range initNode.data {
@@ -251,9 +290,6 @@ func (nl *NodeList) initialize() {
 	my := nl.myself()
 	if my != nil && nl.hasNode(my) {
 		nl.removeNode(my)
-	}
-	if nl.Len() == 0 {
-		return
 	}
 	done := make(map[string]int)
 
@@ -287,6 +323,8 @@ func (nl *NodeList) initialize() {
 	}
 }
 
+//myself makes mynode info from dnsname.
+//if dnsname is empty ping to a node in nodelist and get info of myself.
 func (nl *NodeList) myself() *node {
 	if dnsname == "" {
 		return makeNode(dnsname, serverCgi, defaultPort)
@@ -301,6 +339,8 @@ func (nl *NodeList) myself() *node {
 	return nil
 }
 
+//pingAll pings to all nodes in nodelist.
+//if ng, removes from nodelist.
 func (nl *NodeList) pingAll() {
 	for _, n := range nl.rawNodeList.nodes {
 		if _, ok := n.ping(); !ok {
@@ -309,6 +349,9 @@ func (nl *NodeList) pingAll() {
 	}
 }
 
+//join tells n to join and adds n to nodelist if welcomed.
+//if n returns another nodes, repleats it and return true..
+//removes fron nodelist if not welcomed and return false.
 func (nl *NodeList) join(n *node) bool {
 	flag := false
 	for count := 0; count < retryJoin && len(nl.nodes) < defaultNodes; count++ {
@@ -329,6 +372,9 @@ func (nl *NodeList) join(n *node) bool {
 	return flag
 }
 
+//rejoin add nodes in searchlist if ping is ok and len(nodelist)<defaultNodes
+//and doesn't have it's node.
+//if ping is ng, removes node from searchlist.
 func (nl *NodeList) rejoin(searchlist *SearchList) {
 	for _, n := range searchlist.nodes {
 		if len(nl.nodes) >= defaultNodes {
@@ -350,6 +396,8 @@ func (nl *NodeList) rejoin(searchlist *SearchList) {
 	}
 }
 
+//tellUpdate makes mynode info from node or dnsname or ip addr,
+//and broadcast the updates of record id=id in cache c.datfile with stamp.
 func (nl *NodeList) tellUpdate(c *cache, stamp int64, id string, node *node) {
 	var tellstr string
 	switch {
@@ -364,9 +412,12 @@ func (nl *NodeList) tellUpdate(c *cache, stamp int64, id string, node *node) {
 	go broadcast(arg, c)
 }
 
+//broadcast broadcsts msg to nodes which has info of cache c  if ping is ok or is in nodelist.
+//and also broadcasts to nodes in nodelist.
+//if ping is ng or
 func broadcast(msg string, c *cache) {
 	for _, n := range c.node.nodes {
-		if _, ok := n.ping(); ok || nodeList.findNode(n) != -1 {
+		if _, ok := n.ping(); ok || nodeList.hasNode(n) {
 			_, err := n.talk(msg)
 			if err != nil {
 				log.Println(err)
@@ -377,7 +428,7 @@ func broadcast(msg string, c *cache) {
 		}
 	}
 	for _, n := range nodeList.nodes {
-		if c.node.findNode(n) == -1 {
+		if !c.node.hasNode(n) {
 			_, err := n.talk(msg)
 			if err != nil {
 				log.Println(err)
@@ -386,22 +437,24 @@ func broadcast(msg string, c *cache) {
 	}
 }
 
+//LookupTable represents map datfile to it's source node list.
 type LookupTable struct {
-	tosave   bool
-	tieddict map[string]*rawNodeList
+	tosave      bool
+	rawnodelist map[string]*rawNodeList
 }
 
+//newLookupTable read the file and returns LookupTable obj.
 func newLookupTable() *LookupTable {
 	r := &LookupTable{
-		tosave:   false,
-		tieddict: make(map[string]*rawNodeList),
+		tosave:      false,
+		rawnodelist: make(map[string]*rawNodeList),
 	}
 	err := eachKeyValueLine(lookup, func(key string, value []string, i int) error {
-		nl := &rawNodeList{nodes: make([]*node, 0)}
+		nl := &rawNodeList{}
 		for _, v := range value {
 			nl.append(newNode(v))
 		}
-		r.tieddict[key] = nl
+		r.rawnodelist[key] = nl
 		return nil
 	})
 	if err != nil {
@@ -409,25 +462,31 @@ func newLookupTable() *LookupTable {
 	}
 	return r
 }
+
+//Len returns size of rawnodelist.
 func (lt *LookupTable) Len() int {
-	return len(lt.tieddict)
+	return len(lt.rawnodelist)
 }
 
-func (lt *LookupTable) Get(i string, def []*node) []*node {
-	if v, exist := lt.tieddict[i]; exist {
+//Get returns rawnodelist associated with datfile
+//if not found return def
+func (lt *LookupTable) get(datfile string, def []*node) []*node {
+	if v, exist := lt.rawnodelist[datfile]; exist {
 		return v.nodes
 	}
 	return def
 }
 
+//stringmap returns map of k=datfile, v=nodestr of rawnodelist.
 func (lt *LookupTable) stringMap() map[string][]string {
 	result := make(map[string][]string)
-	for k, v := range lt.tieddict {
+	for k, v := range lt.rawnodelist {
 		result[k] = v.getNodestrSlice()
 	}
 	return result
 }
 
+//sync saves  k=datfile, v=nodestr map to the file.
 func (lt *LookupTable) sync(force bool) {
 	if lt.tosave || force {
 		err := writeMap(lookup, lt.stringMap())
@@ -437,53 +496,63 @@ func (lt *LookupTable) sync(force bool) {
 	}
 }
 
+//add associates node n to datfile and stores it.
 func (lt *LookupTable) add(datfile string, n *node) {
-	if ns, exist := lt.tieddict[datfile]; exist {
+	if ns, exist := lt.rawnodelist[datfile]; exist {
 		ns.append(n)
 		lt.tosave = true
 	}
 }
 
+//remove removes n from key=datfile rawnodelist.
 func (lt *LookupTable) remove(datfile string, n *node) {
-	if ns, exist := lt.tieddict[datfile]; exist {
+	if ns, exist := lt.rawnodelist[datfile]; exist {
 		ns.removeNode(n)
 		lt.tosave = true
 	}
 }
 
+//clear removes rawnodelist.
 func (lt *LookupTable) clear() {
-	lt.tieddict = make(map[string]*rawNodeList)
+	lt.rawnodelist = make(map[string]*rawNodeList)
 }
 
+//SearchList represents nodes list for searching.
 type SearchList struct {
 	*rawNodeList
 }
 
+//newSearchList read the file and returns SearchList obj.
 func newSearchList() *SearchList {
 	r := newRawNodeList(searchFile)
 	return &SearchList{rawNodeList: r}
 }
 
+//join adds node n if list doesn't have it.
 func (sl *SearchList) join(n *node) {
 	if !sl.hasNode(n) {
 		sl.append(n)
 	}
 }
 
+//search search the datfile from one allowed nodes which selected randomly from nodes.
+//if not found,n is removed from lookuptable. also not pingable  removes n from searchlist and cache c.
+//if found, n is added to lookuptable.
+//toolong
 func (sl *SearchList) search(c *cache, myself *node, nodes []*node) *node {
-	nl := &rawNodeList{nodes: make([]*node, 0)}
+	nl := &rawNodeList{}
 	if nodes != nil {
 		nl.extend(nodes)
 	}
 	shuffle(nl)
 	count := 0
 	for _, n := range nl.nodes {
-		if (myself != nil && n.nodestr == myself.nodestr) || n.isAllowed() {
+		if n.equals(myself) || !n.isAllowed() {
 			continue
 		}
 		count++
 		res, err := n.talk("/have" + c.datfile)
-		if err == nil && len(res) > 0 && res[0] == "YES" {
+		if err == nil && res[0] == "YES" {
 			sl.sync()
 			lookupTable.add(c.datfile, n)
 			lookupTable.sync(false)
@@ -493,9 +562,7 @@ func (sl *SearchList) search(c *cache, myself *node, nodes []*node) *node {
 			sl.removeNode(n)
 			c.node.removeNode(n)
 		}
-		if rl, exist := lookupTable.tieddict[c.datfile]; exist {
-			rl.removeNode(n)
-		}
+		lookupTable.remove(c.datfile, n)
 		if count > searchDepth {
 			break
 		}

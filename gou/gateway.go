@@ -29,165 +29,19 @@
 package gou
 
 import (
-	"bytes"
 	"errors"
 	"fmt"
 	"log"
 	"math"
 	"math/rand"
 	"net/http"
-	"net/url"
 	"os"
 	"path"
 	"regexp"
 	"sort"
 	"strings"
 	"time"
-
-	"golang.org/x/text/language"
 )
-
-/*
-//Connection Counter.
-type counter struct {
-	N     int
-	mutex sync.Mutex
-}
-
-func (c *counter) increment() {
-	c.mutex.Lock()
-	defer c.mutex.Unlock()
-	c.N++
-}
-
-func (c *counter) decrement() {
-	c.mutex.Lock()
-	defer c.mutex.Unlock()
-	c.N--
-}
-*/
-type message map[string]string
-
-func newMessage(file string) message {
-	var m message
-	re := regexp.MustCompile("^#$")
-	err := eachLine(file, func(line string, i int) error {
-		line = strings.Trim(line, "\r\n")
-		var err error
-		if !re.MatchString(line) {
-			buf := strings.Split(line, "<>")
-			if len(buf) == 2 {
-				buf[1], err = url.QueryUnescape(buf[1])
-				m[buf[0]] = buf[1]
-			}
-		}
-		return err
-	})
-	if err != nil {
-		log.Println(file, err)
-	}
-	return m
-}
-
-func (m message) get(k string) string {
-	if v, exist := m[k]; exist {
-		return v
-	}
-	return ""
-}
-
-func searchMessage(acceptLanguage string) message {
-	var lang []string
-	if acceptLanguage != "" {
-		tags, _, err := language.ParseAcceptLanguage(acceptLanguage)
-		if err != nil {
-			log.Println(err)
-		} else {
-			for _, tag := range tags {
-				lang = append(lang, tag.String())
-			}
-		}
-	}
-	lang = append(lang, defaultLanguage)
-	for _, l := range lang {
-		slang := strings.Split(l, "-")[0]
-		for _, j := range []string{l, slang} {
-			file := path.Join(fileDir, "message-"+j+".txt")
-			if isFile(file) {
-				return newMessage(file)
-			}
-		}
-	}
-	return nil
-}
-
-type DefaultVariable struct {
-	CGI         *cgi
-	Environment http.Header
-	UA          string
-	Message     message
-	Lang        string
-	Aappl       map[string]string
-	GatewayCgi  string
-	ThreadCgi   string
-	AdminCgi    string
-	RootPath    string
-	Types       []string
-	Isadmin     bool
-	Isfriend    bool
-	Isvisitor   bool
-	Dummyquery  int64
-}
-
-func (d *DefaultVariable) Add(a, b int) int {
-	return a + b
-}
-func (d *DefaultVariable) Mul(a, b int) int {
-	return a * b
-}
-func (d *DefaultVariable) ToKB(a int) float64 {
-	return float64(a) / 1024
-}
-func (d *DefaultVariable) ToMB(a int) float64 {
-	return float64(a) / (1024 * 1024)
-}
-func (d *DefaultVariable) Localtime(stamp int64) string {
-	return time.Unix(stamp, 0).Format("2006-01-02 15:04")
-}
-func (d *DefaultVariable) StrEncode(query string) string {
-	return strEncode(query)
-}
-
-func (d *DefaultVariable) Escape(msg string) string {
-	return escape(msg)
-}
-
-func (d *DefaultVariable) EscapeSpace(msg string) string {
-	return escapeSpace(msg)
-}
-
-func (d *DefaultVariable) FileDecode(query, t string) string {
-	q := strings.Split(query, "_")
-	if len(q) < 2 {
-		return t
-	}
-	return q[0]
-}
-
-func (d *DefaultVariable) makeGatewayLink(cginame, command string) string {
-	g := struct {
-		CGIname     string
-		Command     string
-		Description string
-	}{
-		CGIname:     cginame,
-		Command:     command,
-		Description: d.Message.get("desc_" + command),
-	}
-	var doc bytes.Buffer
-	renderTemplate("gateway_link", g, &doc)
-	return doc.String()
-}
 
 type cgi struct {
 	m          message
@@ -206,14 +60,6 @@ type cgi struct {
 	path       string
 }
 
-func match(re string, val string) bool {
-	reg, err := regexp.Compile(re)
-	if err != nil {
-		return reg.MatchString(val)
-	}
-	return false
-}
-
 func newCGI(w http.ResponseWriter, r *http.Request) *cgi {
 	c := &cgi{
 		remoteaddr: r.RemoteAddr,
@@ -221,86 +67,20 @@ func newCGI(w http.ResponseWriter, r *http.Request) *cgi {
 		wr:         w,
 	}
 	c.m = newMessage(r.Header.Get("Accept-Language"))
-	c.isAdmin = match(reAdmin, c.remoteaddr)
-	c.isFriend = match(reFriend, c.remoteaddr)
-	c.isVisitor = match(reVisitor, c.remoteaddr)
+	c.isAdmin = reAdmin.MatchString(c.remoteaddr)
+	c.isFriend = reFriend.MatchString(c.remoteaddr)
+	c.isVisitor = reVisitor.MatchString(c.remoteaddr)
 	c.req = r
 	err := r.ParseForm()
 	if err != nil {
 		log.Println(err)
 		return nil
 	}
-	c.path = strings.Join(strings.Split(r.URL.Path, "/")[1:], "/")
+	p := strings.Split(r.URL.Path, "/")
+	if len(p) > 1 {
+		c.path = strings.Join(p[1:], "/")
+	}
 	return c
-}
-
-func (c *cgi) makeListItem(ca *cache, remove bool, target string, search bool) string {
-	x := fileDecode(ca.datfile)
-	if x == "" {
-		return ""
-	}
-	y := strEncode(x)
-	if c.filter != "" && !strings.Contains(c.filter, strings.ToLower(x)) {
-		return ""
-	}
-	if c.tag != "" {
-		var cacheTags []*tag
-		matchtag := false
-		cacheTags = append(cacheTags, ca.tags.tags...)
-		if target == "recent" {
-			cacheTags = append(cacheTags, ca.sugtags.tags...)
-		}
-		for _, t := range cacheTags {
-			if strings.ToLower(t.tagstr) == c.tag {
-				matchtag = true
-				break
-			}
-		}
-		if !matchtag {
-			return ""
-		}
-	}
-	x = escapeSpace(x)
-	var strOpts string
-	if search {
-		strOpts = "?search_new_file=yes"
-	}
-	var sugtags []*tag
-	if target == "recent" {
-		strTags := make([]string, ca.tags.Len())
-		for i, v := range ca.tags.tags {
-			strTags[i] = strings.ToLower(v.tagstr)
-		}
-		for _, st := range ca.sugtags.tags {
-			if !hasString(strTags, strings.ToLower(st.tagstr)) {
-				sugtags = append(sugtags, st)
-			}
-		}
-	}
-	var doc bytes.Buffer
-	g := struct {
-		*DefaultVariable
-		cache    *cache
-		title    string
-		strTitle string
-		tags     *tagList
-		sugtags  []*tag
-		target   string
-		remove   bool
-		strOpts  string
-	}{
-		c.makeDefaultVariable(),
-		ca,
-		x,
-		y,
-		ca.tags,
-		sugtags,
-		target,
-		remove,
-		strOpts,
-	}
-	renderTemplate("footer", g, &doc)
-	return doc.String()
 }
 
 func (c *cgi) extension(suffix string, useMerged bool) []string {
@@ -670,6 +450,7 @@ func (c *cgi) errorTime() int64 {
 	return int64(timeErrorSigma*math.Sqrt(-2*math.Log(x1))*math.Cos(2*math.Pi*x2)) + time.Now().Unix()
 }
 
+//toolong
 func (c *cgi) doPost() string {
 	attached, attachedErr := c.parseAttached()
 	if attachedErr != nil {
@@ -813,5 +594,7 @@ func (c *cgi) makeDefaultVariable() *DefaultVariable {
 		Isfriend:    c.isFriend,
 		Isvisitor:   c.isVisitor,
 		Dummyquery:  time.Now().Unix(),
+		filter:      c.filter,
+		tag:         c.tag,
 	}
 }

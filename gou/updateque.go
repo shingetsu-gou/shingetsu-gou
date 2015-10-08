@@ -32,9 +32,9 @@ import "sync"
 
 //updateQue contains update records which will be informed to other nodes
 type updateQue struct {
-	queue   map[*record][]*node
-	running bool
-	mutex   sync.Mutex
+	queue map[*record][]*node
+	//	running bool
+	mutex sync.Mutex
 }
 
 //newUpdateQue make updateQue object.
@@ -53,6 +53,8 @@ func (u *updateQue) append(rec *record, n *node) {
 }
 
 //run do doUpdateNode for each records using related nodes.
+//if success to doUpdateNode, add node to updatelist and recentlist and
+//removes the record from queue.
 func (u *updateQue) run() {
 	u.mutex.Lock()
 	defer u.mutex.Unlock()
@@ -72,6 +74,7 @@ func (u *updateQue) run() {
 }
 
 //doUpdateNode broadcast and get data for each new records.
+//toolong
 func (u *updateQue) doUpdateNode(rec *record, n *node) bool {
 	if updateList.hasRecord(rec) {
 		return true
@@ -95,10 +98,13 @@ func (u *updateQue) doUpdateNode(rec *record, n *node) bool {
 			err = errGet
 		}
 	}
-	if err == nil {
+	switch err {
+	case errGet:
+		return false
+	case errSpam:
+		return true
+	default:
 		nodeList.tellUpdate(ca, rec.stamp, rec.id, nil)
-	}
-	if err != errGet {
 		if !nodeList.hasNode(n) && nodeList.Len() < defaultNodes {
 			nodeList.join(n)
 			nodeList.sync()
@@ -109,5 +115,4 @@ func (u *updateQue) doUpdateNode(rec *record, n *node) bool {
 		}
 		return true
 	}
-	return false
 }

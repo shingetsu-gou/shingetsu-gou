@@ -40,81 +40,262 @@ import (
 	"strconv"
 	"strings"
 	"time"
-
-	"github.com/gorilla/handlers"
 )
 
 func gatewaySetup(s *http.ServeMux) {
-	s.Handle("/gateway.cgi/motd", handlers.CompressHandler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if a := newGatewayCGI(w, r); a != nil {
-			a.printMotd()
+	registCompressHandler(s, "/gateway.cgi/motd", printMotd)
+	registCompressHandler(s, "/gateway.cgi/mergedjs", printMergedJS)
+	registCompressHandler(s, "/gateway.cgi/rss", printRSS)
+	registCompressHandler(s, "/gateway.cgi/recent_rss", printRecentRSS)
+	registCompressHandler(s, "/gateway.cgi/index", printGatewayIndex)
+	registCompressHandler(s, "/gateway.cgi/changes", printIndexChanges)
+	registCompressHandler(s, "/gateway.cgi/recent", printRecent)
+	registCompressHandler(s, "/gateway.cgi/new", printNew)
+	registCompressHandler(s, "/gateway.cgi/thread", printGatewayThread)
+	registCompressHandler(s, "/gateway.cgi/", printTitle)
+	registCompressHandler(s, "/gateway.cgi/csv/index/", printCSV)
+	registCompressHandler(s, "/gateway.cgi/csv/changes/", printCSVChanges)
+	registCompressHandler(s, "/gateway.cgi/csv/recent/", printCSVRecent)
+	registCompressHandler(s, "/", printTitle)
+}
+
+func printGatewayThread(w http.ResponseWriter, r *http.Request) {
+	reg := regexp.MustCompile("^/gateway.cgi/(thread)/?([^/]*)$")
+	m := reg.FindStringSubmatch(r.URL.Path)
+	var uri string
+	switch {
+	case m == nil:
+		printTitle(w, r)
+		return
+	case m[2] != "":
+		uri = application["thread"] + querySeparator + strEncode(m[2])
+	case r.URL.RawQuery != "":
+		uri = application["thread"] + querySeparator + r.URL.RawQuery
+	default:
+		printTitle(w, r)
+		return
+	}
+	g := newGatewayCGI(w, r)
+	if g == nil {
+		return
+	}
+	g.print302(uri)
+}
+
+func printCSV(w http.ResponseWriter, r *http.Request) {
+	g := newGatewayCGI(w, r)
+	if g == nil {
+		return
+	}
+	cl := newCacheList()
+	g.renderCSV(cl)
+}
+
+func printCSVChanges(w http.ResponseWriter, r *http.Request) {
+	g := newGatewayCGI(w, r)
+	if g == nil {
+		return
+	}
+	cl := newCacheList()
+	sort.Sort(sort.Reverse(sortByValidStamp{cl.caches}))
+	g.renderCSV(cl)
+}
+
+func printCSVRecent(w http.ResponseWriter, r *http.Request) {
+	g := newGatewayCGI(w, r)
+	if g == nil {
+		return
+	}
+	if !g.isFriend && !g.isAdmin {
+		g.print403("")
+		return
+	}
+	cl := g.makeRecentCachelist()
+	g.renderCSV(cl)
+}
+
+func printRecentRSS(w http.ResponseWriter, r *http.Request) {
+	g := newGatewayCGI(w, r)
+	if g == nil {
+		return
+	}
+	rsss := newRss("UTF-8", "", fmt.Sprintf("%s - %s", g.m["recent"], g.m["logo"]),
+		"http://"+g.host, "",
+		"http://"+g.host+gatewayCgi+querySeparator+"recent_rss", g.m["description"], xsl)
+	cl := g.makeRecentCachelist()
+	for _, ca := range cl.caches {
+		title := escape(fileDecode(ca.datfile))
+		tags := make([]string, ca.tags.Len()+ca.sugtags.Len())
+		for i, t := range ca.tags.tags {
+			tags[i] = t.tagstr
 		}
-	})))
-	s.Handle("/gateway.cgi/mergedjs", handlers.CompressHandler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if a := newGatewayCGI(w, r); a != nil {
-			a.printMergedJS()
+		for i, t := range ca.sugtags.tags {
+			tags[i+ca.tags.Len()] = t.tagstr
 		}
-	})))
-	s.Handle("/gateway.cgi/rss", handlers.CompressHandler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if a := newGatewayCGI(w, r); a != nil {
-			a.printRSS()
+		if _, exist := application[ca.typee]; !exist {
+			continue
 		}
-	})))
-	s.Handle("/gateway.cgi/recent_rss", handlers.CompressHandler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if a := newGatewayCGI(w, r); a != nil {
-			a.printRecentRSS()
+		rsss.append(application[ca.typee][1:]+querySeparator+strEncode(title),
+			title, "", "", html.EscapeString(title), tags, ca.recentStamp, false)
+	}
+	g.wr.Header().Set("Content-Type", "text/xml; charset=UTF-8")
+	k := rsss.keys()
+	if len(k) != 0 {
+		g.wr.Header().Set("Last-Modified", g.rfc822Time(rsss.Feeds[k[0]].Date))
+	}
+	rsss.makeRSS1(g.wr)
+
+}
+
+func printRSS(w http.ResponseWriter, r *http.Request) {
+	g := newGatewayCGI(w, r)
+	if g == nil {
+		return
+	}
+	now := time.Now().Unix()
+	rsss := newRss("UTF-8", "", g.m["logo"], "http://"+g.host, "",
+		"http://"+g.host+gatewayCgi+querySeparator+"rss", g.m["description"], xsl)
+	cl := newCacheList()
+	for _, ca := range cl.caches {
+		if ca.validStamp+int64(rssRange) < now {
+			continue
 		}
-	})))
-	s.Handle("/gateway.cgi/index", handlers.CompressHandler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if a := newGatewayCGI(w, r); a != nil {
-			a.printIndex(false)
+		title := escape(fileDecode(ca.datfile))
+		path := application[ca.typee] + querySeparator + strEncode(title)
+		for _, r := range ca.recs {
+			if r.stamp+int64(rssRange) < now {
+				continue
+			}
+			if err := r.loadBody(); err != nil {
+				log.Println(err)
+			}
+
+			desc := g.rssTextFormat(r.Get("body", ""))
+			content := g.rssHTMLFormat(r.Get("body", ""), application[ca.typee], title)
+			if attach := r.Get("attach", ""); attach != "" {
+				suffix := r.Get("suffix", "")
+				if reg := regexp.MustCompile("^[0-9A-Za-z]+$"); reg.MatchString(suffix) {
+					suffix = "txt"
+				}
+				content += fmt.Sprintf("\n    <p><a href=\"http://%s%s%s%s/%s/%d.%s\">%d.%s</a></p>",
+					g.host, application[ca.typee], querySeparator, ca.datfile, r.id, r.stamp, suffix, r.stamp, suffix)
+			}
+			permpath := path[1:]
+			if ca.typee == "thread" {
+				permpath = fmt.Sprintf("%s/%s", path[1:], r.id[:8])
+			}
+			rsss.append(permpath, title, g.rssTextFormat(r.Get("name", "")), desc, content, ca.tags.getTagstrSlice(), r.stamp, false)
 		}
-	})))
-	s.Handle("/gateway.cgi/changes", handlers.CompressHandler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if a := newGatewayCGI(w, r); a != nil {
-			a.printIndex(true)
+	}
+	g.wr.Header().Set("Content-Type", "text/xml; charset=UTF-8")
+	if k := rsss.keys(); len(k) != 0 {
+		g.wr.Header().Set("Last-Modified", g.rfc822Time(rsss.Feeds[k[0]].Date))
+	}
+	rsss.makeRSS1(g.wr)
+}
+
+func printMergedJS(w http.ResponseWriter, r *http.Request) {
+	g := newGatewayCGI(w, r)
+	if g == nil {
+		return
+	}
+
+	g.wr.Header().Set("Content-Type", "application/javascript; charset=UTF-8")
+	g.wr.Header().Set("Last-Modified", g.rfc822Time(g.jc.getLatest()))
+	_, err := g.wr.Write([]byte(g.jc.getContent()))
+	if err != nil {
+		log.Println(err)
+	}
+
+}
+func printMotd(w http.ResponseWriter, r *http.Request) {
+	g := newGatewayCGI(w, r)
+	if g == nil {
+		return
+	}
+
+	g.wr.Header().Set("Content-Type", "text/plain; charset=UTF-8")
+	c, err := ioutil.ReadFile(motd)
+	if err != nil {
+		log.Println(err)
+		return
+	}
+	_, err = g.wr.Write(c)
+	if err != nil {
+		log.Println(err)
+	}
+}
+func printNew(w http.ResponseWriter, r *http.Request) {
+	g := newGatewayCGI(w, r)
+	if g == nil {
+		return
+	}
+
+	g.header(g.m["new"], "", nil, true, nil)
+	g.printNewElementForm()
+	g.footer(nil)
+}
+func printTitle(w http.ResponseWriter, r *http.Request) {
+	g := newGatewayCGI(w, r)
+	if g == nil {
+		return
+	}
+
+	cl := newCacheList()
+	sort.Sort(sort.Reverse(sortByValidStamp{cl.caches}))
+	outputCachelist := make([]*cache, 0, cl.Len())
+	for _, ca := range cl.caches {
+		if time.Now().Unix() <= ca.validStamp+int64(topRecentRange) {
+			outputCachelist = append(outputCachelist, ca)
 		}
-	})))
-	s.Handle("/gateway.cgi/recent", handlers.CompressHandler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if a := newGatewayCGI(w, r); a != nil {
-			a.printRecent()
-		}
-	})))
-	s.Handle("/gateway.cgi/new", handlers.CompressHandler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if a := newGatewayCGI(w, r); a != nil {
-			a.printNew()
-		}
-	})))
-	s.Handle("/gateway.cgi/thread", handlers.CompressHandler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if a := newGatewayCGI(w, r); a != nil {
-			a.printThread()
-		}
-	})))
-	s.Handle("/gateway.cgi/", handlers.CompressHandler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if a := newGatewayCGI(w, r); a != nil {
-			a.printTitle()
-		}
-	})))
-	s.Handle("/gateway.cgi/csv/index/", handlers.CompressHandler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if a := newGatewayCGI(w, r); a != nil {
-			a.printCSV(false)
-		}
-	})))
-	s.Handle("/gateway.cgi/csv/changes/", handlers.CompressHandler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if a := newGatewayCGI(w, r); a != nil {
-			a.printCSV(true)
-		}
-	})))
-	s.Handle("/gateway.cgi/csv/recent/", handlers.CompressHandler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if a := newGatewayCGI(w, r); a != nil {
-			a.printCSVRecent()
-		}
-	})))
-	s.Handle("/", handlers.CompressHandler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if a := newGatewayCGI(w, r); a != nil {
-			a.printTitle()
-		}
-	})))
+	}
+	g.header(g.m["logo"]+" - "+g.m["description"], "", nil, false, nil)
+	s := struct {
+		Cachelist     []*cache
+		Target        string
+		Taglist       *UserTagList
+		MchURL        string
+		MchCategories []*mchCategory
+	}{
+		outputCachelist,
+		"changes",
+		userTagList,
+		g.mchURL(),
+		g.mchCategories(),
+	}
+	renderTemplate("top", s, g.wr)
+	g.printNewElementForm()
+	g.footer(nil)
+}
+
+func printGatewayIndex(w http.ResponseWriter, r *http.Request) {
+	g := newGatewayCGI(w, r)
+	if g == nil {
+		return
+	}
+	g.printIndex(false)
+}
+func printIndexChanges(w http.ResponseWriter, r *http.Request) {
+	g := newGatewayCGI(w, r)
+	if g == nil {
+		return
+	}
+	g.printIndex(true)
+}
+
+func printRecent(w http.ResponseWriter, r *http.Request) {
+	g := newGatewayCGI(w, r)
+	if g == nil {
+		return
+	}
+	title := g.m["recent"]
+	if g.strFilter != "" {
+		title = fmt.Sprintf("%s : %s", g.m["recent"], g.filter)
+	}
+	g.header(title, "", nil, true, nil)
+	g.printParagraph(g.m["desc_recent"])
+	cl := g.makeRecentCachelist()
+	g.printIndexList(cl, "recent", false, false)
 }
 
 type gatewayCGI struct {
@@ -149,6 +330,7 @@ func newGatewayCGI(w http.ResponseWriter, r *http.Request) *gatewayCGI {
 	}
 }
 
+//toolong
 func (g *gatewayCGI) renderCSV(cl *cacheList) {
 	g.wr.Header().Set("Content-Type", "text/comma-separated-values;charset=UTF-8")
 	p := strings.Split(g.path, "/")
@@ -206,170 +388,6 @@ func (g *gatewayCGI) renderCSV(cl *cacheList) {
 	cwr.Flush()
 }
 
-func (g *gatewayCGI) printThread() {
-	reg := regexp.MustCompile("^/(thread)/?([^/]*)$")
-	m := reg.FindStringSubmatch(g.path)
-	var uri string
-	switch {
-	case m == nil:
-		g.printTitle()
-		return
-	case m[2] != "":
-		uri = application["thread"] + querySeparator + strEncode(m[2])
-	case g.req.URL.RawQuery != "":
-		uri = application["thread"] + querySeparator + g.req.URL.RawQuery
-	default:
-		g.printTitle()
-		return
-	}
-	g.print302(uri)
-}
-
-func (g *gatewayCGI) printCSV(doSort bool) {
-	cl := newCacheList()
-	if doSort {
-		sort.Sort(sort.Reverse(sortByValidStamp{cl.caches}))
-	}
-	g.renderCSV(cl)
-}
-
-func (g *gatewayCGI) printCSVRecent() {
-	if !g.isFriend && !g.isAdmin {
-		g.print403("")
-		return
-	}
-	cl := g.makeRecentCachelist()
-	g.renderCSV(cl)
-}
-func (g *gatewayCGI) printRecentRSS() {
-	rsss := newRss("UTF-8", "", fmt.Sprintf("%s - %s", g.m["recent"], g.m["logo"]),
-		"http://"+g.host, "",
-		"http://"+g.host+gatewayCgi+querySeparator+"recent_rss", g.m["description"], xsl)
-	cl := g.makeRecentCachelist()
-	for _, ca := range cl.caches {
-		title := escape(fileDecode(ca.datfile))
-		tags := make([]string, ca.tags.Len()+ca.sugtags.Len())
-		for i, t := range ca.tags.tags {
-			tags[i] = t.tagstr
-		}
-		for i, t := range ca.sugtags.tags {
-			tags[i+ca.tags.Len()] = t.tagstr
-		}
-		if _, exist := application[ca.typee]; !exist {
-			continue
-		}
-		rsss.append(application[ca.typee][1:]+querySeparator+strEncode(title),
-			title, "", "", html.EscapeString(title), tags, ca.recentStamp, false)
-	}
-	g.wr.Header().Set("Content-Type", "text/xml; charset=UTF-8")
-	k := rsss.keys()
-	if len(k) != 0 {
-		g.wr.Header().Set("Last-Modified", g.rfc822Time(rsss.Feeds[k[0]].Date))
-	}
-	rsss.makeRSS1(g.wr)
-
-}
-
-func (g *gatewayCGI) printRSS() {
-	now := time.Now().Unix()
-	rsss := newRss("UTF-8", "", g.m["logo"], "http://"+g.host, "",
-		"http://"+g.host+gatewayCgi+querySeparator+"rss", g.m["description"], xsl)
-	cl := newCacheList()
-	for _, ca := range cl.caches {
-		if ca.validStamp+int64(rssRange) >= now {
-			title := escape(fileDecode(ca.datfile))
-			path := application[ca.typee] + querySeparator + strEncode(title)
-			for _, r := range ca.recs {
-				if r.stamp+int64(rssRange) < now {
-					continue
-				}
-				err := r.loadBody()
-				if err != nil {
-					log.Println(err)
-				}
-
-				desc := g.rssTextFormat(r.Get("body", ""))
-				content := g.rssHTMLFormat(r.Get("body", ""), application[ca.typee], title)
-				if attach := r.Get("attach", ""); attach != "" {
-					suffix := r.Get("suffix", "")
-					if reg := regexp.MustCompile("^[0-9A-Za-z]+$"); reg.MatchString(suffix) {
-						suffix = "txt"
-					}
-					content += fmt.Sprintf("\n    <p><a href=\"http://%s%s%s%s/%s/%d.%s\">%d.%s</a></p>",
-						g.host, application[ca.typee], querySeparator, ca.datfile, r.id, r.stamp, suffix, r.stamp, suffix)
-				}
-				permpath := path[1:]
-				if ca.typee == "thread" {
-					permpath = fmt.Sprintf("%s/%s", path[1:], r.id[:8])
-				}
-				rsss.append(permpath, title, g.rssTextFormat(r.Get("name", "")), desc, content, ca.tags.getTagstrSlice(), r.stamp, false)
-				r.free()
-			}
-		}
-	}
-	g.wr.Header().Set("Content-Type", "text/xml; charset=UTF-8")
-	k := rsss.keys()
-	if len(k) != 0 {
-		g.wr.Header().Set("Last-Modified", g.rfc822Time(rsss.Feeds[k[0]].Date))
-	}
-	rsss.makeRSS1(g.wr)
-
-}
-
-func (g *gatewayCGI) printMergedJS() {
-	g.wr.Header().Set("Content-Type", "application/javascript; charset=UTF-8")
-	g.wr.Header().Set("Last-Modified", g.rfc822Time(g.jc.getLatest()))
-	_, err := g.wr.Write([]byte(g.jc.getContent()))
-	if err != nil {
-		log.Println(err)
-	}
-
-}
-func (g *gatewayCGI) printMotd() {
-	g.wr.Header().Set("Content-Type", "text/plain; charset=UTF-8")
-	c, err := ioutil.ReadFile(motd)
-	if err != nil {
-		log.Println(err)
-		return
-	}
-	_, err = g.wr.Write(c)
-	if err != nil {
-		log.Println(err)
-	}
-}
-func (g *gatewayCGI) printNew() {
-	g.header(g.m["new"], "", nil, true, nil)
-	g.printNewElementForm()
-	g.footer(nil)
-}
-func (g *gatewayCGI) printTitle() {
-	cl := newCacheList()
-	sort.Sort(sort.Reverse(sortByValidStamp{cl.caches}))
-	outputCachelist := make([]*cache, 0, cl.Len())
-	for _, ca := range cl.caches {
-		if time.Now().Unix() <= ca.validStamp+int64(topRecentRange) {
-			outputCachelist = append(outputCachelist, ca)
-		}
-	}
-	g.header(g.m["logo"]+" - "+g.m["description"], "", nil, false, nil)
-	s := struct {
-		Cachelist     []*cache
-		Target        string
-		Taglist       *UserTagList
-		MchURL        string
-		MchCategories []*mchCategory
-	}{
-		outputCachelist,
-		"changes",
-		userTagList,
-		g.mchURL(),
-		g.mchCategories(),
-	}
-	renderTemplate("top", s, g.wr)
-	g.printNewElementForm()
-	g.footer(nil)
-}
-
 func (g *gatewayCGI) printIndex(doChange bool) {
 	str := "index"
 	if doChange {
@@ -382,7 +400,9 @@ func (g *gatewayCGI) printIndex(doChange bool) {
 	g.header(title, "", nil, true, nil)
 	g.printParagraph(g.m["desc_"+str])
 	cl := newCacheList()
-	sort.Sort(sort.Reverse(sortByVelocity{cl.caches}))
+	if doChange {
+		sort.Sort(sort.Reverse(sortByVelocity{cl.caches}))
+	}
 	g.printIndexList(cl, str, false, false)
 }
 
@@ -399,17 +419,6 @@ func (g *gatewayCGI) makeRecentCachelist() *cacheList {
 		}
 	}
 	return &cacheList{caches: cl}
-}
-
-func (g *gatewayCGI) printRecent() {
-	title := g.m["recent"]
-	if g.strFilter != "" {
-		title = fmt.Sprintf("%s : %s", g.m["recent"], g.filter)
-	}
-	g.header(title, "", nil, true, nil)
-	g.printParagraph(g.m["desc_recent"])
-	cl := g.makeRecentCachelist()
-	g.printIndexList(cl, "recent", false, false)
 }
 
 func (g *gatewayCGI) jumpNewFile() {
@@ -445,7 +454,7 @@ func (g *gatewayCGI) rssTextFormat(plain string) string {
 	return buf
 }
 
-func (g *gatewayCGI) rssHTMLFormat(plain, appli,path string) string {
+func (g *gatewayCGI) rssHTMLFormat(plain, appli, path string) string {
 	title := strDecode(path)
 	buf := g.htmlFormat(plain, appli, title, true)
 	if buf != "" {

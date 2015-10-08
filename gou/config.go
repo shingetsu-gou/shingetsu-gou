@@ -33,6 +33,7 @@ import (
 	"log"
 	"os"
 	"os/user"
+	"regexp"
 	"strings"
 	"time"
 
@@ -94,9 +95,12 @@ var (
 	nodeAllowFile = setting.getPathValue("Path", "node_allow", "../file/node_allow.txt")
 	nodeDenyFile  = setting.getPathValue("Path", "node_deny", "../file/node_deny.txt")
 
-	reAdmin        = setting.getStringValue("Gateway", "admin", "^127")
-	reFriend       = setting.getStringValue("Gateway", "friend", "^127")
-	reVisitor      = setting.getStringValue("Gateway", "visitor", ".")
+	reAdminStr     = setting.getStringValue("Gateway", "admin", "^127")
+	reFriendStr    = setting.getStringValue("Gateway", "friend", "^127")
+	reVisitorStr   = setting.getStringValue("Gateway", "visitor", ".")
+	reAdmin        *regexp.Regexp
+	reFriend       *regexp.Regexp
+	reVisitor      *regexp.Regexp
 	serverName     = setting.getStringValue("Gateway", "server_name", "")
 	tagSize        = setting.getIntValue("Gateway", "tag_size", 20)
 	rssRange       = setting.getIntValue("Gateway", "rss_range", 3*24*60*60)
@@ -144,17 +148,21 @@ var (
 	defaultInitNode = []string{
 		"node.shingetsu.info:8000/server.cgi",
 		"pushare.zenno.info:8000/server.cgi",
+		"rep4649.ddo.jp:8000/server.cgi",
+		"skaphy.dyndns.info:8039/saku/server.cgi",
+		"saku.dpforest.info:8000/server.cgi",
+		"node.sakura.onafox.net:8000/server.cgi",
 	}
 
-	cachedRule = newRegexpList(spamList)
 	absDocroot string
-	queue      = newUpdateQue()
 
-	initNode  = newConfList(initnodeList, defaultInitNode)
-	nodeAllow = newRegexpList(nodeAllowFile)
-	nodeDeny  = newRegexpList(nodeDenyFile)
-	dkTable   = newDatakeyTable(runDir + "/datakey.txt")
+	initNode   = newConfList(initnodeList, defaultInitNode)
+	cachedRule = newRegexpList(spamList)
+	nodeAllow  = newRegexpList(nodeAllowFile)
+	nodeDeny   = newRegexpList(nodeDenyFile)
+	dkTable    = newDatakeyTable(runDir + "/datakey.txt")
 
+	queue             *updateQue
 	suggestedTagTable *SuggestedTagTable
 	userTagList       *UserTagList
 	lookupTable       *LookupTable
@@ -239,7 +247,25 @@ func InitVariables() {
 	nodeList = newNodeList()
 	recentList = newRecentList()
 	updateList = newUpdateList()
+	queue = newUpdateQue()
 
+	nodeDeny.add("^127")
+	nodeDeny.add("^192\\.168")
+	nodeDeny.add("^bbs\\.shingetsu\\.info")
+
+	var err error
+	reAdmin, err = regexp.Compile(reAdminStr)
+	if err != nil {
+		log.Fatal("admin regexp string is illegal", err)
+	}
+	reFriend, err = regexp.Compile(reFriendStr)
+	if err != nil {
+		log.Fatal("freind regexp string is illegal", err)
+	}
+	reVisitor, err = regexp.Compile(reVisitorStr)
+	if err != nil {
+		log.Fatal("visitor regexp string is illegal", err)
+	}
 	for _, t := range types {
 		ctype := "Application " + strings.ToUpper(t)
 		saveRecord[t] = setting.getIntValue(ctype, "save_record", 0)

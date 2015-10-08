@@ -38,61 +38,213 @@ import (
 	"strconv"
 	"strings"
 	"time"
-
-	"github.com/gorilla/handlers"
 )
 
+//toolong
 func serverSetup(s *http.ServeMux) {
-	s.Handle("/server.cgi/ping", handlers.CompressHandler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if a := newServerCGI(w, r); a != nil {
-			a.doPing()
+	registCompressHandler(s, "/server.cgi/ping", doPing)
+	registCompressHandler(s, "/server.cgi/node", doNode)
+	registCompressHandler(s, "/server.cgi/join", doJoin)
+	registCompressHandler(s, "/server.cgi/bye", doBye)
+	registCompressHandler(s, "/server.cgi/have", doHave)
+	registCompressHandler(s, "/server.cgi/get", doGetHead)
+	registCompressHandler(s, "/server.cgi/head", doGetHead)
+	registCompressHandler(s, "/server.cgi/update", doUpdate)
+	registCompressHandler(s, "/server.cgi/recent", doRecent)
+	registCompressHandler(s, "/server.cgi/", doMotd)
+}
+
+func doPing(w http.ResponseWriter, r *http.Request) {
+	fmt.Fprint(w, "PONG\n"+r.RemoteAddr+"\n")
+}
+
+func doNode(w http.ResponseWriter, r *http.Request) {
+	if nodeList.Len() > 0 {
+		fmt.Fprintln(w, nodeList.nodes[0].nodestr)
+	} else {
+		fmt.Fprintln(w, nodeList.random().nodestr)
+	}
+}
+
+func doJoin(w http.ResponseWriter, r *http.Request) {
+	s := newServerCGI(w, r)
+	if s == nil {
+		return
+	}
+	n := s.makeNode("join")
+	if n == nil {
+		return
+	}
+	if !n.isAllowed() {
+		return
+	}
+	if _, ok := n.ping(); !ok {
+		return
+	}
+	if nodeList.Len() < defaultNodes {
+		nodeList.append(n)
+		nodeList.sync()
+		searchList.append(n)
+		searchList.sync()
+		fmt.Fprintln(s.wr, "WELCOME")
+		return
+	}
+	searchList.append(n)
+	searchList.sync()
+	suggest := nodeList.nodes[0]
+	nodeList.removeNode(suggest)
+	nodeList.sync()
+	suggest.bye()
+	fmt.Fprintf(s.wr, "WELCOME\n%s\n", suggest)
+
+}
+
+func doBye(w http.ResponseWriter, r *http.Request) {
+	s := newServerCGI(w, r)
+	if s == nil {
+		return
+	}
+	n := s.makeNode("bye")
+	if n == nil {
+		return
+	}
+
+	if nodeList.removeNode(n) {
+		nodeList.sync()
+	}
+	fmt.Fprintln(s.wr, "BYEBYE")
+}
+
+func doHave(w http.ResponseWriter, r *http.Request) {
+	s := newServerCGI(w, r)
+	if s == nil {
+		return
+	}
+	reg := regexp.MustCompile("^/have/([0-9A-Za-z_]+)$")
+	m := reg.FindStringSubmatch(s.path)
+	if m == nil {
+		log.Println("illegal url")
+		return
+	}
+	ca := newCache(m[1])
+	if ca.Len() > 0 {
+		fmt.Fprintln(w, "YES")
+	} else {
+		fmt.Fprintln(w, "NO")
+	}
+}
+
+func doUpdate(w http.ResponseWriter, r *http.Request) {
+	s := newServerCGI(w, r)
+	if s == nil {
+		return
+	}
+	reg := regexp.MustCompile("^/update/(\\w+)/(\\d+)/(\\w+)/([^:]*):(\\d+)(.*)")
+	m := reg.FindStringSubmatch(s.path)
+	if m == nil {
+		log.Println("illegal url")
+		return
+	}
+	datfile, stamp, id, host, path := m[0], m[1], m[2], m[3], m[5]
+	port, err := strconv.Atoi(m[4])
+	if err != nil {
+		log.Println(err)
+		return
+	}
+	host = s.getRemoteHostname(host)
+	if host == "" {
+		return
+	}
+
+	n := makeNode(host, path, port)
+	if !n.isAllowed() {
+		return
+	}
+	searchList.append(n)
+	searchList.sync()
+	lookupTable.add(datfile, n)
+	lookupTable.sync(false)
+	now := time.Now().Unix()
+	nstamp, err := strconv.ParseInt(stamp, 10, 64)
+	if err != nil {
+		log.Println(err)
+		return
+	}
+
+	if nstamp < now-int64(defaultUpdateRange) || nstamp > now+int64(defaultUpdateRange) {
+		return
+	}
+	rec := newRecord(datfile, stamp+"_"+id)
+	if !updateList.hasRecord(rec) {
+		queue.append(rec, n)
+		go queue.run()
+	}
+
+}
+
+func doRecent(w http.ResponseWriter, r *http.Request) {
+	s := newServerCGI(w, r)
+	if s == nil {
+		return
+	}
+	reg := regexp.MustCompile("^/recent/?([-0-9A-Za-z/]*)$")
+	m := reg.FindStringSubmatch(s.path)
+	if m == nil {
+		log.Println("illegal url")
+		return
+	}
+	stamp := m[1]
+	last := time.Now().Unix() + int64(recentRange)
+	begin, end, _ := s.parseStamp(stamp, last)
+	for _, i := range recentList.records {
+		if begin <= i.stamp && i.stamp <= end {
+			ca := newCache(i.datfile)
+			var tagstr string
+			if ca.tags != nil {
+				tagstr = "tag:" + ca.tags.string()
+			}
+			line := fmt.Sprintf("%d<>%s<>%s%s\n", i.stamp, i.id, i.datfile, tagstr)
+			fmt.Fprintf(w, line)
 		}
-	})))
-	s.Handle("/server.cgi/node", handlers.CompressHandler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if a := newServerCGI(w, r); a != nil {
-			a.doNode()
+	}
+}
+
+func doMotd(w http.ResponseWriter, r *http.Request) {
+	f, err := ioutil.ReadFile(motd)
+	if err != nil {
+		log.Println(err)
+		return
+	}
+	fmt.Fprintf(w, string(f))
+}
+
+func doGetHead(w http.ResponseWriter, r *http.Request) {
+	s := newServerCGI(w, r)
+	if s == nil {
+		return
+	}
+	reg := regexp.MustCompile("/(get|head)/([0-9A-Za-z_]+)/([-0-9A-Za-z/]*)$")
+	m := reg.FindStringSubmatch(s.path)
+	if m == nil {
+		log.Println("illegal url")
+		return
+	}
+	method, datfile, stamp := m[1], m[2], m[3]
+	ca := newCache(datfile)
+	begin, end, id := s.parseStamp(stamp, ca.stamp)
+	for _, r := range ca.recs {
+		if begin <= r.stamp && r.stamp <= end && (id == "" || strings.HasSuffix(r.idstr, id)) {
+			if method == "get" {
+				err := r.load()
+				if err != nil {
+					log.Println(err)
+				}
+				fmt.Fprintf(s.wr, r.recstr)
+			} else {
+				fmt.Fprintln(s.wr, strings.Replace(r.idstr, "_", "<>", -1))
+			}
 		}
-	})))
-	s.Handle("/server.cgi/join", handlers.CompressHandler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if a := newServerCGI(w, r); a != nil {
-			a.doJoin()
-		}
-	})))
-	s.Handle("/server.cgi/bye", handlers.CompressHandler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if a := newServerCGI(w, r); a != nil {
-			a.doBye()
-		}
-	})))
-	s.Handle("/server.cgi/have", handlers.CompressHandler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if a := newServerCGI(w, r); a != nil {
-			a.doHave()
-		}
-	})))
-	s.Handle("/server.cgi/get", handlers.CompressHandler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if a := newServerCGI(w, r); a != nil {
-			a.doGetHead()
-		}
-	})))
-	s.Handle("/server.cgi/head", handlers.CompressHandler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if a := newServerCGI(w, r); a != nil {
-			a.doGetHead()
-		}
-	})))
-	s.Handle("/server.cgi/update", handlers.CompressHandler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if a := newServerCGI(w, r); a != nil {
-			a.doUpdate()
-		}
-	})))
-	s.Handle("/server.cgi/recent", handlers.CompressHandler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if a := newServerCGI(w, r); a != nil {
-			a.doRecent()
-		}
-	})))
-	s.Handle("/server.cgi/", handlers.CompressHandler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if a := newServerCGI(w, r); a != nil {
-			a.doMotd()
-		}
-	})))
+	}
 }
 
 type serverCGI struct {
@@ -112,18 +264,6 @@ func newServerCGI(w http.ResponseWriter, r *http.Request) *serverCGI {
 
 	return &serverCGI{
 		c,
-	}
-}
-
-func (s *serverCGI) doPing() {
-	fmt.Fprint(s.wr, "PONG\n"+s.req.RemoteAddr+"\n")
-}
-
-func (s *serverCGI) doNode() {
-	if nodeList.Len() > 0 {
-		fmt.Fprintln(s.wr, nodeList.nodes[0].nodestr)
-	} else {
-		fmt.Fprintln(s.wr, nodeList.random().nodestr)
 	}
 }
 
@@ -164,138 +304,6 @@ func (s *serverCGI) makeNode(method string) *node {
 	return makeNode(host, path, port)
 }
 
-func (s *serverCGI) doJoin() {
-	n := s.makeNode("join")
-	if n == nil {
-		return
-	}
-	if !nodeAllow.check(n.nodestr) && nodeDeny.check(n.nodestr) {
-		return
-	}
-	if _, ok := n.ping(); !ok {
-		return
-	}
-	if nodeList.Len() < defaultNodes {
-		nodeList.append(n)
-		nodeList.sync()
-		searchList.append(n)
-		searchList.sync()
-		fmt.Fprintln(s.wr, "WELCOME")
-		return
-	}
-	searchList.append(n)
-	searchList.sync()
-	suggest := nodeList.nodes[0]
-	nodeList.removeNode(suggest)
-	nodeList.sync()
-	suggest.bye()
-	fmt.Fprintf(s.wr, "WELCOME\n%s\n", suggest)
-
-}
-
-func (s *serverCGI) doBye() {
-	n := s.makeNode("bye")
-	if n == nil {
-		return
-	}
-
-	if nodeList.removeNode(n) {
-		nodeList.sync()
-	}
-	fmt.Fprintln(s.wr, "BYEBYE")
-}
-
-func (s *serverCGI) doHave() {
-	reg := regexp.MustCompile("^/have/([0-9A-Za-z_]+)$")
-	m := reg.FindStringSubmatch(s.path)
-	if m == nil {
-		log.Println("illegal url")
-		return
-	}
-	ca := newCache(m[1])
-	if ca.Len() > 0 {
-		fmt.Fprintln(s.wr, "YES")
-	} else {
-		fmt.Fprintln(s.wr, "NO")
-	}
-}
-
-func (s *serverCGI) doUpdate() {
-	reg := regexp.MustCompile("^/update/(\\w+)/(\\d+)/(\\w+)/([^:]*):(\\d+)(.*)")
-	m := reg.FindStringSubmatch(s.path)
-	if m == nil || len(m) < 6 {
-		log.Println("illegal url")
-		return
-	}
-	datfile, stamp, id, host, path := m[0], m[1], m[2], m[3], m[5]
-	port, err := strconv.Atoi(m[4])
-	if err != nil {
-		log.Println(err)
-		return
-	}
-	host = s.getRemoteHostname(host)
-	if host == "" {
-		return
-	}
-
-	n := makeNode(host, path, port)
-	if !nodeAllow.check(n.nodestr) && nodeDeny.check(n.nodestr) {
-		return
-	}
-	searchList.append(n)
-	searchList.sync()
-	lookupTable.add(datfile, n)
-	lookupTable.sync(false)
-	now := time.Now().Unix()
-	nstamp, err := strconv.ParseInt(stamp, 10, 64)
-	if err != nil {
-		log.Println(err)
-		return
-	}
-
-	if nstamp < now-int64(defaultUpdateRange) || nstamp > now+int64(defaultUpdateRange) {
-		return
-	}
-	rec := newRecord(datfile, stamp+"_"+id)
-	if !updateList.hasRecord(rec) {
-		queue.append(rec, n)
-		go queue.run()
-	}
-
-}
-
-func (s *serverCGI) doRecent() {
-	reg := regexp.MustCompile("^/recent/?([-0-9A-Za-z/]*)$")
-	m := reg.FindStringSubmatch(s.path)
-	if m == nil {
-		log.Println("illegal url")
-		return
-	}
-	stamp := m[1]
-	last := time.Now().Unix() + int64(recentRange)
-	begin, end, _ := s.parseStamp(stamp, last)
-	for _, i := range recentList.records {
-		if begin <= i.stamp && i.stamp <= end {
-			ca := newCache(i.datfile)
-			var tagstr string
-			if ca.tags != nil {
-				tagstr = "tag:" + ca.tags.string()
-			}
-			line := fmt.Sprintf("%d<>%s<>%s%s\n", i.stamp, i.id, i.datfile, tagstr)
-			fmt.Fprintf(s.wr, line)
-		}
-	}
-}
-
-func (s *serverCGI) doMotd() {
-	f, err := ioutil.ReadFile(motd)
-	if err != nil {
-		log.Println(err)
-		return
-	}
-	fmt.Fprintf(s.wr, string(f))
-}
-
 func (s *serverCGI) parseStamp(stamp string, last int64) (int64, int64, string) {
 	buf := strings.Split(stamp, "/")
 	var id string
@@ -323,31 +331,5 @@ func (s *serverCGI) parseStamp(stamp string, last int64) (int64, int64, string) 
 		return 0, nid, id
 	default:
 		return nstamp, nid, id
-	}
-}
-
-func (s *serverCGI) doGetHead() {
-	reg := regexp.MustCompile("/(get|head)/([0-9A-Za-z_]+)/([-0-9A-Za-z/]*)$")
-	m := reg.FindStringSubmatch(s.path)
-	if m == nil {
-		log.Println("illegal url")
-		return
-	}
-	method, datfile, stamp := m[1], m[2], m[3]
-	ca := newCache(datfile)
-	begin, end, id := s.parseStamp(stamp, ca.stamp)
-	for _, r := range ca.recs {
-		if begin <= r.stamp && r.stamp <= end && (id == "" || strings.HasSuffix(r.idstr, id)) {
-			if method == "get" {
-				err := r.load()
-				if err != nil {
-					log.Println(err)
-				}
-				fmt.Fprintf(s.wr, r.recstr)
-				r.free()
-			} else {
-				fmt.Fprintln(s.wr, strings.Replace(r.idstr, "_", "<>", -1))
-			}
-		}
 	}
 }

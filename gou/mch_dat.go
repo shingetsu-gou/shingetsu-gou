@@ -92,7 +92,6 @@ func makeDat(ca *cache, host string, board string) []string {
 		}
 		comment += "\n"
 		dat[i] = comment
-		rec.free()
 	}
 
 	return dat

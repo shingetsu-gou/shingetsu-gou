@@ -92,7 +92,6 @@ type regexpList struct {
 func newRegexpList(path string) *regexpList {
 	c := newConfList(path, []string{})
 	r := &regexpList{}
-	r.regs = make([]*regexp.Regexp, 0)
 	r.confList = c
 	r.update()
 	return r
@@ -121,4 +120,10 @@ func (r *regexpList) update() {
 			r.regs = append(r.regs, re)
 		}
 	}
+}
+
+//add adds regexp list.
+func (r *regexpList) add(regstr string) {
+	reg := regexp.MustCompile(regstr)
+	r.regs = append(r.regs, reg)
 }

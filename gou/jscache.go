@@ -93,14 +93,11 @@ func (j *jsCache) update() {
 			m := f.ModTime()
 			fi := finfo{mtime: &m, exist: true}
 			fi.cont, err = ioutil.ReadFile(name)
-			if err != nil {
-				log.Fatal("cannot read", name)
-			}
 			j.files[name] = &fi
 		} else {
 			oldfi.exist = true
 		}
-		return nil
+		return err
 	})
 	if err != nil {
 		log.Fatal(err)

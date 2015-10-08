@@ -40,54 +40,22 @@ import (
 	"strconv"
 	"strings"
 	"time"
-
-	"github.com/gorilla/handlers"
 )
 
 func adminSetup(s *http.ServeMux) {
-	s.Handle("/admin.cgi/status", handlers.CompressHandler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if a := newAdminCGI(w, r); a != nil {
-			a.printStatus()
-		}
-	})))
-	s.Handle("/admin.cgi/edittag", handlers.CompressHandler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if a := newAdminCGI(w, r); a != nil {
-			a.printEdittag()
-		}
-	})))
-	s.Handle("/admin.cgi/savetag", handlers.CompressHandler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if a := newAdminCGI(w, r); a != nil {
-			a.saveTag()
-		}
-	})))
-	s.Handle("/admin.cgi/search", handlers.CompressHandler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if a := newAdminCGI(w, r); a != nil {
-			a.printSearch()
-		}
-	})))
-	s.Handle("/admin.cgi", handlers.CompressHandler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if a := newAdminCGI(w, r); a != nil {
-			a.execCmd()
-		}
-	})))
+	registCompressHandler(s, "/admin.cgi/status", printStatus)
+	registCompressHandler(s, "/admin.cgi/edittag", printEdittag)
+	registCompressHandler(s, "/admin.cgi/savetag", saveTagCGI)
+	registCompressHandler(s, "/admin.cgi/search", printSearch)
+	registCompressHandler(s, "/admin.cgi", execCmd)
 }
 
-type adminCGI struct {
-	*cgi
-}
-
-func newAdminCGI(w http.ResponseWriter, r *http.Request) *adminCGI {
-	c := newCGI(w, r)
-	if c == nil || !c.isAdmin {
-		c.print403("")
-		return nil
+//toolong
+func execCmd(w http.ResponseWriter, r *http.Request) {
+	a := newAdminCGI(w, r)
+	if a == nil {
+		return
 	}
-	return &adminCGI{
-		c,
-	}
-}
-
-func (a *adminCGI) execCmd() {
 	cmd := a.req.FormValue("cmd")
 	rmFiles := a.req.Form["file"]
 	rmRecords := a.req.Form["record"]
@@ -119,6 +87,154 @@ func (a *adminCGI) execCmd() {
 			a.print404(nil, "")
 		}
 		a.doDeleteFile(rmFiles)
+	}
+}
+
+func printSearch(w http.ResponseWriter, r *http.Request) {
+	a := newAdminCGI(w, r)
+	if a == nil {
+		return
+	}
+	query := a.req.FormValue("query")
+	if query == "" {
+		query = a.path[len("search/"):]
+	}
+	if query == "" {
+		query = strDecode(a.req.URL.RawQuery)
+	}
+	if query == "" {
+		a.header(a.m["search"], "", nil, true, nil)
+		a.printParagraph(a.m["desc_search"])
+		a.printSearchForm("")
+		a.footer(nil)
+	} else {
+		a.printSearchResult(query)
+	}
+}
+
+func printStatus(w http.ResponseWriter, r *http.Request) {
+	a := newAdminCGI(w, r)
+	if a == nil {
+		return
+	}
+	cl := newCacheList()
+	records := 0
+	size := 0
+	for _, ca := range cl.caches {
+		records += ca.Len()
+		size += ca.size
+	}
+	my := nodeList.myself()
+	s := struct {
+		LinedNodes int
+		KnownNodes int
+		Files      int
+		Records    int
+		CacheSize  string
+		SelfNode   *node
+	}{
+		nodeList.Len(),
+		searchList.Len(),
+		cl.Len(),
+		records,
+		fmt.Sprintf("%.1f%s", float64(size)/1024/1024, a.m["mb"]),
+		my,
+	}
+	ns := struct {
+		LinkedNodes NodeList
+		KnownNodes  SearchList
+	}{
+		*nodeList,
+		*searchList,
+	}
+
+	d := struct {
+		*DefaultVariable
+		Status     interface{}
+		NodeStatus interface{}
+	}{
+		a.makeDefaultVariable(),
+		s,
+		ns,
+	}
+	a.header(a.m["status"], "", nil, true, nil)
+	renderTemplate("status", d, a.wr)
+	a.footer(nil)
+}
+
+func printEdittag(w http.ResponseWriter, r *http.Request) {
+	a := newAdminCGI(w, r)
+	if a == nil {
+		return
+	}
+	datfile := a.req.FormValue("file")
+	strTitle := fileEncode(datfile, "")
+	ca := newCache(datfile)
+	datfile = html.EscapeString(datfile)
+
+	if !ca.exists() {
+		a.print404(nil, "")
+		return
+	}
+	d := struct {
+		Datfile  string
+		Tags     string
+		Sugtags  suggestedTagList
+		Usertags UserTagList
+	}{
+		datfile,
+		ca.tags.string(),
+		*ca.sugtags,
+		*userTagList,
+	}
+	a.header(fmt.Sprintf("%s: %s", a.m["edit_tag"], strTitle), "", nil, true, nil)
+	renderTemplate("edit_tag", d, a.wr)
+	a.footer(nil)
+}
+
+func saveTagCGI(w http.ResponseWriter, r *http.Request) {
+	a := newAdminCGI(w, r)
+	if a == nil {
+		return
+	}
+	datfile := a.req.FormValue("file")
+	tags := a.req.FormValue("tag")
+	if datfile == "" {
+		return
+	}
+	ca := newCache(datfile)
+	if !ca.exists() {
+		a.print404(nil, "")
+	}
+	tl := strings.Fields(tags)
+	ca.tags.update(tl)
+	ca.tags.sync()
+	userTagList.addString(tl)
+	userTagList.sync()
+	var next string
+	for _, t := range types {
+		title := strEncode(fileDecode(datfile))
+		if strings.HasPrefix(datfile, t+"_") {
+			next = application[t] + querySeparator + title
+			break
+		}
+		next = rootPath
+	}
+	a.print302(next)
+}
+
+type adminCGI struct {
+	*cgi
+}
+
+func newAdminCGI(w http.ResponseWriter, r *http.Request) *adminCGI {
+	c := newCGI(w, r)
+	if c == nil || !c.isAdmin {
+		c.print403("")
+		return nil
+	}
+	return &adminCGI{
+		c,
 	}
 }
 
@@ -161,7 +277,6 @@ func (d *DeleteRecord) Getbody(rec *record) string {
 		log.Println(err)
 	}
 	recstr := html.EscapeString(rec.recstr)
-	rec.free()
 	return recstr
 }
 
@@ -234,7 +349,6 @@ func (d *DelFile) GetContents(ca *cache) []string {
 			log.Println(err)
 		}
 		contents = append(contents, escape(rec.recstr))
-		rec.free()
 		if len(contents) > 2 {
 			return contents
 		}
@@ -321,120 +435,4 @@ func (a *adminCGI) printSearchResult(query string) {
 		}
 	}
 	a.footer(nil)
-}
-func (a *adminCGI) printSearch() {
-	query := a.req.FormValue("query")
-	if query == "" {
-		query = a.path[len("search/"):]
-	}
-	if query == "" {
-		query = strDecode(a.req.URL.RawQuery)
-	}
-	if query == "" {
-		a.header(a.m["search"], "", nil, true, nil)
-		a.printParagraph(a.m["desc_search"])
-		a.printSearchForm("")
-		a.footer(nil)
-	} else {
-		a.printSearchResult(query)
-	}
-}
-
-func (a *adminCGI) printStatus() {
-	cl := newCacheList()
-	records := 0
-	size := 0
-	for _, ca := range cl.caches {
-		records += ca.Len()
-		size += ca.size
-	}
-	my := nodeList.myself()
-	s := struct {
-		LinedNodes int
-		KnownNodes int
-		Files      int
-		Records    int
-		CacheSize  string
-		SelfNode   *node
-	}{
-		nodeList.Len(),
-		searchList.Len(),
-		cl.Len(),
-		records,
-		fmt.Sprintf("%.1f%s", float64(size)/1024/1024, a.m["mb"]),
-		my,
-	}
-	ns := struct {
-		LinkedNodes NodeList
-		KnownNodes  SearchList
-	}{
-		*nodeList,
-		*searchList,
-	}
-
-	d := struct {
-		*DefaultVariable
-		Status     interface{}
-		NodeStatus interface{}
-	}{
-		a.makeDefaultVariable(),
-		s,
-		ns,
-	}
-	a.header(a.m["status"], "", nil, true, nil)
-	renderTemplate("status", d, a.wr)
-	a.footer(nil)
-}
-
-func (a *adminCGI) printEdittag() {
-	datfile := a.req.FormValue("file")
-	strTitle := fileEncode(datfile, "")
-	ca := newCache(datfile)
-	datfile = html.EscapeString(datfile)
-
-	if !ca.exists() {
-		a.print404(nil, "")
-		return
-	}
-	d := struct {
-		Datfile  string
-		Tags     string
-		Sugtags  suggestedTagList
-		Usertags UserTagList
-	}{
-		datfile,
-		ca.tags.string(),
-		*ca.sugtags,
-		*userTagList,
-	}
-	a.header(fmt.Sprintf("%s: %s", a.m["edit_tag"], strTitle), "", nil, true, nil)
-	renderTemplate("edit_tag", d, a.wr)
-	a.footer(nil)
-}
-
-func (a *adminCGI) saveTag() {
-	datfile := a.req.FormValue("file")
-	tags := a.req.FormValue("tag")
-	if datfile == "" {
-		return
-	}
-	ca := newCache(datfile)
-	if !ca.exists() {
-		a.print404(nil, "")
-	}
-	tl := strings.Fields(tags)
-	ca.tags.update(tl)
-	ca.tags.sync()
-	userTagList.addString(tl)
-	userTagList.sync()
-	var next string
-	for _, t := range types {
-		title := strEncode(fileDecode(datfile))
-		if strings.HasPrefix(datfile, t+"_") {
-			next = application[t] + querySeparator + title
-			break
-		}
-		next = rootPath
-	}
-	a.print302(next)
 }

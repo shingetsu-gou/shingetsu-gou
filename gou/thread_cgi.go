@@ -48,41 +48,44 @@ import (
 func threadSetup(s *http.ServeMux) {
 	rtr := mux.NewRouter()
 
-	rtr.Handle("/thread.cgi/", handlers.CompressHandler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	registToRouter(rtr, "/thread.cgi/", printIndex)
+
+	reg := "/thread.cgi/thread_{datfile:[0-9A-F]+)/{stamp:[0-9a-f]{32}}/s{id:\\d+}\\.{thumbnailSize:\\d+x\\d+}\\.{suffix:.*}"
+	registToRouter(rtr, reg, printAttach)
+
+	reg = "/thread.cgi/thread_{datfile:[0-9A-F]+)/{stamp:[0-9a-f]{32}}/{id:\\d+}\\.{suffix:.*}"
+	registToRouter(rtr, reg, printAttach)
+
+	reg = "/thread.cgi/{path:[^/]+}/?$"
+	registToRouter(rtr, reg, printThread)
+
+	reg = "/thread.cgi/{path:([^/]+}/{id:[0-9a-f]{8}}$"
+	registToRouter(rtr, reg, printThread)
+
+	reg = "/thread.cgi/{path:[^/]+}/p{page:[0-9]+}$"
+	registToRouter(rtr, reg, printThread)
+
+	s.Handle("/", handlers.CompressHandler(rtr))
+}
+
+func printIndex(w http.ResponseWriter, r *http.Request) {
+	if a := newThreadCGI(w, r); a != nil {
 		a := newThreadCGI(w, r)
 		a.printIndex()
-	})))
-	rtr.Handle("/thread.cgi/thread_{datfile:[0-9A-F]+)/{stamp:[0-9a-f]{32}}/s{id:\\d+}\\.{thumbnailSize:\\d+x\\d+}\\.{suffix:.*}", handlers.CompressHandler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if a := newThreadCGI(w, r); a != nil {
-			m := mux.Vars(r)
-			a.printAttach(m["datfile"], m["stamp"], m["id"], m["thumbnailSize"], m["suffix"])
-		}
-	})))
-	rtr.Handle("/thread.cgi/thread_{datfile:[0-9A-F]+)/{stamp:[0-9a-f]{32}}/{id:\\d+}\\.{suffix:.*}", handlers.CompressHandler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if a := newThreadCGI(w, r); a != nil {
-			m := mux.Vars(r)
-			a.printAttach(m["datfile"], m["stamp"], m["id"], "", m["suffix"])
-		}
-	})))
-	rtr.Handle("/thread.cgi/{path:[^/]+}/?$", handlers.CompressHandler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if a := newThreadCGI(w, r); a != nil {
-			m := mux.Vars(r)
-			a.printThread(m["path"], "", "")
-		}
-	})))
-	rtr.Handle("/thread.cgi/{path:([^/]+}/{id:[0-9a-f]{8}}$", handlers.CompressHandler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if a := newThreadCGI(w, r); a != nil {
-			m := mux.Vars(r)
-			a.printThread(m["path"], m["id"], "")
-		}
-	})))
-	rtr.Handle("/thread.cgi/{path:[^/]+}/p{page:[0-9]+}$", handlers.CompressHandler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if a := newThreadCGI(w, r); a != nil {
-			m := mux.Vars(r)
-			a.printThread(m["path"], "", m["page"])
-		}
-	})))
-	s.Handle("/", handlers.CompressHandler(rtr))
+	}
+}
+
+func printAttach(w http.ResponseWriter, r *http.Request) {
+	if a := newThreadCGI(w, r); a != nil {
+		m := mux.Vars(r)
+		a.printAttach(m["datfile"], m["stamp"], m["id"], m["thumbnailSize"], m["suffix"])
+	}
+}
+func printThread(w http.ResponseWriter, r *http.Request) {
+	if a := newThreadCGI(w, r); a != nil {
+		m := mux.Vars(r)
+		a.printThread(m["path"], m["id"], m["page"])
+	}
 }
 
 type threadCGI struct {
@@ -173,6 +176,7 @@ func (t *threadCGI) printTag(ca *cache) {
 	renderTemplate("thread_tags", s, t.wr)
 }
 
+//toolong
 func (t *threadCGI) printThread(path, id, page string) {
 	strPath := strEncode(t.path)
 	filePath := fileEncode("thread", t.path)
@@ -257,7 +261,6 @@ func (t *threadCGI) printThread(path, id, page string) {
 		if (id == "" || rec.id[:8] == id) && rec.loadBody() == nil {
 			t.printRecord(ca, rec)
 		}
-		rec.free()
 	}
 	fmt.Fprintln(t.wr, "</dl>")
 	escapedPath := html.EscapeString(t.path)
@@ -291,7 +294,6 @@ func (t *threadCGI) printThreadAjax(id string) {
 		if id == "" || rec.id[:8] == id && rec.loadBody() == nil {
 			t.printRecord(ca, rec)
 		}
-		rec.free()
 	}
 	fmt.Fprintln(t.wr, "<dl>")
 }
@@ -367,6 +369,7 @@ func (t *threadCGI) printPostForm(ca *cache) {
 	renderTemplate("post_form", s, t.wr)
 }
 
+//toolong
 func (t *threadCGI) printAttach(datfile, stampStr, id, thumbnailSize, suffix string) {
 	ca := newCache(datfile)
 	typ := mime.TypeByExtension("suffix")

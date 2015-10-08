@@ -37,9 +37,13 @@ import (
 	"io/ioutil"
 	"log"
 	"math/rand"
+	"net/http"
 	"os"
 	"sort"
 	"strings"
+
+	"github.com/gorilla/handlers"
+	"github.com/gorilla/mux"
 )
 
 //eachIOLine iterates each line to  a ReadCloser and calls func.
@@ -236,4 +240,14 @@ func close(f io.Closer) {
 	if err := f.Close(); err != nil {
 		log.Println(err)
 	}
+}
+
+//compressHandler returns handlers.CompressHandler to simplfy.
+func registCompressHandler(s *http.ServeMux, path string, fn func(w http.ResponseWriter, r *http.Request)) {
+	s.Handle(path, handlers.CompressHandler(http.HandlerFunc(fn)))
+}
+
+//compressHandler returns handlers.CompressHandler to simplfy.
+func registToRouter(s *mux.Router, path string, fn func(w http.ResponseWriter, r *http.Request)) {
+	s.Handle(path, handlers.CompressHandler(http.HandlerFunc(fn)))
 }

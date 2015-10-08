@@ -34,32 +34,38 @@ import (
 	"strings"
 )
 
-
+//tag represents one tag.
 type tag struct {
 	tagstr string
 	weight int
 }
 
+//tagList represents list of tags and base of other tag list.
 type tagList struct {
 	datfile string
 	path    string
 	tags    []*tag
 }
 
+//Len returns size of tags.
 func (t tagList) Len() int {
 	return len(t.tags)
 }
+
+//Swap swaps tag order.
 func (t tagList) Swap(i, j int) {
 	t.tags[i], t.tags[j] = t.tags[j], t.tags[i]
 }
+
+//Less is true if weight[i]< weigt[j]
 func (t tagList) Less(i, j int) bool {
 	return t.tags[i].weight < t.tags[j].weight
 }
 
+//newTagList read the tag info from datfile and return a tagList instance.
 func newTagList(datfile, path string) *tagList {
 	t := &tagList{datfile: datfile,
 		path: path,
-		tags: make([]*tag, 0),
 	}
 	err := eachLine(path, func(line string, i int) error {
 		t.tags = append(t.tags, &tag{line, 0})
@@ -71,6 +77,7 @@ func newTagList(datfile, path string) *tagList {
 	return t
 }
 
+//getTagstrSlice returns tagstr slice of tags.
 func (t *tagList) getTagstrSlice() []string {
 	result := make([]string, len(t.tags))
 	for i, v := range t.tags {
@@ -79,15 +86,12 @@ func (t *tagList) getTagstrSlice() []string {
 	return result
 }
 
+//string concatenates and returns tagstr of tags.
 func (t *tagList) string() string {
-	var result string
-	for _, v := range t.tags {
-		result += v.tagstr
-	}
-	return result
-
+	return strings.Join(t.getTagstrSlice(), "")
 }
 
+//checkAppend append tagstr=val tag if tagList doesn't have its tag.
 func (t *tagList) checkAppend(val string) {
 	if strings.ContainsAny(val, "<>&") || hasString(t.getTagstrSlice(), val) {
 		return
@@ -95,6 +99,7 @@ func (t *tagList) checkAppend(val string) {
 	t.tags = append(t.tags, &tag{val, 1})
 }
 
+//update removes tags and add tagstr=val tags.
 func (t *tagList) update(val []string) {
 	t.tags = t.tags[:0]
 	for _, v := range val {
@@ -105,12 +110,14 @@ func (t *tagList) update(val []string) {
 	}
 }
 
+//addString add tagstr=vals tag
 func (t *tagList) addString(vals []string) {
 	for _, val := range vals {
 		t.checkAppend(val)
 	}
 }
 
+//add adds vals tags.
 func (t *tagList) add(vals []*tag) {
 	for _, val := range vals {
 		if i := findString(t.getTagstrSlice(), val.tagstr); i >= 0 {
@@ -121,6 +128,7 @@ func (t *tagList) add(vals []*tag) {
 	}
 }
 
+//sync saves tagstr of tags.
 func (t *tagList) sync() {
 	err := writeSlice(t.path, t.getTagstrSlice())
 	if err != nil {
@@ -128,20 +136,22 @@ func (t *tagList) sync() {
 	}
 }
 
+//SuggestedTagTable represents tags associated with datfile retrieved from network.
 type SuggestedTagTable struct {
-	datfile  string
-	tieddict map[string]*suggestedTagList
+	path       string
+	sugtaglist map[string]*suggestedTagList
 }
 
+//newSuggestedTagTable make SuggestedTagTable obj and read info from the file.
 func newSuggestedTagTable() *SuggestedTagTable {
 	s := &SuggestedTagTable{
-		datfile:  sugtag,
-		tieddict: make(map[string]*suggestedTagList),
+		path:       sugtag,
+		sugtaglist: make(map[string]*suggestedTagList),
 	}
 	err := eachKeyValueLine(sugtag, func(k string, vs []string, i int) error {
-		s.tieddict[k] = newSuggestedTagList("", nil)
+		s.sugtaglist[k] = newSuggestedTagList("", nil)
 		for _, v := range vs {
-			s.tieddict[k].tags = append(s.tieddict[k].tags, &tag{v, 0})
+			s.sugtaglist[k].tags = append(s.sugtaglist[k].tags, &tag{v, 0})
 		}
 		return nil
 	})
@@ -151,55 +161,62 @@ func newSuggestedTagTable() *SuggestedTagTable {
 	return s
 }
 
-func (s *SuggestedTagTable) get(i string, def *suggestedTagList) *suggestedTagList {
-	if v, exist := s.tieddict[i]; exist {
+//get returns suggestedTagList associated with datfile or returns def if not exists.
+func (s *SuggestedTagTable) get(datfile string, def *suggestedTagList) *suggestedTagList {
+	if v, exist := s.sugtaglist[datfile]; exist {
 		return v
 	}
 	return def
 }
 
+//keys return datfile names of sugtaglist.
 func (s *SuggestedTagTable) keys() []string {
-	ary := make([]string, len(s.tieddict))
+	ary := make([]string, len(s.sugtaglist))
 	i := 0
-	for k := range s.tieddict {
+	for k := range s.sugtaglist {
 		ary[i] = k
 		i++
 	}
 	return ary
 }
 
+//sync saves sugtaglists.
 func (s *SuggestedTagTable) sync() {
 	m := make(map[string][]string)
-	for k, v := range s.tieddict {
+	for k, v := range s.sugtaglist {
 		s := v.getTagstrSlice()
 		m[k] = s
 	}
-	err := writeMap(s.datfile, m)
+	err := writeMap(s.path, m)
 	if err != nil {
 		log.Println(err)
 	}
 }
 
+//prune removes sugtaglists which are not listed in recentlist,
+//or truncates its size to tagsize if listed.
 func (s *SuggestedTagTable) prune(recentlist *RecentList) {
 	tmp := s.keys()
 	for _, r := range recentlist.records {
 		if l := findString(tmp, r.datfile); l != -1 {
 			tmp = append(tmp[:l], tmp[l:]...)
 		}
-		if v, exist := s.tieddict[r.datfile]; exist {
+		if v, exist := s.sugtaglist[r.datfile]; exist {
 			v.prune(tagSize)
 		}
 	}
 	for _, datfile := range tmp {
-		delete(s.tieddict, datfile)
+		delete(s.sugtaglist, datfile)
 	}
 }
 
+//suggestedTabList represents tags retrieved from network.
 type suggestedTagList struct {
 	tagList
 	datfile string
 }
 
+//newSuggestedTagList create suggestedTagList obj and adds tags tagstr=value.
 func newSuggestedTagList(datfile string, values []string) *suggestedTagList {
 	s := &suggestedTagList{
 		datfile: datfile,
@@ -210,27 +227,35 @@ func newSuggestedTagList(datfile string, values []string) *suggestedTagList {
 	return s
 }
 
+//prune truncates non-weighted tagList to size=size.
 func (s *suggestedTagList) prune(size int) {
 	sort.Sort(sort.Reverse(s.tagList))
 	s.tagList.tags = s.tagList.tags[:size]
 }
 
+//UserTagList represents tags saved by the user.
 type UserTagList struct {
 	*tagList
 }
 
+//newUserTagList return userTagList obj.
 func newUserTagList() *UserTagList {
 	t := newTagList("", taglist)
 	return &UserTagList{t}
 }
 
+//sync saves taglist.
 func (u *UserTagList) sync() {
 	sort.Sort(u.tagList)
 	u.tagList.sync()
 }
+
+//updateall removes all tags and reload from cachlist.
 func (u *UserTagList) updateAll() {
 	cachelist := newCacheList()
-	u.update([]string{})
+	if u.tags != nil {
+		u.tags = u.tags[:0]
+	}
 	for _, c := range cachelist.caches {
 		u.add(c.tags.tags)
 	}

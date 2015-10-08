@@ -86,7 +86,7 @@ func newCache(datfile string) *cache {
 	}
 	c.node = newRawNodeList(path.Join(c.datpath, "node.txt"))
 	c.tags = newTagList(c.datfile, path.Join(c.datfile, "tag.txt"))
-	if v, exist := suggestedTagTable.tieddict[c.datfile]; exist {
+	if v, exist := suggestedTagTable.sugtaglist[c.datfile]; exist {
 		c.sugtags = v
 	} else {
 		c.sugtags = newSuggestedTagList(c.datfile, nil)
@@ -215,6 +215,7 @@ func (c *cache) setupDirectories() {
 
 var errGet = errors.New("cannot get data")
 
+//toolong
 func (c *cache) checkData(res []string, stamp int64, id string, begin, end int64) (int, error) {
 	var err error
 	count := 0
@@ -230,9 +231,9 @@ func (c *cache) checkData(res []string, stamp int64, id string, begin, end int64
 			if len(i) > recordLimit*1024 || spamCheck(i) {
 				log.Println("warning:", c.datfile, "/", r.idstr, ": too larg or spamn record")
 				c.addData(r, false)
-				err := r.remove()
-				if err != nil {
-					log.Println(err)
+				errr := r.remove()
+				if errr != nil {
+					log.Println(errr)
 				}
 				err = errSpam
 			} else {
@@ -249,7 +250,6 @@ func (c *cache) checkData(res []string, stamp int64, id string, begin, end int64
 			}
 			log.Println("warning:", c.datfile, strStamp, ":broken record")
 		}
-		r.free()
 	}
 	if err == nil && !flagGot {
 		err = errGet
@@ -287,6 +287,8 @@ func (c *cache) addData(rec *record, really bool) {
 		c.stamp = rec.stamp
 	}
 }
+
+//toolong
 func (c *cache) getWithRange(n *node) bool {
 	var err error
 	oldcount := len(c.recs)
@@ -424,7 +426,7 @@ func (c *cache) search(myself *node) bool {
 	if myself != nil {
 		myself = nodeList.myself()
 	}
-	n := searchList.search(nil, myself, lookupTable.Get(c.datfile, nil))
+	n := searchList.search(nil, myself, lookupTable.get(c.datfile, nil))
 	if n != nil {
 		if !nodeList.hasNode(n) {
 			nodeList.append(n)
@@ -450,9 +452,7 @@ type cacheList struct {
 }
 
 func newCacheList() *cacheList {
-	c := &cacheList{
-		caches: make([]*cache, 0),
-	}
+	c := &cacheList{}
 	c.load()
 	return c
 }
@@ -470,7 +470,9 @@ func (c *cacheList) Swap(i, j int) {
 }
 
 func (c *cacheList) load() {
-	c.caches = c.caches[:0]
+	if c.caches != nil {
+		c.caches = c.caches[:0]
+	}
 	err := eachFiles(cacheDir, func(f os.FileInfo) error {
 		cc := newCache(f.Name())
 		c.caches = append(c.caches, cc)
@@ -557,7 +559,6 @@ func (c *cacheList) getall(timelimit time.Time) {
 					ca.velocity++
 				}
 				rec.sync(false)
-				rec.free()
 			}
 		}
 		ca.checkBody()
@@ -621,10 +622,8 @@ func (c *cacheList) search(query *regexp.Regexp) caches {
 			}
 			if query.MatchString(rec.recstr) {
 				result = append(result, ca)
-				rec.free()
 				break
 			}
-			rec.free()
 		}
 	}
 	return result

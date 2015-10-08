@@ -90,6 +90,7 @@ func (m *mchCGI) getCommentData() map[string]string {
 	}
 }
 
+//toolong
 func (m *mchCGI) postCommentApp() string {
 	if m.req.Method != "POST" {
 		m.wr.Header().Set("Content-Type", "text/plain")
