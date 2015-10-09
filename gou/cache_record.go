@@ -31,115 +31,136 @@ package gou
 import (
 	"encoding/base64"
 	"errors"
-	"image"
-	"image/gif"
-	"image/jpeg"
-	"image/png"
+	"fmt"
 	"io/ioutil"
 	"log"
 	"os"
 	"path/filepath"
+	"regexp"
 	"strconv"
 	"strings"
-
-	"github.com/nfnt/resize"
 )
 
+//record represents one record.
 type record struct {
-	recstr       string //whole one line of record.
-	datfile      string //cache file name
-	stamp        int64  //unixtime
-	id           string //md5(bodystr)
-	idstr        string //unixtime_md5(bodystr) = stamp_id
-	path         string //path for real file
-	bodyPath     string //path for body (record without attach field)
-	rmPath       string //path for removed marker
-	flagLoad     bool
-	flagLoadBody bool
-	dathash      string //same as datfile if encoding=asis
-	content      map[string]string
+	datfile              string //cache file name
+	stamp                int64  //unixtime
+	id                   string //md5(bodystr)
+	contents             map[string]string
+	keyOrder             []string
+	noNeedToLoadAttached bool
 }
 
+//len returns size of contents
+func (r *record) len() int {
+	return len(r.contents)
+}
+
+//newRecord parse idstr unixtime+"_"+md5(bodystr)), set stamp and id, and return record obj.
+//if parse failes returns nil.
 func newRecord(datfile, idstr string) *record {
 	var err error
-	r := &record{
-		datfile: datfile,
-		idstr:   idstr,
-		content: make(map[string]string),
-	}
+	r := &record{datfile: datfile}
 	if idstr != "" {
 		buf := strings.Split(idstr, "_")
 		if len(buf) != 2 {
 			log.Println(idstr, ":bad format")
-			return r
+			return nil
 		}
 		if r.stamp, err = strconv.ParseInt(buf[0], 10, 64); err != nil {
 			log.Println(idstr, ":bad format")
-			return r
+			return nil
 		}
 		r.id = buf[1]
 	}
-	r.setpath()
 	return r
 }
 
-func (r *record) exists() bool {
-	return isFile(r.path)
+//idstr returns real file name of the record file.
+func (r *record) idstr() string {
+	return fmt.Sprintf("%d_%s", r.stamp, r.id)
 }
 
-func (r *record) Len() int {
-	return len(r.content)
+//recstr returns one line in the record file.
+func (r *record) recstr() string {
+	return fmt.Sprintf("%d<>%s<>%s", r.stamp, r.id, r.bodystr())
 }
 
-func (r *record) Get(k string, def string) string {
-	if v, exist := r.content[k]; exist {
+//bodystr returns body part of one line in the record file.
+func (r *record) bodystr() string {
+	rs := make([]string, len(r.contents))
+	for i, k := range r.keyOrder {
+		rs[i] = k + ":" + r.contents[k]
+	}
+	return strings.Join(rs, "<>")
+}
+
+//getBodyValue returns value of key k
+//return def if not exists.
+func (r *record) getBodyValue(k string, def string) string {
+	if v, exist := r.contents[k]; exist {
 		return v
 	}
 	return def
 }
 
-func (r *record) add(k, v string) {
-	r.content[k] = v
-}
-
-func (r *record) virtualRecordString() string {
-	return strings.Join([]string{strconv.FormatInt(r.stamp, 10), r.id, r.datfile}, "<>")
-}
-func (r *record) virtualRecordEqual(rr *record) bool {
-	return r.stamp == rr.stamp && r.id == rr.id && r.datfile == rr.datfile
-}
-
-func (r *record) setpath() {
-	if r.idstr == "" || r.datfile == "" {
-		return
+//path returns path for real file
+func (r *record) path() string {
+	if r.idstr() == "" || r.datfile == "" {
+		return ""
 	}
-	r.dathash = fileHash(r.datfile)
-	r.path = filepath.Join(cacheDir, r.dathash, "record", r.idstr)
-	r.bodyPath = filepath.Join(cacheDir, r.dathash, "body", r.idstr)
-	r.rmPath = filepath.Join(cacheDir, r.dathash, "removed", r.idstr)
+	return filepath.Join(cacheDir, r.dathash(), "record", r.idstr())
 }
 
+//bodyPath returns path for body (record without attach field)
+func (r *record) bodyPath() string {
+	if r.idstr() == "" || r.datfile == "" {
+		return ""
+	}
+	return filepath.Join(cacheDir, r.dathash(), "body", r.idstr())
+}
+
+//rmPath returns path for removed marker
+func (r *record) rmPath() string {
+	if r.idstr() == "" || r.datfile == "" {
+		return ""
+	}
+	return filepath.Join(cacheDir, r.dathash(), "removed", r.idstr())
+}
+
+//dathash returns the same string as datfile if encoding=asis
+func (r *record) dathash() string {
+	if r.datfile == "" {
+		return ""
+	}
+	return fileHash(r.datfile)
+}
+
+//exists return true if record file exists.
+func (r *record) exists() bool {
+	return isFile(r.path())
+}
+
+//parse parses one line in record file and set params to record r.
 func (r *record) parse(recstr string) error {
 	var err error
-	repl := strings.NewReplacer("\r", "", "\n", "")
-	r.recstr = repl.Replace(r.recstr)
-	tmp := strings.Split(r.recstr, "<>")
+	recstr = strings.TrimSpace(recstr)
+	tmp := strings.Split(recstr, "<>")
 	if len(tmp) < 2 {
-		err := errors.New(r.recstr + ":bad format")
+		err := errors.New(recstr + ":bad format")
 		log.Println(err)
 		return err
 	}
-	r.content["stamp"] = tmp[0]
-	r.content["id"] = tmp[1]
-	r.idstr = r.content["stamp"] + "_" + r.content["id"]
-	r.stamp, err = strconv.ParseInt(r.content["stamp"], 10, 64)
+	r.stamp, err = strconv.ParseInt(tmp[0], 10, 64)
 	if err != nil {
 		log.Println(tmp[0], "bad format")
 		return err
 	}
-	r.id = r.content["id"]
-	for _, i := range tmp {
-		buf := strings.Split(i, ":")
+	r.id = tmp[1]
+	r.contents = make(map[string]string)
+	r.keyOrder = make([]string, len(tmp))
+	for i, kv := range tmp {
+		buf := strings.Split(kv, ":")
 		if len(buf) < 2 {
 			continue
 		}
@@ -147,18 +168,18 @@ func (r *record) parse(recstr string) error {
 		buf[1] = strings.Replace(buf[1], "<", "&lt;", -1)
 		buf[1] = strings.Replace(buf[1], ">", "&gt;", -1)
 		buf[1] = strings.Replace(buf[1], "\n", "<br>", -1)
-		r.content[buf[0]] = buf[1]
+		r.keyOrder[i] = buf[0]
+		r.contents[buf[0]] = buf[1]
 	}
-	if s, ok := r.content["attach"]; !ok || s != "1" {
-		r.flagLoad = true
+	if r.contents["attach"] != "-1" {
+		r.noNeedToLoadAttached = true
 	}
-	r.flagLoadBody = true
-	r.setpath()
 	return nil
 }
 
+//size returns real file size of record.
 func (r *record) size() int64 {
-	s, err := os.Stat(r.path)
+	s, err := os.Stat(r.path())
 	if err != nil {
 		log.Println(err)
 		return 0
@@ -166,8 +187,10 @@ func (r *record) size() int64 {
 	return s.Size()
 }
 
+//remove moves the record file  to remove path
+//and removes all thumbnails ,attached files and body files.
 func (r *record) remove() error {
-	err := moveFile(r.path, r.rmPath)
+	err := moveFile(r.path(), r.rmPath())
 	if err != nil {
 		log.Println(err)
 		return err
@@ -182,13 +205,14 @@ func (r *record) remove() error {
 	if err != nil {
 		log.Println(err)
 	}
-	err = os.Remove(r.bodyPath)
+	err = os.Remove(r.bodyPath())
 	if err != nil {
 		log.Println(err)
 	}
 	return nil
 }
 
+//_load loads a record file and parses it.
 func (r *record) _load(filename string) error {
 	if r.size() <= 0 {
 		err := r.remove()
@@ -205,76 +229,69 @@ func (r *record) _load(filename string) error {
 	return r.parse(string(c))
 }
 
+//load loads a record file if file is attached and parses it.
 func (r *record) load() error {
-	if !r.flagLoad {
-		err := r._load(r.path)
-		if err != nil {
-			return err
-		}
-	}
-	return nil
-}
-
-func (r *record) loadBody() error {
-	if r.flagLoadBody {
+	if r.noNeedToLoadAttached {
 		return nil
 	}
-	if isFile(r.bodyPath) {
-		return r._load(r.bodyPath)
+	return r._load(r.path())
+}
+
+//loadBody loads a body file if not yet and parses it.
+func (r *record) loadBody() error {
+	if r.contents != nil {
+		return nil
+	}
+	if isFile(r.bodyPath()) {
+		return r._load(r.bodyPath())
 	}
 	return r.load()
 }
 
+//build sets params in record from args and return id.
 func (r *record) build(stamp int64, body map[string]string, passwd string) string {
-	bodyary := make([]string, len(body))
+	r.contents = make(map[string]string)
+	r.keyOrder = make([]string, len(body))
+	r.stamp = stamp
 	i := 0
 	var targets string
 	for key, value := range body {
-		bodyary[i] = key + ":" + value
-		r.content[key] = value
-		targets += key
-		if i < len(body)-1 {
-			targets += ","
-		}
+		r.contents[key] = value
+		r.keyOrder[i] = key
 		i++
 	}
-	bodystr := strings.Join(bodyary, "<>")
 	if passwd != "" {
 		k := makePrivateKey(passwd)
 		pubkey, _ := k.getKeys()
-		md := md5digest(bodystr)
+		md := md5digest(r.bodystr())
 		sign := k.sign(md)
-		r.content["pubkey"] = pubkey
-		r.content["sign"] = sign
-		r.content["target"] = targets
-		bodystr += "<>pubkey:" + pubkey + "<>sign:" + sign + "<>target:" + targets
+		r.contents["pubkey"] = pubkey
+		r.contents["sign"] = sign
+		r.contents["target"] = targets
+		r.keyOrder = append(r.keyOrder, "pubkey")
+		r.keyOrder = append(r.keyOrder, "sign")
+		r.keyOrder = append(r.keyOrder, "target")
 	}
-	id := md5digest(bodystr)
-	r.stamp = stamp
-	s := strconv.FormatInt(stamp, 10)
-	r.recstr = strings.Join([]string{s, id, bodystr}, "<>")
-	r.idstr = s + "_" + id
-	r.content["stamp"] = s
-	r.content["id"] = id
-	r.id = id
-	r.setpath()
-	return id
+	r.id = md5digest(r.bodystr())
+	return r.id
 }
 
+//md5check return true if md5 of bodystr is same as r.id.
 func (r *record) md5check() bool {
-	buf := strings.Split(r.recstr, "<>")
-	if len(buf) > 2 {
-		return md5digest(buf[2]) == r.content["id"]
-	}
-	return false
+	return md5digest(r.bodystr()) == r.id
 }
 
+//allthumnailPath finds and returns all thumbnails path in disk
 func (r *record) allthumbnailPath() []string {
-	dir := filepath.Join(cacheDir, r.dathash, "attach")
+	if r.path() == "" {
+		log.Println("null file name")
+		return nil
+	}
+	dir := filepath.Join(cacheDir, r.dathash(), "attach")
 	var thumbnail []string
 	err := eachFiles(dir, func(fi os.FileInfo) error {
 		dname := fi.Name()
-		if strings.HasPrefix(dname, "s"+r.idstr) {
+		if strings.HasPrefix(dname, "s"+r.idstr()) {
 			thumbnail = append(thumbnail, filepath.Join(dir, dname))
 		}
 		return nil
@@ -285,18 +302,31 @@ func (r *record) allthumbnailPath() []string {
 	return thumbnail
 }
 
+//attachPath returns attach path
+//if suffix !="" create path from args.
+//if suffix =="" find file starting with idstr and returns its name.
+//if thumbnailSize!="" find thumbnail.
 func (r *record) attachPath(suffix string, thumbnailSize string) string {
-	dir := filepath.Join(cacheDir, r.dathash, "attach")
+	if r.path() == "" {
+		log.Println("null file name")
+		return ""
+	}
+	dir := filepath.Join(cacheDir, r.dathash(), "attach")
 	if suffix != "" {
-		if thumbnailSize != "" {
-			return filepath.Join(dir, "/", "s"+r.idstr+"."+thumbnailSize+"."+suffix)
+		reg := regexp.MustCompile("[^-_.A-Za-z0-9]")
+		reg.ReplaceAllString(suffix, "")
+		if suffix == "" {
+			suffix = "txt"
 		}
-		return filepath.Join(dir, "/", r.idstr+"."+suffix)
+		if thumbnailSize != "" {
+			return filepath.Join(dir, "s"+r.idstr()+"."+thumbnailSize+"."+suffix)
+		}
+		return filepath.Join(dir, r.idstr()+"."+suffix)
 	}
 	var result string
 	err := eachFiles(dir, func(fi os.FileInfo) error {
 		dname := fi.Name()
-		if strings.HasPrefix(dname, r.idstr) {
+		if strings.HasPrefix(dname, r.idstr()) {
 			result = filepath.Join(dir, dname)
 		}
 		return nil
@@ -307,27 +337,7 @@ func (r *record) attachPath(suffix string, thumbnailSize string) string {
 	return result
 }
 
-func (r *record) attachSize(path, suffix, thumbnailSize string) int64 {
-	if path == "" {
-		path = r.attachPath(suffix, thumbnailSize)
-	}
-	st, err := os.Stat(path)
-	if err != nil {
-		log.Println(err)
-		return 0
-	}
-	return st.Size()
-}
-
-func (r *record) writeFile(path, data string) error {
-	err := ioutil.WriteFile(path, []byte(data), 0666)
-	if err != nil {
-		log.Println(err)
-		return err
-	}
-	return nil
-}
-
+//makeThumbnail fixes suffix,thumbnailSize and calls makeThumbnailInternal.
 func (r *record) makeThumbnail(suffix string, thumbnailSize string) {
 	if thumbnailSize == "" {
 		thumbnailSize = defaultThumbnailSize
@@ -336,7 +346,7 @@ func (r *record) makeThumbnail(suffix string, thumbnailSize string) {
 		return
 	}
 	if suffix == "" {
-		suffix = r.getDict("suffix", "jpg")
+		suffix = r.getBodyValue("suffix", "jpg")
 	}
 
 	attachPath := r.attachPath(suffix, "")
@@ -354,83 +364,50 @@ func (r *record) makeThumbnail(suffix string, thumbnailSize string) {
 		log.Println(thumbnailSize, "is illegal format")
 		return
 	}
-	file, err := os.Open(attachPath)
-	if err != nil {
-		log.Println(err)
-		return
-	}
-	defer close(file)
+	makeThumbnail(attachPath, thumbnailPath, suffix, uint(x), uint(y))
+}
 
-	img, _, err := image.Decode(file)
+//saveAttached decodes base64 v and saves to attached , make and save thumbnail
+func (r *record) saveAttached(v string,force bool) {
+	attach, err := base64.StdEncoding.DecodeString(v)
 	if err != nil {
+		log.Println("cannot decode attached file")
+		return
+	}
+	attachPath := r.attachPath(r.getBodyValue("suffix", "txt"), "")
+	thumbnailPath := r.attachPath(r.getBodyValue("suffix", "jpg"), defaultThumbnailSize)
+
+	if err = writeFile(attachPath, string(attach)); err != nil {
 		log.Println(err)
 		return
 	}
-	m := resize.Resize(uint(x), uint(y), img, resize.Lanczos3)
-	out, err := os.Create(thumbnailPath)
-	if err != nil {
-		log.Println(err)
-		return
-	}
-	defer close(out)
-	switch suffix {
-	case "jpg", "jpeg":
-		err = jpeg.Encode(out, m, nil)
-	case "png":
-		err = png.Encode(out, m)
-	case "gif":
-		err = gif.Encode(out, m, nil)
-	default:
-		log.Println("illegal format", suffix)
-	}
-	if err != nil {
-		log.Println(err)
+	if force || !isFile(thumbnailPath) {
+		r.makeThumbnail("", "")
 	}
 }
 
-func (r *record) getDict(key, def string) string {
-	if v, exist := r.content[key]; exist {
-		return v
-	}
-	return def
-}
-
+//sync saves recstr to the file. if attached file exists, saves it to attached path.
+//and save body part to body path. if signed, also saves body part.
 func (r *record) sync(force bool) {
-	if isFile(r.rmPath) {
+	if isFile(r.rmPath()) {
 		return
 	}
-	if force || !isFile(r.path) {
-		err := r.writeFile(r.path, r.recstr+"\n")
+	if force || !isFile(r.path()) {
+		err := writeFile(r.path(), r.recstr()+"\n")
 		if err != nil {
 			log.Println(err)
-			return
 		}
 	}
 	body := r.bodyString() + "\n"
-	if v, exist := r.content["attach"]; exist {
-		attach, err := base64.StdEncoding.DecodeString(v)
-		if err != nil {
-			log.Println("cannot decode attached file")
-			return
-		}
-		attachPath := r.attachPath(r.getDict("suffix", "txt"), "")
-		thumbnailPath := r.attachPath(r.getDict("suffix", "jpg"), defaultThumbnailSize)
-		err = r.writeFile(r.bodyPath, body)
-		if err != nil {
+	if v, exist := r.contents["attach"]; exist {
+		if err := writeFile(r.bodyPath(), body); err != nil {
 			log.Println(err)
 			return
 		}
-		err = r.writeFile(attachPath, string(attach))
-		if err != nil {
-			log.Println(err)
-			return
-		}
-		if force || !isFile(thumbnailPath) {
-			r.makeThumbnail("", "")
-		}
+		r.saveAttached(v,force)
 	}
-	if _, exist := r.content["sign"]; exist {
-		err := r.writeFile(r.bodyPath, body)
+	if _, exist := r.contents["sign"]; exist {
+		err := writeFile(r.bodyPath(), body)
 		if err != nil {
 			log.Println(err)
 			return
@@ -438,54 +415,57 @@ func (r *record) sync(force bool) {
 	}
 }
 
-//Remove attach field
+//bodyString retuns bodystr not including attach field, and shorten pubkey.
 func (r *record) bodyString() string {
-	buf := []string{r.content["stamp"], r.content["id"]}
-	for _, k := range sortKeys(r.content) {
+	buf := []string{
+		strconv.FormatInt(r.stamp, 10),
+		r.id,
+	}
+	for _, k := range r.keyOrder {
 		switch k {
-		case "stamp", "id":
 		case "attach":
 			buf = append(buf, "attach:1")
 		case "sign":
 		case "pubkey":
 			if r.checkSign() {
-				shortKey := cutKey(r.content["pubkey"])
+				shortKey := cutKey(r.contents["pubkey"])
 				buf = append(buf, "pubkey:"+shortKey)
 			}
 		default:
-			buf = append(buf, k+":"+r.content[k])
+			buf = append(buf, k+":"+r.contents[k])
 		}
 	}
 	return strings.Join(buf, "<>")
 }
 
+//checkSign check signature in the record is valid.
 func (r *record) checkSign() bool {
 	for _, k := range []string{"pubkey", "sign", "target"} {
-		if _, exist := r.content[k]; !exist {
+		if _, exist := r.contents[k]; !exist {
 			return false
 		}
 	}
-	target := ""
-	for _, t := range strings.Split(r.content["target"], ",") {
-		if _, exist := r.content[t]; !exist {
+	ts := strings.Split(r.contents["target"], ",")
+	targets := make([]string, len(ts))
+	for i, t := range ts {
+		if _, exist := r.contents[t]; !exist {
 			return false
 		}
-		target += "<>" + t + ":" + r.content[t]
+		targets[i] = t + ":" + r.contents[t]
 	}
-	target = target[2:] // remove ^<>
-
-	md := md5digest(target)
-	if verify(md, r.content["sign"], r.content["pubkey"]) {
+	md := md5digest(strings.Join(targets, "<>"))
+	if verify(md, r.contents["sign"], r.contents["pubkey"]) {
 		return true
 	}
 	return false
 }
 
+//getRecords gets the records which have id=head from n
 func getRecords(datfile string, n *node, head []string) []string {
 	var result []string
 	for _, h := range head {
 		rec := newRecord(datfile, strings.Replace(strings.TrimSpace(h), "<>", "_", -1))
-		if !isFile(rec.path) && !isFile(rec.rmPath) {
+		if !isFile(rec.path()) && !isFile(rec.rmPath()) {
 			res, err := n.talk("/get/" + datfile + "/" + strconv.FormatInt(rec.stamp, 10) + "/" + rec.id)
 			if err != nil {
 				log.Println("get", err)

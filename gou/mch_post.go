@@ -49,7 +49,7 @@ func (m *mchCGI) postComment(threadKey, name, mail, body, passwd, tag string) er
 	c := newCache(threadKey)
 	rec := newRecord(c.datfile, "")
 	rec.build(stamp, recbody, passwd)
-	if spamCheck(rec.recstr) {
+	if spamCheck(rec.recstr()) {
 		return errSpam
 	}
 	c.addData(rec, false)

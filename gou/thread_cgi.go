@@ -70,7 +70,6 @@ func threadSetup(s *http.ServeMux) {
 
 func printIndex(w http.ResponseWriter, r *http.Request) {
 	if a := newThreadCGI(w, r); a != nil {
-		a := newThreadCGI(w, r)
 		a.printIndex()
 	}
 }
@@ -301,10 +300,10 @@ func (t *threadCGI) printRecord(ca *cache, rec *record) {
 	thumbnailSize := ""
 	var attachFile, suffix string
 	var attachSize int64
-	if rec.getDict("attach", "") != "" {
+	if rec.getBodyValue("attach", "") != "" {
 		attachFile = rec.attachPath("", "")
-		attachSize = rec.attachSize(attachFile, "", "")
-		suffix = rec.getDict("suffix", "")
+		attachSize = fileSize(attachFile)
+		suffix = rec.getBodyValue("suffix", "")
 		reg := regexp.MustCompile("^[0-9A-Za-z]+")
 		if !reg.MatchString(suffix) {
 			suffix = "txt"
@@ -317,7 +316,7 @@ func (t *threadCGI) printRecord(ca *cache, rec *record) {
 			thumbnailSize = defaultThumbnailSize
 		}
 	}
-	body := rec.getDict("body", "")
+	body := rec.getBodyValue("body", "")
 	body = t.htmlFormat(body, threadCgi, t.path, false)
 	s := struct {
 		*DefaultVariable
@@ -336,7 +335,7 @@ func (t *threadCGI) printRecord(ca *cache, rec *record) {
 		t.makeDefaultVariable(),
 		ca,
 		rec,
-		rec.getDict("id", "")[:8],
+		rec.getBodyValue("id", "")[:8],
 		t.path,
 		strEncode(t.path),
 		attachFile,

@@ -208,7 +208,6 @@ func (c *cache) setupDirectories() {
 	}
 }
 
-
 func (c *cache) checkData(res []string, stamp int64, id string, begin, end int64) (int, error) {
 	var err error
 	count := 0
@@ -217,8 +216,8 @@ func (c *cache) checkData(res []string, stamp int64, id string, begin, end int64
 	for count, i = range res {
 		r := newRecord(c.datfile, "")
 		if r.parse(i) == nil &&
-			(stamp != 0 || r.content["stamp"] == strconv.FormatInt(stamp, 10)) &&
-			(id != "" || r.content["id"] == id) &&
+			(stamp != 0 || r.contents["stamp"] == strconv.FormatInt(stamp, 10)) &&
+			(id != "" || r.contents["id"] == id) &&
 			begin <= r.stamp && r.stamp <= end && r.md5check() {
 			flagGot = true
 			if len(i) > recordLimit*1024 || spamCheck(i) {
@@ -237,7 +236,7 @@ func (c *cache) checkData(res []string, stamp int64, id string, begin, end int64
 			if stamp >= 0 {
 				strStamp = "/" + strconv.FormatInt(stamp, 10)
 			} else {
-				if v, exist := r.content["stamp"]; exist {
+				if v, exist := r.contents["stamp"]; exist {
 					strStamp = "/" + v
 				}
 			}
@@ -268,8 +267,8 @@ func (c *cache) addData(rec *record, really bool) {
 	c.setupDirectories()
 	rec.sync(false)
 	if really {
-		c.recs[rec.idstr] = rec
-		c.size += len(rec.idstr) + 1
+		c.recs[rec.idstr()] = rec
+		c.size += len(rec.idstr()) + 1
 		c.count++
 		c.velocity++
 		if c.validStamp < rec.stamp {
@@ -330,7 +329,7 @@ func (c *cache) checkBody() {
 	dir := path.Join(cacheDir, c.dathash, "body")
 	err := eachFiles(dir, func(d os.FileInfo) error {
 		rec := newRecord(c.datfile, d.Name())
-		if !isFile(rec.path) {
+		if !isFile(rec.path()) {
 			err := os.Remove(path.Join(dir, d.Name()))
 			if err != nil {
 				log.Println(err)
@@ -354,7 +353,7 @@ func (c *cache) checkAttach() {
 			idstr = idstr[1:]
 		}
 		rec := newRecord(c.datfile, idstr)
-		if !isFile(rec.path) {
+		if !isFile(rec.path()) {
 			err := os.Remove(path.Join(dir, d.Name()))
 			if err != nil {
 				log.Println(err)
@@ -394,7 +393,7 @@ func (c *cache) removeRecords(now int64, limit int64) {
 	}
 	once := make(map[string]struct{})
 	for r, rec := range c.recs {
-		if !isFile(rec.path) {
+		if !isFile(rec.path()) {
 			if _, exist := once[rec.id]; exist {
 				err := rec.remove()
 				if err != nil {
@@ -545,7 +544,7 @@ func (c *cacheList) getall(timelimit time.Time) {
 				if ca.validStamp < rec.stamp {
 					ca.validStamp = rec.stamp
 				}
-				ca.size += rec.Len()
+				ca.size += rec.len()
 				ca.count++
 				if now.Add(-7 * 24 * time.Hour).Before(time.Unix(rec.stamp, 0)) {
 					ca.velocity++
@@ -612,7 +611,7 @@ func (c *cacheList) search(query *regexp.Regexp) caches {
 			if err != nil {
 				log.Println(err)
 			}
-			if query.MatchString(rec.recstr) {
+			if query.MatchString(rec.recstr()) {
 				result = append(result, ca)
 				break
 			}

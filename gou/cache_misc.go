@@ -29,6 +29,8 @@
 package gou
 
 import (
+	"errors"
+	"fmt"
 	"log"
 	"sort"
 	"strconv"
@@ -36,11 +38,44 @@ import (
 	"time"
 )
 
+//updateInfo represents one line in updatelist/recentlist
+type updateInfo struct {
+	stamp   int64
+	id      string
+	datfile string
+}
+
+//newUpdateInfoFromLine parse one line in udpate/recent list and returns updateInfo obj.
+func newUpdateInfoFromLine(line string) (*updateInfo, error) {
+	strs := strings.Split(strings.TrimRight(line, "\n\r"), "<>")
+	if len(strs) < 3 {
+		err := errors.New("illegal format")
+		log.Println(err)
+		return nil, err
+	}
+	u := &updateInfo{
+		id:      strs[2],
+		datfile: strs[3],
+	}
+	var err error
+	u.stamp, err = strconv.ParseInt(strs[0], 10, 64)
+	if err != nil {
+		log.Println(err)
+		return nil, err
+	}
+	return u, nil
+}
+
+//recstr returns one line of update/recentlist file.
+func (u *updateInfo) recstr() string {
+	return fmt.Sprintf("%d<>%s<>%s", u.stamp, u.id, u.datfile)
+}
+
 //UpdateList represents records list updated by remote nodes.
 type UpdateList struct {
 	updateFile  string
 	updateRange int64
-	records     []*record
+	infos       []*updateInfo
 }
 
 //newUpdateList makes UpdateList obj.
@@ -56,8 +91,10 @@ func newUpdateList() *UpdateList {
 //loadFile reads from file and add records.
 func (u *UpdateList) loadFile() {
 	err := eachLine(u.updateFile, func(line string, i int) error {
-		vr := u.makeRecord(line)
-		u.append(vr)
+		vr, err := newUpdateInfoFromLine(line)
+		if err == nil {
+			u.infos = append(u.infos, vr)
+		}
 		return nil
 	})
 	if err != nil {
@@ -65,30 +102,35 @@ func (u *UpdateList) loadFile() {
 	}
 }
 
-//append add a record r.
+//append add a infos generated from the record.
 func (u *UpdateList) append(r *record) {
-	u.records = append(u.records, r)
+	ui := &updateInfo{
+		stamp:   r.stamp,
+		datfile: r.datfile,
+		id:      r.id,
+	}
+	u.infos = append(u.infos, ui)
 }
 
-//Less returns true if stamp of records[i] < [j]
+//Less returns true if stamp of infos[i] < [j]
 func (u *UpdateList) Less(i, j int) bool {
-	return u.records[i].stamp < u.records[j].stamp
+	return u.infos[i].stamp < u.infos[j].stamp
 }
 
-//Swap swaps records order.
+//Swap swaps infos order.
 func (u *UpdateList) Swap(i, j int) {
-	u.records[i], u.records[j] = u.records[j], u.records[i]
+	u.infos[i], u.infos[j] = u.infos[j], u.infos[i]
 }
 
-//Len returns size of records
+//Len returns size of infos
 func (u *UpdateList) Len() int {
-	return len(u.records)
+	return len(u.infos)
 }
 
 //find finds records and returns index. returns -1 if not found.
 func (u *UpdateList) find(r *record) int {
-	for i, v := range u.records {
-		if v.recstr == r.recstr {
+	for i, v := range u.infos {
+		if v.datfile == r.datfile && v.id == r.id && v.stamp == r.stamp {
 			return i
 		}
 	}
@@ -96,46 +138,41 @@ func (u *UpdateList) find(r *record) int {
 }
 
 //hasRecord returns true if has record r.
-func (u *UpdateList) hasRecord(r *record) bool {
+func (u *UpdateList) hasInfo(r *record) bool {
 	return u.find(r) != -1
 }
 
-//remove removes record r
+//remove removes info which is same as record r
 func (u *UpdateList) remove(rec *record) {
 	if l := u.find(rec); l != -1 {
-		u.records = append(u.records[:l], u.records[l:]...)
+		u.infos = append(u.infos[:l], u.infos[l:]...)
 	}
 }
 
-//makeRecord parse and make a new record from line in updatelist file
-func (u *UpdateList) makeRecord(line string) *record {
-	buf := strings.Split(strings.TrimRight(line, "\n\r"), "<>")
-	if len(buf) > 2 && buf[0] != "" && buf[1] != "" && buf[2] != "" {
-		idstr := buf[0] + "_" + buf[1]
-		vr := newRecord(buf[2], idstr)
-		err := vr.parse(line)
-		if err != nil {
-			log.Println(err)
+//removeInfo removes info r
+func (u *UpdateList) removeInfo(r *updateInfo) {
+	for i, v := range u.infos {
+		if v.datfile == r.datfile && v.id == r.id && v.stamp == r.stamp {
+			u.infos = append(u.infos[:i], u.infos[i:]...)
+			return
 		}
-		return vr
 	}
-	return nil
 }
 
-//getRecstrSlice returns slice of recstr string of records.
+//getRecstrSlice returns slice of recstr string of infos.
 func (u *UpdateList) getRecstrSlice() []string {
-	result := make([]string, len(u.records))
-	for i, v := range u.records {
-		result[i] = v.recstr
+	result := make([]string, len(u.infos))
+	for i, v := range u.infos {
+		result[i] = v.recstr()
 	}
 	return result
 }
 
 //sync remove old records and save to the file.
 func (u *UpdateList) sync() {
-	for _, r := range u.records {
+	for i, r := range u.infos {
 		if u.updateRange > 0 && r.stamp+u.updateRange < time.Now().Unix() {
-			u.remove(r)
+			u.infos = append(u.infos[:i], u.infos[i:]...)
 		}
 		err := writeSlice(u.updateFile, u.getRecstrSlice())
 		if err != nil {
@@ -179,11 +216,12 @@ func (r *RecentList) getAll() {
 			continue
 		}
 		for _, line := range res {
-			rec := r.makeRecord(line)
-			if rec != nil {
-				r.records = append(r.records, rec)
+			rec := &record{}
+			err := rec.parse(line)
+			if err == nil {
+				r.append(rec)
 				ca := newCache(rec.datfile)
-				tags := strings.Fields(strings.TrimSpace(rec.Get("tag", "")))
+				tags := strings.Fields(strings.TrimSpace(rec.getBodyValue("tag", "")))
 				shuffle(sort.StringSlice(tags))
 				tags = tags[tagSize:]
 				if len(tags) > 0 {
@@ -203,19 +241,19 @@ func (r *RecentList) getAll() {
 	suggestedTagTable.sync()
 }
 
-//uniq removes duplicate records.
+//uniq removes infos which has same datfile.
 //new ones are alive.
 func (r *RecentList) uniq() {
-	date := make(map[string]*record)
-	for _, rec := range r.records {
+	date := make(map[string]*updateInfo)
+	for i, rec := range r.infos {
 		if _, exist := date[rec.datfile]; !exist {
 			date[rec.datfile] = rec
 		} else {
 			if date[rec.datfile].stamp < rec.stamp {
-				r.remove(date[rec.datfile])
+				r.removeInfo(date[rec.datfile])
 				date[rec.datfile] = rec
 			} else {
-				r.remove(rec)
+				r.infos = append(r.infos[:i], r.infos[i:]...)
 			}
 		}
 	}

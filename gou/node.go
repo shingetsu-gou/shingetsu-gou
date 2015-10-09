@@ -273,19 +273,8 @@ func newNodeList() *NodeList {
 	return nl
 }
 
-//initialize pings one of initNode except myself and added it if success,
-//and get another node info from each nodes in nodelist.
-//if can get sufficent nodes, removes initNode.
-//after that if over sufficient nodes, removes random nodes from nodelist.
-func (nl *NodeList) initialize() {
-	var inode *node
-	for _, i := range initNode.data {
-		inode = newNode(i)
-		if _, ok := inode.ping(); ok {
-			nl.join(inode)
-			break
-		}
-	}
+//moreNodes gets another node info from each nodes in nodelist.
+func (nl *NodeList) moreNodes() {
 	my := nl.myself()
 	if my != nil && nl.hasNode(my) {
 		nl.removeNode(my)
@@ -307,6 +296,22 @@ func (nl *NodeList) initialize() {
 			break
 		}
 	}
+}
+
+//initialize pings one of initNode except myself and added it if success,
+//and get another node info from each nodes in nodelist.
+//if can get sufficent nodes, removes initNode.
+//after that if over sufficient nodes, removes random nodes from nodelist.
+func (nl *NodeList) initialize() {
+	var inode *node
+	for _, i := range initNode.data {
+		inode = newNode(i)
+		if _, ok := inode.ping(); ok {
+			nl.join(inode)
+			break
+		}
+	}
+	nl.moreNodes()
 	if nl.Len() > defaultNodes {
 		inode.bye()
 		nl.removeNode(inode)
@@ -353,6 +358,9 @@ func (nl *NodeList) pingAll() {
 //removes fron nodelist if not welcomed and return false.
 func (nl *NodeList) join(n *node) bool {
 	flag := false
+	if nl.hasNode(n) {
+		return false
+	}
 	for count := 0; count < retryJoin && len(nl.nodes) < defaultNodes; count++ {
 		welcome, extnode := n.join()
 		if welcome && extnode == nil {

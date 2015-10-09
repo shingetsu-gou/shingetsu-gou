@@ -78,15 +78,15 @@ func makeDat(ca *cache, host string, board string) []string {
 		if err != nil {
 			log.Println(err)
 		}
-		name := rec.Get("name", "")
+		name := rec.getBodyValue("name", "")
 		if name == "" {
 			name = "名無しさん"
 		}
-		if rec.Get("pubkey", "") != "" {
-			name += "◆" + rec.Get("pubkey", "")[:10]
+		if rec.getBodyValue("pubkey", "") != "" {
+			name += "◆" + rec.getBodyValue("pubkey", "")[:10]
 		}
 		comment := fmt.Sprintf("%s<>%s<>%s<>%s<>",
-			name, rec.Get("main", ""), datestr2ch(rec.Get("stamp", "")), makeBody(rec, host, board, table))
+			name, rec.getBodyValue("main", ""), datestr2ch(rec.getBodyValue("stamp", "")), makeBody(rec, host, board, table))
 		if i == 0 {
 			comment += fileDecode(ca.datfile)
 		}
@@ -120,11 +120,11 @@ func makeBody(rec *record, host, board string, table *resTable) string {
 }
 
 func makeAttachLink(rec *record, sakuHost string) string {
-	if rec.Get("attach", "") != "" {
-		return rec.Get("body", "")
+	if rec.getBodyValue("attach", "") != "" {
+		return rec.getBodyValue("body", "")
 	}
-	url := fmt.Sprintf("http://%s/thread.cgi/%s/%s/%d/%s", sakuHost, rec.datfile, rec.id, rec.stamp, rec.Get("suffix", "txt"))
-	return rec.Get("body", "") + "<br><br>[Attached]<br>" + url
+	url := fmt.Sprintf("http://%s/thread.cgi/%s/%s/%d/%s", sakuHost, rec.datfile, rec.id, rec.stamp, rec.getBodyValue("suffix", "txt"))
+	return rec.getBodyValue("body", "") + "<br><br>[Attached]<br>" + url
 }
 
 func makeRssAnchor(body string, table *resTable) string {

@@ -501,12 +501,12 @@ func (c *cgi) doPost() string {
 	proxyClient := c.req.Header.Get("X_FORWARDED_FOR")
 	log.Printf("post %s/%d_%s from %s/%s\n", ca.datfile, stamp, id, c.remoteaddr, proxyClient)
 
-	if len(rec.recstr) > recordLimit<<10 {
+	if len(rec.recstr()) > recordLimit<<10 {
 		c.header(c.m["big_file"], "", nil, true, nil)
 		c.footer(nil)
 		return ""
 	}
-	if spamCheck(rec.recstr) {
+	if spamCheck(rec.recstr()) {
 		c.header(c.m["spam"], "", nil, true, nil)
 		c.footer(nil)
 		return ""

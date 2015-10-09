@@ -198,7 +198,7 @@ func doUpdate(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	rec := newRecord(datfile, stamp+"_"+id)
-	if !updateList.hasRecord(rec) {
+	if !updateList.hasInfo(rec) {
 		queue.append(rec, n)
 		go queue.run()
 	}
@@ -223,7 +223,7 @@ func doRecent(w http.ResponseWriter, r *http.Request) {
 	stamp := m[1]
 	last := time.Now().Unix() + int64(recentRange)
 	begin, end, _ := s.parseStamp(stamp, last)
-	for _, i := range recentList.records {
+	for _, i := range recentList.infos {
 		if begin <= i.stamp && i.stamp <= end {
 			ca := newCache(i.datfile)
 			var tagstr string
@@ -268,15 +268,15 @@ func doGetHead(w http.ResponseWriter, r *http.Request) {
 	ca := newCache(datfile)
 	begin, end, id := s.parseStamp(stamp, ca.stamp)
 	for _, r := range ca.recs {
-		if begin <= r.stamp && r.stamp <= end && (id == "" || strings.HasSuffix(r.idstr, id)) {
+		if begin <= r.stamp && r.stamp <= end && (id == "" || strings.HasSuffix(r.idstr(), id)) {
 			if method == "get" {
 				err := r.load()
 				if err != nil {
 					log.Println(err)
 				}
-				fmt.Fprintf(s.wr, r.recstr)
+				fmt.Fprintf(s.wr, r.recstr())
 			} else {
-				fmt.Fprintln(s.wr, strings.Replace(r.idstr, "_", "<>", -1))
+				fmt.Fprintln(s.wr, strings.Replace(r.idstr(), "_", "<>", -1))
 			}
 		}
 	}

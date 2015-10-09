@@ -33,17 +33,21 @@ import (
 	"bytes"
 	"fmt"
 	"html/template"
+	"image"
+	"image/gif"
+	"image/jpeg"
+	"image/png"
 	"io"
 	"io/ioutil"
 	"log"
 	"math/rand"
 	"net/http"
 	"os"
-	"sort"
 	"strings"
 
 	"github.com/gorilla/handlers"
 	"github.com/gorilla/mux"
+	"github.com/nfnt/resize"
 )
 
 //eachIOLine iterates each line to  a ReadCloser and calls func.
@@ -186,18 +190,6 @@ func isDir(path string) bool {
 	return fs.IsDir()
 }
 
-//sortKeys sorts keys of m and return as string ary.
-func sortKeys(m map[string]string) []string {
-	mk := make([]string, len(m))
-	i := 0
-	for k := range m {
-		mk[i] = k
-		i++
-	}
-	sort.Strings(mk)
-	return mk
-}
-
 //moveFile moves a file from src to dest.
 func moveFile(dst, src string) error {
 	in, err := os.Open(src)
@@ -250,4 +242,61 @@ func registCompressHandler(s *http.ServeMux, path string, fn func(w http.Respons
 //compressHandler returns handlers.CompressHandler to simplfy.
 func registToRouter(s *mux.Router, path string, fn func(w http.ResponseWriter, r *http.Request)) {
 	s.Handle(path, handlers.CompressHandler(http.HandlerFunc(fn)))
+}
+
+//fileSize returns file size of file.
+//returns 0 if file is not found.
+func fileSize(path string) int64 {
+	st, err := os.Stat(path)
+	if err != nil {
+		log.Println(err)
+		return 0
+	}
+	return st.Size()
+}
+
+//writeFile rite date to path.
+func writeFile(path, data string) error {
+	err := ioutil.WriteFile(path, []byte(data), 0666)
+	if err != nil {
+		log.Println(err)
+		return err
+	}
+	return nil
+}
+
+//makeThumbnail makes thumbnail to suffix image format with thumbnailSize.
+func makeThumbnail(from, to, suffix string, x, y uint) {
+	file, err := os.Open(from)
+	if err != nil {
+		log.Println(err)
+		return
+	}
+	defer close(file)
+
+	img, _, err := image.Decode(file)
+	if err != nil {
+		log.Println(err)
+		return
+	}
+	m := resize.Resize(x, y, img, resize.Lanczos3)
+	out, err := os.Create(to)
+	if err != nil {
+		log.Println(err)
+		return
+	}
+	defer close(out)
+	switch suffix {
+	case "jpg", "jpeg":
+		err = jpeg.Encode(out, m, nil)
+	case "png":
+		err = png.Encode(out, m)
+	case "gif":
+		err = gif.Encode(out, m, nil)
+	default:
+		log.Println("illegal format", suffix)
+	}
+	if err != nil {
+		log.Println(err)
+	}
 }

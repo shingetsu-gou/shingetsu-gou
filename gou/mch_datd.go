@@ -243,7 +243,7 @@ func (m *mchCGI) makeSubjectCachelist(board string) []*cache {
 	for i, c := range cl.caches {
 		seen[i] = c.datfile
 	}
-	for _, rec := range recentList.records {
+	for _, rec := range recentList.infos {
 		if !hasString(seen, rec.datfile) {
 			seen = append(seen, rec.datfile)
 			c := newCache(rec.datfile)

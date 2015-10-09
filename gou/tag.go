@@ -137,14 +137,12 @@ func (t *tagList) sync() {
 
 //SuggestedTagTable represents tags associated with datfile retrieved from network.
 type SuggestedTagTable struct {
-	path       string
 	sugtaglist map[string]*suggestedTagList
 }
 
 //newSuggestedTagTable make SuggestedTagTable obj and read info from the file.
 func newSuggestedTagTable() *SuggestedTagTable {
 	s := &SuggestedTagTable{
-		path:       sugtag,
 		sugtaglist: make(map[string]*suggestedTagList),
 	}
 	err := eachKeyValueLine(sugtag, func(k string, vs []string, i int) error {
@@ -183,7 +181,7 @@ func (s *SuggestedTagTable) sync() {
 		s := v.getTagstrSlice()
 		m[k] = s
 	}
-	err := writeMap(s.path, m)
+	err := writeMap(sugtag, m)
 	if err != nil {
 		log.Println(err)
 	}
@@ -193,7 +191,7 @@ func (s *SuggestedTagTable) sync() {
 //or truncates its size to tagsize if listed.
 func (s *SuggestedTagTable) prune(recentlist *RecentList) {
 	tmp := s.keys()
-	for _, r := range recentlist.records {
+	for _, r := range recentlist.infos {
 		if l := findString(tmp, r.datfile); l != -1 {
 			tmp = append(tmp[:l], tmp[l:]...)
 		}

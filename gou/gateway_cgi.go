@@ -195,10 +195,10 @@ func printRSS(w http.ResponseWriter, r *http.Request) {
 				log.Println(err)
 			}
 
-			desc := g.rssTextFormat(r.Get("body", ""))
-			content := g.rssHTMLFormat(r.Get("body", ""), application[ca.typee], title)
-			if attach := r.Get("attach", ""); attach != "" {
-				suffix := r.Get("suffix", "")
+			desc := g.rssTextFormat(r.getBodyValue("body", ""))
+			content := g.rssHTMLFormat(r.getBodyValue("body", ""), application[ca.typee], title)
+			if attach := r.getBodyValue("attach", ""); attach != "" {
+				suffix := r.getBodyValue("suffix", "")
 				if reg := regexp.MustCompile("^[0-9A-Za-z]+$"); reg.MatchString(suffix) {
 					suffix = "txt"
 				}
@@ -209,7 +209,7 @@ func printRSS(w http.ResponseWriter, r *http.Request) {
 			if ca.typee == "thread" {
 				permpath = fmt.Sprintf("%s/%s", path[1:], r.id[:8])
 			}
-			rsss.append(permpath, title, g.rssTextFormat(r.Get("name", "")), desc, content, ca.tags.getTagstrSlice(), r.stamp, false)
+			rsss.append(permpath, title, g.rssTextFormat(r.getBodyValue("name", "")), desc, content, ca.tags.getTagstrSlice(), r.stamp, false)
 		}
 	}
 	g.wr.Header().Set("Content-Type", "text/xml; charset=UTF-8")
@@ -462,7 +462,7 @@ func (g *gatewayCGI) makeRecentCachelist() *cacheList {
 	sort.Sort(sort.Reverse(recentList))
 	var cl []*cache
 	var check []string
-	for _, rec := range recentList.records {
+	for _, rec := range recentList.infos {
 		if !hasString(check, rec.datfile) {
 			ca := newCache(rec.datfile)
 			ca.recentStamp = rec.stamp

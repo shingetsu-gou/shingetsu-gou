@@ -295,7 +295,7 @@ func (d *DeleteRecord) Getbody(rec *record) string {
 	if err != nil {
 		log.Println(err)
 	}
-	recstr := html.EscapeString(rec.recstr)
+	recstr := html.EscapeString(rec.recstr())
 	return recstr
 }
 
@@ -367,7 +367,7 @@ func (d *DelFile) GetContents(ca *cache) []string {
 		if err != nil {
 			log.Println(err)
 		}
-		contents = append(contents, escape(rec.recstr))
+		contents = append(contents, escape(rec.recstr()))
 		if len(contents) > 2 {
 			return contents
 		}
@@ -388,7 +388,6 @@ func (a *adminCGI) postDeleteMessage(ca *cache, rec *record) {
 	id := rec.build(stamp, body, passwd)
 	ca.addData(rec, true)
 	ca.syncStatus()
-
 	updateList.append(rec)
 	updateList.sync()
 	recentList.append(rec)

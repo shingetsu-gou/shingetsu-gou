@@ -77,19 +77,14 @@ func (u *updateQue) run() {
 //if can get data (even if spam) return true, if fails to get, return false.
 //if no fail, broadcast updates to node in cache and added n to nodelist and searchlist.
 func (u *updateQue) doUpdateNode(rec *record, n *node) bool {
-	if updateList.hasRecord(rec) {
+	if updateList.hasInfo(rec) {
 		return true
 	}
 	ca := newCache(rec.datfile)
 	var err error
 	switch {
-	case !ca.exists(): //no cache, only broadcast updates.
-		if searchList.Len() < searchDepth {
-			nodeList.tellUpdate(ca, rec.stamp, rec.id, n)
-		}
-		return true
-	case n == nil: //broadcast with n=nil
-		nodeList.tellUpdate(ca, rec.stamp, rec.id, nil)
+	case !ca.exists(), n == nil: //no cache, only broadcast updates.
+		nodeList.tellUpdate(ca, rec.stamp, rec.id, n)
 		return true
 	case ca.Len() > 0: //cache and records exists, get data from node n.
 		err = ca.getData(rec.stamp, rec.id, n)
@@ -106,14 +101,10 @@ func (u *updateQue) doUpdateNode(rec *record, n *node) bool {
 		return true
 	default:
 		nodeList.tellUpdate(ca, rec.stamp, rec.id, nil)
-		if !nodeList.hasNode(n) && nodeList.Len() < defaultNodes {
-			nodeList.join(n)
-			nodeList.sync()
-		}
-		if !searchList.hasNode(n) {
-			searchList.join(n)
-			searchList.sync()
-		}
+		nodeList.join(n)
+		nodeList.sync()
+		searchList.join(n)
+		searchList.sync()
 		return true
 	}
 }
