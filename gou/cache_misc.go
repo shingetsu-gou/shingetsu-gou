@@ -36,22 +36,24 @@ import (
 	"time"
 )
 
+//UpdateList represents records list updated by remote nodes.
 type UpdateList struct {
 	updateFile  string
 	updateRange int64
-	lookup      map[string]*record
 	records     []*record
 }
 
+//newUpdateList makes UpdateList obj.
 func newUpdateList() *UpdateList {
 	u := &UpdateList{
 		updateFile:  update,
 		updateRange: int64(defaultUpdateRange),
-		lookup:      make(map[string]*record),
 	}
 	u.loadFile()
 	return u
 }
+
+//loadFile reads from file and add records.
 func (u *UpdateList) loadFile() {
 	err := eachLine(u.updateFile, func(line string, i int) error {
 		vr := u.makeRecord(line)
@@ -63,21 +65,27 @@ func (u *UpdateList) loadFile() {
 	}
 }
 
+//append add a record r.
 func (u *UpdateList) append(r *record) {
 	u.records = append(u.records, r)
 }
+
+//Less returns true if stamp of records[i] < [j]
 func (u *UpdateList) Less(i, j int) bool {
 	return u.records[i].stamp < u.records[j].stamp
 }
 
+//Swap swaps records order.
 func (u *UpdateList) Swap(i, j int) {
 	u.records[i], u.records[j] = u.records[j], u.records[i]
 }
 
+//Len returns size of records
 func (u *UpdateList) Len() int {
 	return len(u.records)
 }
 
+//find finds records and returns index. returns -1 if not found.
 func (u *UpdateList) find(r *record) int {
 	for i, v := range u.records {
 		if v.recstr == r.recstr {
@@ -87,27 +95,19 @@ func (u *UpdateList) find(r *record) int {
 	return -1
 }
 
+//hasRecord returns true if has record r.
 func (u *UpdateList) hasRecord(r *record) bool {
 	return u.find(r) != -1
 }
 
+//remove removes record r
 func (u *UpdateList) remove(rec *record) {
 	if l := u.find(rec); l != -1 {
 		u.records = append(u.records[:l], u.records[l:]...)
 	}
 }
 
-func (u *UpdateList) addLookup(rec *record) {
-	exist := false
-	for k, v := range u.lookup {
-		if k == rec.datfile && v.stamp < rec.stamp {
-			u.lookup[rec.datfile] = rec
-		}
-	}
-	if !exist {
-		u.lookup[rec.datfile] = rec
-	}
-}
+//makeRecord parse and make a new record from line in updatelist file
 func (u *UpdateList) makeRecord(line string) *record {
 	buf := strings.Split(strings.TrimRight(line, "\n\r"), "<>")
 	if len(buf) > 2 && buf[0] != "" && buf[1] != "" && buf[2] != "" {
@@ -122,6 +122,7 @@ func (u *UpdateList) makeRecord(line string) *record {
 	return nil
 }
 
+//getRecstrSlice returns slice of recstr string of records.
 func (u *UpdateList) getRecstrSlice() []string {
 	result := make([]string, len(u.records))
 	for i, v := range u.records {
@@ -130,6 +131,7 @@ func (u *UpdateList) getRecstrSlice() []string {
 	return result
 }
 
+//sync remove old records and save to the file.
 func (u *UpdateList) sync() {
 	for _, r := range u.records {
 		if u.updateRange > 0 && r.stamp+u.updateRange < time.Now().Unix() {
@@ -142,20 +144,26 @@ func (u *UpdateList) sync() {
 	}
 }
 
+//Recentlist represents records list udpated by remote host and
+//gotten by /gateway.cgi/recent
 type RecentList struct {
 	*UpdateList
 }
 
+//newRecentList load a file and create a RecentList obj.
 func newRecentList() *RecentList {
 	r := &UpdateList{
 		updateFile:  recent,
 		updateRange: int64(recentRange),
-		lookup:      make(map[string]*record),
 	}
 	r.loadFile()
 	return &RecentList{r}
 }
 
+//getAll retrieves recent records from nodes insearchlist and stores them.
+//tags are shuffled and truncated to tagsize and stored to sugtags in cache.
+//also source nodes are stored into lookuptable.
+//also tags which recentlist doen't have in sugtagtable are truncated
 func (r *RecentList) getAll() {
 	lookupTable.clear()
 	var begin int64
@@ -195,6 +203,8 @@ func (r *RecentList) getAll() {
 	suggestedTagTable.sync()
 }
 
+//uniq removes duplicate records.
+//new ones are alive.
 func (r *RecentList) uniq() {
 	date := make(map[string]*record)
 	for _, rec := range r.records {
@@ -211,6 +221,7 @@ func (r *RecentList) uniq() {
 	}
 }
 
+//sync singlize records and save new ones.
 func (r *RecentList) sync() {
 	r.uniq()
 	r.UpdateList.sync()

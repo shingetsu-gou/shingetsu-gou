@@ -45,7 +45,7 @@ import (
 
 func mchSetup(s *http.ServeMux) {
 	log.Println("start 2ch interface")
-	dkTable.load()
+	dataKeyTable.load()
 	rtr := mux.NewRouter()
 
 	registToRouter(rtr, "/2ch/{board:[^/]+}/$", boardApp)
@@ -57,6 +57,10 @@ func mchSetup(s *http.ServeMux) {
 }
 
 func boardApp(w http.ResponseWriter, r *http.Request) {
+	<-connections
+	defer func() {
+		connections <- struct{}{}
+	}()
 	a := newMchCGI(w, r)
 	if a == nil {
 		return
@@ -65,6 +69,10 @@ func boardApp(w http.ResponseWriter, r *http.Request) {
 }
 
 func threadApp(w http.ResponseWriter, r *http.Request) {
+	<-connections
+	defer func() {
+		connections <- struct{}{}
+	}()
 	a := newMchCGI(w, r)
 	if a == nil {
 		return
@@ -74,6 +82,10 @@ func threadApp(w http.ResponseWriter, r *http.Request) {
 }
 
 func subjectApp(w http.ResponseWriter, r *http.Request) {
+	<-connections
+	defer func() {
+		connections <- struct{}{}
+	}()
 	a := newMchCGI(w, r)
 	if a == nil {
 		return
@@ -83,6 +95,10 @@ func subjectApp(w http.ResponseWriter, r *http.Request) {
 }
 
 func postCommentApp(w http.ResponseWriter, r *http.Request) {
+	<-connections
+	defer func() {
+		connections <- struct{}{}
+	}()
 	a := newMchCGI(w, r)
 	if a == nil {
 		return
@@ -90,6 +106,10 @@ func postCommentApp(w http.ResponseWriter, r *http.Request) {
 	a.postCommentApp()
 }
 func headApp(w http.ResponseWriter, r *http.Request) {
+	<-connections
+	defer func() {
+		connections <- struct{}{}
+	}()
 	a := newMchCGI(w, r)
 	if a == nil {
 		return
@@ -97,6 +117,10 @@ func headApp(w http.ResponseWriter, r *http.Request) {
 	a.headApp()
 }
 func notFound(w http.ResponseWriter, r *http.Request) {
+	<-connections
+	defer func() {
+		connections <- struct{}{}
+	}()
 	w.WriteHeader(403)
 	br := bytes.NewReader([]byte("404 Not Found"))
 	http.ServeContent(w, r, "a.txt", time.Time{}, br)
@@ -170,21 +194,22 @@ func (m *mchCGI) boardApp() {
 		text = fmt.Sprintf("%s - %s", message["logo"], message["description"])
 	}
 
-	htmlStr := fmt.Sprintf(`
-        <!DOCTYPE html>
+	htmlStr := fmt.Sprintf(
+		`<!DOCTYPE html>
         <html><head>
         <meta http-equiv="content-type" content="text/html; charset=Shift_JIS">
-        <title>{text}</title>
-        <meta name="description" content="{text}">
+        <title>%s</title>
+        <meta name="description" content="%s">
         </head><body>
         <h1>%s</h1>
-        </body></html>`, text)
+        </body></html>`,
+		text, text, text)
 	m.serveContent("a.html", time.Time{}, htmlStr)
 }
 
 func (m *mchCGI) threadApp(board, datkey string) {
 	m.wr.Header().Set("Content-Type", "text/plain; charset=Shift_JIS")
-	key, err := dkTable.getFilekey(datkey)
+	key, err := dataKeyTable.getFilekey(datkey)
 	if err != nil {
 		m.wr.WriteHeader(404)
 		m.serveContent("a.txt", time.Time{}, "404 Not Found")
@@ -288,7 +313,7 @@ func (m *mchCGI) makeSubject(board string) ([]string, int64) {
 		if lastStamp < c.stamp {
 			lastStamp = c.stamp
 		}
-		key, err := dkTable.getDatkey(c.datfile)
+		key, err := dataKeyTable.getDatkey(c.datfile)
 		if err != nil {
 			log.Println(err)
 			continue

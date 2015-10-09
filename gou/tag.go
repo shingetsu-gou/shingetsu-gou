@@ -42,9 +42,8 @@ type tag struct {
 
 //tagList represents list of tags and base of other tag list.
 type tagList struct {
-	datfile string
-	path    string
-	tags    []*tag
+	path string
+	tags []*tag
 }
 
 //Len returns size of tags.
@@ -63,8 +62,8 @@ func (t tagList) Less(i, j int) bool {
 }
 
 //newTagList read the tag info from datfile and return a tagList instance.
-func newTagList(datfile, path string) *tagList {
-	t := &tagList{datfile: datfile,
+func newTagList(path string) *tagList {
+	t := &tagList{
 		path: path,
 	}
 	err := eachLine(path, func(line string, i int) error {
@@ -149,10 +148,7 @@ func newSuggestedTagTable() *SuggestedTagTable {
 		sugtaglist: make(map[string]*suggestedTagList),
 	}
 	err := eachKeyValueLine(sugtag, func(k string, vs []string, i int) error {
-		s.sugtaglist[k] = newSuggestedTagList("", nil)
-		for _, v := range vs {
-			s.sugtaglist[k].tags = append(s.sugtaglist[k].tags, &tag{v, 0})
-		}
+		s.sugtaglist[k] = newSuggestedTagList(vs)
 		return nil
 	})
 	if err != nil {
@@ -213,14 +209,11 @@ func (s *SuggestedTagTable) prune(recentlist *RecentList) {
 //suggestedTabList represents tags retrieved from network.
 type suggestedTagList struct {
 	tagList
-	datfile string
 }
 
 //newSuggestedTagList create suggestedTagList obj and adds tags tagstr=value.
-func newSuggestedTagList(datfile string, values []string) *suggestedTagList {
-	s := &suggestedTagList{
-		datfile: datfile,
-	}
+func newSuggestedTagList(values []string) *suggestedTagList {
+	s := &suggestedTagList{}
 	for _, v := range values {
 		s.tags = append(s.tags, &tag{v, 0})
 	}
@@ -240,7 +233,7 @@ type UserTagList struct {
 
 //newUserTagList return userTagList obj.
 func newUserTagList() *UserTagList {
-	t := newTagList("", taglist)
+	t := newTagList(taglist)
 	return &UserTagList{t}
 }
 

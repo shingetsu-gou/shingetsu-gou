@@ -46,18 +46,18 @@ import (
 )
 
 type record struct {
-	recstr       string
-	datfile      string
-	stamp        int64
-	id           string
-	idstr        string
-	path         string
-	bodyPath     string
-	rmPath       string
+	recstr       string //whole one line of record.
+	datfile      string //cache file name
+	stamp        int64  //unixtime
+	id           string //md5(bodystr)
+	idstr        string //unixtime_md5(bodystr) = stamp_id
+	path         string //path for real file
+	bodyPath     string //path for body (record without attach field)
+	rmPath       string //path for removed marker
 	flagLoad     bool
 	flagLoadBody bool
-	dathash      string
-	dict         map[string]string
+	dathash      string //same as datfile if encoding=asis
+	content      map[string]string
 }
 
 func newRecord(datfile, idstr string) *record {
@@ -65,7 +65,7 @@ func newRecord(datfile, idstr string) *record {
 	r := &record{
 		datfile: datfile,
 		idstr:   idstr,
-		dict:    make(map[string]string),
+		content: make(map[string]string),
 	}
 	if idstr != "" {
 		buf := strings.Split(idstr, "_")
@@ -82,23 +82,24 @@ func newRecord(datfile, idstr string) *record {
 	r.setpath()
 	return r
 }
+
 func (r *record) exists() bool {
 	return isFile(r.path)
 }
 
 func (r *record) Len() int {
-	return len(r.dict)
+	return len(r.content)
 }
 
 func (r *record) Get(k string, def string) string {
-	if v, exist := r.dict[k]; exist {
+	if v, exist := r.content[k]; exist {
 		return v
 	}
 	return def
 }
 
 func (r *record) add(k, v string) {
-	r.dict[k] = v
+	r.content[k] = v
 }
 
 func (r *record) virtualRecordString() string {
@@ -128,15 +129,15 @@ func (r *record) parse(recstr string) error {
 		log.Println(err)
 		return err
 	}
-	r.dict["stamp"] = tmp[0]
-	r.dict["id"] = tmp[1]
-	r.idstr = r.dict["stamp"] + "_" + r.dict["id"]
-	r.stamp, err = strconv.ParseInt(r.dict["stamp"], 10, 64)
+	r.content["stamp"] = tmp[0]
+	r.content["id"] = tmp[1]
+	r.idstr = r.content["stamp"] + "_" + r.content["id"]
+	r.stamp, err = strconv.ParseInt(r.content["stamp"], 10, 64)
 	if err != nil {
 		log.Println(tmp[0], "bad format")
 		return err
 	}
-	r.id = r.dict["id"]
+	r.id = r.content["id"]
 	for _, i := range tmp {
 		buf := strings.Split(i, ":")
 		if len(buf) < 2 {
@@ -146,9 +147,9 @@ func (r *record) parse(recstr string) error {
 		buf[1] = strings.Replace(buf[1], "<", "&lt;", -1)
 		buf[1] = strings.Replace(buf[1], ">", "&gt;", -1)
 		buf[1] = strings.Replace(buf[1], "\n", "<br>", -1)
-		r.dict[buf[0]] = buf[1]
+		r.content[buf[0]] = buf[1]
 	}
-	if s, ok := r.dict["attach"]; !ok || s != "1" {
+	if s, ok := r.content["attach"]; !ok || s != "1" {
 		r.flagLoad = true
 	}
 	r.flagLoadBody = true
@@ -230,7 +231,7 @@ func (r *record) build(stamp int64, body map[string]string, passwd string) strin
 	var targets string
 	for key, value := range body {
 		bodyary[i] = key + ":" + value
-		r.dict[key] = value
+		r.content[key] = value
 		targets += key
 		if i < len(body)-1 {
 			targets += ","
@@ -243,9 +244,9 @@ func (r *record) build(stamp int64, body map[string]string, passwd string) strin
 		pubkey, _ := k.getKeys()
 		md := md5digest(bodystr)
 		sign := k.sign(md)
-		r.dict["pubkey"] = pubkey
-		r.dict["sign"] = sign
-		r.dict["target"] = targets
+		r.content["pubkey"] = pubkey
+		r.content["sign"] = sign
+		r.content["target"] = targets
 		bodystr += "<>pubkey:" + pubkey + "<>sign:" + sign + "<>target:" + targets
 	}
 	id := md5digest(bodystr)
@@ -253,8 +254,8 @@ func (r *record) build(stamp int64, body map[string]string, passwd string) strin
 	s := strconv.FormatInt(stamp, 10)
 	r.recstr = strings.Join([]string{s, id, bodystr}, "<>")
 	r.idstr = s + "_" + id
-	r.dict["stamp"] = s
-	r.dict["id"] = id
+	r.content["stamp"] = s
+	r.content["id"] = id
 	r.id = id
 	r.setpath()
 	return id
@@ -263,7 +264,7 @@ func (r *record) build(stamp int64, body map[string]string, passwd string) strin
 func (r *record) md5check() bool {
 	buf := strings.Split(r.recstr, "<>")
 	if len(buf) > 2 {
-		return md5digest(buf[2]) == r.dict["id"]
+		return md5digest(buf[2]) == r.content["id"]
 	}
 	return false
 }
@@ -327,7 +328,6 @@ func (r *record) writeFile(path, data string) error {
 	return nil
 }
 
-//toolong
 func (r *record) makeThumbnail(suffix string, thumbnailSize string) {
 	if thumbnailSize == "" {
 		thumbnailSize = defaultThumbnailSize
@@ -389,13 +389,12 @@ func (r *record) makeThumbnail(suffix string, thumbnailSize string) {
 }
 
 func (r *record) getDict(key, def string) string {
-	if v, exist := r.dict[key]; exist {
+	if v, exist := r.content[key]; exist {
 		return v
 	}
 	return def
 }
 
-//toolong
 func (r *record) sync(force bool) {
 	if isFile(r.rmPath) {
 		return
@@ -408,7 +407,7 @@ func (r *record) sync(force bool) {
 		}
 	}
 	body := r.bodyString() + "\n"
-	if v, exist := r.dict["attach"]; exist {
+	if v, exist := r.content["attach"]; exist {
 		attach, err := base64.StdEncoding.DecodeString(v)
 		if err != nil {
 			log.Println("cannot decode attached file")
@@ -430,7 +429,7 @@ func (r *record) sync(force bool) {
 			r.makeThumbnail("", "")
 		}
 	}
-	if _, exist := r.dict["sign"]; exist {
+	if _, exist := r.content["sign"]; exist {
 		err := r.writeFile(r.bodyPath, body)
 		if err != nil {
 			log.Println(err)
@@ -441,8 +440,8 @@ func (r *record) sync(force bool) {
 
 //Remove attach field
 func (r *record) bodyString() string {
-	buf := []string{r.dict["stamp"], r.dict["id"]}
-	for _, k := range sortKeys(r.dict) {
+	buf := []string{r.content["stamp"], r.content["id"]}
+	for _, k := range sortKeys(r.content) {
 		switch k {
 		case "stamp", "id":
 		case "attach":
@@ -450,11 +449,11 @@ func (r *record) bodyString() string {
 		case "sign":
 		case "pubkey":
 			if r.checkSign() {
-				shortKey := cutKey(r.dict["pubkey"])
+				shortKey := cutKey(r.content["pubkey"])
 				buf = append(buf, "pubkey:"+shortKey)
 			}
 		default:
-			buf = append(buf, k+":"+r.dict[k])
+			buf = append(buf, k+":"+r.content[k])
 		}
 	}
 	return strings.Join(buf, "<>")
@@ -462,21 +461,21 @@ func (r *record) bodyString() string {
 
 func (r *record) checkSign() bool {
 	for _, k := range []string{"pubkey", "sign", "target"} {
-		if _, exist := r.dict[k]; !exist {
+		if _, exist := r.content[k]; !exist {
 			return false
 		}
 	}
 	target := ""
-	for _, t := range strings.Split(r.dict["target"], ",") {
-		if _, exist := r.dict[t]; !exist {
+	for _, t := range strings.Split(r.content["target"], ",") {
+		if _, exist := r.content[t]; !exist {
 			return false
 		}
-		target += "<>" + t + ":" + r.dict[t]
+		target += "<>" + t + ":" + r.content[t]
 	}
 	target = target[2:] // remove ^<>
 
 	md := md5digest(target)
-	if verify(md, r.dict["sign"], r.dict["pubkey"]) {
+	if verify(md, r.content["sign"], r.content["pubkey"]) {
 		return true
 	}
 	return false

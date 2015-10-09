@@ -277,7 +277,6 @@ func newNodeList() *NodeList {
 //and get another node info from each nodes in nodelist.
 //if can get sufficent nodes, removes initNode.
 //after that if over sufficient nodes, removes random nodes from nodelist.
-//toolong
 func (nl *NodeList) initialize() {
 	var inode *node
 	for _, i := range initNode.data {
@@ -414,7 +413,7 @@ func (nl *NodeList) tellUpdate(c *cache, stamp int64, id string, node *node) {
 
 //broadcast broadcsts msg to nodes which has info of cache c  if ping is ok or is in nodelist.
 //and also broadcasts to nodes in nodelist.
-//if ping is ng or
+//if ping is ng or nodelist has n , remove n from nodes in cache.
 func broadcast(msg string, c *cache) {
 	for _, n := range c.node.nodes {
 		if _, ok := n.ping(); ok || nodeList.hasNode(n) {
@@ -538,7 +537,6 @@ func (sl *SearchList) join(n *node) {
 //search search the datfile from one allowed nodes which selected randomly from nodes.
 //if not found,n is removed from lookuptable. also not pingable  removes n from searchlist and cache c.
 //if found, n is added to lookuptable.
-//toolong
 func (sl *SearchList) search(c *cache, myself *node, nodes []*node) *node {
 	nl := &rawNodeList{}
 	if nodes != nil {

@@ -79,17 +79,12 @@ func newCache(datfile string) *cache {
 	c.size = int(c.loadStatus("size"))
 	c.count = int(c.loadStatus("count"))
 	c.velocity = int(c.loadStatus("velocity"))
-	if v, exist := recentList.lookup[c.datfile]; exist {
-		if c.recentStamp < v.stamp {
-			c.recentStamp = v.stamp
-		}
-	}
 	c.node = newRawNodeList(path.Join(c.datpath, "node.txt"))
-	c.tags = newTagList(c.datfile, path.Join(c.datfile, "tag.txt"))
+	c.tags = newTagList(path.Join(c.datfile, "tag.txt"))
 	if v, exist := suggestedTagTable.sugtaglist[c.datfile]; exist {
 		c.sugtags = v
 	} else {
-		c.sugtags = newSuggestedTagList(c.datfile, nil)
+		c.sugtags = newSuggestedTagList(nil)
 	}
 
 	for _, t := range types {
@@ -213,9 +208,7 @@ func (c *cache) setupDirectories() {
 	}
 }
 
-var errGet = errors.New("cannot get data")
 
-//toolong
 func (c *cache) checkData(res []string, stamp int64, id string, begin, end int64) (int, error) {
 	var err error
 	count := 0
@@ -224,12 +217,12 @@ func (c *cache) checkData(res []string, stamp int64, id string, begin, end int64
 	for count, i = range res {
 		r := newRecord(c.datfile, "")
 		if r.parse(i) == nil &&
-			(stamp != 0 || r.dict["stamp"] == strconv.FormatInt(stamp, 10)) &&
-			(id != "" || r.dict["id"] == id) &&
+			(stamp != 0 || r.content["stamp"] == strconv.FormatInt(stamp, 10)) &&
+			(id != "" || r.content["id"] == id) &&
 			begin <= r.stamp && r.stamp <= end && r.md5check() {
 			flagGot = true
 			if len(i) > recordLimit*1024 || spamCheck(i) {
-				log.Println("warning:", c.datfile, "/", r.idstr, ": too larg or spamn record")
+				log.Println("warning:", c.datfile, "/", r.idstr, ": too large or spamn record")
 				c.addData(r, false)
 				errr := r.remove()
 				if errr != nil {
@@ -244,7 +237,7 @@ func (c *cache) checkData(res []string, stamp int64, id string, begin, end int64
 			if stamp >= 0 {
 				strStamp = "/" + strconv.FormatInt(stamp, 10)
 			} else {
-				if v, exist := r.dict["stamp"]; exist {
+				if v, exist := r.content["stamp"]; exist {
 					strStamp = "/" + v
 				}
 			}
@@ -288,7 +281,6 @@ func (c *cache) addData(rec *record, really bool) {
 	}
 }
 
-//toolong
 func (c *cache) getWithRange(n *node) bool {
 	var err error
 	oldcount := len(c.recs)

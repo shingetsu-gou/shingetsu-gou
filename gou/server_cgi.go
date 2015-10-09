@@ -40,7 +40,6 @@ import (
 	"time"
 )
 
-//toolong
 func serverSetup(s *http.ServeMux) {
 	registCompressHandler(s, "/server.cgi/ping", doPing)
 	registCompressHandler(s, "/server.cgi/node", doNode)
@@ -55,10 +54,18 @@ func serverSetup(s *http.ServeMux) {
 }
 
 func doPing(w http.ResponseWriter, r *http.Request) {
+	<-connections
+	defer func() {
+		connections <- struct{}{}
+	}()
 	fmt.Fprint(w, "PONG\n"+r.RemoteAddr+"\n")
 }
 
 func doNode(w http.ResponseWriter, r *http.Request) {
+	<-connections
+	defer func() {
+		connections <- struct{}{}
+	}()
 	if nodeList.Len() > 0 {
 		fmt.Fprintln(w, nodeList.nodes[0].nodestr)
 	} else {
@@ -67,6 +74,10 @@ func doNode(w http.ResponseWriter, r *http.Request) {
 }
 
 func doJoin(w http.ResponseWriter, r *http.Request) {
+	<-connections
+	defer func() {
+		connections <- struct{}{}
+	}()
 	s := newServerCGI(w, r)
 	if s == nil {
 		return
@@ -100,6 +111,10 @@ func doJoin(w http.ResponseWriter, r *http.Request) {
 }
 
 func doBye(w http.ResponseWriter, r *http.Request) {
+	<-connections
+	defer func() {
+		connections <- struct{}{}
+	}()
 	s := newServerCGI(w, r)
 	if s == nil {
 		return
@@ -116,6 +131,10 @@ func doBye(w http.ResponseWriter, r *http.Request) {
 }
 
 func doHave(w http.ResponseWriter, r *http.Request) {
+	<-connections
+	defer func() {
+		connections <- struct{}{}
+	}()
 	s := newServerCGI(w, r)
 	if s == nil {
 		return
@@ -135,6 +154,10 @@ func doHave(w http.ResponseWriter, r *http.Request) {
 }
 
 func doUpdate(w http.ResponseWriter, r *http.Request) {
+	<-connections
+	defer func() {
+		connections <- struct{}{}
+	}()
 	s := newServerCGI(w, r)
 	if s == nil {
 		return
@@ -183,6 +206,10 @@ func doUpdate(w http.ResponseWriter, r *http.Request) {
 }
 
 func doRecent(w http.ResponseWriter, r *http.Request) {
+	<-connections
+	defer func() {
+		connections <- struct{}{}
+	}()
 	s := newServerCGI(w, r)
 	if s == nil {
 		return
@@ -210,6 +237,10 @@ func doRecent(w http.ResponseWriter, r *http.Request) {
 }
 
 func doMotd(w http.ResponseWriter, r *http.Request) {
+	<-connections
+	defer func() {
+		connections <- struct{}{}
+	}()
 	f, err := ioutil.ReadFile(motd)
 	if err != nil {
 		log.Println(err)
@@ -219,6 +250,10 @@ func doMotd(w http.ResponseWriter, r *http.Request) {
 }
 
 func doGetHead(w http.ResponseWriter, r *http.Request) {
+	<-connections
+	defer func() {
+		connections <- struct{}{}
+	}()
 	s := newServerCGI(w, r)
 	if s == nil {
 		return

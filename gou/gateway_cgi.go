@@ -60,6 +60,11 @@ func gatewaySetup(s *http.ServeMux) {
 }
 
 func printGatewayThread(w http.ResponseWriter, r *http.Request) {
+	<-connections
+	defer func() {
+		connections <- struct{}{}
+	}()
+
 	reg := regexp.MustCompile("^/gateway.cgi/(thread)/?([^/]*)$")
 	m := reg.FindStringSubmatch(r.URL.Path)
 	var uri string
@@ -83,6 +88,10 @@ func printGatewayThread(w http.ResponseWriter, r *http.Request) {
 }
 
 func printCSV(w http.ResponseWriter, r *http.Request) {
+	<-connections
+	defer func() {
+		connections <- struct{}{}
+	}()
 	g := newGatewayCGI(w, r)
 	if g == nil {
 		return
@@ -92,6 +101,10 @@ func printCSV(w http.ResponseWriter, r *http.Request) {
 }
 
 func printCSVChanges(w http.ResponseWriter, r *http.Request) {
+	<-connections
+	defer func() {
+		connections <- struct{}{}
+	}()
 	g := newGatewayCGI(w, r)
 	if g == nil {
 		return
@@ -102,6 +115,10 @@ func printCSVChanges(w http.ResponseWriter, r *http.Request) {
 }
 
 func printCSVRecent(w http.ResponseWriter, r *http.Request) {
+	<-connections
+	defer func() {
+		connections <- struct{}{}
+	}()
 	g := newGatewayCGI(w, r)
 	if g == nil {
 		return
@@ -115,6 +132,10 @@ func printCSVRecent(w http.ResponseWriter, r *http.Request) {
 }
 
 func printRecentRSS(w http.ResponseWriter, r *http.Request) {
+	<-connections
+	defer func() {
+		connections <- struct{}{}
+	}()
 	g := newGatewayCGI(w, r)
 	if g == nil {
 		return
@@ -148,6 +169,10 @@ func printRecentRSS(w http.ResponseWriter, r *http.Request) {
 }
 
 func printRSS(w http.ResponseWriter, r *http.Request) {
+	<-connections
+	defer func() {
+		connections <- struct{}{}
+	}()
 	g := newGatewayCGI(w, r)
 	if g == nil {
 		return
@@ -195,6 +220,10 @@ func printRSS(w http.ResponseWriter, r *http.Request) {
 }
 
 func printMergedJS(w http.ResponseWriter, r *http.Request) {
+	<-connections
+	defer func() {
+		connections <- struct{}{}
+	}()
 	g := newGatewayCGI(w, r)
 	if g == nil {
 		return
@@ -209,6 +238,10 @@ func printMergedJS(w http.ResponseWriter, r *http.Request) {
 
 }
 func printMotd(w http.ResponseWriter, r *http.Request) {
+	<-connections
+	defer func() {
+		connections <- struct{}{}
+	}()
 	g := newGatewayCGI(w, r)
 	if g == nil {
 		return
@@ -226,6 +259,10 @@ func printMotd(w http.ResponseWriter, r *http.Request) {
 	}
 }
 func printNew(w http.ResponseWriter, r *http.Request) {
+	<-connections
+	defer func() {
+		connections <- struct{}{}
+	}()
 	g := newGatewayCGI(w, r)
 	if g == nil {
 		return
@@ -236,6 +273,10 @@ func printNew(w http.ResponseWriter, r *http.Request) {
 	g.footer(nil)
 }
 func printTitle(w http.ResponseWriter, r *http.Request) {
+	<-connections
+	defer func() {
+		connections <- struct{}{}
+	}()
 	g := newGatewayCGI(w, r)
 	if g == nil {
 		return
@@ -269,6 +310,10 @@ func printTitle(w http.ResponseWriter, r *http.Request) {
 }
 
 func printGatewayIndex(w http.ResponseWriter, r *http.Request) {
+	<-connections
+	defer func() {
+		connections <- struct{}{}
+	}()
 	g := newGatewayCGI(w, r)
 	if g == nil {
 		return
@@ -276,6 +321,10 @@ func printGatewayIndex(w http.ResponseWriter, r *http.Request) {
 	g.printIndex(false)
 }
 func printIndexChanges(w http.ResponseWriter, r *http.Request) {
+	<-connections
+	defer func() {
+		connections <- struct{}{}
+	}()
 	g := newGatewayCGI(w, r)
 	if g == nil {
 		return
@@ -284,6 +333,10 @@ func printIndexChanges(w http.ResponseWriter, r *http.Request) {
 }
 
 func printRecent(w http.ResponseWriter, r *http.Request) {
+	<-connections
+	defer func() {
+		connections <- struct{}{}
+	}()
 	g := newGatewayCGI(w, r)
 	if g == nil {
 		return
@@ -330,7 +383,6 @@ func newGatewayCGI(w http.ResponseWriter, r *http.Request) *gatewayCGI {
 	}
 }
 
-//toolong
 func (g *gatewayCGI) renderCSV(cl *cacheList) {
 	g.wr.Header().Set("Content-Type", "text/comma-separated-values;charset=UTF-8")
 	p := strings.Split(g.path, "/")

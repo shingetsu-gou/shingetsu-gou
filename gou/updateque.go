@@ -74,7 +74,8 @@ func (u *updateQue) run() {
 }
 
 //doUpdateNode broadcast and get data for each new records.
-//toolong
+//if can get data (even if spam) return true, if fails to get, return false.
+//if no fail, broadcast updates to node in cache and added n to nodelist and searchlist.
 func (u *updateQue) doUpdateNode(rec *record, n *node) bool {
 	if updateList.hasRecord(rec) {
 		return true

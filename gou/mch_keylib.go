@@ -38,22 +38,22 @@ import (
 	"time"
 )
 
-type datakeyTable struct {
+type DatakeyTable struct {
 	file            string
 	datakey2filekey map[int64]string
 	filekey2datkey  map[string]int64
 	mutex           sync.Mutex
 }
 
-func newDatakeyTable(file string) *datakeyTable {
-	d := &datakeyTable{}
+func newDatakeyTable(file string) *DatakeyTable {
+	d := &DatakeyTable{}
 	d.file = file
 	d.datakey2filekey = make(map[int64]string)
 	d.filekey2datkey = make(map[string]int64)
 	return d
 }
 
-func (d *datakeyTable) loadInternal() {
+func (d *DatakeyTable) loadInternal() {
 	err := eachLine(d.file, func(line string, i int) error {
 		dat := strings.Split(strings.TrimSpace(line), "<>")
 		stamp, err := strconv.ParseInt(dat[0], 10, 64)
@@ -69,7 +69,7 @@ func (d *datakeyTable) loadInternal() {
 	}
 }
 
-func (d *datakeyTable) load() {
+func (d *DatakeyTable) load() {
 	d.loadInternal()
 	for _, c := range newCacheList().caches {
 		c.load()
@@ -84,7 +84,7 @@ func (d *datakeyTable) load() {
 	d.save()
 }
 
-func (d *datakeyTable) save() {
+func (d *DatakeyTable) save() {
 	str := make([]string, len(d.datakey2filekey))
 	i := 0
 	for stamp, filekey := range d.datakey2filekey {
@@ -96,14 +96,14 @@ func (d *datakeyTable) save() {
 	}
 }
 
-func (d *datakeyTable) setEntry(stamp int64, filekey string) {
+func (d *DatakeyTable) setEntry(stamp int64, filekey string) {
 	d.mutex.Lock()
 	defer d.mutex.Unlock()
 	d.datakey2filekey[stamp] = filekey
 	d.filekey2datkey[filekey] = stamp
 }
 
-func (d *datakeyTable) setFromCache(ca *cache) {
+func (d *DatakeyTable) setFromCache(ca *cache) {
 	if _, exist := d.filekey2datkey[ca.datfile]; exist {
 		return
 	}
@@ -127,7 +127,7 @@ func (d *datakeyTable) setFromCache(ca *cache) {
 
 }
 
-func (d *datakeyTable) getDatkey(filekey string) (int64, error) {
+func (d *DatakeyTable) getDatkey(filekey string) (int64, error) {
 	if v, exist := d.filekey2datkey[filekey]; exist {
 		return v, nil
 	}
@@ -141,7 +141,7 @@ func (d *datakeyTable) getDatkey(filekey string) (int64, error) {
 	return -1, errors.New(filekey + " not found")
 }
 
-func (d *datakeyTable) getFilekey(datkey string) (string, error) {
+func (d *DatakeyTable) getFilekey(datkey string) (string, error) {
 	nDatkey, err := strconv.ParseInt(datkey, 10, 64)
 	if err != nil {
 		log.Println(err)

@@ -41,26 +41,6 @@ import (
 	"golang.org/x/text/language"
 )
 
-/*
-//Connection Counter.
-type counter struct {
-	N     int
-	mutex sync.Mutex
-}
-
-func (c *counter) increment() {
-	c.mutex.Lock()
-	defer c.mutex.Unlock()
-	c.N++
-}
-
-func (c *counter) decrement() {
-	c.mutex.Lock()
-	defer c.mutex.Unlock()
-	c.N--
-}
-*/
-
 type message map[string]string
 
 func newMessage(file string) message {
@@ -186,7 +166,6 @@ func (d DefaultVariable) MakeGatewayLink(cginame, command string) string {
 	return doc.String()
 }
 
-//toolong
 func (d DefaultVariable) MakeListItem(ca *cache, remove bool, target string, search bool) string {
 	x := fileDecode(ca.datfile)
 	if x == "" {

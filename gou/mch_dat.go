@@ -164,7 +164,7 @@ func makeBracketLink(body string, datHost, board string, table *resTable) string
 			typ = "thread"
 		}
 		file := fileEncode(typ, title)
-		datkey, err := dkTable.getDatkey(file)
+		datkey, err := dataKeyTable.getDatkey(file)
 		if err != nil {
 			log.Println(err)
 			return body

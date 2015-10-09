@@ -176,7 +176,6 @@ func (t *threadCGI) printTag(ca *cache) {
 	renderTemplate("thread_tags", s, t.wr)
 }
 
-//toolong
 func (t *threadCGI) printThread(path, id, page string) {
 	strPath := strEncode(t.path)
 	filePath := fileEncode("thread", t.path)
@@ -369,7 +368,6 @@ func (t *threadCGI) printPostForm(ca *cache) {
 	renderTemplate("post_form", s, t.wr)
 }
 
-//toolong
 func (t *threadCGI) printAttach(datfile, stampStr, id, thumbnailSize, suffix string) {
 	ca := newCache(datfile)
 	typ := mime.TypeByExtension("suffix")

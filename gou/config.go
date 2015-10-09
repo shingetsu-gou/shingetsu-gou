@@ -29,6 +29,7 @@
 package gou
 
 import (
+	"errors"
 	"io/ioutil"
 	"log"
 	"os"
@@ -80,9 +81,9 @@ var (
 	syncRange   = make(map[string]int)
 	saveRemoved = make(map[string]int)
 
-	defaultPort = setting.getIntValue("Network", "port", 8000)
-	datPort     = setting.getIntValue("Network", "dat_port", 8001)
-	//	max_connection = setting.getIntValue("Network", "max_connection", 20)
+	defaultPort   = setting.getIntValue("Network", "port", 8000)
+	datPort       = setting.getIntValue("Network", "dat_port", 8001)
+	maxConnection = setting.getIntValue("Network", "max_connection", 20)
 
 	docroot       = setting.getPathValue("Path", "docroot", "./www")
 	logDir        = setting.getPathValue("Path", "log_dir", "./log")
@@ -156,11 +157,11 @@ var (
 
 	absDocroot string
 
-	initNode   = newConfList(initnodeList, defaultInitNode)
-	cachedRule = newRegexpList(spamList)
-	nodeAllow  = newRegexpList(nodeAllowFile)
-	nodeDeny   = newRegexpList(nodeDenyFile)
-	dkTable    = newDatakeyTable(runDir + "/datakey.txt")
+	initNode     = newConfList(initnodeList, defaultInitNode)
+	cachedRule   = newRegexpList(spamList)
+	nodeAllow    = newRegexpList(nodeAllowFile)
+	nodeDeny     = newRegexpList(nodeDenyFile)
+	dataKeyTable = newDatakeyTable(runDir + "/datakey.txt")
 
 	queue             *updateQue
 	suggestedTagTable *SuggestedTagTable
@@ -170,6 +171,11 @@ var (
 	nodeList          *NodeList
 	recentList        *RecentList
 	updateList        *UpdateList
+
+	connections chan struct{}
+
+	errGet  = errors.New("cannot get data")
+	errSpam = errors.New("this is spam")
 )
 
 //config represents ini file.
@@ -273,5 +279,9 @@ func InitVariables() {
 		getRange[t] = setting.getIntValue(ctype, "get_range", 31*24*60*60)
 		syncRange[t] = setting.getIntValue(ctype, "sync_range", 10*24*60*60)
 		saveRemoved[t] = setting.getIntValue(ctype, "save_removed", 50*24*60*60)
+	}
+
+	for i := 0; i < maxConnection; i++ {
+		connections <- struct{}{}
 	}
 }

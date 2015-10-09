@@ -450,7 +450,6 @@ func (c *cgi) errorTime() int64 {
 	return int64(timeErrorSigma*math.Sqrt(-2*math.Log(x1))*math.Cos(2*math.Pi*x2)) + time.Now().Unix()
 }
 
-//toolong
 func (c *cgi) doPost() string {
 	attached, attachedErr := c.parseAttached()
 	if attachedErr != nil {

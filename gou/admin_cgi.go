@@ -50,8 +50,11 @@ func adminSetup(s *http.ServeMux) {
 	registCompressHandler(s, "/admin.cgi", execCmd)
 }
 
-//toolong
 func execCmd(w http.ResponseWriter, r *http.Request) {
+	<-connections
+	defer func() {
+		connections <- struct{}{}
+	}()
 	a := newAdminCGI(w, r)
 	if a == nil {
 		return
@@ -91,6 +94,10 @@ func execCmd(w http.ResponseWriter, r *http.Request) {
 }
 
 func printSearch(w http.ResponseWriter, r *http.Request) {
+	<-connections
+	defer func() {
+		connections <- struct{}{}
+	}()
 	a := newAdminCGI(w, r)
 	if a == nil {
 		return
@@ -113,6 +120,10 @@ func printSearch(w http.ResponseWriter, r *http.Request) {
 }
 
 func printStatus(w http.ResponseWriter, r *http.Request) {
+	<-connections
+	defer func() {
+		connections <- struct{}{}
+	}()
 	a := newAdminCGI(w, r)
 	if a == nil {
 		return
@@ -163,6 +174,10 @@ func printStatus(w http.ResponseWriter, r *http.Request) {
 }
 
 func printEdittag(w http.ResponseWriter, r *http.Request) {
+	<-connections
+	defer func() {
+		connections <- struct{}{}
+	}()
 	a := newAdminCGI(w, r)
 	if a == nil {
 		return
@@ -193,6 +208,10 @@ func printEdittag(w http.ResponseWriter, r *http.Request) {
 }
 
 func saveTagCGI(w http.ResponseWriter, r *http.Request) {
+	<-connections
+	defer func() {
+		connections <- struct{}{}
+	}()
 	a := newAdminCGI(w, r)
 	if a == nil {
 		return

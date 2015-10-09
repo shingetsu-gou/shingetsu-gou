@@ -29,7 +29,6 @@
 package gou
 
 import (
-	"errors"
 	"html"
 	"log"
 	"regexp"
@@ -39,8 +38,6 @@ import (
 
 	"github.com/axgle/mahonia"
 )
-
-var errSpam = errors.New("this is spam")
 
 func (m *mchCGI) postComment(threadKey, name, mail, body, passwd, tag string) error {
 	stamp := time.Now().Unix()
@@ -90,7 +87,6 @@ func (m *mchCGI) getCommentData() map[string]string {
 	}
 }
 
-//toolong
 func (m *mchCGI) postCommentApp() string {
 	if m.req.Method != "POST" {
 		m.wr.Header().Set("Content-Type", "text/plain")
@@ -109,7 +105,7 @@ func (m *mchCGI) postCommentApp() string {
 		key = fileEncode("thread", info["subject"])
 	} else {
 		var err error
-		key, err = dkTable.getFilekey(info["key"])
+		key, err = dataKeyTable.getFilekey(info["key"])
 		if err != nil {
 			return ""
 		}
