@@ -52,7 +52,7 @@ func (m *mchCGI) postComment(threadKey, name, mail, body, passwd, tag string) er
 	if spamCheck(rec.recstr()) {
 		return errSpam
 	}
-	c.addData(rec, false)
+	c.addData(rec)
 	c.syncStatus()
 	if tag != "" {
 		saveTag(c, tag)

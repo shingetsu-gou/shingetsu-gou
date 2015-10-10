@@ -132,7 +132,7 @@ func printStatus(w http.ResponseWriter, r *http.Request) {
 	records := 0
 	size := 0
 	for _, ca := range cl.caches {
-		records += ca.Len()
+		records += ca.len()
 		size += ca.size
 	}
 	my := nodeList.myself()
@@ -331,7 +331,6 @@ func (a *adminCGI) doDeleteRecord(datfile string, records []string, dopost strin
 		rec := newRecord(datfile, r)
 		ca.size -= int(rec.size())
 		if rec.remove() == nil {
-			ca.count--
 			if dopost != "" {
 				ca.syncStatus()
 				a.postDeleteMessage(ca, rec)
@@ -386,7 +385,7 @@ func (a *adminCGI) postDeleteMessage(ca *cache, rec *record) {
 	}
 	passwd := a.req.FormValue("passwd")
 	id := rec.build(stamp, body, passwd)
-	ca.addData(rec, true)
+	ca.addData(rec)
 	ca.syncStatus()
 	updateList.append(rec)
 	updateList.sync()

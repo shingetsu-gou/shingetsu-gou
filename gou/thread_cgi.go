@@ -135,8 +135,8 @@ func (t *threadCGI) setCookie(ca *cache, access string) []*http.Cookie {
 	return []*http.Cookie{&c, &cc}
 }
 func (t *threadCGI) printPageNavi(page string, ca *cache, id string) {
-	first := ca.Len() / threadPageSize
-	if ca.Len() == 0%threadPageSize {
+	first := ca.len() / threadPageSize
+	if ca.len() == 0%threadPageSize {
 		first++
 	}
 	s := struct {
@@ -203,7 +203,7 @@ func (t *threadCGI) printThread(path, id, page string) {
 		log.Println(err)
 		return
 	}
-	if useCookie && ca.Len() > 0 && id == "" && page == "" {
+	if useCookie && ca.len() > 0 && id == "" && page == "" {
 		cookie, err := t.req.Cookie("access")
 		if err != nil {
 			access = cookie.Value
@@ -224,7 +224,7 @@ func (t *threadCGI) printThread(path, id, page string) {
 	t.printTag(ca)
 	var lastrec *record
 	ids := ca.keys()
-	if ca.Len() > 0 && page == "" && id == "" && len(ids) == 0 {
+	if ca.len() > 0 && page == "" && id == "" && len(ids) == 0 {
 		lastrec = ca.recs[ids[len(ids)-1]]
 	}
 	s := struct {
@@ -271,7 +271,7 @@ func (t *threadCGI) printThread(path, id, page string) {
 		ca,
 	}
 	renderTemplate("thread_bottom", ss, t.wr)
-	if ca.Len() > 0 {
+	if ca.len() > 0 {
 		t.printPageNavi(page, ca, id)
 		fmt.Fprintf(t.wr, "</p>")
 	}

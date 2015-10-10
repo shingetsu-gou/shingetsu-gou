@@ -542,8 +542,8 @@ func (sl *SearchList) join(n *node) {
 	}
 }
 
-//search search the datfile from one allowed nodes which selected randomly from nodes.
-//if not found,n is removed from lookuptable. also not pingable  removes n from searchlist and cache c.
+//search checks one allowed nodes which selected randomly from nodes has the datfile record.
+//if not found,n is removed from lookuptable. also if not pingable  removes n from searchlist and cache c.
 //if found, n is added to lookuptable.
 func (sl *SearchList) search(c *cache, myself *node, nodes []*node) *node {
 	nl := &rawNodeList{}

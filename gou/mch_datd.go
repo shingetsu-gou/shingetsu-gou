@@ -218,7 +218,7 @@ func (m *mchCGI) threadApp(board, datkey string) {
 	data.load()
 
 	if m.checkGetCache() {
-		if data.exists() || data.Len() == 0 {
+		if data.exists() || data.len() == 0 {
 			data.search(nil)
 		} else {
 			if m.counterIsUpdate(key) {

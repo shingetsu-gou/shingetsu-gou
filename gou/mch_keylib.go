@@ -38,6 +38,7 @@ import (
 	"time"
 )
 
+//DataKeyTable stores cache stamp and cache datfile name pair.
 type DatakeyTable struct {
 	file            string
 	datakey2filekey map[int64]string
@@ -45,6 +46,7 @@ type DatakeyTable struct {
 	mutex           sync.Mutex
 }
 
+//newDatakeyTable make DataKeyTable obj.
 func newDatakeyTable(file string) *DatakeyTable {
 	d := &DatakeyTable{}
 	d.file = file
@@ -53,6 +55,7 @@ func newDatakeyTable(file string) *DatakeyTable {
 	return d
 }
 
+//loadInternal loads stamp/value from the file .
 func (d *DatakeyTable) loadInternal() {
 	err := eachLine(d.file, func(line string, i int) error {
 		dat := strings.Split(strings.TrimSpace(line), "<>")
@@ -69,6 +72,8 @@ func (d *DatakeyTable) loadInternal() {
 	}
 }
 
+//load loads from the file, adds stamps/datfile pairs from cachelist and recentlist.
+//and saves to file.
 func (d *DatakeyTable) load() {
 	d.loadInternal()
 	for _, c := range newCacheList().caches {
@@ -84,11 +89,12 @@ func (d *DatakeyTable) load() {
 	d.save()
 }
 
+//save saves stamp<>value to the file.
 func (d *DatakeyTable) save() {
 	str := make([]string, len(d.datakey2filekey))
 	i := 0
 	for stamp, filekey := range d.datakey2filekey {
-		str[i] = fmt.Sprintf("%s<>%s\n", strconv.FormatInt(stamp, 10), filekey)
+		str[i] = fmt.Sprintf("%d<>%s\n", stamp, filekey)
 	}
 	err := writeSlice(d.file, str)
 	if err != nil {
@@ -96,6 +102,7 @@ func (d *DatakeyTable) save() {
 	}
 }
 
+//setEntry stores stamp/value.
 func (d *DatakeyTable) setEntry(stamp int64, filekey string) {
 	d.mutex.Lock()
 	defer d.mutex.Unlock()
@@ -103,12 +110,13 @@ func (d *DatakeyTable) setEntry(stamp int64, filekey string) {
 	d.filekey2datkey[filekey] = stamp
 }
 
+//setFromCache adds cache.datfile/timestamp pair if not exists.
 func (d *DatakeyTable) setFromCache(ca *cache) {
 	if _, exist := d.filekey2datkey[ca.datfile]; exist {
 		return
 	}
 	var firstStamp int64
-	if len(ca.keys()) == 0 {
+	if ca.len() == 0 {
 		firstStamp = ca.recentStamp
 	} else {
 		if rec := ca.get(ca.keys()[0], nil); rec != nil {
@@ -119,14 +127,15 @@ func (d *DatakeyTable) setFromCache(ca *cache) {
 		firstStamp = time.Now().Add(-24 * time.Hour).Unix()
 	}
 	for {
-		if _, exist := d.datakey2filekey[firstStamp]; exist {
+		if _, exist := d.datakey2filekey[firstStamp]; !exist {
 			break
 		}
 		firstStamp++
 	}
-
 }
 
+//getDatKey returns stamp from filekey.
+//if not found, tries to read from cache.
 func (d *DatakeyTable) getDatkey(filekey string) (int64, error) {
 	if v, exist := d.filekey2datkey[filekey]; exist {
 		return v, nil
@@ -141,6 +150,7 @@ func (d *DatakeyTable) getDatkey(filekey string) (int64, error) {
 	return -1, errors.New(filekey + " not found")
 }
 
+//getFileKey returns value from datkey(stamp) string.
 func (d *DatakeyTable) getFilekey(datkey string) (string, error) {
 	nDatkey, err := strconv.ParseInt(datkey, 10, 64)
 	if err != nil {

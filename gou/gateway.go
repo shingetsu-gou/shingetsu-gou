@@ -513,7 +513,7 @@ func (c *cgi) doPost() string {
 	}
 
 	if ca.exists() {
-		ca.addData(rec, true)
+		ca.addData(rec)
 		ca.syncStatus()
 	} else {
 		c.print404(nil, "")

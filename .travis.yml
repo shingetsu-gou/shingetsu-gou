@@ -30,7 +30,7 @@ after_script:
 - if  [ ${TRAVIS_GO_VERSION} == "1.5" ]; then
   goxc -wc default publish-github -owner=utamaro -repository="shingetsu-gou";
   cat .goxc.json;
-  goxc -wlc default publish-github -apikey=${GITHUB_TOKEN}
+  goxc -wlc default publish-github -apikey=${GITHUB_TOKEN};
   goxc -pv ${PACKAGE_VERSION};
   cd ..;
   fi

@@ -146,7 +146,7 @@ func doHave(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	ca := newCache(m[1])
-	if ca.Len() > 0 {
+	if ca.len() > 0 {
 		fmt.Fprintln(w, "YES")
 	} else {
 		fmt.Fprintln(w, "NO")
@@ -187,14 +187,14 @@ func doUpdate(w http.ResponseWriter, r *http.Request) {
 	searchList.sync()
 	lookupTable.add(datfile, n)
 	lookupTable.sync(false)
-	now := time.Now().Unix()
+	now := time.Now()
 	nstamp, err := strconv.ParseInt(stamp, 10, 64)
 	if err != nil {
 		log.Println(err)
 		return
 	}
 
-	if nstamp < now-int64(defaultUpdateRange) || nstamp > now+int64(defaultUpdateRange) {
+	if nstamp < now.Add(-defaultUpdateRange).Unix() || nstamp > now.Add(defaultUpdateRange).Unix() {
 		return
 	}
 	rec := newRecord(datfile, stamp+"_"+id)
@@ -221,7 +221,7 @@ func doRecent(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	stamp := m[1]
-	last := time.Now().Unix() + int64(recentRange)
+	last := time.Now().Unix() + recentRange
 	begin, end, _ := s.parseStamp(stamp, last)
 	for _, i := range recentList.infos {
 		if begin <= i.stamp && i.stamp <= end {

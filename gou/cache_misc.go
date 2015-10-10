@@ -181,7 +181,7 @@ func (u *UpdateList) sync() {
 	}
 }
 
-//Recentlist represents records list udpated by remote host and
+//RecentList represents records list udpated by remote host and
 //gotten by /gateway.cgi/recent
 type RecentList struct {
 	*UpdateList
@@ -191,7 +191,7 @@ type RecentList struct {
 func newRecentList() *RecentList {
 	r := &UpdateList{
 		updateFile:  recent,
-		updateRange: int64(recentRange),
+		updateRange: recentRange,
 	}
 	r.loadFile()
 	return &RecentList{r}
@@ -205,7 +205,7 @@ func (r *RecentList) getAll() {
 	lookupTable.clear()
 	var begin int64
 	if recentRange > 0 {
-		begin = time.Now().Unix() - int64(recentRange)
+		begin = time.Now().Unix() - recentRange
 	}
 	var res []string
 	for count, n := range searchList.nodes {

@@ -31,12 +31,13 @@ package gou
 import (
 	"fmt"
 	"log"
-	"net"
 	"regexp"
 	"strconv"
 	"time"
 )
 
+//datastr2ch unixtime str ecpochStr to the certain format string.
+//e.g. 2006/01/02(日) 15:04:05.99
 func datestr2ch(epochStr string) string {
 	epoch, err := strconv.ParseInt(epochStr, 10, 64)
 	if err != nil {
@@ -49,15 +50,17 @@ func datestr2ch(epochStr string) string {
 	return fmt.Sprintf(d, wdays[t.Weekday()])
 }
 
+//resTable maps id[:8] and its number.
 type resTable struct {
 	id2num map[string]int
-	num2id map[int]string
+	num2id []string
 }
 
+//newResTable creates ane returns a resTable maps instance.
 func newResTable(ca *cache) *resTable {
 	r := &resTable{
 		make(map[string]int),
-		make(map[int]string),
+		make([]string, ca.len()+1),
 	}
 	ca.load()
 	for i, k := range ca.keys() {
@@ -68,6 +71,7 @@ func newResTable(ca *cache) *resTable {
 	return r
 }
 
+//makeDat makes dat lines of 2ch from cache.
 func makeDat(ca *cache, host string, board string) []string {
 	dat := make([]string, len(ca.keys()))
 	table := newResTable(ca)
@@ -77,6 +81,7 @@ func makeDat(ca *cache, host string, board string) []string {
 		err := rec.load()
 		if err != nil {
 			log.Println(err)
+			continue
 		}
 		name := rec.getBodyValue("name", "")
 		if name == "" {
@@ -97,37 +102,27 @@ func makeDat(ca *cache, host string, board string) []string {
 	return dat
 }
 
+//makeBody makes a dat line after stamp.
 func makeBody(rec *record, host, board string, table *resTable) string {
-	var datHost, sakuHost string
-	if serverName != "" {
-		datHost = serverName
-		sakuHost = serverName
-	} else {
-		tcp, err := net.ResolveTCPAddr("tcp", host)
-		if err != nil {
-			log.Println(err)
-			return ""
-		}
-		tcp.Port = datPort
-		datHost = tcp.String()
-		tcp.Port = defaultPort
-		sakuHost = tcp.String()
-	}
-	body := makeAttachLink(rec, sakuHost)
-	body = makeRssAnchor(body, table)
-	body = makeBracketLink(body, datHost, board, table)
+	body := rec.getBodyValue("body", "")
+	body += makeAttachLink(rec, host)
+	body = makeRSSAnchor(body, table)
+	body = makeBracketLink(body, host, board, table)
 	return body
 }
 
+//makeAttachLink makes and returns attached file link.
 func makeAttachLink(rec *record, sakuHost string) string {
-	if rec.getBodyValue("attach", "") != "" {
-		return rec.getBodyValue("body", "")
+	if rec.getBodyValue("attach", "") == "" {
+		return ""
 	}
-	url := fmt.Sprintf("http://%s/thread.cgi/%s/%s/%d/%s", sakuHost, rec.datfile, rec.id, rec.stamp, rec.getBodyValue("suffix", "txt"))
-	return rec.getBodyValue("body", "") + "<br><br>[Attached]<br>" + url
+	url := fmt.Sprintf("http://%s/thread.cgi/%s/%s/%d.%s",
+		sakuHost, rec.datfile, rec.id, rec.stamp, rec.getBodyValue("suffix", "txt"))
+	return "<br><br>[Attached]<br>" + url
 }
 
-func makeRssAnchor(body string, table *resTable) string {
+//makeRSSAnchor replace id to the record number.
+func makeRSSAnchor(body string, table *resTable) string {
 	reg := regexp.MustCompile("&gt;&gt;([0-9a-f]{8})")
 	return reg.ReplaceAllStringFunc(body, func(id string) string {
 		no := table.id2num[id]
@@ -135,48 +130,45 @@ func makeRssAnchor(body string, table *resTable) string {
 	})
 }
 
+//makeBracketLink add links to [[hoe]] .
 func makeBracketLink(body string, datHost, board string, table *resTable) string {
+	regs := []*regexp.Regexp{
+		regexp.MustCompile("^(?P<title>[^/]+)$"),
+		regexp.MustCompile("^/(?P<type>[a-z]+)/(?P<title>[^/]+)$"),
+		regexp.MustCompile("^(?P<title>[^/]+)/(?P<id>[0-9a-f]{8})$"),
+		regexp.MustCompile("^/(?P<type>[a-z]+)/(?P<title>[^/]+)/(?P<id>[0-9a-f]{8})$"),
+	}
 	reg := regexp.MustCompile("\\[\\[([^<>]+?)\\]\\]")
 	return reg.ReplaceAllStringFunc(body, func(link string) string {
-		regs := []*regexp.Regexp{
-			regexp.MustCompile("^(?P<title>[^/]+)$"),
-			regexp.MustCompile("^/(?P<type>[a-z]+)/(?P<title>[^/]+)$"),
-			regexp.MustCompile("^(?P<title>[^/]+)/(?P<id>[0-9a-f]{8})$"),
-			regexp.MustCompile("^/(?P<type>[a-z]+)/(?P<title>[^/]+)/(?P<id>[0-9a-f]{8})$"),
-		}
-		var title, typ, id string
+		result := make(map[string]string)
 		for _, r := range regs {
 			if match := r.FindStringSubmatch(link); match != nil {
-				result := make(map[string]string)
 				for i, name := range r.SubexpNames() {
 					result[name] = match[i]
 				}
-				title = result["title"]
-				typ = result["type"]
-				id = result["id"]
 				break
 			}
 		}
-		if title == "" {
-			return body
+		if result["title"] == "" {
+			return result["body"]
 		}
-		if typ != "" {
-			typ = "thread"
+		if result["type"] == "" {
+			result["type"] = "thread"
 		}
-		file := fileEncode(typ, title)
+		file := fileEncode(result["type"], result["title"])
 		datkey, err := dataKeyTable.getDatkey(file)
 		if err != nil {
 			log.Println(err)
 			return body
 		}
-		if id != "" {
-			url := fmt.Sprintf("http://%s/test/read.cgi/%s/%d/", datHost, board, datkey)
-			return fmt.Sprintf("[[%s(%s)]]", title, url)
+		if result["id"] != "" {
+			url := fmt.Sprintf("http://%s/2ch/test/read.cgi/%s/%d/", datHost, board, datkey)
+			return fmt.Sprintf("[[%s(%s)]]", result["title"], url)
 		}
 		ca := newCache(file)
 		table = newResTable(ca)
-		no := table.id2num[id]
-		url := fmt.Sprintf("http://%s/test/read.cgi/%s/%d/%d", datHost, board, datkey, no)
-		return fmt.Sprintf("[[%s(&gt;&gt;%s %s)]]", title, id, url)
+		no := table.id2num[result["id"]]
+		url := fmt.Sprintf("http://%s/2ch/test/read.cgi/%s/%d/%d", datHost, board, datkey, no)
+		return fmt.Sprintf("[[%s(&gt;&gt;%s %s)]]", result["title"], result["id"], url)
 	})
 }

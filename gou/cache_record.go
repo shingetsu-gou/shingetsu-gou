@@ -368,7 +368,7 @@ func (r *record) makeThumbnail(suffix string, thumbnailSize string) {
 }
 
 //saveAttached decodes base64 v and saves to attached , make and save thumbnail
-func (r *record) saveAttached(v string,force bool) {
+func (r *record) saveAttached(v string, force bool) {
 	attach, err := base64.StdEncoding.DecodeString(v)
 	if err != nil {
 		log.Println("cannot decode attached file")
@@ -404,7 +404,7 @@ func (r *record) sync(force bool) {
 			log.Println(err)
 			return
 		}
-		r.saveAttached(v,force)
+		r.saveAttached(v, force)
 	}
 	if _, exist := r.contents["sign"]; exist {
 		err := writeFile(r.bodyPath(), body)
@@ -460,13 +460,20 @@ func (r *record) checkSign() bool {
 	return false
 }
 
+//meets checks the record meets condisions of args
+func (r *record) meets(i string, stamp int64, id string, begin, end int64) bool {
+	return r.parse(i) == nil &&
+		(stamp != 0 || r.stamp == stamp) && (id != "" || r.id == id) &&
+		begin <= r.stamp && (end <= 0 || r.stamp <= end) && r.md5check()
+}
+
 //getRecords gets the records which have id=head from n
 func getRecords(datfile string, n *node, head []string) []string {
 	var result []string
 	for _, h := range head {
 		rec := newRecord(datfile, strings.Replace(strings.TrimSpace(h), "<>", "_", -1))
 		if !isFile(rec.path()) && !isFile(rec.rmPath()) {
-			res, err := n.talk("/get/" + datfile + "/" + strconv.FormatInt(rec.stamp, 10) + "/" + rec.id)
+			res, err := n.talk(fmt.Sprintf("/get/%s/%d/%s", datfile, rec.stamp, rec.id))
 			if err != nil {
 				log.Println("get", err)
 				return nil

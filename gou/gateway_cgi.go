@@ -182,13 +182,13 @@ func printRSS(w http.ResponseWriter, r *http.Request) {
 		"http://"+g.host+gatewayCgi+querySeparator+"rss", g.m["description"], xsl)
 	cl := newCacheList()
 	for _, ca := range cl.caches {
-		if ca.validStamp+int64(rssRange) < now {
+		if ca.validStamp+rssRange < now {
 			continue
 		}
 		title := escape(fileDecode(ca.datfile))
 		path := application[ca.typee] + querySeparator + strEncode(title)
 		for _, r := range ca.recs {
-			if r.stamp+int64(rssRange) < now {
+			if r.stamp+rssRange < now {
 				continue
 			}
 			if err := r.loadBody(); err != nil {
@@ -286,7 +286,7 @@ func printTitle(w http.ResponseWriter, r *http.Request) {
 	sort.Sort(sort.Reverse(sortByValidStamp{cl.caches}))
 	outputCachelist := make([]*cache, 0, cl.Len())
 	for _, ca := range cl.caches {
-		if time.Now().Unix() <= ca.validStamp+int64(topRecentRange) {
+		if time.Now().Unix() <= ca.validStamp+topRecentRange {
 			outputCachelist = append(outputCachelist, ca)
 		}
 	}
@@ -421,7 +421,7 @@ func (g *gatewayCGI) renderCSV(cl *cacheList) {
 			case "title":
 				row[i] = title
 			case "records":
-				row[i] = strconv.Itoa(ca.Len())
+				row[i] = strconv.Itoa(ca.len())
 			case "size":
 				row[i] = strconv.Itoa(ca.size)
 			case "tag":

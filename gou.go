@@ -36,7 +36,7 @@ import (
 
 //init initialize all variables and logger by arguments
 func init() {
-	gou.InitConfig()
+	gou.InitVariable()
 
 	var printLog, isSilent bool
 	flag.BoolVar(&printLog, "verbose", false, "print logs")

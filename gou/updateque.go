@@ -86,7 +86,7 @@ func (u *updateQue) doUpdateNode(rec *record, n *node) bool {
 	case !ca.exists(), n == nil: //no cache, only broadcast updates.
 		nodeList.tellUpdate(ca, rec.stamp, rec.id, n)
 		return true
-	case ca.Len() > 0: //cache and records exists, get data from node n.
+	case ca.len() > 0: //cache and records exists, get data from node n.
 		err = ca.getData(rec.stamp, rec.id, n)
 	default: //cache exists ,but no records. get data with range.
 		ca.getWithRange(n)

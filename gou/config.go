@@ -75,14 +75,15 @@ var (
 
 	types = []string{"thread"}
 
-	saveRecord  = make(map[string]int)
+	saveRecord  = make(map[string]int64)
 	savesize    = make(map[string]int) // It is not seconds, but number.
-	getRange    = make(map[string]int)
-	syncRange   = make(map[string]int)
-	saveRemoved = make(map[string]int)
+	getRange    = make(map[string]int64)
+	syncRange   = make(map[string]int64)
+	saveRemoved = make(map[string]int64)
 
-	defaultPort   = setting.getIntValue("Network", "port", 8000)
-	datPort       = setting.getIntValue("Network", "dat_port", 8001)
+	defaultPort = setting.getIntValue("Network", "port", 8000)
+	datPort     = defaultPort
+	//	datPort       = setting.getIntValue("Network", "dat_port", 8001)
 	maxConnection = setting.getIntValue("Network", "max_connection", 20)
 
 	docroot       = setting.getPathValue("Path", "docroot", "./www")
@@ -104,9 +105,9 @@ var (
 	reVisitor      *regexp.Regexp
 	serverName     = setting.getStringValue("Gateway", "server_name", "")
 	tagSize        = setting.getIntValue("Gateway", "tag_size", 20)
-	rssRange       = setting.getIntValue("Gateway", "rss_range", 3*24*60*60)
-	topRecentRange = setting.getIntValue("Gateway", "top_recent_range", 3*24*60*60)
-	recentRange    = setting.getIntValue("Gateway", "recent_range", 31*24*60*60)
+	rssRange       = setting.getInt64Value("Gateway", "rss_range", 3*24*60*60)
+	topRecentRange = setting.getInt64Value("Gateway", "top_recent_range", 3*24*60*60)
+	recentRange    = setting.getInt64Value("Gateway", "recent_range", 31*24*60*60)
 	recordLimit    = setting.getIntValue("Gateway", "record_limit", 2048)
 	enable2ch      = setting.getBoolValue("Gateway", "enable_2ch", false)
 
@@ -202,9 +203,14 @@ func newConfig() *config {
 	return c
 }
 
-//getPathValue gets int value from ini file.
+//getIntValue gets int value from ini file.
 func (c *config) getIntValue(section, key string, vdefault int) int {
 	return c.i.Section(section).Key(key).MustInt(vdefault)
+}
+
+//getInt64Value gets int value from ini file.
+func (c *config) getInt64Value(section, key string, vdefault int64) int64 {
+	return c.i.Section(section).Key(key).MustInt64(vdefault)
 }
 
 //getStringValue gets string from ini file.
@@ -212,7 +218,7 @@ func (c *config) getStringValue(section, key string, vdefault string) string {
 	return c.i.Section(section).Key(key).MustString(vdefault)
 }
 
-//getPathValue gets bool value from ini file.
+//getBoolValue gets bool value from ini file.
 func (c *config) getBoolValue(section, key string, vdefault bool) bool {
 	return c.i.Section(section).Key(key).MustBool(vdefault)
 }
@@ -274,11 +280,20 @@ func InitVariables() {
 	}
 	for _, t := range types {
 		ctype := "Application " + strings.ToUpper(t)
-		saveRecord[t] = setting.getIntValue(ctype, "save_record", 0)
+		saveRecord[t] = setting.getInt64Value(ctype, "save_record", 0)
 		savesize[t] = setting.getIntValue(ctype, "save_size", 1)
-		getRange[t] = setting.getIntValue(ctype, "get_range", 31*24*60*60)
-		syncRange[t] = setting.getIntValue(ctype, "sync_range", 10*24*60*60)
-		saveRemoved[t] = setting.getIntValue(ctype, "save_removed", 50*24*60*60)
+		getRange[t] = setting.getInt64Value(ctype, "get_range", 31*24*60*60)
+		if getRange[t] > time.Now().Unix() {
+			log.Fatal("get_range is too big")
+		}
+		syncRange[t] = setting.getInt64Value(ctype, "sync_range", 10*24*60*60)
+		if syncRange[t] > time.Now().Unix() {
+			log.Fatal("sync_range is too big")
+		}
+		saveRemoved[t] = setting.getInt64Value(ctype, "save_removed", 50*24*60*60)
+		if saveRemoved[t] > time.Now().Unix() {
+			log.Fatal("save_removed is too big")
+		}
 	}
 
 	for i := 0; i < maxConnection; i++ {
