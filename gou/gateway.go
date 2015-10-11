@@ -159,11 +159,11 @@ type Header struct {
 	RootPath   string
 	Title      string
 	RSS        string
-	DenyRobot  bool
 	Mergedjs   *jsCache
 	JS         []string
 	CSS        []string
 	Menu       Menubar
+	DenyRobot  bool
 	Dummyquery int64
 	ThreadCGI  string
 	AppliType  string
@@ -184,11 +184,11 @@ func (c *cgi) header(title, rss string, cookie []*http.Cookie, denyRobot bool, m
 		rootPath,
 		title,
 		rss,
-		denyRobot,
 		c.jc,
 		js,
 		c.extension("css", false),
 		*menu,
+		denyRobot,
 		time.Now().Unix(),
 		threadURL,
 		"thread",

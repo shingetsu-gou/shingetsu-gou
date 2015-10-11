@@ -38,7 +38,7 @@ import (
 	"time"
 )
 
-//DataKeyTable stores cache stamp and cache datfile name pair.
+//DatakeyTable stores cache stamp and cache datfile name pair.
 type DatakeyTable struct {
 	file            string
 	datakey2filekey map[int64]string

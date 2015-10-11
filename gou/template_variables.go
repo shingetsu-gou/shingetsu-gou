@@ -116,8 +116,8 @@ type ListItem struct {
 	Sugtags    []*tag
 	Target     string
 	Remove     bool
-	StrOpts    string
 	IsAdmin    bool
+	StrOpts    string
 	GatewayCGI string
 	Appli      map[string]string
 	filter     string

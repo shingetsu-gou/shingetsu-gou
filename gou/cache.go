@@ -257,7 +257,7 @@ func (c *cache) checkData(res []string, stamp int64, id string, begin, end int64
 				c.updateStamp(r)
 			}
 		} else {
-			log.Printf("warning:%s/%d or %s):broken record", c.Datfile, stamp, r.Stamp)
+			log.Printf("warning:%s/%d or %d):broken record", c.Datfile, stamp, r.Stamp)
 		}
 	}
 	if count == 0 {
