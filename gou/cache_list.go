@@ -40,7 +40,7 @@ import (
 
 //cacheList is slice of *cache
 type cacheList struct {
-	caches []*cache
+	Caches []*cache
 }
 
 //newCacheList loads all caches in disk and returns cachelist obj.
@@ -52,27 +52,27 @@ func newCacheList() *cacheList {
 
 //append adds cache cc to list.
 func (c *cacheList) append(cc *cache) {
-	c.caches = append(c.caches, cc)
+	c.Caches = append(c.Caches, cc)
 }
 
 //Len returns # of caches
 func (c *cacheList) Len() int {
-	return len(c.caches)
+	return len(c.Caches)
 }
 
 //Swap swaps cache order.
 func (c *cacheList) Swap(i, j int) {
-	c.caches[i], c.caches[j] = c.caches[j], c.caches[i]
+	c.Caches[i], c.Caches[j] = c.Caches[j], c.Caches[i]
 }
 
 //locad loads all caches in disk
 func (c *cacheList) load() {
-	if c.caches != nil {
-		c.caches = c.caches[:0]
+	if c.Caches != nil {
+		c.Caches = c.Caches[:0]
 	}
 	err := eachFiles(cacheDir, func(f os.FileInfo) error {
 		cc := newCache(f.Name())
-		c.caches = append(c.caches, cc)
+		c.Caches = append(c.Caches, cc)
 		return nil
 	})
 	//only implements "asis"
@@ -129,32 +129,32 @@ func (c *cacheList) rehash() {
 func (c *cacheList) getall(timelimit time.Time) {
 	shuffle(c)
 	my := nodeList.myself()
-	for _, ca := range c.caches {
+	for _, ca := range c.Caches {
 		now := time.Now()
 		if now.After(timelimit) {
 			log.Println("client timeout")
 			return
 		}
-		if !ca.exists() {
+		if !ca.Exists() {
 			return
 		}
 		ca.search(my)
-		ca.size = 0
+		ca.Size = 0
 		ca.velocity = 0
-		ca.validStamp = 0
+		ca.ValidStamp = 0
 		for _, rec := range ca.recs {
-			if !rec.exists() {
+			if !rec.Exists() {
 				continue
 			}
 			if rec.load() != nil {
-				if ca.stamp < rec.stamp {
-					ca.stamp = rec.stamp
+				if ca.stamp < rec.Stamp {
+					ca.stamp = rec.Stamp
 				}
-				if ca.validStamp < rec.stamp {
-					ca.validStamp = rec.stamp
+				if ca.ValidStamp < rec.Stamp {
+					ca.ValidStamp = rec.Stamp
 				}
-				ca.size += rec.len()
-				if now.Add(-7 * 24 * time.Hour).Before(time.Unix(rec.stamp, 0)) {
+				ca.Size += rec.len()
+				if now.Add(-7 * 24 * time.Hour).Before(time.Unix(rec.Stamp, 0)) {
 					ca.velocity++
 				}
 				rec.sync(false)
@@ -172,7 +172,7 @@ type caches []*cache
 //has return true is caches has cache cc
 func (c caches) has(cc *cache) bool {
 	for _, c := range c {
-		if c.datfile == cc.datfile {
+		if c.Datfile == cc.Datfile {
 			return true
 		}
 	}
@@ -196,7 +196,7 @@ type sortByRecentStamp struct {
 
 //Less returns true if cache[i].recentStamp < cache[j].recentStamp.
 func (c sortByRecentStamp) Less(i, j int) bool {
-	return c.caches[i].recentStamp < c.caches[j].recentStamp
+	return c.caches[i].RecentStamp < c.caches[j].RecentStamp
 }
 
 //sortByValidStamp is for sorting by validStamp.
@@ -206,7 +206,7 @@ type sortByValidStamp struct {
 
 //Less returns true if cache[i].validStamp < cache[j].validStamp.
 func (c sortByValidStamp) Less(i, j int) bool {
-	return c.caches[i].validStamp < c.caches[j].validStamp
+	return c.caches[i].ValidStamp < c.caches[j].ValidStamp
 }
 
 //sortByVelocity is for sorting by velocity.
@@ -220,14 +220,14 @@ func (c sortByVelocity) Less(i, j int) bool {
 	if c.caches[i].velocity != c.caches[j].velocity {
 		return c.caches[i].velocity < c.caches[j].velocity
 	}
-	return c.caches[i].len() < c.caches[j].len()
+	return c.caches[i].Len() < c.caches[j].Len()
 }
 
 //search reloads records in caches in cachelist
 //and returns slice of cache which matches query.
 func (c *cacheList) search(query *regexp.Regexp) caches {
 	var result []*cache
-	for _, ca := range c.caches {
+	for _, ca := range c.Caches {
 		for _, rec := range ca.recs {
 			err := rec.loadBody()
 			if err != nil {
@@ -244,18 +244,18 @@ func (c *cacheList) search(query *regexp.Regexp) caches {
 
 //cleanRecords remove old or duplicates records for each caches.
 func (c *cacheList) cleanRecords() {
-	for _, ca := range c.caches {
+	for _, ca := range c.Caches {
 		ca.removeRecords(ca.saveRecord())
 	}
 }
 
 //removeRemoved removes removed files if old.
 func (c *cacheList) removeRemoved() {
-	for _, ca := range c.caches {
-		err := eachFiles(path.Join(ca.datfile, "removed"), func(f os.FileInfo) error {
-			rec := newRecord(ca.datfile, f.Name())
-			if ca.saveRemoved() > 0 && rec.stamp+ca.saveRemoved() < time.Now().Unix() &&
-				rec.stamp < ca.stamp {
+	for _, ca := range c.Caches {
+		err := eachFiles(path.Join(ca.Datfile, "removed"), func(f os.FileInfo) error {
+			rec := newRecord(ca.Datfile, f.Name())
+			if ca.saveRemoved() > 0 && rec.Stamp+ca.saveRemoved() < time.Now().Unix() &&
+				rec.Stamp < ca.stamp {
 				err := os.Remove(path.Join(ca.datpath(), "removed", f.Name()))
 				if err != nil {
 					log.Println(err)

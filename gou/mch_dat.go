@@ -60,13 +60,13 @@ type resTable struct {
 func newResTable(ca *cache) *resTable {
 	r := &resTable{
 		make(map[string]int),
-		make([]string, ca.len()+1),
+		make([]string, ca.Len()+1),
 	}
 	ca.load()
 	for i, k := range ca.keys() {
 		rec := ca.get(k, nil)
-		r.num2id[i+1] = rec.id[:8]
-		r.id2num[rec.id[:8]] = i + 1
+		r.num2id[i+1] = rec.ID[:8]
+		r.id2num[rec.ID[:8]] = i + 1
 	}
 	return r
 }
@@ -83,17 +83,17 @@ func makeDat(ca *cache, host string, board string) []string {
 			log.Println(err)
 			continue
 		}
-		name := rec.getBodyValue("name", "")
+		name := rec.GetBodyValue("name", "")
 		if name == "" {
 			name = "名無しさん"
 		}
-		if rec.getBodyValue("pubkey", "") != "" {
-			name += "◆" + rec.getBodyValue("pubkey", "")[:10]
+		if rec.GetBodyValue("pubkey", "") != "" {
+			name += "◆" + rec.GetBodyValue("pubkey", "")[:10]
 		}
 		comment := fmt.Sprintf("%s<>%s<>%s<>%s<>",
-			name, rec.getBodyValue("main", ""), datestr2ch(rec.getBodyValue("stamp", "")), makeBody(rec, host, board, table))
+			name, rec.GetBodyValue("main", ""), datestr2ch(rec.GetBodyValue("stamp", "")), makeBody(rec, host, board, table))
 		if i == 0 {
-			comment += fileDecode(ca.datfile)
+			comment += fileDecode(ca.Datfile)
 		}
 		comment += "\n"
 		dat[i] = comment
@@ -104,7 +104,7 @@ func makeDat(ca *cache, host string, board string) []string {
 
 //makeBody makes a dat line after stamp.
 func makeBody(rec *record, host, board string, table *resTable) string {
-	body := rec.getBodyValue("body", "")
+	body := rec.GetBodyValue("body", "")
 	body += makeAttachLink(rec, host)
 	body = makeRSSAnchor(body, table)
 	body = makeBracketLink(body, host, board, table)
@@ -113,11 +113,11 @@ func makeBody(rec *record, host, board string, table *resTable) string {
 
 //makeAttachLink makes and returns attached file link.
 func makeAttachLink(rec *record, sakuHost string) string {
-	if rec.getBodyValue("attach", "") == "" {
+	if rec.GetBodyValue("attach", "") == "" {
 		return ""
 	}
 	url := fmt.Sprintf("http://%s/thread.cgi/%s/%s/%d.%s",
-		sakuHost, rec.datfile, rec.id, rec.stamp, rec.getBodyValue("suffix", "txt"))
+		sakuHost, rec.datfile, rec.ID, rec.Stamp, rec.GetBodyValue("suffix", "txt"))
 	return "<br><br>[Attached]<br>" + url
 }
 

@@ -44,13 +44,13 @@ import (
 //cache represents cache of one file.
 type cache struct {
 	node        *rawNodeList
-	datfile     string
-	size        int    // size of cache file
+	Datfile     string
+	Size        int    // size of cache file
 	velocity    int    // records count per unit time
-	typee       string //"thread"
+	Typee       string //"thread"
 	tags        *tagList //made by the user
-	validStamp  int64
-	recentStamp int64
+	ValidStamp  int64
+	RecentStamp int64
 	stamp       int64 //when the cache is modified
 	sugtags     *suggestedTagList
 	recs        map[string]*record
@@ -62,35 +62,35 @@ func (c *cache) saveRecord() int64 {
 	if c.syncRange() == 0 {
 		return 0
 	}
-	return saveRecord[c.typee]
+	return saveRecord[c.Typee]
 }
 
 //saveSize returns # of records to be holded.
 func (c *cache) saveSize() int {
-	return savesize[c.typee]
+	return savesize[c.Typee]
 }
 
 //getRange returns default time range when getting records.
 func (c *cache) getRange() int64 {
-	return getRange[c.typee]
+	return getRange[c.Typee]
 }
 
 //syncRange returns default time range when syncing(using head) records.
 func (c *cache) syncRange() int64 {
-	return syncRange[c.typee]
+	return syncRange[c.Typee]
 }
 
 //saveRemoved returns default time range removed mark is alive in disk.
 func (c *cache) saveRemoved() int64 {
-	if saveRemoved[c.typee] != 0 && saveRemoved[c.typee] <= c.syncRange() {
+	if saveRemoved[c.Typee] != 0 && saveRemoved[c.Typee] <= c.syncRange() {
 		return c.syncRange() + 1
 	}
-	return saveRemoved[c.typee]
+	return saveRemoved[c.Typee]
 }
 
 //dathash returns datfile itself is type=asis.
 func (c *cache) dathash() string {
-	return fileHash(c.datfile)
+	return fileHash(c.Datfile)
 }
 
 //datpath returns real file path of this cache.
@@ -101,24 +101,24 @@ func (c *cache) datpath() string {
 //newCache read files to set params and returns cache obj.
 func newCache(datfile string) *cache {
 	c := &cache{
-		datfile: datfile,
+		Datfile: datfile,
 		recs:    make(map[string]*record),
 	}
 	c.stamp = c.loadStatus("stamp")
-	c.recentStamp = c.stamp
-	c.validStamp = c.loadStatus("validstamp")
-	c.size = int(c.loadStatus("size"))
+	c.RecentStamp = c.stamp
+	c.ValidStamp = c.loadStatus("validstamp")
+	c.Size = int(c.loadStatus("size"))
 	c.velocity = int(c.loadStatus("velocity"))
 	c.node = newRawNodeList(path.Join(c.datpath(), "node.txt"))
-	c.tags = newTagList(path.Join(c.datfile, "tag.txt"))
-	if v, exist := suggestedTagTable.sugtaglist[c.datfile]; exist {
+	c.tags = newTagList(path.Join(c.Datfile, "tag.txt"))
+	if v, exist := suggestedTagTable.sugtaglist[c.Datfile]; exist {
 		c.sugtags = v
 	} else {
 		c.sugtags = newSuggestedTagList(nil)
 	}
 	for _, t := range types {
-		if strings.HasPrefix(c.datfile, t) {
-			c.typee = t
+		if strings.HasPrefix(c.Datfile, t) {
+			c.Typee = t
 			break
 		}
 	}
@@ -126,7 +126,7 @@ func newCache(datfile string) *cache {
 }
 
 //len returns size of records
-func (c *cache) len() int {
+func (c *cache) Len() int {
 	return len(c.recs)
 }
 
@@ -154,12 +154,12 @@ func (c *cache) keys() []string {
 
 //load loads records from files on the disk if not loaded.
 func (c *cache) load() {
-	if c.loaded && !c.exists() {
+	if c.loaded && !c.Exists() {
 		return
 	}
 	c.loaded = true
 	err := eachFiles(c.datpath(), func(dir os.FileInfo) error {
-		c.recs[dir.Name()] = newRecord(c.datfile, dir.Name())
+		c.recs[dir.Name()] = newRecord(c.Datfile, dir.Name())
 		return nil
 	})
 	if err != nil {
@@ -212,12 +212,12 @@ func (c *cache) saveStatus(key string, val interface{}) {
 //syncStatus saves params to files.
 func (c *cache) syncStatus() {
 	c.saveStatus("stamp", c.stamp)
-	c.saveStatus("validstamp", c.validStamp)
-	c.saveStatus("size", c.size)
+	c.saveStatus("validstamp", c.ValidStamp)
+	c.saveStatus("size", c.Size)
 	c.saveStatus("count", len(c.recs))
 	c.saveStatus("velocity", c.velocity)
 	if !isFile(c.datpath() + "/dat.stat") {
-		c.saveStatus("dat", c.datfile)
+		c.saveStatus("dat", c.Datfile)
 	}
 }
 
@@ -242,12 +242,12 @@ func (c *cache) checkData(res []string, stamp int64, id string, begin, end int64
 	var err error
 	count := 0
 	for _, i := range res {
-		r := newRecord(c.datfile, "")
+		r := newRecord(c.Datfile, "")
 		if r.meets(i, stamp, id, begin, end) {
 			count++
 			if len(i) > recordLimit*1024 || spamCheck(i) {
 				err = errSpam
-				log.Printf("warning:%s/%s:too large or spam record", c.datfile, r.idstr())
+				log.Printf("warning:%s/%s:too large or spam record", c.Datfile, r.Idstr())
 				c.addData(r)
 				err := r.remove()
 				if err != nil {
@@ -257,7 +257,7 @@ func (c *cache) checkData(res []string, stamp int64, id string, begin, end int64
 				c.updateStamp(r)
 			}
 		} else {
-			log.Printf("warning:%s/%d or %s):broken record", c.datfile, stamp, r.stamp)
+			log.Printf("warning:%s/%d or %s):broken record", c.Datfile, stamp, r.Stamp)
 		}
 	}
 	if count == 0 {
@@ -269,7 +269,7 @@ func (c *cache) checkData(res []string, stamp int64, id string, begin, end int64
 //getData gets records from node n and checks its is same as stamp and id in args.
 //save recs if success. returns errSpam or errGet.
 func (c *cache) getData(stamp int64, id string, n *node) error {
-	res, err := n.talk(fmt.Sprintf("/get/%s/%d/%s", c.datfile, stamp, id))
+	res, err := n.talk(fmt.Sprintf("/get/%s/%d/%s", c.Datfile, stamp, id))
 	if err != nil {
 		log.Println(err)
 		return errGet
@@ -278,15 +278,15 @@ func (c *cache) getData(stamp int64, id string, n *node) error {
 	if count > 0 {
 		c.syncStatus()
 	} else {
-		log.Println(c.datfile, stamp, "records not found")
+		log.Println(c.Datfile, stamp, "records not found")
 	}
 	return err
 }
 
 //addData adds rec to cache.
 func (c *cache) addData(rec *record) {
-	c.recs[rec.idstr()] = rec
-	c.size += len(rec.idstr()) + 1
+	c.recs[rec.Idstr()] = rec
+	c.Size += len(rec.Idstr()) + 1
 	c.velocity++
 	c.updateStamp(rec)
 }
@@ -295,8 +295,8 @@ func (c *cache) addData(rec *record) {
 func (c *cache) updateStamp(rec *record) {
 	c.setupDirectories()
 	rec.sync(false)
-	if c.stamp < rec.stamp {
-		c.stamp = rec.stamp
+	if c.stamp < rec.Stamp {
+		c.stamp = rec.Stamp
 	}
 }
 
@@ -317,11 +317,11 @@ func (c *cache) getWithRange(n *node) bool {
 	var res []string
 	if begin == 0 && len(c.recs) == 0 {
 		begin = now - c.getRange()
-		res, err = n.talk(fmt.Sprintf("/get/%s/%d-", c.datfile, begin))
+		res, err = n.talk(fmt.Sprintf("/get/%s/%d-", c.Datfile, begin))
 	} else {
 		var head []string
-		head, err = n.talk(fmt.Sprintf("/head/%s/%d-", c.datfile, begin))
-		res = getRecords(c.datfile, n, head)
+		head, err = n.talk(fmt.Sprintf("/head/%s/%d-", c.Datfile, begin))
+		res = getRecords(c.Datfile, n, head)
 	}
 	if err != nil {
 		return false
@@ -341,7 +341,7 @@ func (c *cache) getWithRange(n *node) bool {
 func (c *cache) checkBody() {
 	dir := path.Join(cacheDir, c.dathash(), "body")
 	err := eachFiles(dir, func(d os.FileInfo) error {
-		rec := newRecord(c.datfile, d.Name())
+		rec := newRecord(c.Datfile, d.Name())
 		if !isFile(rec.path()) {
 			err := os.Remove(path.Join(dir, d.Name()))
 			if err != nil {
@@ -367,7 +367,7 @@ func (c *cache) checkAttach() {
 		if strings.HasPrefix(idstr, "s") {
 			idstr = idstr[1:]
 		}
-		rec := newRecord(c.datfile, idstr)
+		rec := newRecord(c.Datfile, idstr)
 		if !isFile(rec.path()) {
 			err := os.Remove(path.Join(dir, d.Name()))
 			if err != nil {
@@ -398,7 +398,7 @@ func (c *cache) removeRecords(limit int64) {
 		if limit > 0 {
 			for _, r := range ids {
 				rec := c.recs[r]
-				if rec.stamp+limit < time.Now().Unix() {
+				if rec.Stamp+limit < time.Now().Unix() {
 					err := rec.remove()
 					if err != nil {
 						log.Println(err)
@@ -411,14 +411,14 @@ func (c *cache) removeRecords(limit int64) {
 	once := make(map[string]struct{})
 	for r, rec := range c.recs {
 		if !isFile(rec.path()) {
-			if _, exist := once[rec.id]; exist {
+			if _, exist := once[rec.ID]; exist {
 				err := rec.remove()
 				if err != nil {
 					log.Println(err)
 				}
 				delete(c.recs, r)
 			} else {
-				once[rec.id] = struct{}{}
+				once[rec.ID] = struct{}{}
 			}
 		}
 	}
@@ -426,7 +426,7 @@ func (c *cache) removeRecords(limit int64) {
 }
 
 //exists return true is datapath exists.
-func (c *cache) exists() bool {
+func (c *cache) Exists() bool {
 	return isDir(c.datpath())
 }
 
@@ -437,7 +437,7 @@ func (c *cache) search(myself *node) bool {
 	if myself != nil {
 		myself = nodeList.myself()
 	}
-	n := searchList.search(c, myself, lookupTable.get(c.datfile, nil))
+	n := searchList.search(c, myself, lookupTable.get(c.Datfile, nil))
 	if n != nil {
 		if !nodeList.hasNode(n) {
 			nodeList.append(n)

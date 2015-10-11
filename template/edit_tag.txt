@@ -1,30 +1,31 @@
-{{$root:=.}}
-{#
+{{define "edit_tag"}}
+#
  # Saku Gateway Edit Tag Form.
  # Copyright (c) 2007-2014 shinGETsu Project.
  #}
-<form id="savetag" method="post" action="{{.Admin_cgi}}/savetag" class="form-horizontal"><div>
+<form id="savetag" method="post" action="{{.AdminCGI}}/savetag" class="form-horizontal"><div>
   <input type="hidden" name="file" value="{{.Datfile}}" />
   <div class="control-group">
-    <label class="control-label" for="tag">{{.Message.Tag}}</label>
+    <label class="control-label" for="tag">{{.Message.tag}}</label>
     <div class="controls">
-      <input name="tag" value="{{.Escape_simple .Tags}}" id="tag" />
-      <div class="help-block">{{.Message.Tag_desc}}</div>
+      <input name="tag" value="{{.Tags}}" id="tag" />
+      <div class="help-block">{{.Message.tag_desc}}</div>
     </div>
   </div>
   <p class="tags">
-  {{ range $tag:=.Usertags }}
-    <span class="tag">{{$root.Escape_simple $tag.Str}}</span>
+  {{ range $tag:=.Usertags.Tags }}
+    <span class="tag">{{html $tag.Tagstr}}</span>
   {{ end }}
   </p>
   <p class="sugtags">
-  {{ range $tag:=.Sugtags }}
-    <span class="tag">{{$root.Escape_simple $tag.Str}}</span>
+  {{ range $tag:=.Sugtags.Tags }}
+    <span class="tag">{{html $tag.Tagstr}}</span>
   {{ end }}
   </p>
   <div class="form-actions">
-    <input type="submit" value="{{.Message.Edit_tag}}" class="btn btn-primary"/>
-    <a href="javascript:history.Back()" class="btn">{{.Message.Cancel}}</a>
+    <input type="submit" value="{{.Message.edit_tag}}" class="btn btn-primary"/>
+    <a href="javascript:history.Back()" class="btn">{{.Message.cancel}}</a>
   </div>
 </div></form>
 
+{{end}}

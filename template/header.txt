@@ -1,3 +1,4 @@
+{{define "header"}}
 {{$root:=.}}
 {#-
  # Saku Gateway Header.
@@ -5,42 +6,43 @@
  -#}
 <!DOCTYPE html>
 <html xmlns="http://www.W3.Org/1999/xhtml"
-  lang="{{.Message.Lang}}" xml:lang="{{.Message.Lang}}">
+  lang="{{.Message.lang}}" xml:lang="{{.Message.lang}}">
 <head>
   <meta http-equiv="content-type" content="text/html; charset=UTF-8" />
   <title>{{.Title}}</title>
-{{ if .Deny_robot }}
+{{ if .DenyRobot }}
   <meta name="robots" content="NOINDEX" />
 {{ end }}
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <link rel="author" href="http://www.Shingetsu.Info/" />
   <link rel="contents" href="/" />
-  <link rel="index" href="{{.Root_path}}gateway.Cgi/index" />
-  <script type="text/javascript" src="{{.Root_path}}jquery/jquery.Min.Js?{{.Dummyquery}}"></script>
-  <script type="text/javascript" src="{{.Root_path}}jquery/jquery.Lazy.Min.Js?{{.Dummyquery}}"></script>
-  <script type="text/javascript" src="{{.Root_path}}bootstrap/js/bootstrap.Min.Js?{{.Dummyquery}}"></script>
-  <link rel="alternate" type="application/rss+xml" title="RSS" href="{{.Rss}}" />
-  <link rel="stylesheet" type="text/css" href="{{.Root_path}}bootstrap/css/bootstrap.Min.Css?{{.Dummyquery}}" />
-{{range $e:=js }}
-  <script type="text/javascript" src="{{$root.Root_path}}{{$e}}?{{$root.Dummyquery}}"></script>
+  <link rel="index" href="{{.RootPath}}gateway.cgi/index" />
+  <script type="text/javascript" src="{{.RootPath}}jquery/jquery.Min.Js?{{.Dummyquery}}"></script>
+  <script type="text/javascript" src="{{.RootPath}}jquery/jquery.Lazy.Min.Js?{{.Dummyquery}}"></script>
+  <script type="text/javascript" src="{{.RootPath}}bootstrap/js/bootstrap.Min.Js?{{.Dummyquery}}"></script>
+  <link rel="alternate" type="application/rss+xml" title="RSS" href="{{.RSS}}" />
+  <link rel="stylesheet" type="text/css" href="{{.RootPath}}bootstrap/css/bootstrap.Min.Css?{{.Dummyquery}}" />
+{{range $e:=.JS }}
+  <script type="text/javascript" src="{{$root.RootPath}}{{$e}}?{{$root.Dummyquery}}"></script>
 {{else }}
-  <script type="text/javascript" src="{{$root.Root_path}}gateway.Cgi/mergedjs?{{$root.Mergedjs.Mtime}}"></script>
+  <script type="text/javascript" src="{{$root.RootPath}}gateway.Cgi/mergedjs?{{$root.Mergedjs.GetLatest}}"></script>
 {{end }}
-{{range $e:=.Css }}
-  <link rel="stylesheet" type="text/css" href="{{$root.Root_path}}{{$e}}?{{$root.Dummyquery}}" />
+{{range $e:=.CSS }}
+  <link rel="stylesheet" type="text/css" href="{{$root.RootPath}}{{$e}}?{{$root.Dummyquery}}" />
 {{end }}
   <script type="text/javascript">//<![CDATA[
-    shingetsu.RootPath = "{{.Root_path}}";
+    shingetsu.RootPath = "{{.RootPath}}";
     shingetsu.DummyQuery = "{{.Dummyquery}}";
-    shingetsu.UiLang = "{{.Message.Lang}}";
+    shingetsu.UiLang = "{{.Message.lang}}";
   //]]></script>
 </head>
 <body>
-{{.Menubar}}
+{{template "menubar" .Menubar}}
 <div class="container">
 
-{{ if .Cgi.Appli_type eq "thread" }}
-  <h1><a href="{{.Thread_cgi}}/{{.Str_title}}">{{.Escape_space .Title}}</a></h1>
+{{ if eq .AppliType "thread" }}
+  <h1><a href="{{.ThreadCGI}}/{{strEncode .Title}}">{{escapeSpace .Title}}</a></h1>
 {{ else }}
-  <h1><a href="">{{.Escape_space .Title}}</a></h1>
+  <h1><a href="">{{escapeSpace .Title}}</a></h1>
 {{ end }}
+{{end}}

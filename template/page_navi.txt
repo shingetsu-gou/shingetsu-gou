@@ -1,30 +1,32 @@
+{{define "page_navi"}}
 {{$root:=.}}
 {# Saku Gateway Thread Page Navigation.
  # Copyright (c) 2007,2014 shinGETsu Project.
  #}
-{{ if .Cache.Len }}
+{{ if .Cache.Len gt 0}}
   |
 {{ end }}
-{{ if (.Page gt 0) or .Id }}
-  <a href="{{.Thread_cgi}}/{{.Str_path}}">{{.Message.Last_page}}</a>
+{{ if or .Page .ID }}
+  <a href="{{.ThreadCGI}}/{{strEncode .Path}}">{{.Message.last_page}}</a>
 {{ end }}
-{{ if .Page gt 1 }}
-  <a href="{{.Thread_cgi}}/{{.Str_path}}/p{{.Add .Page -1}}">{{.Message.New_page}}</a>
+{{ if gt .Page 1}}
+  <a href="{{.ThreadCGI}}/{{strEncode .Path}}/p{{sub .Page 1}}">{{.Message.new_page}}</a>
 {{ end }}
-{{ if .First gt 1 }}
-  {{ range $p:=.First }}
-    {{ if not .Id and ($p eq .Page) }}
+{{ if gt .First 1}}
+  {{ range $p:=.Pages }}
+    {{ if and ( eq $root.ID "") (eq $p $root.Page) }}
       {{$p}}
     {{else}}
-      {{ if not .Id and ($p eq 0) }}
-        <a href="{{.Thread_cgi}}/{{.Str_path}}">{{$p}}</a>
+      {{ if and (not $root.ID)  (not $p)}}
+        <a href="{{$root.ThreadCGI}}/{{strEncode $root.Path}}">{{$p}}</a>
       {{ else }}
-         <a href="{{.Thread_cgi}}/{{.Str_path}}/p{{$p}}">{{$p}}</a>
+         <a href="{{$root.ThreadCGI}}/{{strEncode $root.Path}}/p{{$p}}">{{$p}}</a>
       {{ end }}
     {{ end }}
   {{ end }}
 {{ end }}
-{{$ppp:=.Add .Page +1}}
-{{ if not .Id and .Last $ppp  lt .Cache.Len }}
-     <a href="{{.Thread_cgi}}/{{.Str_path}}/p{{.Add .Page +1}}">{{.Message.Old_page}}</a>
+{{$ppp:=mul (add .Page +1) .ThreadPageSize}}
+{{ if and (not .ID) (lt $ppp .Cache.Len )}}
+     <a href="{{.ThreadCGI}}/{{strEncode .Path}}/p{{add .Page 1}}">{{.Message.old_page}}</a>
 {{ end }}
+{{end}}

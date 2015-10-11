@@ -44,8 +44,8 @@ import (
 //record represents one record.
 type record struct {
 	datfile              string //cache file name
-	stamp                int64  //unixtime
-	id                   string //md5(bodystr)
+	Stamp                int64  //unixtime
+	ID                   string //md5(bodystr)
 	contents             map[string]string
 	keyOrder             []string
 	noNeedToLoadAttached bool
@@ -67,23 +67,23 @@ func newRecord(datfile, idstr string) *record {
 			log.Println(idstr, ":bad format")
 			return nil
 		}
-		if r.stamp, err = strconv.ParseInt(buf[0], 10, 64); err != nil {
+		if r.Stamp, err = strconv.ParseInt(buf[0], 10, 64); err != nil {
 			log.Println(idstr, ":bad format")
 			return nil
 		}
-		r.id = buf[1]
+		r.ID = buf[1]
 	}
 	return r
 }
 
-//idstr returns real file name of the record file.
-func (r *record) idstr() string {
-	return fmt.Sprintf("%d_%s", r.stamp, r.id)
+//Idstr returns real file name of the record file.
+func (r *record) Idstr() string {
+	return fmt.Sprintf("%d_%s", r.Stamp, r.ID)
 }
 
 //recstr returns one line in the record file.
 func (r *record) recstr() string {
-	return fmt.Sprintf("%d<>%s<>%s", r.stamp, r.id, r.bodystr())
+	return fmt.Sprintf("%d<>%s<>%s", r.Stamp, r.ID, r.bodystr())
 }
 
 //bodystr returns body part of one line in the record file.
@@ -95,9 +95,17 @@ func (r *record) bodystr() string {
 	return strings.Join(rs, "<>")
 }
 
+//HasBodyValue returns true if key k exists
+func (r *record) HasBodyValue(k string) bool {
+	if _, exist := r.contents[k]; exist {
+		return true
+	}
+	return false
+}
+
 //getBodyValue returns value of key k
 //return def if not exists.
-func (r *record) getBodyValue(k string, def string) string {
+func (r *record) GetBodyValue(k string, def string) string {
 	if v, exist := r.contents[k]; exist {
 		return v
 	}
@@ -106,26 +114,26 @@ func (r *record) getBodyValue(k string, def string) string {
 
 //path returns path for real file
 func (r *record) path() string {
-	if r.idstr() == "" || r.datfile == "" {
+	if r.Idstr() == "" || r.datfile == "" {
 		return ""
 	}
-	return filepath.Join(cacheDir, r.dathash(), "record", r.idstr())
+	return filepath.Join(cacheDir, r.dathash(), "record", r.Idstr())
 }
 
 //bodyPath returns path for body (record without attach field)
 func (r *record) bodyPath() string {
-	if r.idstr() == "" || r.datfile == "" {
+	if r.Idstr() == "" || r.datfile == "" {
 		return ""
 	}
-	return filepath.Join(cacheDir, r.dathash(), "body", r.idstr())
+	return filepath.Join(cacheDir, r.dathash(), "body", r.Idstr())
 }
 
 //rmPath returns path for removed marker
 func (r *record) rmPath() string {
-	if r.idstr() == "" || r.datfile == "" {
+	if r.Idstr() == "" || r.datfile == "" {
 		return ""
 	}
-	return filepath.Join(cacheDir, r.dathash(), "removed", r.idstr())
+	return filepath.Join(cacheDir, r.dathash(), "removed", r.Idstr())
 }
 
 //dathash returns the same string as datfile if encoding=asis
@@ -136,8 +144,8 @@ func (r *record) dathash() string {
 	return fileHash(r.datfile)
 }
 
-//exists return true if record file exists.
-func (r *record) exists() bool {
+//Exists return true if record file exists.
+func (r *record) Exists() bool {
 	return isFile(r.path())
 }
 
@@ -151,12 +159,12 @@ func (r *record) parse(recstr string) error {
 		log.Println(err)
 		return err
 	}
-	r.stamp, err = strconv.ParseInt(tmp[0], 10, 64)
+	r.Stamp, err = strconv.ParseInt(tmp[0], 10, 64)
 	if err != nil {
 		log.Println(tmp[0], "bad format")
 		return err
 	}
-	r.id = tmp[1]
+	r.ID = tmp[1]
 	r.contents = make(map[string]string)
 	r.keyOrder = make([]string, len(tmp))
 	for i, kv := range tmp {
@@ -252,7 +260,7 @@ func (r *record) loadBody() error {
 func (r *record) build(stamp int64, body map[string]string, passwd string) string {
 	r.contents = make(map[string]string)
 	r.keyOrder = make([]string, len(body))
-	r.stamp = stamp
+	r.Stamp = stamp
 	i := 0
 	var targets string
 	for key, value := range body {
@@ -272,13 +280,13 @@ func (r *record) build(stamp int64, body map[string]string, passwd string) strin
 		r.keyOrder = append(r.keyOrder, "sign")
 		r.keyOrder = append(r.keyOrder, "target")
 	}
-	r.id = md5digest(r.bodystr())
-	return r.id
+	r.ID = md5digest(r.bodystr())
+	return r.ID
 }
 
 //md5check return true if md5 of bodystr is same as r.id.
 func (r *record) md5check() bool {
-	return md5digest(r.bodystr()) == r.id
+	return md5digest(r.bodystr()) == r.ID
 }
 
 //allthumnailPath finds and returns all thumbnails path in disk
@@ -291,7 +299,7 @@ func (r *record) allthumbnailPath() []string {
 	var thumbnail []string
 	err := eachFiles(dir, func(fi os.FileInfo) error {
 		dname := fi.Name()
-		if strings.HasPrefix(dname, "s"+r.idstr()) {
+		if strings.HasPrefix(dname, "s"+r.Idstr()) {
 			thumbnail = append(thumbnail, filepath.Join(dir, dname))
 		}
 		return nil
@@ -319,14 +327,14 @@ func (r *record) attachPath(suffix string, thumbnailSize string) string {
 			suffix = "txt"
 		}
 		if thumbnailSize != "" {
-			return filepath.Join(dir, "s"+r.idstr()+"."+thumbnailSize+"."+suffix)
+			return filepath.Join(dir, "s"+r.Idstr()+"."+thumbnailSize+"."+suffix)
 		}
-		return filepath.Join(dir, r.idstr()+"."+suffix)
+		return filepath.Join(dir, r.Idstr()+"."+suffix)
 	}
 	var result string
 	err := eachFiles(dir, func(fi os.FileInfo) error {
 		dname := fi.Name()
-		if strings.HasPrefix(dname, r.idstr()) {
+		if strings.HasPrefix(dname, r.Idstr()) {
 			result = filepath.Join(dir, dname)
 		}
 		return nil
@@ -346,7 +354,7 @@ func (r *record) makeThumbnail(suffix string, thumbnailSize string) {
 		return
 	}
 	if suffix == "" {
-		suffix = r.getBodyValue("suffix", "jpg")
+		suffix = r.GetBodyValue("suffix", "jpg")
 	}
 
 	attachPath := r.attachPath(suffix, "")
@@ -374,8 +382,8 @@ func (r *record) saveAttached(v string, force bool) {
 		log.Println("cannot decode attached file")
 		return
 	}
-	attachPath := r.attachPath(r.getBodyValue("suffix", "txt"), "")
-	thumbnailPath := r.attachPath(r.getBodyValue("suffix", "jpg"), defaultThumbnailSize)
+	attachPath := r.attachPath(r.GetBodyValue("suffix", "txt"), "")
+	thumbnailPath := r.attachPath(r.GetBodyValue("suffix", "jpg"), defaultThumbnailSize)
 
 	if err = writeFile(attachPath, string(attach)); err != nil {
 		log.Println(err)
@@ -418,8 +426,8 @@ func (r *record) sync(force bool) {
 //bodyString retuns bodystr not including attach field, and shorten pubkey.
 func (r *record) bodyString() string {
 	buf := []string{
-		strconv.FormatInt(r.stamp, 10),
-		r.id,
+		strconv.FormatInt(r.Stamp, 10),
+		r.ID,
 	}
 	for _, k := range r.keyOrder {
 		switch k {
@@ -463,8 +471,8 @@ func (r *record) checkSign() bool {
 //meets checks the record meets condisions of args
 func (r *record) meets(i string, stamp int64, id string, begin, end int64) bool {
 	return r.parse(i) == nil &&
-		(stamp != 0 || r.stamp == stamp) && (id != "" || r.id == id) &&
-		begin <= r.stamp && (end <= 0 || r.stamp <= end) && r.md5check()
+		(stamp != 0 || r.Stamp == stamp) && (id != "" || r.ID == id) &&
+		begin <= r.Stamp && (end <= 0 || r.Stamp <= end) && r.md5check()
 }
 
 //getRecords gets the records which have id=head from n
@@ -473,7 +481,7 @@ func getRecords(datfile string, n *node, head []string) []string {
 	for _, h := range head {
 		rec := newRecord(datfile, strings.Replace(strings.TrimSpace(h), "<>", "_", -1))
 		if !isFile(rec.path()) && !isFile(rec.rmPath()) {
-			res, err := n.talk(fmt.Sprintf("/get/%s/%d/%s", datfile, rec.stamp, rec.id))
+			res, err := n.talk(fmt.Sprintf("/get/%s/%d/%s", datfile, rec.Stamp, rec.ID))
 			if err != nil {
 				log.Println("get", err)
 				return nil

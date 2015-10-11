@@ -105,9 +105,9 @@ func (u *UpdateList) loadFile() {
 //append add a infos generated from the record.
 func (u *UpdateList) append(r *record) {
 	ui := &updateInfo{
-		stamp:   r.stamp,
+		stamp:   r.Stamp,
 		datfile: r.datfile,
-		id:      r.id,
+		id:      r.ID,
 	}
 	u.infos = append(u.infos, ui)
 }
@@ -130,7 +130,7 @@ func (u *UpdateList) Len() int {
 //find finds records and returns index. returns -1 if not found.
 func (u *UpdateList) find(r *record) int {
 	for i, v := range u.infos {
-		if v.datfile == r.datfile && v.id == r.id && v.stamp == r.stamp {
+		if v.datfile == r.datfile && v.id == r.ID && v.stamp == r.Stamp {
 			return i
 		}
 	}
@@ -221,7 +221,7 @@ func (r *RecentList) getAll() {
 			if err == nil {
 				r.append(rec)
 				ca := newCache(rec.datfile)
-				tags := strings.Fields(strings.TrimSpace(rec.getBodyValue("tag", "")))
+				tags := strings.Fields(strings.TrimSpace(rec.GetBodyValue("tag", "")))
 				shuffle(sort.StringSlice(tags))
 				tags = tags[tagSize:]
 				if len(tags) > 0 {

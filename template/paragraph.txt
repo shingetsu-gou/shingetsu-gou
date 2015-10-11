@@ -1,5 +1,7 @@
-{{$root:=.}}
-{# Saku Gateway Common Paragraph.
+{{define "paragraph"}}
+#{ Saku Gateway Common Paragraph.
  # Copyright (c) 2007,2014 shinGETsu Project.
  #}
 <p>{{.Contents}}</p>
+{{end}}
+

@@ -218,7 +218,7 @@ func (m *mchCGI) threadApp(board, datkey string) {
 	data.load()
 
 	if m.checkGetCache() {
-		if data.exists() || data.len() == 0 {
+		if data.Exists() || data.Len() == 0 {
 			data.search(nil)
 		} else {
 			if m.counterIsUpdate(key) {
@@ -227,7 +227,7 @@ func (m *mchCGI) threadApp(board, datkey string) {
 		}
 	}
 
-	if !data.exists() {
+	if !data.Exists() {
 		m.wr.WriteHeader(404)
 		m.serveContent("a.txt", time.Time{}, "404 Not Found")
 	}
@@ -240,20 +240,20 @@ func (m *mchCGI) threadApp(board, datkey string) {
 func (m *mchCGI) makeSubjectCachelist(board string) []*cache {
 	cl := newCacheList()
 	seen := make([]string, cl.Len())
-	for i, c := range cl.caches {
-		seen[i] = c.datfile
+	for i, c := range cl.Caches {
+		seen[i] = c.Datfile
 	}
 	for _, rec := range recentList.infos {
 		if !hasString(seen, rec.datfile) {
 			seen = append(seen, rec.datfile)
 			c := newCache(rec.datfile)
-			c.recentStamp = rec.stamp
+			c.RecentStamp = rec.stamp
 			cl.append(c)
 		}
 	}
 	var result []*cache
-	for _, c := range cl.caches {
-		if c.typee == "thread" {
+	for _, c := range cl.Caches {
+		if c.Typee == "thread" {
 			result = append(result, c)
 		}
 	}
@@ -273,8 +273,8 @@ func (m *mchCGI) makeSubjectCachelist(board string) []*cache {
 
 func (m *mchCGI) hasTag(c *cache, board string, sugtag *SuggestedTagTable) bool {
 	tags := c.tags
-	if tl := sugtag.get(c.datfile, nil); tl != nil {
-		tags.tags = append(tags.tags, tl.tags...)
+	if tl := sugtag.get(c.Datfile, nil); tl != nil {
+		tags.Tags = append(tags.Tags, tl.Tags...)
 	}
 	return hasString(tags.getTagstrSlice(), board)
 }
@@ -313,12 +313,12 @@ func (m *mchCGI) makeSubject(board string) ([]string, int64) {
 		if lastStamp < c.stamp {
 			lastStamp = c.stamp
 		}
-		key, err := dataKeyTable.getDatkey(c.datfile)
+		key, err := dataKeyTable.getDatkey(c.Datfile)
 		if err != nil {
 			log.Println(err)
 			continue
 		}
-		titleStr := fileDecode(c.datfile)
+		titleStr := fileDecode(c.Datfile)
 		if titleStr != "" {
 			titleStr = strings.Replace(titleStr, "\n", "", -1)
 		}

@@ -1,11 +1,11 @@
-{{$root:=.}}
+{{define "footer"}}
 {#
  # Saku Gateway Footer.
  # Copyright (c) 2005-2014 shinGETsu Project.
  #}
 </div>
 {{ if .Menubar }}
-  {{.Menubar}}
+  {{template "menubar" .Menubar}}
 {{ end }}
 
 <div class="address">Powered by 
@@ -13,3 +13,5 @@
 
 </body>
 </html>
+{{end}}
+

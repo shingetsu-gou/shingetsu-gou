@@ -43,6 +43,7 @@ type Item struct {
 	Creator     string
 	Subject     []string
 	Date        int64
+	content     string
 	Content     string
 }
 
@@ -51,12 +52,12 @@ type RSS struct {
 	Encode      string
 	Lang        string
 	Title       string
-	Parent      string
 	Link        string
 	URI         string
 	Description string
 	XSL         string
 	Feeds       map[string]*Item
+	parent      string
 }
 
 //newRSS makes RSS object.
@@ -72,14 +73,13 @@ func newRss(encode, lang, title, parent, link, uri, description, xsl string) *RS
 		Lang:        lang,
 		Title:       title,
 		Description: description,
-		Parent:      parent,
 		XSL:         xsl,
 		Link:        link,
 		URI:         uri,
 		Feeds:       make(map[string]*Item),
 	}
 	if parent != "" && parent[len(parent)-1] != '/' {
-		r.Parent += "/"
+		r.parent += "/"
 	}
 	if link == "" {
 		r.Link = parent
@@ -93,7 +93,7 @@ func newRss(encode, lang, title, parent, link, uri, description, xsl string) *RS
 //append adds RSS an item.
 func (r *RSS) append(link, title, creator, description, content string, subject []string, date int64, abs bool) {
 	if abs {
-		link = r.Parent + link
+		link = r.parent + link
 	}
 	i := &Item{
 		Title:       strings.TrimSpace(title),
@@ -102,7 +102,7 @@ func (r *RSS) append(link, title, creator, description, content string, subject 
 		Creator:     creator,
 		Date:        date,
 		Subject:     subject,
-		Content:     content,
+		content:     content,
 	}
 
 	r.Feeds[link] = i
@@ -122,6 +122,9 @@ func (r *RSS) keys() []string {
 
 //makeRSS renders template.
 func (r *RSS) makeRSS1(wr io.Writer) {
+	for _, c := range r.Feeds {
+		c.Content = strings.Replace(c.content, "]]", "&#93;&#93;>", -1)
+	}
 	renderTemplate("rss1", *r, wr)
 }
 

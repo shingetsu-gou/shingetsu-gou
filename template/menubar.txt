@@ -1,21 +1,22 @@
-{{$root:=.}}
+{{define "menubar"}}
 {# Saku Gateway Menubar.
  # Copyright (c) 2005-2015 shinGETsu Project.
  #}
-{{ if .Id }}
-  <aside class="navbar-collapse" id="{{.Id}}">
+{{ if .ID}}
+  <aside class="navbar-collapse" id="{{.ID}}">
 {{ else }}
   <aside class="navbar-collapse">
 {{ end }}
 <ul class="nav navbar-nav">
-  <li><a href="{{.Gateway_cgi}}">{{.Message.Top}}</a></li>
-    <li>{{.Gateway_link .Gateway_cgi "changes"}}</li>
-    <li>{{.Gateway_link .Gateway_cgi "index"}}</li>
+  <li><a href="{{.GatewayCGI}}">{{.Message.top}}</a></li>
+    <li>{{template "gateway_link" .GatewayLink.SetupStruct .GatewayCGI "changes"}}</li>
+    <li>{{template "gateway_link" .GatewayLink.SetupStruct .GatewayCGI "index"}}</li>
   {{ if .Isfriend or .Isadmin }}
-      <li>{{.Gateway_link .Gateway_cgi "recent"}}</li>
-      <li>{{.Gateway_link .Gateway_cgi "new"}}</li>
+    <li>{{template "gateway_link" .GatewayLink.SetupStruct .GatewayCGI "recent"}}</li>
+    <li>{{template "gateway_link" .GatewayLink.SetupStruct .GatewayCGI "new"}}</li>
   {{ end }}
-  <li><a href="{{.Rss}}">{{.Message.Rss}}</a></li>
+  <li><a href="{{.RSS}}">{{.Message.rss}}</a></li>
 </ul>
 
 </aside>
+{{end}}

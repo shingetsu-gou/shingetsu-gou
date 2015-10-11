@@ -1,5 +1,7 @@
-{{$root:=.}}
+{{define "gateway_link"}}
 {#- Saku Gateway Menu Link.
  # Copyright (c) 2005-2014 shinGETsu Project.
  -#}
-<a href="{{.Cginame}}/{{.Command}}" title="{{.Description}}">{{index .Message .Command}}</a>
+<a href="{{.CGIname}}/{{.Command}}" title="{{.Description}}">{{.Message.command}}</a>
+{{end}}
+

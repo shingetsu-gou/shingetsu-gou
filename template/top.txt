@@ -1,54 +1,55 @@
+{{define "top"}}
 {{$root:=.}}
 {# Saku Gateway Toppage.
  # Copyright (c) 2005-2015 shinGETsu Project.
  #}
 <ul class="topmenu">
-  <li>{{.Gateway_link .Gateway_cgi "changes"}}</li>
-  <li>{{.Gateway_link .Gateway_cgi "index"}}</li>
-{{ if .Iisfriend or .Isadmin }}
-    <li>{{$root.Gateway_link .Gateway_cgi "recent"}}</li>
-    <li>{{$root.Gateway_link .Gateway_cgi "new"}}</li>
+  <li>{{template "gateway_link" .GatewayLink.SetupStruct .GatewayCGI "changes"}}</li>
+  <li>{{template "gateway_link" .GatewayLink.SetupStruct .GatewayCGI "index"}}</li>
+{{ if .IsFriend or .IsAdmin }}
+  <li>{{template "gateway_link" .GatewayLink.SetupStruct .GatewayCGI "recent"}}</li>
+  <li>{{template "gateway_link" .GatewayLink.SetupStruct .GatewayCGI "new"}}</li>
 {{ end }}
-{{ if .Isadmin }}
-    <li>{{$root.Gateway_link .Admin_cgi "search"}}</li>
-    <li>{{$root.Gateway_link .Admin_cgi "status"}}</li>
+{{ if .IsAdmin }}
+  <li>{{template "gateway_link" .GatewayLink.SetupStruct .AdminCGI "search"}}</li>
+  <li>{{template "gateway_link" .GatewayLink.SetupStruct .AdminCGI "status"}}</li>
 {{ end }}
-<li><a href="http://www.Shingetsu.Info/">{{.Message.Site}}</a></li>
-<li><a href="{{.Gateway_cgi}}/motd">{{.Message.Agreement}}</a></li>
-{{ if .Mch_url }}
-  <li><a href="{{.Mch_url}}">{{.Message.Mch}}</a></li>
+<li><a href="http://www.Shingetsu.Info/">{{.Message.site}}</a></li>
+<li><a href="{{.GatewayCGI}}/motd">{{.Message.agreement}}</a></li>
+{{ if .MchURL }}
+  <li><a href="{{.MchURL}}">{{.Message.mch}}</a></li>
 {{ end }}
-<li><a href="{{.Gateway_cgi}}/rss">{{.Message.Rss}}</a></li>
+<li><a href="{{.GatewayCGI}}/rss">{{.Message.rss}}</a></li>
 </ul>
 
-<h2>{{.Message.Recent_changes}}</h2>
+<h2>{{.Message.recent_changes}}</h2>
 <ul id="top_index">
 {{ range $cache:=.Cachelist }}
-  {{ if $cache.Type eq $root.Types }}
-    {{$root.Make_list_item $cache false .Target}}
+  {{ if eq $cache.Type $root.Types }}
+    {{template "list_item" $root.ListItem.SetupStruct $cache false $root.Target false}}
   {{ end }}
 {{ end }}
 </ul>
-{{ if (not .Cachelist) and (.Isfriend or .Isadmin) }}
-  <p>{{printf .Message.Empty_list .Gateway_link .Gateway_cgi "recent"}}</p>
+{{ if and (not .Cachelist)  (.IsFriend or .IsAdmin) }}
+  <p>{{template "gateway_link" .GatewayLink.SetupStruct .GatewayCGI "recent" | printf .Message.empty_list }}</p>
 {{ end }}
 
 {{ if .Taglist }}
-  <h2>{{.Message.Tag}}</h2>
+  <h2>{{.Message.tag}}</h2>
   <ul class="topmenu">
   {{ range $t:=.Taglist }}
-    <li><a href="{{$root.Gateway_cgi}}/{{$root.Target}}?tag={{.Str_encode $t}}">{{$t}}</a></li>
+    <li><a href="{{$root.GatewayCGI}}/{{$root.Target}}?tag={{strEncode $t}}">{{$t}}</a></li>
   {{ end }}
   </ul>
 {{ end }}
 
-{{ if .Mch_url }}
-  <h2>{{.Message.Mch_categories}}</h2>
+{{ if .MchURL }}
+  <h2>{{.Message.mch_categories}}</h2>
   <ul class="topmenu">
-    <li><a href="{{.Mch_url}}">{{.Message.All}}</a></li>
-  {{ range $category:=.Mch_categories }}
+    <li><a href="{{.MchURL}}">{{.Message.all}}</a></li>
+  {{ range $category:=.MchCategories }}
     <li><a href="{{$category.Url}}">{{$category.Text}}</a></li>
   {{ end }}
   </ul>
 {{ end }}
-
+{{end}}

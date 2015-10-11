@@ -30,6 +30,7 @@ package gou
 
 import (
 	"errors"
+	"html/template"
 	"io/ioutil"
 	"log"
 	"os"
@@ -57,8 +58,8 @@ const (
 	defaultNodes       = 5                // Nodes keeping in node list
 	shareNodes         = 5                // Nodes having the file
 	searchDepth        = 30               // Search node size
-
-	defaultLanguage = "en" // Language code (see RFC3066)
+	titleLimit         = 30               //Charactors
+	defaultLanguage    = "en"             // Language code (see RFC3066)
 
 	// regexp
 	robot = "Google|bot|Yahoo|archiver|Wget|Crawler|Yeti|Baidu"
@@ -126,17 +127,17 @@ var (
 	taglist     = runDir + "/tag.txt"
 	sugtag      = runDir + "/sugtag.txt"
 
-	serverCgi  = rootPath + "server.cgi"
-	gatewayCgi = rootPath + "gateway.cgi"
-	threadCgi  = rootPath + "thread.cgi"
-	adminCgi   = rootPath + "admin.cgi"
+	serverURL  = rootPath + "server.cgi"
+	gatewayURL = rootPath + "gateway.cgi"
+	threadURL  = rootPath + "thread.cgi"
+	adminURL   = rootPath + "admin.cgi"
 	xsl        = rootPath + "rss1.xsl"
 
 	threadPageSize       = setting.getIntValue("Application Thread", "page_size", 50)
 	defaultThumbnailSize = setting.getStringValue("Application Thread", "thumbnail_size", "")
 	forceThumbnail       = setting.getBoolValue("Application Thread", "force_thumbnail", false)
 
-	application = map[string]string{"thread": threadCgi}
+	application = map[string]string{"thread": threadURL}
 	useCookie   = true
 	saveCookie  = 7 * 24 * time.Hour
 	// Seconds
@@ -177,6 +178,8 @@ var (
 
 	errGet  = errors.New("cannot get data")
 	errSpam = errors.New("this is spam")
+
+	templates *template.Template
 )
 
 //config represents ini file.
@@ -299,4 +302,30 @@ func InitVariables() {
 	for i := 0; i < maxConnection; i++ {
 		connections <- struct{}{}
 	}
+
+	funcMap := template.FuncMap{
+		"add":         func(a, b int) int { return a + b },
+		"sub":         func(a, b int) int { return a - b },
+		"mul":         func(a, b int) int { return a * b },
+		"div":         func(a, b int) int { return a / b },
+		"toMB":        func(a int) float64 { return float64(a) / (1024 * 1024) },
+		"toKB":        func(a int) float64 { return float64(a) / (1024) },
+		"strEncode":   strEncode,
+		"escape":      escape,
+		"escapeSpace": escapeSpace,
+		"localtime":   func(stamp int64) string { return time.Unix(stamp, 0).Format("2006-01-02 15:04") },
+		"fileDecode": func(query, t string) string {
+			q := strings.Split(query, "_")
+			if len(q) < 2 {
+				return t
+			}
+			return q[0]
+		},
+	}
+	templateFiles := templateDir + "/*." + templateSuffix
+	templates, err = template.ParseGlob(templateFiles)
+	if err != nil {
+		log.Fatal(err)
+	}
+	templates.Funcs(funcMap)
 }

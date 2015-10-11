@@ -31,6 +31,7 @@ package gou
 import (
 	"errors"
 	"fmt"
+	"html/template"
 	"log"
 	"math"
 	"math/rand"
@@ -109,29 +110,33 @@ func (c *cgi) extension(suffix string, useMerged bool) []string {
 }
 
 type Menubar struct {
-	*DefaultVariable
-	ID  string
-	RSS string
+	GatewayLink
+	GatewayCGI string
+	Message    message
+	ID         string
+	RSS        string
+	IsAdmin    bool
+	IsFriend   bool
 }
 
 func (c *cgi) makeMenubar(id, rss string) *Menubar {
 	g := &Menubar{
-		DefaultVariable: c.makeDefaultVariable(),
-		ID:              id,
-		RSS:             rss,
+		GatewayCGI: gatewayURL,
+		Message:    c.m,
+		ID:         id,
+		RSS:        rss,
+		IsAdmin:    c.isAdmin,
+		IsFriend:   c.isFriend,
 	}
+	g.GatewayLink.Message = c.m
 	return g
 }
 
-type Footer struct {
-	*DefaultVariable
-	Menu Menubar
-}
-
 func (c *cgi) footer(menubar *Menubar) {
-	g := &Footer{
-		DefaultVariable: c.makeDefaultVariable(),
-		Menu:            *menubar,
+	g := struct {
+		Menubar *Menubar
+	}{
+		menubar,
 	}
 	renderTemplate("footer", g, c.wr)
 }
@@ -142,30 +147,31 @@ func (c *cgi) rfc822Time(stamp int64) string {
 
 func (c *cgi) printParagraph(contents string) {
 	g := struct {
-		*DefaultVariable
 		Contents string
 	}{
-		DefaultVariable: c.makeDefaultVariable(),
-		Contents:        contents,
+		Contents: contents,
 	}
 	renderTemplate("paragraph", g, c.wr)
 }
 
 type Header struct {
-	*DefaultVariable
-	Title     string
-	StrTitle  string
-	RSS       string
-	DenyRobot bool
-	Mergedjs  []string
-	JS        *jsCache
-	CSS       []string
-	Menu      Menubar
+	Message    message
+	RootPath   string
+	Title      string
+	RSS        string
+	DenyRobot  bool
+	Mergedjs   *jsCache
+	JS         []string
+	CSS        []string
+	Menu       Menubar
+	Dummyquery int64
+	ThreadCGI  string
+	AppliType  string
 }
 
 func (c *cgi) header(title, rss string, cookie []*http.Cookie, denyRobot bool, menu *Menubar) {
 	if rss == "" {
-		rss = gatewayCgi + "/rss"
+		rss = gatewayURL + "/rss"
 	}
 	var js []string
 	if c.req.FormValue("__debug_js") != "" {
@@ -174,14 +180,18 @@ func (c *cgi) header(title, rss string, cookie []*http.Cookie, denyRobot bool, m
 		c.jc.update()
 	}
 	h := &Header{
-		DefaultVariable: c.makeDefaultVariable(),
-		Title:           title,
-		StrTitle:        strEncode(title),
-		RSS:             rss,
-		DenyRobot:       denyRobot,
-		Mergedjs:        js,
-		CSS:             c.extension("css", false),
-		Menu:            *menu,
+		c.m,
+		rootPath,
+		title,
+		rss,
+		denyRobot,
+		c.jc,
+		js,
+		c.extension("css", false),
+		*menu,
+		time.Now().Unix(),
+		threadURL,
+		"thread",
 	}
 	if cookie != nil {
 		for _, co := range cookie {
@@ -191,7 +201,7 @@ func (c *cgi) header(title, rss string, cookie []*http.Cookie, denyRobot bool, m
 	renderTemplate("header", h, c.wr)
 }
 
-func (c *cgi) ResAnchor(id, appli string, title string, absuri bool) string {
+func (c *cgi) resAnchor(id, appli string, title string, absuri bool) string {
 	title = strEncode(title)
 	var prefix, innerlink string
 	if absuri {
@@ -210,7 +220,7 @@ func (c *cgi) htmlFormat(plain, appli string, title string, absuri bool) string 
 	buf = reg.ReplaceAllString(buf, "<a href=\"\\g<0>\">\\g<0></a>")
 	reg = regexp.MustCompile("(&gt;&gt;)([0-9a-f]{8})")
 	id := reg.ReplaceAllString(buf, "\\2")
-	buf = reg.ReplaceAllString(buf, c.ResAnchor(id, appli, title, absuri)+"\\g<0></a>")
+	buf = reg.ReplaceAllString(buf, c.resAnchor(id, appli, title, absuri)+"\\g<0></a>")
 
 	var tmp string
 	reg = regexp.MustCompile("\\[\\[([^<>]+?)\\]\\]")
@@ -235,7 +245,7 @@ func (c *cgi) bracketLink(link, appli string, absuri bool) string {
 	}
 	reg := regexp.MustCompile("^/(thread)/([^/]+)/([0-9a-f]{8})$")
 	if m := reg.FindStringSubmatch(link); m != nil {
-		url := prefix + threadCgi + querySeparator + strEncode(m[2]) + "/" + m[3]
+		url := prefix + threadURL + querySeparator + strEncode(m[2]) + "/" + m[3]
 		return "<a href=\"" + url + "\" class=\"reclink\">[[" + link + "]]</a>"
 	}
 
@@ -261,11 +271,17 @@ func (c *cgi) bracketLink(link, appli string, absuri bool) string {
 
 func (c *cgi) removeFileForm(ca *cache, title string) {
 	s := struct {
-		Cache *cache
-		Title string
+		Cache    *cache
+		Title    string
+		IsAdmin  bool
+		AdminCGI string
+		Message  message
 	}{
 		ca,
 		title,
+		c.isAdmin,
+		adminURL,
+		c.m,
 	}
 	renderTemplate("remove_file_form", s, c.wr)
 }
@@ -287,8 +303,8 @@ func (c *cgi) mchURL() string {
 }
 
 type mchCategory struct {
-	url  string
-	text string
+	URL  string
+	Text string
 }
 
 func (c *cgi) mchCategories() []*mchCategory {
@@ -301,8 +317,8 @@ func (c *cgi) mchCategories() []*mchCategory {
 		tag := strings.TrimRight(line, "\r\n")
 		catURL := strings.Replace(mchURL, "2ch", fileEncode("2ch", tag), -1)
 		categories = append(categories, &mchCategory{
-			url:  catURL,
-			text: tag,
+			catURL,
+			tag,
 		})
 		return nil
 	})
@@ -315,11 +331,9 @@ func (c *cgi) mchCategories() []*mchCategory {
 
 func (c *cgi) printJump(next string) {
 	s := struct {
-		DefaultVariable *DefaultVariable
-		Next            string
+		Next template.HTML
 	}{
-		c.makeDefaultVariable(),
-		next,
+		template.HTML(next),
 	}
 	renderTemplate("jump", s, c.wr)
 }
@@ -398,20 +412,24 @@ func (c *cgi) printNewElementForm() {
 		return
 	}
 	s := struct {
-		DefaultVariable *DefaultVariable
-		datfile         string
-		cginame         string
+		Datfile    string
+		CGIname    string
+		Message    message
+		TitleLimit int
+		IsAdmin    bool
 	}{
-		c.makeDefaultVariable(),
 		"",
-		gatewayCgi,
+		gatewayURL,
+		c.m,
+		titleLimit,
+		c.isAdmin,
 	}
 	renderTemplate("new_element_form", s, c.wr)
 }
 
 type attached struct {
-	filename string
-	data     []byte
+	Filename string
+	Data     []byte
 }
 
 func (c *cgi) parseAttached() (*attached, error) {
@@ -436,8 +454,8 @@ func (c *cgi) parseAttached() (*attached, error) {
 			return nil, err
 		}
 		return &attached{
-			filename: filename,
-			data:     strAttach,
+			filename,
+			strAttach,
 		}, nil
 	}
 	return nil, errors.New("attached file not found")
@@ -457,7 +475,7 @@ func (c *cgi) doPost() string {
 	}
 	guessSuffix := "txt"
 	if attachedErr == nil {
-		e := path.Ext(attached.filename)
+		e := path.Ext(attached.Filename)
 		if e != "" {
 			guessSuffix = strings.ToLower(e)
 		}
@@ -486,7 +504,7 @@ func (c *cgi) doPost() string {
 	}
 
 	if attachedErr == nil {
-		body["attach"] = string(attached.data)
+		body["attach"] = string(attached.Data)
 		body["suffix"] = strings.TrimSpace(suffix)
 	}
 	if len(body) == 0 {
@@ -494,12 +512,12 @@ func (c *cgi) doPost() string {
 		c.footer(nil)
 		return ""
 	}
-	rec := newRecord(ca.datfile, "")
+	rec := newRecord(ca.Datfile, "")
 	passwd := c.req.FormValue("passwd")
 	id := rec.build(stamp, body, passwd)
 
 	proxyClient := c.req.Header.Get("X_FORWARDED_FOR")
-	log.Printf("post %s/%d_%s from %s/%s\n", ca.datfile, stamp, id, c.remoteaddr, proxyClient)
+	log.Printf("post %s/%d_%s from %s/%s\n", ca.Datfile, stamp, id, c.remoteaddr, proxyClient)
 
 	if len(rec.recstr()) > recordLimit<<10 {
 		c.header(c.m["big_file"], "", nil, true, nil)
@@ -512,7 +530,7 @@ func (c *cgi) doPost() string {
 		return ""
 	}
 
-	if ca.exists() {
+	if ca.Exists() {
 		ca.addData(rec)
 		ca.syncStatus()
 	} else {
@@ -531,21 +549,41 @@ func (c *cgi) doPost() string {
 
 func (c *cgi) printIndexList(cl *cacheList, target string, footer bool, searchNewFile bool) {
 	s := struct {
-		DefaultVariable *DefaultVariable
-		Target          string
-		Filter          string
-		Tag             string
-		Taglist         *UserTagList
-		Chachelist      *cacheList
-		SearchNewFile   bool
+		Target        string
+		Filter        string
+		Tag           string
+		Taglist       *UserTagList
+		Chachelist    *cacheList
+		GatewayCGI    string
+		AdminCGI      string
+		Message       message
+		SearchNewFile bool
+		IsAdmin       bool
+		IsFriend      bool
+		Types         []string
+		GatewayLink
+		ListItem
 	}{
-		c.makeDefaultVariable(),
 		target,
 		c.strFilter,
 		c.strTag,
 		userTagList,
 		cl,
+		gatewayURL,
+		adminURL,
+		c.m,
 		searchNewFile,
+		c.isAdmin,
+		c.isFriend,
+		types,
+		GatewayLink{
+			Message: c.m,
+		},
+		ListItem{
+			IsAdmin: c.isAdmin,
+			filter:  c.filter,
+			tag:     c.tag,
+		},
 	}
 	renderTemplate("index_list", s, c.wr)
 	if footer {
@@ -574,26 +612,4 @@ func (c *cgi) checkGetCache() bool {
 
 func (c *cgi) checkVisitor() bool {
 	return c.isAdmin || c.isFriend || c.isVisitor
-}
-
-func (c *cgi) makeDefaultVariable() *DefaultVariable {
-	return &DefaultVariable{
-		CGI:         c,
-		Environment: c.req.Header,
-		UA:          c.req.Header.Get("USER_AGENT"),
-		Message:     c.m,
-		Lang:        c.m["lang"],
-		Aappl:       application,
-		GatewayCGI:  gatewayCgi,
-		ThreadCGI:   threadCgi,
-		AdminCGI:    adminCgi,
-		RootPath:    rootPath,
-		Types:       types,
-		Isadmin:     c.isAdmin,
-		Isfriend:    c.isFriend,
-		Isvisitor:   c.isVisitor,
-		Dummyquery:  time.Now().Unix(),
-		filter:      c.filter,
-		tag:         c.tag,
-	}
 }

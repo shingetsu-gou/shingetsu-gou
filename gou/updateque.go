@@ -83,14 +83,14 @@ func (u *updateQue) doUpdateNode(rec *record, n *node) bool {
 	ca := newCache(rec.datfile)
 	var err error
 	switch {
-	case !ca.exists(), n == nil: //no cache, only broadcast updates.
-		nodeList.tellUpdate(ca, rec.stamp, rec.id, n)
+	case !ca.Exists(), n == nil: //no cache, only broadcast updates.
+		nodeList.tellUpdate(ca, rec.Stamp, rec.ID, n)
 		return true
-	case ca.len() > 0: //cache and records exists, get data from node n.
-		err = ca.getData(rec.stamp, rec.id, n)
+	case ca.Len() > 0: //cache and records exists, get data from node n.
+		err = ca.getData(rec.Stamp, rec.ID, n)
 	default: //cache exists ,but no records. get data with range.
 		ca.getWithRange(n)
-		if flagGot := rec.exists(); !flagGot {
+		if flagGot := rec.Exists(); !flagGot {
 			err = errGet
 		}
 	}
@@ -100,7 +100,7 @@ func (u *updateQue) doUpdateNode(rec *record, n *node) bool {
 	case errSpam:
 		return true
 	default:
-		nodeList.tellUpdate(ca, rec.stamp, rec.id, nil)
+		nodeList.tellUpdate(ca, rec.Stamp, rec.ID, nil)
 		nodeList.join(n)
 		nodeList.sync()
 		searchList.join(n)

@@ -57,7 +57,7 @@ func newJsCache(path string) *jsCache {
 }
 
 //getLatest gets latest mtime of all jsCache.files.
-func (j *jsCache) getLatest() int64 {
+func (j *jsCache) GetLatest() int64 {
 	var l *time.Time
 	for _, v := range j.files {
 		if l == nil || v.mtime.After(*l) {

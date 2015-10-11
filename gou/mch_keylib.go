@@ -76,14 +76,14 @@ func (d *DatakeyTable) loadInternal() {
 //and saves to file.
 func (d *DatakeyTable) load() {
 	d.loadInternal()
-	for _, c := range newCacheList().caches {
+	for _, c := range newCacheList().Caches {
 		c.load()
 		d.setFromCache(c)
 	}
 	for _, rec := range recentList.infos {
 		c := newCache(rec.datfile)
 		c.load()
-		c.recentStamp = rec.stamp
+		c.RecentStamp = rec.stamp
 		d.setFromCache(c)
 	}
 	d.save()
@@ -112,15 +112,15 @@ func (d *DatakeyTable) setEntry(stamp int64, filekey string) {
 
 //setFromCache adds cache.datfile/timestamp pair if not exists.
 func (d *DatakeyTable) setFromCache(ca *cache) {
-	if _, exist := d.filekey2datkey[ca.datfile]; exist {
+	if _, exist := d.filekey2datkey[ca.Datfile]; exist {
 		return
 	}
 	var firstStamp int64
-	if ca.len() == 0 {
-		firstStamp = ca.recentStamp
+	if ca.Len() == 0 {
+		firstStamp = ca.RecentStamp
 	} else {
 		if rec := ca.get(ca.keys()[0], nil); rec != nil {
-			firstStamp = rec.stamp
+			firstStamp = rec.Stamp
 		}
 	}
 	if firstStamp == 0 {

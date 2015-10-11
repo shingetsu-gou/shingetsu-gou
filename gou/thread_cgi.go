@@ -115,7 +115,7 @@ func (t *threadCGI) printIndex() {
 		}
 		datfile := t.req.FormValue("file")
 		title := strEncode(fileDecode(datfile))
-		t.print302(threadCgi + querySeparator + title + "#r" + id)
+		t.print302(threadURL + querySeparator + title + "#r" + id)
 	}
 	t.print404(nil, "")
 }
@@ -123,7 +123,7 @@ func (t *threadCGI) printIndex() {
 func (t *threadCGI) setCookie(ca *cache, access string) []*http.Cookie {
 	c := http.Cookie{}
 	c.Expires = time.Now().Add(saveCookie)
-	c.Path = threadCgi + querySeparator + strEncode(fileDecode(ca.datfile))
+	c.Path = threadURL + querySeparator + strEncode(fileDecode(ca.Datfile))
 	c.Name = "access"
 	c.Value = strconv.FormatInt(time.Now().Unix(), 10)
 	if access == "" {
@@ -134,49 +134,58 @@ func (t *threadCGI) setCookie(ca *cache, access string) []*http.Cookie {
 	cc.Value = access
 	return []*http.Cookie{&c, &cc}
 }
-func (t *threadCGI) printPageNavi(page string, ca *cache, id string) {
-	first := ca.len() / threadPageSize
-	if ca.len() == 0%threadPageSize {
+func (t *threadCGI) printPageNavi(page int, ca *cache, id string) {
+	first := ca.Len() / threadPageSize
+	if ca.Len() == 0%threadPageSize {
 		first++
 	}
+	pages := make([]int, first)
+	for i := 0; i < first; i++ {
+		pages[i] = i
+	}
 	s := struct {
-		*DefaultVariable
-		Page    string
-		Cache   *cache
-		Path    string
-		StrPath string
-		ID      string
-		First   int
+		Page           int
+		Cache          *cache
+		Path           string
+		ID             string
+		First          int
+		ThreadCGI      string
+		Message        message
+		ThreadPageSize int
+		Pages          []int
 	}{
-		t.makeDefaultVariable(),
 		page,
 		ca,
 		t.path,
-		strEncode(t.path),
 		id,
 		first,
+		threadURL,
+		t.m,
+		threadPageSize,
+		pages,
 	}
 	renderTemplate("page_navi", s, t.wr)
 }
 func (t *threadCGI) printTag(ca *cache) {
 	s := struct {
-		*DefaultVariable
-		Cache     *cache
-		Tags      []string
-		Classname string
-		Target    string
+		Cache      *cache
+		Tags       []string
+		Classname  string
+		Target     string
+		GatewayCGI string
+		adminCGI   string
 	}{
-		t.makeDefaultVariable(),
 		ca,
 		ca.tags.getTagstrSlice(),
 		"tags",
 		"changes",
+		gatewayURL,
+		adminURL,
 	}
 	renderTemplate("thread_tags", s, t.wr)
 }
 
 func (t *threadCGI) printThread(path, id, page string) {
-	strPath := strEncode(t.path)
 	filePath := fileEncode("thread", t.path)
 	ca := newCache(filePath)
 	if id != "" && t.req.FormValue("ajax") != "" {
@@ -203,7 +212,7 @@ func (t *threadCGI) printThread(path, id, page string) {
 		log.Println(err)
 		return
 	}
-	if useCookie && ca.len() > 0 && id == "" && page == "" {
+	if useCookie && ca.Len() > 0 && id == "" && page == "" {
 		cookie, err := t.req.Cookie("access")
 		if err != nil {
 			access = cookie.Value
@@ -212,7 +221,7 @@ func (t *threadCGI) printThread(path, id, page string) {
 		}
 		newcookie = t.setCookie(ca, access)
 	}
-	rss := gatewayCgi + "/rss"
+	rss := gatewayURL + "/rss"
 	t.header(t.path, rss, newcookie, false, nil)
 	tags := strings.Fields(strings.TrimSpace(t.req.FormValue("tag")))
 	if t.isAdmin && len(tags) > 0 {
@@ -224,26 +233,33 @@ func (t *threadCGI) printThread(path, id, page string) {
 	t.printTag(ca)
 	var lastrec *record
 	ids := ca.keys()
-	if ca.len() > 0 && page == "" && id == "" && len(ids) == 0 {
+	if ca.Len() > 0 && page == "" && id == "" && len(ids) == 0 {
 		lastrec = ca.recs[ids[len(ids)-1]]
 	}
+	resAnchor := t.resAnchor(lastrec.ID[:8], threadURL, t.path, false)
 	s := struct {
-		*DefaultVariable
 		Path      string
-		StrPath   string
 		Cache     *cache
 		Lastrec   *record
-		threadCGI *threadCGI
+		IsFriend  bool
+		IsAdmin   bool
+		Message   message
+		threadCGI string
+		adminCGI  string
+		ResAnchor string
 	}{
-		t.makeDefaultVariable(),
 		t.path,
-		strPath,
 		ca,
 		lastrec,
-		t,
+		t.isFriend,
+		t.isAdmin,
+		t.m,
+		threadURL,
+		adminURL,
+		resAnchor,
 	}
 	renderTemplate("thread_top", s, t.wr)
-	t.printPageNavi(page, ca, id)
+	t.printPageNavi(nPage, ca, id)
 	fmt.Fprintln(t.wr, "</p>\n<dl id=\"records\">")
 	var inrange []string
 	switch {
@@ -256,7 +272,7 @@ func (t *threadCGI) printThread(path, id, page string) {
 	}
 	for _, k := range inrange {
 		rec := ca.get(k, nil)
-		if (id == "" || rec.id[:8] == id) && rec.loadBody() == nil {
+		if (id == "" || rec.ID[:8] == id) && rec.loadBody() == nil {
 			t.printRecord(ca, rec)
 		}
 	}
@@ -264,15 +280,15 @@ func (t *threadCGI) printThread(path, id, page string) {
 	escapedPath := html.EscapeString(t.path)
 	escapedPath = strings.Replace(escapedPath, "  ", "&nbsp;&nbsp;", -1)
 	ss := struct {
-		*DefaultVariable
-		Cache *cache
+		Cache   *cache
+		Message message
 	}{
-		t.makeDefaultVariable(),
 		ca,
+		t.m,
 	}
 	renderTemplate("thread_bottom", ss, t.wr)
-	if ca.len() > 0 {
-		t.printPageNavi(page, ca, id)
+	if ca.Len() > 0 {
+		t.printPageNavi(nPage, ca, id)
 		fmt.Fprintf(t.wr, "</p>")
 	}
 	t.printPostForm(ca)
@@ -289,7 +305,7 @@ func (t *threadCGI) printThreadAjax(id string) {
 	}
 	fmt.Fprintln(t.wr, "<dl>")
 	for _, rec := range ca.recs {
-		if id == "" || rec.id[:8] == id && rec.loadBody() == nil {
+		if id == "" || rec.ID[:8] == id && rec.loadBody() == nil {
 			t.printRecord(ca, rec)
 		}
 	}
@@ -298,12 +314,12 @@ func (t *threadCGI) printThreadAjax(id string) {
 
 func (t *threadCGI) printRecord(ca *cache, rec *record) {
 	thumbnailSize := ""
-	var attachFile, suffix string
+	var suffix string
 	var attachSize int64
-	if rec.getBodyValue("attach", "") != "" {
-		attachFile = rec.attachPath("", "")
+	if rec.GetBodyValue("attach", "") != "" {
+		attachFile := rec.attachPath("", "")
 		attachSize = fileSize(attachFile)
-		suffix = rec.getBodyValue("suffix", "")
+		suffix = rec.GetBodyValue("suffix", "")
 		reg := regexp.MustCompile("^[0-9A-Za-z]+")
 		if !reg.MatchString(suffix) {
 			suffix = "txt"
@@ -316,34 +332,37 @@ func (t *threadCGI) printRecord(ca *cache, rec *record) {
 			thumbnailSize = defaultThumbnailSize
 		}
 	}
-	body := rec.getBodyValue("body", "")
-	body = t.htmlFormat(body, threadCgi, t.path, false)
+	body := rec.GetBodyValue("body", "")
+	body = t.htmlFormat(body, threadURL, t.path, false)
+	removeID := rec.GetBodyValue("remove_id", "")[:8]
+	resAnchor := t.resAnchor(removeID, threadURL, t.path, false)
+
 	s := struct {
-		*DefaultVariable
 		Cache      *cache
 		Rec        *record
 		Sid        string
 		Path       string
-		StrPath    string
-		AttachFile string
 		AttachSize int64
 		Suffix     string
 		Body       string
-		threadCGI  *threadCGI
-		thumbnail  string
+		ThreadCGI  string
+		Thumbnail  string
+		IsAdmin    bool
+		RemoveID   string
+		ResAnchor  string
 	}{
-		t.makeDefaultVariable(),
 		ca,
 		rec,
-		rec.getBodyValue("id", "")[:8],
+		rec.GetBodyValue("id", "")[:8],
 		t.path,
-		strEncode(t.path),
-		attachFile,
 		attachSize,
 		suffix,
 		body,
-		t,
+		threadURL,
 		thumbnailSize,
+		t.isAdmin,
+		removeID,
+		resAnchor,
 	}
 	renderTemplate("record", s, t.wr)
 }
@@ -354,15 +373,21 @@ func (t *threadCGI) printPostForm(ca *cache) {
 		".txt", ".xml",
 	}
 	s := struct {
-		*DefaultVariable
-		Cache    *cache
-		Suffixes []string
-		Limit    int
+		Cache      *cache
+		Suffixes   []string
+		Limit      int
+		IsAdmin    bool
+		Message    message
+		ThreadCGI  string
+		GatewayCGI string
 	}{
-		t.makeDefaultVariable(),
 		ca,
 		mimes,
 		recordLimit * 3 >> 2,
+		t.isAdmin,
+		t.m,
+		threadURL,
+		gatewayURL,
 	}
 	renderTemplate("post_form", s, t.wr)
 }
@@ -381,8 +406,8 @@ func (t *threadCGI) printAttach(datfile, stampStr, id, thumbnailSize, suffix str
 		t.print404(ca, "")
 		return
 	}
-	rec := newRecord(ca.datfile, stampStr+"_"+id)
-	if !rec.exists() {
+	rec := newRecord(ca.Datfile, stampStr+"_"+id)
+	if !rec.Exists() {
 		t.print404(ca, "")
 		return
 	}

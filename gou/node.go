@@ -143,7 +143,7 @@ func (n *node) join() (bool, *node) {
 	if n.isAllowed() {
 		return false, nil
 	}
-	path := strings.Replace(serverCgi, "/", "+", -1)
+	path := strings.Replace(serverURL, "/", "+", -1)
 	port := strconv.Itoa(defaultPort)
 	res, err := n.talk("/join/" + dnsname + ":" + port + path)
 	if err != nil {
@@ -164,7 +164,7 @@ func (n *node) getNode() *node {
 
 //bye says goodbye to n and returns true if success.
 func (n *node) bye() bool {
-	path := strings.Replace(serverCgi, "/", "+", -1)
+	path := strings.Replace(serverURL, "/", "+", -1)
 	port := strconv.Itoa(defaultPort)
 	res, err := n.talk("/bye/" + dnsname + ":" + port + path)
 	if err != nil {
@@ -331,11 +331,11 @@ func (nl *NodeList) initialize() {
 //if dnsname is empty ping to a node in nodelist and get info of myself.
 func (nl *NodeList) myself() *node {
 	if dnsname == "" {
-		return makeNode(dnsname, serverCgi, defaultPort)
+		return makeNode(dnsname, serverURL, defaultPort)
 	}
 	for _, n := range nl.rawNodeList.nodes {
 		if host, ok := n.ping(); ok {
-			return makeNode(host, serverCgi, defaultPort)
+			return makeNode(host, serverURL, defaultPort)
 		}
 		log.Println("myself() failed at", n.nodestr)
 	}
@@ -413,9 +413,9 @@ func (nl *NodeList) tellUpdate(c *cache, stamp int64, id string, node *node) {
 	case dnsname != "":
 		tellstr = nl.myself().toxstring()
 	default:
-		tellstr = ":" + strconv.Itoa(defaultPort) + strings.Replace(serverCgi, "/", "+", -1)
+		tellstr = ":" + strconv.Itoa(defaultPort) + strings.Replace(serverURL, "/", "+", -1)
 	}
-	arg := strings.Join([]string{"/update/", c.datfile, strconv.FormatInt(stamp, 10), id, tellstr}, "/")
+	arg := strings.Join([]string{"/update/", c.Datfile, strconv.FormatInt(stamp, 10), id, tellstr}, "/")
 	go broadcast(arg, c)
 }
 
@@ -557,10 +557,10 @@ func (sl *SearchList) search(c *cache, myself *node, nodes []*node) *node {
 			continue
 		}
 		count++
-		res, err := n.talk("/have" + c.datfile)
+		res, err := n.talk("/have" + c.Datfile)
 		if err == nil && res[0] == "YES" {
 			sl.sync()
-			lookupTable.add(c.datfile, n)
+			lookupTable.add(c.Datfile, n)
 			lookupTable.sync(false)
 			return n
 		}
@@ -568,7 +568,7 @@ func (sl *SearchList) search(c *cache, myself *node, nodes []*node) *node {
 			sl.removeNode(n)
 			c.node.removeNode(n)
 		}
-		lookupTable.remove(c.datfile, n)
+		lookupTable.remove(c.Datfile, n)
 		if count > searchDepth {
 			break
 		}

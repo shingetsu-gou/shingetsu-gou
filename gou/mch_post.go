@@ -47,7 +47,7 @@ func (m *mchCGI) postComment(threadKey, name, mail, body, passwd, tag string) er
 	recbody["mail"] = html.EscapeString(mail)
 
 	c := newCache(threadKey)
-	rec := newRecord(c.datfile, "")
+	rec := newRecord(c.Datfile, "")
 	rec.build(stamp, recbody, passwd)
 	if spamCheck(rec.recstr()) {
 		return errSpam
@@ -119,7 +119,7 @@ func (m *mchCGI) postCommentApp() string {
 	}
 
 	switch {
-	case newCache(key).exists():
+	case newCache(key).Exists():
 	case hasAuth:
 	case info["subject"] != "":
 		return m.errorResp("掲示版を作る権限がありません", info)

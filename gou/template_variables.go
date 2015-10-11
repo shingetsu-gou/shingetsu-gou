@@ -29,13 +29,13 @@
 package gou
 
 import (
-	"bytes"
 	"log"
 	"net/http"
 	"net/url"
 	"path"
 	"regexp"
 	"strings"
+	"time"
 
 	"golang.org/x/text/language"
 )
@@ -93,56 +93,51 @@ func searchMessage(acceptLanguage string) message {
 	return nil
 }
 
-//DefaultVariable is default variables for html templates.
-type DefaultVariable struct {
-	CGI         *cgi
-	Environment http.Header
-	UA          string
+
+type GatewayLink struct {
 	Message     message
-	Lang        string
-	Aappl       map[string]string
-	GatewayCGI  string
-	ThreadCGI   string
-	AdminCGI    string
-	RootPath    string
-	Types       []string
-	Isadmin     bool
-	Isfriend    bool
-	Isvisitor   bool
-	Dummyquery  int64
-	filter      string
-	tag         string
+	CGIname     string
+	Command     string
+	Description string
 }
 
-//MakeGatewayLink makes "{{cginame}}/{{command}}"  link with tile=description.
-func (d DefaultVariable) MakeGatewayLink(cginame, command string) string {
-	g := struct {
-		CGIname     string
-		Command     string
-		Description string
-	}{
-		cginame,
-		command,
-		d.Message["desc_"+command],
-	}
-	var doc bytes.Buffer
-	renderTemplate("gateway_link", g, &doc)
-	return doc.String()
+//SetupStruct setups GatewayLink struct to render gateway_link.txt
+//GatewayLink.Message must be setted up previously.
+func (c *GatewayLink) SetupStruct(cginame, command string) *GatewayLink {
+	c.CGIname = cginame
+	c.Command = command
+	c.Description = c.Message["desc_"+command]
+	return c
+}
+
+type ListItem struct {
+	Cache      *cache
+	Title      string
+	Tags       *tagList
+	Sugtags    []*tag
+	Target     string
+	Remove     bool
+	StrOpts    string
+	IsAdmin    bool
+	GatewayCGI string
+	Appli      map[string]string
+	filter     string
+	tag        string
 }
 
 //checkCache checks cache ca has specified tag and datfile doesn't contains filterd string.
-func (d *DefaultVariable) checkCache(ca *cache, target string) (string, bool) {
-	x := fileDecode(ca.datfile)
+func (l *ListItem) checkCache(ca *cache, target string) (string, bool) {
+	x := fileDecode(ca.Datfile)
 	if x == "" {
 		return "", false
 	}
-	if d.filter != "" && !strings.Contains(d.filter, strings.ToLower(x)) {
+	if l.filter != "" && !strings.Contains(l.filter, strings.ToLower(x)) {
 		return "", false
 	}
-	if d.tag != "" {
+	if l.tag != "" {
 		switch {
-		case ca.tags.hasTagstr(strings.ToLower(d.tag)):
-		case target == "recent" && ca.sugtags.hasTagstr(strings.ToLower(d.tag)):
+		case ca.tags.hasTagstr(strings.ToLower(l.tag)):
+		case target == "recent" && ca.sugtags.hasTagstr(strings.ToLower(l.tag)):
 		default:
 			return "", false
 		}
@@ -150,15 +145,11 @@ func (d *DefaultVariable) checkCache(ca *cache, target string) (string, bool) {
 	return x, true
 }
 
-func (d DefaultVariable) MakeListItem(ca *cache, remove bool, target string, search bool) string {
-	if target == "" {
-		target = "changes"
-	}
-	x, ok := d.checkCache(ca, target)
+func (l *ListItem) SetupStruct(ca *cache, remove bool, target string, search bool) ListItem {
+	x, ok := l.checkCache(ca, target)
 	if !ok {
-		return ""
+		return *l
 	}
-	y := strEncode(x)
 	x = escapeSpace(x)
 	var strOpts string
 	if search {
@@ -167,37 +158,24 @@ func (d DefaultVariable) MakeListItem(ca *cache, remove bool, target string, sea
 	var sugtags []*tag
 	if target == "recent" {
 		strTags := make([]string, ca.tags.Len())
-		for i, v := range ca.tags.tags {
-			strTags[i] = strings.ToLower(v.tagstr)
+		for i, v := range ca.tags.Tags {
+			strTags[i] = strings.ToLower(v.Tagstr)
 		}
-		for _, st := range ca.sugtags.tags {
-			if !hasString(strTags, strings.ToLower(st.tagstr)) {
+		for _, st := range ca.sugtags.Tags {
+			if !hasString(strTags, strings.ToLower(st.Tagstr)) {
 				sugtags = append(sugtags, st)
 			}
 		}
 	}
-	var doc bytes.Buffer
-	g := struct {
-		*DefaultVariable
-		Cache    *cache
-		Title    string
-		StrTitle string
-		Tags     *tagList
-		Sugtags  []*tag
-		Target   string
-		Remove   bool
-		StrOpts  string
-	}{
-		&d,
-		ca,
-		x,
-		y,
-		ca.tags,
-		sugtags,
-		target,
-		remove,
-		strOpts,
-	}
-	renderTemplate("list_item", g, &doc)
-	return doc.String()
+	l.Cache = ca
+	l.Title = x
+	l.Tags = ca.tags
+	l.Sugtags = sugtags
+	l.Target = target
+	l.Remove = remove
+	l.StrOpts = strOpts
+	l.GatewayCGI = gatewayURL
+	l.Appli = application
+	return *l
 }
+

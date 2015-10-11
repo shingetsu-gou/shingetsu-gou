@@ -1,35 +1,36 @@
-{{$root:=.}}
+{{define "list_item"}}
 {# Saku Gateway List Item.
  # Copyright (c) 2005-2014 shinGETsu Project.
  #}
 <li>
-{{ if .Isadmin and .Remove }}
+{{ if and .IsAdmin .Remove }}
   <label style="display:inline-block">
   <input type="checkbox" name="file" value="{{.Cache.Datfile}}" style="display:inline-block" />
 {{ end }}
-{{ if .Target eq "recent" }}
-  <span class="stamp" id="s{{.Cache.Recent_stamp}}">{{.Localtime .Cache.Recent_stamp}}</span>
+{{ if eq .Target "recent" }}
+  <span class="stamp" id="s{{.Cache.RecentStamp}}">{{localtime .Cache.RecentStamp}}</span>
 {{ else }}
-  <span class="stamp" id="s{{.Cache.Valid_stamp}}">{{.Localtime .Cache.Valid_stamp}}</span>
+  <span class="stamp" id="s{{.Cache.ValidStamp}}">{{localtime .Cache.ValidStamp}}</span>
 {{ end }}
-{{ if .Isadmin and .Remove }}
+{{ if and .IsAdmin .Remove }}
   </label>
 {{ end }}
 
-<a href="{{index .Appli .Cache.Type}}/{{.Str_title}}{{.Str_opts}}">{{.Title}}</a>
-({{.Cache.Len}}/{{.toMB .Cache.Size}}{{.Message.Mb}})
-{{ if .Tags }}
+<a href="{{index .Appli .Cache.Typee}}/{{strEncode .Title}}{{.StrOpts}}">{{.Title}}</a>
+({{.Cache.Len}}/{{toMB .Cache.Size}}{{.Message.mb}})
+{{ if .Tags}}
   <span class="tags">
-  {{ range $tag:=.Tags }}
-    <a href="{{.Gateway_cgi}}/{{.Target}}?tag={{.Str_encode $tag}}" class="tag">{{$tag}}</a>
+  {{ range $tag:=.Tags.tags }}
+    <a href="{{.GatewayCGI}}/{{.Target}}?tag={{strEncode $tag.Tagstr}}" class="tag">{{$tag.Tagstr}}</a>
   {{ end }}
   </span>
 {{ end }}
-{{ if .Sugtags }}
+{{ if .Sugtags}}
   <span class="sugtags">
   {{ range $tag:=.Sugtags }}
-    <a href="{{.Gateway_cgi}}/{{.Target}}?tag={{.Str_encode $tag}}" class="tag">{{$tag}}</a>
+    <a href="{{.GatewayCGI}}/{{.Target}}?tag={{strEncode $tag.Tagstr}}" class="tag">{{$tag.Tagstr}}</a>
   {{ end }}
   </span>
 {{ end }}
 </li>
+{{end}}

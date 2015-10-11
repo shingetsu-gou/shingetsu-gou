@@ -131,42 +131,32 @@ func printStatus(w http.ResponseWriter, r *http.Request) {
 	cl := newCacheList()
 	records := 0
 	size := 0
-	for _, ca := range cl.caches {
-		records += ca.len()
-		size += ca.size
+	for _, ca := range cl.Caches {
+		records += ca.Len()
+		size += ca.Size
 	}
 	my := nodeList.myself()
-	s := struct {
-		LinedNodes int
-		KnownNodes int
-		Files      int
-		Records    int
-		CacheSize  string
-		SelfNode   *node
-	}{
-		nodeList.Len(),
-		searchList.Len(),
-		cl.Len(),
-		records,
-		fmt.Sprintf("%.1f%s", float64(size)/1024/1024, a.m["mb"]),
-		my,
+	s := map[string]string{
+		"linked_nodes": strconv.Itoa(nodeList.Len()),
+		"known_nodes":  strconv.Itoa(searchList.Len()),
+		"files":        strconv.Itoa(cl.Len()),
+		"records":      strconv.Itoa(records),
+		"cache_size":   fmt.Sprintf("%.1f%s", float64(size)/1024/1024, a.m["mb"]),
+		"self_node":    my.nodestr,
 	}
-	ns := struct {
-		LinkedNodes NodeList
-		KnownNodes  SearchList
-	}{
-		*nodeList,
-		*searchList,
+	ns := map[string][]string{
+		"linked_nodes": nodeList.getNodestrSlice(),
+		"known_nodes":  searchList.getNodestrSlice(),
 	}
 
 	d := struct {
-		*DefaultVariable
-		Status     interface{}
-		NodeStatus interface{}
+		Status     map[string]string
+		NodeStatus map[string][]string
+		Message    message
 	}{
-		a.makeDefaultVariable(),
 		s,
 		ns,
+		a.m,
 	}
 	a.header(a.m["status"], "", nil, true, nil)
 	renderTemplate("status", d, a.wr)
@@ -187,16 +177,20 @@ func printEdittag(w http.ResponseWriter, r *http.Request) {
 	ca := newCache(datfile)
 	datfile = html.EscapeString(datfile)
 
-	if !ca.exists() {
+	if !ca.Exists() {
 		a.print404(nil, "")
 		return
 	}
 	d := struct {
+		Message  message
+		AdminCGI string
 		Datfile  string
 		Tags     string
 		Sugtags  suggestedTagList
 		Usertags UserTagList
 	}{
+		a.m,
+		adminURL,
 		datfile,
 		ca.tags.string(),
 		*ca.sugtags,
@@ -222,7 +216,7 @@ func saveTagCGI(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	ca := newCache(datfile)
-	if !ca.exists() {
+	if !ca.Exists() {
 		a.print404(nil, "")
 	}
 	tl := strings.Fields(tags)
@@ -284,10 +278,11 @@ func (a *adminCGI) checkSid(sid string) bool {
 }
 
 type DeleteRecord struct {
-	*DefaultVariable
-	Datfile string
-	Records []*record
-	Sid     string
+	Message  message
+	AdminCGI string
+	Datfile  string
+	Records  []*record
+	Sid      string
 }
 
 func (d *DeleteRecord) Getbody(rec *record) string {
@@ -306,7 +301,8 @@ func (a *adminCGI) printDeleteRecord(datfile string, records []string) {
 		recs[i] = newRecord(datfile, v)
 	}
 	d := DeleteRecord{
-		a.makeDefaultVariable(),
+		a.m,
+		adminURL,
 		datfile,
 		recs,
 		sid,
@@ -329,7 +325,7 @@ func (a *adminCGI) doDeleteRecord(datfile string, records []string, dopost strin
 	ca := newCache(datfile)
 	for _, r := range records {
 		rec := newRecord(datfile, r)
-		ca.size -= int(rec.size())
+		ca.Size -= int(rec.size())
 		if rec.remove() == nil {
 			if dopost != "" {
 				ca.syncStatus()
@@ -345,18 +341,19 @@ func (a *adminCGI) doDeleteRecord(datfile string, records []string, dopost strin
 }
 
 type DelFile struct {
-	*DefaultVariable
-	Files []string
-	Sid   string
+	Message  message
+	adminCGI string
+	Files    []*cache
+	Sid      string
 }
 
 func (d *DelFile) Gettitle(ca *cache) string {
 	for _, t := range types {
-		if strings.HasPrefix(ca.datfile, t+"_") {
-			return fileDecode(ca.datfile)
+		if strings.HasPrefix(ca.Datfile, t+"_") {
+			return fileDecode(ca.Datfile)
 		}
 	}
-	return ca.datfile
+	return ca.Datfile
 }
 
 func (d *DelFile) GetContents(ca *cache) []string {
@@ -380,8 +377,8 @@ func (a *adminCGI) postDeleteMessage(ca *cache, rec *record) {
 		if v := a.req.FormValue(key); v != "" {
 			body[key] = escape(v)
 		}
-		body["remote_stamp"] = strconv.FormatInt(rec.stamp, 10)
-		body["remote_id"] = rec.id
+		body["remote_stamp"] = strconv.FormatInt(rec.Stamp, 10)
+		body["remote_id"] = rec.ID
 	}
 	passwd := a.req.FormValue("passwd")
 	id := rec.build(stamp, body, passwd)
@@ -401,8 +398,9 @@ func (a *adminCGI) printDeleteFile(files []string) {
 		cas[i] = newCache(v)
 	}
 	d := DelFile{
-		a.makeDefaultVariable(),
-		files,
+		a.m,
+		adminURL,
+		cas,
 		sid,
 	}
 	a.header(a.m["del_file"], "", nil, true, nil)
@@ -415,16 +413,18 @@ func (a *adminCGI) doDeleteFile(files []string) {
 		ca := newCache(c)
 		ca.remove()
 	}
-	a.print302(gatewayCgi + querySeparator + "changes")
+	a.print302(gatewayURL + querySeparator + "changes")
 }
 
 func (a *adminCGI) printSearchForm(query string) {
 	d := struct {
-		*DefaultVariable
-		Query string
+		Query    string
+		AdminCGI string
+		Message  message
 	}{
-		a.makeDefaultVariable(),
 		query,
+		adminURL,
+		a.m,
 	}
 	renderTemplate("search_form", d, a.wr)
 }
@@ -443,11 +443,11 @@ func (a *adminCGI) printSearchResult(query string) {
 	}
 	cl := newCacheList()
 	result := cl.search(reg)
-	for _, i := range cl.caches {
+	for _, i := range cl.Caches {
 		if result.has(i) {
 			continue
 		}
-		if reg.MatchString(fileDecode(i.datfile)) {
+		if reg.MatchString(fileDecode(i.Datfile)) {
 			result = append(result, i)
 		}
 	}

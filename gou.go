@@ -30,6 +30,9 @@ package main
 
 import (
 	"flag"
+	"log"
+	"net/http"
+	_ "net/http/pprof"
 
 	"github.com/shinGETsu-gou/shingetsu-gou/gou"
 )
