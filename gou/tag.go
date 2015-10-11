@@ -110,9 +110,9 @@ func (t *tagList) update(val []string) {
 }
 
 //hasTagstr return true if one of tags has tagstr
-func (t *tagList) hasTagstr(tagstr string) bool{
+func (t *tagList) hasTagstr(tagstr string) bool {
 	for _, v := range t.Tags {
-		if v.Tagstr==tagstr{
+		if v.Tagstr == tagstr {
 			return true
 		}
 	}

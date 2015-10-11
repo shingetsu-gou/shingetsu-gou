@@ -300,9 +300,9 @@ func printTitle(w http.ResponseWriter, r *http.Request) {
 		Message       message
 		IsAdmin       bool
 		IsFriend      bool
-		GatewayCGI string
-		AdminCGI string
-		Types string
+		GatewayCGI    string
+		AdminCGI      string
+		Types         string
 		GatewayLink
 		ListItem
 	}{

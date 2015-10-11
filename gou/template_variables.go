@@ -30,12 +30,10 @@ package gou
 
 import (
 	"log"
-	"net/http"
 	"net/url"
 	"path"
 	"regexp"
 	"strings"
-	"time"
 
 	"golang.org/x/text/language"
 )
@@ -93,7 +91,7 @@ func searchMessage(acceptLanguage string) message {
 	return nil
 }
 
-
+//GatewayLink is a struct for gateway_link.txt
 type GatewayLink struct {
 	Message     message
 	CGIname     string
@@ -110,6 +108,7 @@ func (c *GatewayLink) SetupStruct(cginame, command string) *GatewayLink {
 	return c
 }
 
+//ListItem is for list_item.txt
 type ListItem struct {
 	Cache      *cache
 	Title      string
@@ -145,6 +144,8 @@ func (l *ListItem) checkCache(ca *cache, target string) (string, bool) {
 	return x, true
 }
 
+//SetupStruct setups ListItem struct to render list_item.txt
+//ListItem.IsAdmin,filter,tag must be setted up previously.
 func (l *ListItem) SetupStruct(ca *cache, remove bool, target string, search bool) ListItem {
 	x, ok := l.checkCache(ca, target)
 	if !ok {
@@ -178,4 +179,3 @@ func (l *ListItem) SetupStruct(ca *cache, remove bool, target string, search boo
 	l.Appli = application
 	return *l
 }
-

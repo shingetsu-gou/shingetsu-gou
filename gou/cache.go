@@ -45,9 +45,9 @@ import (
 type cache struct {
 	node        *rawNodeList
 	Datfile     string
-	Size        int    // size of cache file
-	velocity    int    // records count per unit time
-	Typee       string //"thread"
+	Size        int      // size of cache file
+	velocity    int      // records count per unit time
+	Typee       string   //"thread"
 	tags        *tagList //made by the user
 	ValidStamp  int64
 	RecentStamp int64

@@ -299,6 +299,7 @@ func InitVariables() {
 		}
 	}
 
+	//for controlling max connections
 	for i := 0; i < maxConnection; i++ {
 		connections <- struct{}{}
 	}
