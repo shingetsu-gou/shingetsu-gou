@@ -138,15 +138,35 @@ func writeMap(path string, ary map[string][]string) error {
 	return nil
 }
 
+
 //renderTemplate executes template and write to wr.
 func renderTemplate(file string, st interface{}, wr io.Writer) {
+	funcMap := template.FuncMap{
+		"add":         func(a, b int) int { return a + b },
+		"sub":         func(a, b int) int { return a - b },
+		"mul":         func(a, b int) int { return a * b },
+		"div":         func(a, b int) int { return a / b },
+		"toMB":        func(a int) float64 { return float64(a) / (1024 * 1024) },
+		"toKB":        func(a int) float64 { return float64(a) / (1024) },
+		"strEncode":   strEncode,
+		"escape":      escape,
+		"escapeSpace": escapeSpace,
+		"fileDecode": func(query, t string) string {
+			q := strings.Split(query, "_")
+			if len(q) < 2 {
+				return t
+			}
+			return q[0]
+		},
+	}
+
 	basename := templateDir + "/" + file + templateSuffix
 	tpl, err := template.ParseFiles(basename)
 	if err != nil {
 		log.Println(err)
 		return
 	}
-	if err := tpl.Execute(wr, st); err != nil {
+	if err := tpl.Funcs(funcMap).Execute(wr, st); err != nil {
 		fmt.Println(err)
 	}
 }

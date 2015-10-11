@@ -109,6 +109,16 @@ func (t *tagList) update(val []string) {
 	}
 }
 
+//hasTagstr return true if one of tags has tagstr
+func (t *tagList) hasTagstr(tagstr string) bool{
+	for _, v := range t.tags {
+		if v.tagstr==tagstr{
+			return true
+		}
+	}
+	return false
+}
+
 //addString add tagstr=vals tag
 func (t *tagList) addString(vals []string) {
 	for _, val := range vals {

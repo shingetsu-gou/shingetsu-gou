@@ -12,23 +12,22 @@ env:
 
 before_install:
 - go get github.com/axw/gocov/gocov
-- go get github.com/golang/lint/golint
+- go get github.com/alecthomas/gometalinter
 - go get github.com/mattn/goveralls
 - go get github.com/laher/goxc
 - if ! go get code.google.com/p/go.tools/cmd/cover; then go get golang.org/x/tools/cmd/cover; fi
 - export PATH=$PATH:$GOPATH/bin
+- gometalinter --install --update
 
 script:
 - go test -v -covermode=count -coverprofile=coverage.out
+#- ! gometalinter --deadline=1000s ./... 2>&1 | read
 
 after_script:
-- $HOME/gopath/bin/goveralls -coverprofile=coverage.out -service=travis-ci
-- ! golint . 2>&1 | read
-- golint .
-- ! gofmt -d . 2>&1 | read
-- gofmt -d .
+- goveralls -coverprofile=coverage.out -service=travis-ci
+- gometalinter --deadline=1000s ./...
 - if  [ ${TRAVIS_GO_VERSION} == "1.5" ]; then
-  goxc -wc default publish-github -owner=utamaro -repository="shingetsu-gou";
+  goxc -wc default publish-github -owner=shingetsu-gou -repository="shingetsu-gou";
   cat .goxc.json;
   goxc -wlc default publish-github -apikey=${GITHUB_TOKEN};
   goxc -pv ${PACKAGE_VERSION};

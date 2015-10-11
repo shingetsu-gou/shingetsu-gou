@@ -66,7 +66,7 @@ func newCGI(w http.ResponseWriter, r *http.Request) *cgi {
 		jc:         newJsCache(absDocroot),
 		wr:         w,
 	}
-	c.m = newMessage(r.Header.Get("Accept-Language"))
+	c.m = searchMessage(r.Header.Get("Accept-Language"))
 	c.isAdmin = reAdmin.MatchString(c.remoteaddr)
 	c.isFriend = reFriend.MatchString(c.remoteaddr)
 	c.isVisitor = reVisitor.MatchString(c.remoteaddr)
@@ -330,13 +330,13 @@ func (c *cgi) print302(next string) {
 	c.footer(nil)
 }
 func (c *cgi) print403(next string) {
-	c.header(c.m.get("403"), "", nil, true, nil)
+	c.header(c.m["403"], "", nil, true, nil)
 	c.printParagraph(c.m["403_body"])
 	c.printJump(next)
 	c.footer(nil)
 }
 func (c *cgi) print404(ca *cache, id string) {
-	c.header(c.m.get("404"), "", nil, true, nil)
+	c.header(c.m["404"], "", nil, true, nil)
 	c.printParagraph(c.m["404_body"])
 	if ca != nil {
 		c.removeFileForm(ca, "")
@@ -584,9 +584,9 @@ func (c *cgi) makeDefaultVariable() *DefaultVariable {
 		Message:     c.m,
 		Lang:        c.m["lang"],
 		Aappl:       application,
-		GatewayCgi:  gatewayCgi,
-		ThreadCgi:   threadCgi,
-		AdminCgi:    adminCgi,
+		GatewayCGI:  gatewayCgi,
+		ThreadCGI:   threadCgi,
+		AdminCGI:    adminCgi,
 		RootPath:    rootPath,
 		Types:       types,
 		Isadmin:     c.isAdmin,

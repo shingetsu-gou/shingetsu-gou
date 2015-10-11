@@ -36,25 +36,27 @@ import (
 	"path"
 	"regexp"
 	"strings"
-	"time"
 
 	"golang.org/x/text/language"
 )
 
+//message hold string map.
 type message map[string]string
 
+//newMessage reads from the file excpet #comment and stores them with url unescaping value.
 func newMessage(file string) message {
 	var m message
-	re := regexp.MustCompile("^#$")
+	re := regexp.MustCompile("^\\s*#")
 	err := eachLine(file, func(line string, i int) error {
 		line = strings.Trim(line, "\r\n")
 		var err error
-		if !re.MatchString(line) {
-			buf := strings.Split(line, "<>")
-			if len(buf) == 2 {
-				buf[1], err = url.QueryUnescape(buf[1])
-				m[buf[0]] = buf[1]
-			}
+		if re.MatchString(line) {
+			return nil
+		}
+		buf := strings.Split(line, "<>")
+		if len(buf) == 2 {
+			buf[1], err = url.QueryUnescape(buf[1])
+			m[buf[0]] = buf[1]
 		}
 		return err
 	})
@@ -64,13 +66,8 @@ func newMessage(file string) message {
 	return m
 }
 
-func (m message) get(k string) string {
-	if v, exist := m[k]; exist {
-		return v
-	}
-	return ""
-}
-
+//searchMessage parse Accept-Language header ,selects most-weighted(biggest q)
+//language ,reads the associated message file, and creates and returns message obj.
 func searchMessage(acceptLanguage string) message {
 	var lang []string
 	if acceptLanguage != "" {
@@ -96,6 +93,7 @@ func searchMessage(acceptLanguage string) message {
 	return nil
 }
 
+//DefaultVariable is default variables for html templates.
 type DefaultVariable struct {
 	CGI         *cgi
 	Environment http.Header
@@ -103,9 +101,9 @@ type DefaultVariable struct {
 	Message     message
 	Lang        string
 	Aappl       map[string]string
-	GatewayCgi  string
-	ThreadCgi   string
-	AdminCgi    string
+	GatewayCGI  string
+	ThreadCGI   string
+	AdminCGI    string
 	RootPath    string
 	Types       []string
 	Isadmin     bool
@@ -116,41 +114,7 @@ type DefaultVariable struct {
 	tag         string
 }
 
-func (d DefaultVariable) Add(a, b int) int {
-	return a + b
-}
-func (d DefaultVariable) Mul(a, b int) int {
-	return a * b
-}
-func (d DefaultVariable) ToKB(a int) float64 {
-	return float64(a) / 1024
-}
-func (d DefaultVariable) ToMB(a int) float64 {
-	return float64(a) / (1024 * 1024)
-}
-func (d DefaultVariable) Localtime(stamp int64) string {
-	return time.Unix(stamp, 0).Format("2006-01-02 15:04")
-}
-func (d DefaultVariable) StrEncode(query string) string {
-	return strEncode(query)
-}
-
-func (d DefaultVariable) Escape(msg string) string {
-	return escape(msg)
-}
-
-func (d DefaultVariable) EscapeSpace(msg string) string {
-	return escapeSpace(msg)
-}
-
-func (d DefaultVariable) FileDecode(query, t string) string {
-	q := strings.Split(query, "_")
-	if len(q) < 2 {
-		return t
-	}
-	return q[0]
-}
-
+//MakeGatewayLink makes "{{cginame}}/{{command}}"  link with tile=description.
 func (d DefaultVariable) MakeGatewayLink(cginame, command string) string {
 	g := struct {
 		CGIname     string
@@ -159,39 +123,42 @@ func (d DefaultVariable) MakeGatewayLink(cginame, command string) string {
 	}{
 		cginame,
 		command,
-		d.Message.get("desc_" + command),
+		d.Message["desc_"+command],
 	}
 	var doc bytes.Buffer
 	renderTemplate("gateway_link", g, &doc)
 	return doc.String()
 }
 
-func (d DefaultVariable) MakeListItem(ca *cache, remove bool, target string, search bool) string {
+//checkCache checks cache ca has specified tag and datfile doesn't contains filterd string.
+func (d *DefaultVariable) checkCache(ca *cache, target string) (string, bool) {
 	x := fileDecode(ca.datfile)
 	if x == "" {
+		return "", false
+	}
+	if d.filter != "" && !strings.Contains(d.filter, strings.ToLower(x)) {
+		return "", false
+	}
+	if d.tag != "" {
+		switch {
+		case ca.tags.hasTagstr(strings.ToLower(d.tag)):
+		case target == "recent" && ca.sugtags.hasTagstr(strings.ToLower(d.tag)):
+		default:
+			return "", false
+		}
+	}
+	return x, true
+}
+
+func (d DefaultVariable) MakeListItem(ca *cache, remove bool, target string, search bool) string {
+	if target == "" {
+		target = "changes"
+	}
+	x, ok := d.checkCache(ca, target)
+	if !ok {
 		return ""
 	}
 	y := strEncode(x)
-	if d.filter != "" && !strings.Contains(d.filter, strings.ToLower(x)) {
-		return ""
-	}
-	if d.tag != "" {
-		var cacheTags []*tag
-		matchtag := false
-		cacheTags = append(cacheTags, ca.tags.tags...)
-		if target == "recent" {
-			cacheTags = append(cacheTags, ca.sugtags.tags...)
-		}
-		for _, t := range cacheTags {
-			if strings.ToLower(t.tagstr) == d.tag {
-				matchtag = true
-				break
-			}
-		}
-		if !matchtag {
-			return ""
-		}
-	}
 	x = escapeSpace(x)
 	var strOpts string
 	if search {
@@ -212,14 +179,14 @@ func (d DefaultVariable) MakeListItem(ca *cache, remove bool, target string, sea
 	var doc bytes.Buffer
 	g := struct {
 		*DefaultVariable
-		cache    *cache
-		title    string
-		strTitle string
-		tags     *tagList
-		sugtags  []*tag
-		target   string
-		remove   bool
-		strOpts  string
+		Cache    *cache
+		Title    string
+		StrTitle string
+		Tags     *tagList
+		Sugtags  []*tag
+		Target   string
+		Remove   bool
+		StrOpts  string
 	}{
 		&d,
 		ca,

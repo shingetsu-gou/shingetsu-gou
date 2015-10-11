@@ -48,7 +48,7 @@ type cache struct {
 	size        int    // size of cache file
 	velocity    int    // records count per unit time
 	typee       string //"thread"
-	tags        *tagList
+	tags        *tagList //made by the user
 	validStamp  int64
 	recentStamp int64
 	stamp       int64 //when the cache is modified
@@ -257,7 +257,7 @@ func (c *cache) checkData(res []string, stamp int64, id string, begin, end int64
 				c.updateStamp(r)
 			}
 		} else {
-			log.Printf("warning:%s/%sdor %s):broken record", c.datfile, stamp, r.stamp)
+			log.Printf("warning:%s/%d or %s):broken record", c.datfile, stamp, r.stamp)
 		}
 	}
 	if count == 0 {
