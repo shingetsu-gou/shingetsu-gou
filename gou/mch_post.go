@@ -39,6 +39,8 @@ import (
 	"github.com/axgle/mahonia"
 )
 
+//postComment creates a record from args and adds it to cache.
+//also adds tag if not tag!=""
 func (m *mchCGI) postComment(threadKey, name, mail, body, passwd, tag string) error {
 	stamp := time.Now().Unix()
 	recbody := make(map[string]string)
@@ -58,10 +60,10 @@ func (m *mchCGI) postComment(threadKey, name, mail, body, passwd, tag string) er
 		saveTag(c, tag)
 	}
 	queue.append(rec, nil)
-	queue.run()
 	return nil
 }
 
+//errorResp render erro page with cp932 code.
 func (m *mchCGI) errorResp(msg string, info map[string]string) string {
 	info["message"] = msg
 	str := executeTemplate("2ch_error", info)
@@ -69,10 +71,12 @@ func (m *mchCGI) errorResp(msg string, info map[string]string) string {
 	return mahonia.NewEncoder("cp932").ConvertString(str)
 }
 
+//getCP932 returns form value of key with cp932 code.
 func (m *mchCGI) getCP932(key string) string {
 	return mahonia.NewDecoder("cp932").ConvertString(m.req.FormValue(key))
 }
 
+//getcommentData returns comment data with map in cp932 code.
 func (m *mchCGI) getCommentData() map[string]string {
 	mail := m.getCP932("mail")
 	if strings.ToLower(mail) == "sage" {
@@ -87,6 +91,35 @@ func (m *mchCGI) getCommentData() map[string]string {
 	}
 }
 
+func (m *mchCGI) checkInfo(info map[string]string) (string, string) {
+	key := ""
+	if info["subject"] != "" {
+		key = fileEncode("thread", info["subject"])
+	} else {
+		var err error
+		key, err = dataKeyTable.getFilekey(info["key"])
+		if err != nil {
+			return "", m.errorResp(err.Error(), info)
+		}
+	}
+
+	switch {
+	case info["body"] == "":
+		return "", m.errorResp("本文がありません.", info)
+	case newCache(key).Exists(), m.hasAuth():
+	case info["subject"] != "":
+		return "", m.errorResp("掲示版を作る権限がありません", info)
+	default:
+		return "", m.errorResp("掲示版がありません", info)
+	}
+
+	if info["subject"] == "" && key == "" {
+		return "", m.errorResp("フォームが変です.", info)
+	}
+	return key, ""
+}
+
+//postCommentApp
 func (m *mchCGI) postCommentApp() string {
 	if m.req.Method != "POST" {
 		m.wr.Header().Set("Content-Type", "text/plain")
@@ -95,49 +128,24 @@ func (m *mchCGI) postCommentApp() string {
 	}
 	info := m.getCommentData()
 	info["host"] = m.req.URL.Host
-
-	if info["body"] == "" {
-		return m.errorResp("本文がありません.", info)
+	key, errmsg := m.checkInfo(info)
+	if errmsg != "" {
+		return errmsg
 	}
 
-	key := ""
-	if info["subject"] != "" {
-		key = fileEncode("thread", info["subject"])
-	} else {
-		var err error
-		key, err = dataKeyTable.getFilekey(info["key"])
-		if err != nil {
-			return ""
-		}
-	}
-	hasAuth := m.isAdmin || m.isFriend
 	referer := m.getCP932("Referer")
 	reg := regexp.MustCompile("/2ch_([^/]+)/")
 	var tag string
-	if m := reg.FindStringSubmatch(referer); m != nil && hasAuth {
-		tag = fileDecode("dummy_" + m[1])
+	if ma := reg.FindStringSubmatch(referer); ma != nil && m.hasAuth() {
+		tag = fileDecode("dummy_" + ma[1])
 	}
-
-	switch {
-	case newCache(key).Exists():
-	case hasAuth:
-	case info["subject"] != "":
-		return m.errorResp("掲示版を作る権限がありません", info)
-	default:
-		return m.errorResp("掲示版がありません", info)
-	}
-
-	if info["subject"] == "" && key == "" {
-		return m.errorResp("フォームが変です.", info)
-	}
-
 	table := newResTable(newCache(key))
 	reg = regexp.MustCompile(">>([1-9][0-9]*)")
 	body := reg.ReplaceAllStringFunc(info["body"], func(noStr string) string {
 		no, err := strconv.Atoi(noStr)
 		if err != nil {
 			log.Println(err)
-			return ""
+			return m.errorResp(err.Error(), info)
 		}
 		return ">>" + table.num2id[no]
 	})

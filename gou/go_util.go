@@ -293,3 +293,12 @@ func makeThumbnail(from, to, suffix string, x, y uint) {
 		log.Println(err)
 	}
 }
+
+//touch makes an empty file "name".
+func touch(fname string) {
+	f, err := os.Create(fname)
+	defer close(f)
+	if err != nil {
+		log.Println(err)
+	}
+}

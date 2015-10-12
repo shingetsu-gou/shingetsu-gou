@@ -37,11 +37,13 @@ import (
 	"net/http"
 	"os"
 	"regexp"
+	"sort"
 	"strconv"
 	"strings"
 	"time"
 )
 
+//adminSetups registers handlers for admin.cgi
 func adminSetup(s *http.ServeMux) {
 	registCompressHandler(s, "/admin.cgi/status", printStatus)
 	registCompressHandler(s, "/admin.cgi/edittag", printEdittag)
@@ -50,6 +52,9 @@ func adminSetup(s *http.ServeMux) {
 	registCompressHandler(s, "/admin.cgi", execCmd)
 }
 
+//execCmd execute command specified cmd form.
+//i.e. confirmagion page for deleting rec/file(rdel/fdel) and for deleting.
+//(xrdel/xfdel)
 func execCmd(w http.ResponseWriter, r *http.Request) {
 	<-connections
 	defer func() {
@@ -65,34 +70,18 @@ func execCmd(w http.ResponseWriter, r *http.Request) {
 
 	switch cmd {
 	case "rdel":
-		if rmFiles != nil || rmRecords != nil {
-			a.print404(nil, "")
-		}
-		a.printDeleteRecord(rmFiles[0], rmRecords)
+		a.printDeleteRecord(rmFiles, rmRecords)
 	case "fdel":
-		if rmFiles != nil {
-			a.print404(nil, "")
-		}
 		a.printDeleteFile(rmFiles)
 	case "xrdel":
-		if a.req.Method != "POST" || a.checkSid(a.req.FormValue("sid")) {
-			return
-		}
-		if rmFiles != nil || rmRecords != nil {
-			a.print404(nil, "")
-		}
-		a.doDeleteRecord(rmFiles[0], rmRecords, a.req.FormValue("dopost"))
+		a.doDeleteRecord(rmFiles, rmRecords, a.req.FormValue("dopost"))
 	case "xfdel":
-		if a.req.Method != "POST" || a.checkSid(a.req.FormValue("sid")) {
-			return
-		}
-		if rmFiles != nil {
-			a.print404(nil, "")
-		}
 		a.doDeleteFile(rmFiles)
 	}
 }
 
+//printSearch renders the page for searching if query=""
+//or do query if query!=""
 func printSearch(w http.ResponseWriter, r *http.Request) {
 	<-connections
 	defer func() {
@@ -104,12 +93,6 @@ func printSearch(w http.ResponseWriter, r *http.Request) {
 	}
 	query := a.req.FormValue("query")
 	if query == "" {
-		query = a.path[len("search/"):]
-	}
-	if query == "" {
-		query = strDecode(a.req.URL.RawQuery)
-	}
-	if query == "" {
 		a.header(a.m["search"], "", nil, true, nil)
 		a.printParagraph(a.m["desc_search"])
 		a.printSearchForm("")
@@ -119,6 +102,9 @@ func printSearch(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
+//printStatus renders status info, including
+//#linknodes,#knownNodes,#files,#records,cacheSize,selfnode/linknodes/knownnodes
+// ip:port,
 func printStatus(w http.ResponseWriter, r *http.Request) {
 	<-connections
 	defer func() {
@@ -163,6 +149,7 @@ func printStatus(w http.ResponseWriter, r *http.Request) {
 	a.footer(nil)
 }
 
+//printEdittag renders the page for editing tags in thread specified by form "file".
 func printEdittag(w http.ResponseWriter, r *http.Request) {
 	<-connections
 	defer func() {
@@ -201,6 +188,7 @@ func printEdittag(w http.ResponseWriter, r *http.Request) {
 	a.footer(nil)
 }
 
+//saveTagCGI saves edited tags of file and render this file with 302.
 func saveTagCGI(w http.ResponseWriter, r *http.Request) {
 	<-connections
 	defer func() {
@@ -236,10 +224,13 @@ func saveTagCGI(w http.ResponseWriter, r *http.Request) {
 	a.print302(next)
 }
 
+//adminCGI is for admin.cgi handler.
 type adminCGI struct {
 	*cgi
 }
 
+//newAdminCGI returns adminCGI obj if client is admin.
+//if not render 403.
 func newAdminCGI(w http.ResponseWriter, r *http.Request) *adminCGI {
 	c := newCGI(w, r)
 	if c == nil || !c.isAdmin {
@@ -251,6 +242,7 @@ func newAdminCGI(w http.ResponseWriter, r *http.Request) *adminCGI {
 	}
 }
 
+//makeSid makes md5(rand) id and writes to sid file.
 func (a *adminCGI) makeSid() string {
 	var r string
 	for i := 0; i < 4; i++ {
@@ -264,7 +256,9 @@ func (a *adminCGI) makeSid() string {
 	return sid
 }
 
-func (a *adminCGI) checkSid(sid string) bool {
+//checkSid returns true if form value of "sid" == saved sid.
+func (a *adminCGI) checkSid() bool {
+	sid := a.req.FormValue("sid")
 	bsaved, err := ioutil.ReadFile(adminSid)
 	if err != nil {
 		log.Println(adminSid, err)
@@ -277,6 +271,7 @@ func (a *adminCGI) checkSid(sid string) bool {
 	return sid == saved
 }
 
+//DeleteRecord is for renderring confirmation to a delete record.
 type DeleteRecord struct {
 	Message  message
 	AdminCGI string
@@ -285,6 +280,7 @@ type DeleteRecord struct {
 	Sid      string
 }
 
+//Getbody retuns contents of rec.
 func (d *DeleteRecord) Getbody(rec *record) string {
 	err := rec.loadBody()
 	if err != nil {
@@ -294,7 +290,14 @@ func (d *DeleteRecord) Getbody(rec *record) string {
 	return recstr
 }
 
-func (a *adminCGI) printDeleteRecord(datfile string, records []string) {
+//printDeleteRecord renders comfirmation page for deleting a record.
+//renders info about rec.
+func (a *adminCGI) printDeleteRecord(rmFiles []string, records []string) {
+	if rmFiles != nil || records != nil {
+		a.print404(nil, "")
+		return
+	}
+	datfile := rmFiles[0]
 	sid := a.makeSid()
 	recs := make([]*record, len(records))
 	for i, v := range records {
@@ -312,34 +315,42 @@ func (a *adminCGI) printDeleteRecord(datfile string, records []string) {
 	a.footer(nil)
 }
 
-func (a *adminCGI) doDeleteRecord(datfile string, records []string, dopost string) {
-	var next string
+//doDeleteRecord dels records in rmFiles files and 302 to this file page.
+//with cheking sid. if dopost tells other nodes.
+func (a *adminCGI) doDeleteRecord(rmFiles []string, records []string, dopost string) {
+	if a.req.Method != "POST" || a.checkSid() {
+		a.print404(nil, "")
+		return
+	}
+	if rmFiles == nil || records == nil {
+		a.print404(nil, "")
+		return
+	}
+	datfile := rmFiles[0]
+	next := rootPath
 	for _, t := range types {
 		title := strEncode(fileDecode(datfile))
 		if strings.HasPrefix(title, t+"_") {
 			next = application[t] + querySeparator + title
 			break
 		}
-		next = rootPath
 	}
 	ca := newCache(datfile)
 	for _, r := range records {
 		rec := newRecord(datfile, r)
 		ca.Size -= int(rec.size())
-		if rec.remove() == nil {
-			if dopost != "" {
-				ca.syncStatus()
-				a.postDeleteMessage(ca, rec)
-				break
-			}
+		if rec.remove() == nil && dopost != "" {
+			ca.syncStatus()
+			a.postDeleteMessage(ca, rec)
+			a.print302(next)
+			return
 		}
 	}
-	if dopost == "" {
-		ca.syncStatus()
-	}
+	ca.syncStatus()
 	a.print302(next)
 }
 
+//DelFile is for rendering confirmation page of deleting file.
 type DelFile struct {
 	Message  message
 	adminCGI string
@@ -347,6 +358,8 @@ type DelFile struct {
 	Sid      string
 }
 
+//Gettitle returns title part if *_*.
+//returns ca.datfile if not.
 func (d *DelFile) Gettitle(ca *cache) string {
 	for _, t := range types {
 		if strings.HasPrefix(ca.Datfile, t+"_") {
@@ -356,6 +369,8 @@ func (d *DelFile) Gettitle(ca *cache) string {
 	return ca.Datfile
 }
 
+//GetContents returns recstrs of cache.
+//len(recstrs) is <=2.
 func (d *DelFile) GetContents(ca *cache) []string {
 	contents := make([]string, 0, 2)
 	for _, rec := range ca.recs {
@@ -370,6 +385,9 @@ func (d *DelFile) GetContents(ca *cache) []string {
 	}
 	return contents
 }
+
+//postDeleteMessage tells others deletion of a record.
+//and adds to updateList and recentlist.
 func (a *adminCGI) postDeleteMessage(ca *cache, rec *record) {
 	stamp := time.Now().Unix()
 	body := make(map[string]string)
@@ -377,9 +395,9 @@ func (a *adminCGI) postDeleteMessage(ca *cache, rec *record) {
 		if v := a.req.FormValue(key); v != "" {
 			body[key] = escape(v)
 		}
-		body["remote_stamp"] = strconv.FormatInt(rec.Stamp, 10)
-		body["remote_id"] = rec.ID
 	}
+	body["remove_stamp"] = strconv.FormatInt(rec.Stamp, 10)
+	body["remove_id"] = rec.ID
 	passwd := a.req.FormValue("passwd")
 	id := rec.build(stamp, body, passwd)
 	ca.addData(rec)
@@ -389,9 +407,13 @@ func (a *adminCGI) postDeleteMessage(ca *cache, rec *record) {
 	recentList.append(rec)
 	recentList.sync()
 	nodeList.tellUpdate(ca, stamp, id, nil)
-
 }
+
+//printDeleteFile renders the page for confirmation of deleting file.
 func (a *adminCGI) printDeleteFile(files []string) {
+	if files == nil {
+		a.print404(nil, "")
+	}
 	sid := a.makeSid()
 	cas := make([]*cache, len(files))
 	for i, v := range files {
@@ -408,7 +430,15 @@ func (a *adminCGI) printDeleteFile(files []string) {
 	a.footer(nil)
 }
 
+//doDeleteFile remove files in cache and 302 to changes page.
 func (a *adminCGI) doDeleteFile(files []string) {
+	if a.req.Method != "POST" || a.checkSid() {
+		return
+	}
+	if files == nil {
+		a.print404(nil, "")
+	}
+
 	for _, c := range files {
 		ca := newCache(c)
 		ca.remove()
@@ -416,6 +446,7 @@ func (a *adminCGI) doDeleteFile(files []string) {
 	a.print302(gatewayURL + querySeparator + "changes")
 }
 
+//printSearchForm renders search_form.txt
 func (a *adminCGI) printSearchForm(query string) {
 	d := struct {
 		Query    string
@@ -429,6 +460,7 @@ func (a *adminCGI) printSearchForm(query string) {
 	renderTemplate("search_form", d, a.wr)
 }
 
+//printSearchResult renders cachelist that its datfile matches query.
 func (a *adminCGI) printSearchResult(query string) {
 	strQuery := html.EscapeString(query)
 	title := fmt.Sprintf("%s: %s", a.m["search"], strQuery)
@@ -451,5 +483,7 @@ func (a *adminCGI) printSearchResult(query string) {
 			result = append(result, i)
 		}
 	}
+	sort.Sort(sort.Reverse(sortByStamp{result}))
+	a.printIndexList(result, "", false, false)
 	a.footer(nil)
 }

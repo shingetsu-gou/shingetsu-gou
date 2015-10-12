@@ -32,7 +32,7 @@
 
 {{ range $type:=.Types }}
   <ul id="{{$type}}_index">
-  {{ range $cache:=.Cachelist.Caches }}
+  {{ range $cache:=.Cachelist }}
     {{ if eq $cache.Typee $type }}
       {{template "list_item" $root.ListItem.SetupStruct $cache false $root.Target $root.SearchNewFile}}
     {{ end }}

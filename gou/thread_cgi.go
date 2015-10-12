@@ -29,13 +29,17 @@
 package gou
 
 import (
+	"errors"
 	"fmt"
 	"html"
 	"io"
 	"log"
+	"math"
+	"math/rand"
 	"mime"
 	"net/http"
 	"os"
+	"path"
 	"regexp"
 	"strconv"
 	"strings"
@@ -69,18 +73,30 @@ func threadSetup(s *http.ServeMux) {
 }
 
 func printIndex(w http.ResponseWriter, r *http.Request) {
+	<-connections
+	defer func() {
+		connections <- struct{}{}
+	}()
 	if a := newThreadCGI(w, r); a != nil {
 		a.printIndex()
 	}
 }
 
 func printAttach(w http.ResponseWriter, r *http.Request) {
+	<-connections
+	defer func() {
+		connections <- struct{}{}
+	}()
 	if a := newThreadCGI(w, r); a != nil {
 		m := mux.Vars(r)
 		a.printAttach(m["datfile"], m["stamp"], m["id"], m["thumbnailSize"], m["suffix"])
 	}
 }
 func printThread(w http.ResponseWriter, r *http.Request) {
+	<-connections
+	defer func() {
+		connections <- struct{}{}
+	}()
 	if a := newThreadCGI(w, r); a != nil {
 		m := mux.Vars(r)
 		a.printThread(m["path"], m["id"], m["page"])
@@ -99,10 +115,6 @@ func newThreadCGI(w http.ResponseWriter, r *http.Request) *threadCGI {
 		return nil
 	}
 
-	c.host = serverName
-	if c.host == "" {
-		c.host = r.Host
-	}
 	return &threadCGI{
 		c,
 	}
@@ -439,4 +451,170 @@ func (t *threadCGI) printAttach(datfile, stampStr, id, thumbnailSize, suffix str
 			log.Println(err)
 		}
 	}
+}
+
+type Menubar struct {
+	GatewayLink
+	GatewayCGI string
+	Message    message
+	ID         string
+	RSS        string
+	IsAdmin    bool
+	IsFriend   bool
+}
+
+func (t *threadCGI) makeMenubar(id, rss string) *Menubar {
+	g := &Menubar{
+		GatewayCGI: gatewayURL,
+		Message:    t.m,
+		ID:         id,
+		RSS:        rss,
+		IsAdmin:    t.isAdmin,
+		IsFriend:   t.isFriend,
+	}
+	g.GatewayLink.Message = t.m
+	return g
+}
+
+func (t *threadCGI) checkGetCache() bool {
+	if !t.isAdmin && !t.isFriend {
+		return false
+	}
+	reg, err := regexp.Compile(robot)
+	if err != nil {
+		log.Print(err)
+		return false
+	}
+	if reg.MatchString(t.req.Header.Get("User-Agent")) {
+		return false
+	}
+	if t.lock() {
+		return true
+	}
+	return false
+}
+
+//errorTime calculates gaussian distribution by box-muller transformation.
+func (t *threadCGI) errorTime() int64 {
+	x1 := rand.Float64()
+	x2 := rand.Float64()
+	return int64(timeErrorSigma*math.Sqrt(-2*math.Log(x1))*math.Cos(2*math.Pi*x2)) + time.Now().Unix()
+}
+
+func (t *threadCGI) doPost() string {
+	attached, attachedErr := t.parseAttached()
+	if attachedErr != nil {
+		log.Println(attachedErr)
+	}
+	guessSuffix := "txt"
+	if attachedErr == nil {
+		e := path.Ext(attached.Filename)
+		if e != "" {
+			guessSuffix = strings.ToLower(e)
+		}
+	}
+
+	suffix := t.req.FormValue("suffix")
+	switch {
+	case suffix == "" || suffix == "AUTO":
+		suffix = guessSuffix
+	case strings.HasPrefix(suffix, "."):
+		suffix = suffix[1:]
+	}
+	suffix = strings.ToLower(suffix)
+	reg := regexp.MustCompile("[^0-9A-Za-z]")
+	suffix = reg.ReplaceAllString(suffix, "")
+
+	stamp := time.Now().Unix()
+	if t.req.FormValue("error") != "" {
+		stamp = t.errorTime()
+	}
+
+	ca := newCache(t.req.FormValue("file"))
+	body := make(map[string]string)
+	if value := t.req.FormValue("body"); value != "" {
+		body["body"] = escape(value)
+	}
+
+	if attachedErr == nil {
+		body["attach"] = string(attached.Data)
+		body["suffix"] = strings.TrimSpace(suffix)
+	}
+	if len(body) == 0 {
+		t.header(t.m["null_article"], "", nil, true, nil)
+		t.footer(nil)
+		return ""
+	}
+	rec := newRecord(ca.Datfile, "")
+	passwd := t.req.FormValue("passwd")
+	id := rec.build(stamp, body, passwd)
+
+	proxyClient := t.req.Header.Get("X_FORWARDED_FOR")
+	log.Printf("post %s/%d_%s from %s/%s\n", ca.Datfile, stamp, id, t.req.RemoteAddr, proxyClient)
+
+	if len(rec.recstr()) > recordLimit<<10 {
+		t.header(t.m["big_file"], "", nil, true, nil)
+		t.footer(nil)
+		return ""
+	}
+	if spamCheck(rec.recstr()) {
+		t.header(t.m["spam"], "", nil, true, nil)
+		t.footer(nil)
+		return ""
+	}
+
+	if ca.Exists() {
+		ca.addData(rec)
+		ca.syncStatus()
+	} else {
+		t.print404(nil, "")
+		return ""
+	}
+
+	if t.req.FormValue("dopost") != "" {
+		queue.append(rec, nil)
+	}
+
+	return id[:8]
+
+}
+
+type attached struct {
+	Filename string
+	Data     []byte
+}
+
+func (t *threadCGI) parseAttached() (*attached, error) {
+	err := t.req.ParseMultipartForm(int64(recordLimit) << 10)
+	if err != nil {
+		return nil, err
+	}
+	attach := t.req.MultipartForm
+	if len(attach.File) > 0 {
+		filename := attach.Value["filename"][0]
+		fpStrAttach := attach.File[filename][0]
+		f, err := fpStrAttach.Open()
+		defer close(f)
+		if err != nil {
+			return nil, err
+		}
+		var strAttach = make([]byte, recordLimit<<10)
+		_, err = f.Read(strAttach)
+		if err == nil || err.Error() != "EOF" {
+			t.header(t.m["big_file"], "", nil, true, nil)
+			t.footer(nil)
+			return nil, err
+		}
+		return &attached{
+			filename,
+			strAttach,
+		}, nil
+	}
+	return nil, errors.New("attached file not found")
+}
+
+func (t *threadCGI) getCache(ca *cache) bool {
+	result := ca.search(nil)
+	t.unlock()
+	return result
 }

@@ -364,13 +364,13 @@ func printRecent(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	title := g.m["recent"]
-	if g.strFilter != "" {
+	if g.filter != "" {
 		title = fmt.Sprintf("%s : %s", g.m["recent"], g.filter)
 	}
 	g.header(title, "", nil, true, nil)
 	g.printParagraph(g.m["desc_recent"])
 	cl := g.makeRecentCachelist()
-	g.printIndexList(cl, "recent", false, false)
+	g.printIndexList(cl.Caches, "recent", false, false)
 }
 
 type gatewayCGI struct {
@@ -387,15 +387,10 @@ func newGatewayCGI(w http.ResponseWriter, r *http.Request) *gatewayCGI {
 
 	if filter != "" {
 		c.filter = strings.ToLower(filter)
-		c.strFilter = html.EscapeString(filter)
 	} else {
 		c.tag = strings.ToLower(tag)
-		c.strTag = html.EscapeString(tag)
 	}
-	c.host = serverName
-	if c.host == "" {
-		c.host = r.Host
-	}
+
 	if !c.checkVisitor() {
 		c.print403("")
 		return nil
@@ -468,7 +463,7 @@ func (g *gatewayCGI) printIndex(doChange bool) {
 		str = "changes"
 	}
 	title := g.m["index"]
-	if g.strFilter != "" {
+	if g.filter != "" {
 		title = fmt.Sprintf("%s : %s", g.m["str"], g.filter)
 	}
 	g.header(title, "", nil, true, nil)
@@ -477,7 +472,7 @@ func (g *gatewayCGI) printIndex(doChange bool) {
 	if doChange {
 		sort.Sort(sort.Reverse(sortByVelocity{cl.Caches}))
 	}
-	g.printIndexList(cl, str, false, false)
+	g.printIndexList(cl.Caches, str, false, false)
 }
 
 func (g *gatewayCGI) makeRecentCachelist() *cacheList {
@@ -535,4 +530,47 @@ func (g *gatewayCGI) rssHTMLFormat(plain, appli, path string) string {
 		buf = fmt.Sprintf("<p>%s</p>", buf)
 	}
 	return buf
+}
+
+type mchCategory struct {
+	URL  string
+	Text string
+}
+
+func (g *gatewayCGI) mchCategories() []*mchCategory {
+	var categories []*mchCategory
+	if !enable2ch {
+		return categories
+	}
+	mchURL := g.mchURL()
+	err := eachLine(runDir+"/tag.txt", func(line string, i int) error {
+		tag := strings.TrimRight(line, "\r\n")
+		catURL := strings.Replace(mchURL, "2ch", fileEncode("2ch", tag), -1)
+		categories = append(categories, &mchCategory{
+			catURL,
+			tag,
+		})
+		return nil
+	})
+	if err != nil {
+		log.Println(err)
+	}
+
+	return categories
+}
+
+func (g *gatewayCGI) mchURL() string {
+	path := "/2ch/subject.txt"
+	if !enable2ch {
+		return ""
+	}
+	if serverName != "" {
+		return "//" + serverName + path
+	}
+	reg := regexp.MustCompile(":\\d+")
+	host := reg.ReplaceAllString(g.req.Host, "")
+	if host == "" {
+		return ""
+	}
+	return fmt.Sprintf("//%s:%d%s", host, datPort, path)
 }

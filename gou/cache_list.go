@@ -199,6 +199,16 @@ func (c sortByRecentStamp) Less(i, j int) bool {
 	return c.caches[i].RecentStamp < c.caches[j].RecentStamp
 }
 
+//sortByStamp is for sorting by stamp.
+type sortByStamp struct {
+	caches
+}
+
+//Less returns true if cache[i].stamp < cache[j].stamp.
+func (c sortByStamp) Less(i, j int) bool {
+	return c.caches[i].stamp < c.caches[j].stamp
+}
+
 //sortByValidStamp is for sorting by validStamp.
 type sortByValidStamp struct {
 	caches

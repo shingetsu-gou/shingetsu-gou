@@ -32,11 +32,10 @@ See also
 
 ## Requirements
 
-This requires
-
 * git
 * go 1.4+
 
+are required to compile.
 
 ## Installation
 
@@ -46,11 +45,13 @@ This requires
     $ mkdir bin
     $ mkdir pkg
     $ exoprt GOPATH=`pwd`
-    $ go get github.com/shingetsu-gou/gou
+    $ go get github.com/shingetsu-gou/shingetsu-gou
+	
+Or you can download executable binaries from [here](https://github.com/shingetsu-gou/shingetsu-gou/releases).
 
 # Differences from Original Saku
 
-1. mch(2ch interface) listens to the same port as admin.cgi/gateway.cgi/serve.cgi/thread.cgi. dat_port setting in config.txt is ignored.
+1. mch(2ch interface) listens to the same port as admin.cgi/gateway.cgi/serve.cgi/thread.cgi. dat_port setting in config is ignored.
 
 # Contribution
 

@@ -40,9 +40,11 @@ import (
 	"time"
 
 	"github.com/axgle/mahonia"
+	"github.com/gorilla/handlers"
 	"github.com/gorilla/mux"
 )
 
+//mchSetup setups handlers for 2ch interface.
 func mchSetup(s *http.ServeMux) {
 	log.Println("start 2ch interface")
 	dataKeyTable.load()
@@ -54,8 +56,11 @@ func mchSetup(s *http.ServeMux) {
 	registToRouter(rtr, "/2ch/test/bbs\\.cgi", postCommentApp)
 	registToRouter(rtr, "/2ch/(board:[^/]+}/head\\.txt$", headApp)
 	registToRouter(rtr, "/2ch/", notFound)
+	s.Handle("/", handlers.CompressHandler(rtr))
+
 }
 
+//boardApp just calls boardApp(), only print title.
 func boardApp(w http.ResponseWriter, r *http.Request) {
 	<-connections
 	defer func() {
@@ -68,6 +73,7 @@ func boardApp(w http.ResponseWriter, r *http.Request) {
 	a.boardApp()
 }
 
+//threadApp renders dat files(record data) in the thread.
 func threadApp(w http.ResponseWriter, r *http.Request) {
 	<-connections
 	defer func() {
@@ -81,6 +87,7 @@ func threadApp(w http.ResponseWriter, r *http.Request) {
 	a.threadApp(m["board"], m["datkey"])
 }
 
+//subjectApp renders time-subject lines of the thread.
 func subjectApp(w http.ResponseWriter, r *http.Request) {
 	<-connections
 	defer func() {
@@ -94,6 +101,7 @@ func subjectApp(w http.ResponseWriter, r *http.Request) {
 	a.subjectApp(m["board"])
 }
 
+//postCommentApp posts one record to the thread.
 func postCommentApp(w http.ResponseWriter, r *http.Request) {
 	<-connections
 	defer func() {
@@ -105,6 +113,8 @@ func postCommentApp(w http.ResponseWriter, r *http.Request) {
 	}
 	a.postCommentApp()
 }
+
+//headApp just renders motd.
 func headApp(w http.ResponseWriter, r *http.Request) {
 	<-connections
 	defer func() {
@@ -116,6 +126,8 @@ func headApp(w http.ResponseWriter, r *http.Request) {
 	}
 	a.headApp()
 }
+
+//notFound just renders "404 not found".
 func notFound(w http.ResponseWriter, r *http.Request) {
 	<-connections
 	defer func() {
@@ -126,29 +138,34 @@ func notFound(w http.ResponseWriter, r *http.Request) {
 	http.ServeContent(w, r, "a.txt", time.Time{}, br)
 }
 
+//mchCGI is a class for renderring pages of 2ch interface .
 type mchCGI struct {
 	*cgi
 	mutex         sync.Mutex
 	updateCounter map[string]int
 }
 
+//newMchCGI returns mchCGI obj if visitor  is allowed.
+//if not allowed print 403.
 func newMchCGI(w http.ResponseWriter, r *http.Request) *mchCGI {
 	c := newCGI(w, r)
-	isopen := c.isAdmin || c.isFriend || c.isVisitor
 	logRequest(r)
-	if c == nil || !isopen {
+	if c == nil || c.checkVisitor() {
 		w.WriteHeader(403)
 		br := bytes.NewReader([]byte("403 Forbidden"))
 		http.ServeContent(w, r, "a.txt", time.Time{}, br)
 		return nil
 	}
 
-	m := &mchCGI{}
-	m.cgi = c
-	m.updateCounter = make(map[string]int)
+	m := &mchCGI{
+		cgi:           c,
+		updateCounter: make(map[string]int),
+	}
 	return m
 }
 
+//checkGetCache return true
+//if visitor is firend or admin and user-agent is not robot.
 func (m *mchCGI) checkGetCache() bool {
 	if !m.isFriend && !m.isAdmin {
 		return false
@@ -165,19 +182,27 @@ func (m *mchCGI) checkGetCache() bool {
 	return true
 }
 
+//counterIsUpdate countup threadKey counter and returns true
+//for each 4 times.
 func (m *mchCGI) counterIsUpdate(threadKey string) bool {
 	updateCount := 4
 	m.mutex.Lock()
 	defer m.mutex.Unlock()
 	m.updateCounter[threadKey]++
 	m.updateCounter[threadKey] %= updateCount
-	return m.updateCounter[threadKey] == updateCount
+	return m.updateCounter[threadKey] == 0
 }
+
+//serveContent serves str as content with name=name(only used suffix to determine
+//data type),time=t after converted cp932. ServeContent is used to make clients possible
+//to use range request.
 func (m *mchCGI) serveContent(name string, t time.Time, str string) {
 	str = mahonia.NewEncoder("cp932").ConvertString(str)
 	br := bytes.NewReader([]byte(str))
 	http.ServeContent(m.wr, m.req, name, t, br)
 }
+
+//boardApp just renders title stripped from url.
 func (m *mchCGI) boardApp() {
 	l := m.req.FormValue("Accept-Language")
 	if l == "" {
@@ -189,7 +214,7 @@ func (m *mchCGI) boardApp() {
 	board := escape(getBoard(m.path))
 	text := ""
 	if board != "" {
-		text = fmt.Sprintf("%s - %s - %s", message["logo"], message["description"], message["board"])
+		text = fmt.Sprintf("%s - %s - %s", message["logo"], message["description"], board)
 	} else {
 		text = fmt.Sprintf("%s - %s", message["logo"], message["description"])
 	}
@@ -207,6 +232,9 @@ func (m *mchCGI) boardApp() {
 	m.serveContent("a.html", time.Time{}, htmlStr)
 }
 
+//threadApp load cache specified in the url and returns dat file
+//listing records. if cache len=0 or for each refering the cache 4 times
+//reloads cache fron network.
 func (m *mchCGI) threadApp(board, datkey string) {
 	m.wr.Header().Set("Content-Type", "text/plain; charset=Shift_JIS")
 	key, err := dataKeyTable.getFilekey(datkey)
@@ -237,6 +265,8 @@ func (m *mchCGI) threadApp(board, datkey string) {
 	m.serveContent("a.txt", time.Unix(data.stamp, 0), str)
 }
 
+//makeSubjectCachelist returns caches in all cache and in recentlist sorted by recent stamp.
+//if board is specified,  returns caches whose tagstr=board.
 func (m *mchCGI) makeSubjectCachelist(board string) []*cache {
 	cl := newCacheList()
 	seen := make([]string, cl.Len())
@@ -263,22 +293,22 @@ func (m *mchCGI) makeSubjectCachelist(board string) []*cache {
 	}
 	var result2 []*cache
 	for _, c := range result {
-		if m.hasTag(c, board, suggestedTagTable) {
+		if m.hasTag(c, board) {
 			result2 = append(result2, c)
-
 		}
 	}
 	return result2
 }
 
-func (m *mchCGI) hasTag(c *cache, board string, sugtag *SuggestedTagTable) bool {
-	tags := c.tags
-	if tl := sugtag.get(c.Datfile, nil); tl != nil {
-		tags.Tags = append(tags.Tags, tl.Tags...)
+//hasTab adds tags in sugtag to cache and returns true if one of tags ==  board.
+func (m *mchCGI) hasTag(c *cache, board string) bool {
+	if tl := suggestedTagTable.get(c.Datfile, nil); tl != nil {
+		c.tags.Tags = append(c.tags.Tags, tl.Tags...)
 	}
-	return hasString(tags.getTagstrSlice(), board)
+	return hasString(c.tags.getTagstrSlice(), board)
 }
 
+//subjectApp makes list of records title from caches whose tag is same as one stripped from url.
 func (m *mchCGI) subjectApp(board string) {
 	reg := regexp.MustCompile("2ch_(\\S+)")
 	if strings.HasPrefix(board, "2ch") && !reg.MatchString(board) {
@@ -301,6 +331,7 @@ func (m *mchCGI) subjectApp(board string) {
 	m.serveContent("a.txt", time.Unix(lastStamp, 0), strings.Join(subject, "\n"))
 }
 
+//makeSubject makes subject.txt(list of records title) from caches with tag=board.
 func (m *mchCGI) makeSubject(board string) ([]string, int64) {
 	loadFromNet := m.checkGetCache()
 	var subjects []string
@@ -328,6 +359,7 @@ func (m *mchCGI) makeSubject(board string) ([]string, int64) {
 	return subjects, lastStamp
 }
 
+//headApp renders motd(terms of service).
 func (m *mchCGI) headApp() {
 	m.wr.Header().Set("Content-Type", "text/plain; charset=Shift_JIS")
 	var body string

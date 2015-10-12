@@ -40,6 +40,7 @@ import (
 	"time"
 )
 
+//serverSetup setups handlers for server.cgi
 func serverSetup(s *http.ServeMux) {
 	registCompressHandler(s, "/server.cgi/ping", doPing)
 	registCompressHandler(s, "/server.cgi/node", doNode)
@@ -53,6 +54,7 @@ func serverSetup(s *http.ServeMux) {
 	registCompressHandler(s, "/server.cgi/", doMotd)
 }
 
+//doPing just resopnse PONG with remote addr.
 func doPing(w http.ResponseWriter, r *http.Request) {
 	<-connections
 	defer func() {
@@ -61,6 +63,7 @@ func doPing(w http.ResponseWriter, r *http.Request) {
 	fmt.Fprint(w, "PONG\n"+r.RemoteAddr+"\n")
 }
 
+//doNode returns one of nodelist. if nodelist.len=0 returns one of initNode.
 func doNode(w http.ResponseWriter, r *http.Request) {
 	<-connections
 	defer func() {
@@ -69,10 +72,12 @@ func doNode(w http.ResponseWriter, r *http.Request) {
 	if nodeList.Len() > 0 {
 		fmt.Fprintln(w, nodeList.nodes[0].nodestr)
 	} else {
-		fmt.Fprintln(w, nodeList.random().nodestr)
+		fmt.Fprintln(w, initNode.data[0])
 	}
 }
 
+//doJoin adds node specified in url to searchlist and nodelist.
+//if nodelist>#defaultnode removes and says bye one node in nodelist and returns welcome its ip:port.
 func doJoin(w http.ResponseWriter, r *http.Request) {
 	<-connections
 	defer func() {
@@ -107,9 +112,9 @@ func doJoin(w http.ResponseWriter, r *http.Request) {
 	nodeList.sync()
 	suggest.bye()
 	fmt.Fprintf(s.wr, "WELCOME\n%s\n", suggest)
-
 }
 
+//doBye  removes from nodelist and says bye to the node specified in url.
 func doBye(w http.ResponseWriter, r *http.Request) {
 	<-connections
 	defer func() {
@@ -130,6 +135,7 @@ func doBye(w http.ResponseWriter, r *http.Request) {
 	fmt.Fprintln(s.wr, "BYEBYE")
 }
 
+//doHave checks existance of cache whose name is specified in url.
 func doHave(w http.ResponseWriter, r *http.Request) {
 	<-connections
 	defer func() {
@@ -142,6 +148,7 @@ func doHave(w http.ResponseWriter, r *http.Request) {
 	reg := regexp.MustCompile("^/have/([0-9A-Za-z_]+)$")
 	m := reg.FindStringSubmatch(s.path)
 	if m == nil {
+		fmt.Fprintln(w, "NO")
 		log.Println("illegal url")
 		return
 	}
@@ -153,6 +160,8 @@ func doHave(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
+//doUpdate adds remote node to searchlist and lookuptable with datfile specified in url.
+//if stamp is in range of defaultUpdateRange adds to updateque.
 func doUpdate(w http.ResponseWriter, r *http.Request) {
 	<-connections
 	defer func() {
@@ -200,11 +209,10 @@ func doUpdate(w http.ResponseWriter, r *http.Request) {
 	rec := newRecord(datfile, stamp+"_"+id)
 	if !updateList.hasInfo(rec) {
 		queue.append(rec, n)
-		go queue.run()
 	}
-
 }
 
+//doRecent renders records whose timestamp is in range of one specified in url.
 func doRecent(w http.ResponseWriter, r *http.Request) {
 	<-connections
 	defer func() {
@@ -224,18 +232,22 @@ func doRecent(w http.ResponseWriter, r *http.Request) {
 	last := time.Now().Unix() + recentRange
 	begin, end, _ := s.parseStamp(stamp, last)
 	for _, i := range recentList.infos {
-		if begin <= i.stamp && i.stamp <= end {
-			ca := newCache(i.datfile)
-			var tagstr string
-			if ca.tags != nil {
-				tagstr = "tag:" + ca.tags.string()
-			}
-			line := fmt.Sprintf("%d<>%s<>%s%s\n", i.stamp, i.id, i.datfile, tagstr)
-			fmt.Fprintf(w, line)
+		if begin > i.stamp || i.stamp > end {
+			return
+		}
+		ca := newCache(i.datfile)
+		var tagstr string
+		if ca.tags != nil {
+			tagstr = "tag:" + ca.tags.string()
+		}
+		_, err := fmt.Fprintf(w, "%d<>%s<>%s%s\n", i.stamp, i.id, i.datfile, tagstr)
+		if err != nil {
+			log.Println(err)
 		}
 	}
 }
 
+//doMotd simply renders motd file.
 func doMotd(w http.ResponseWriter, r *http.Request) {
 	<-connections
 	defer func() {
@@ -249,6 +261,8 @@ func doMotd(w http.ResponseWriter, r *http.Request) {
 	fmt.Fprintf(w, string(f))
 }
 
+//doGetHead renders records contents(get) or id+timestamp(head) who has id and
+// whose stamp is in range of one specified by url.
 func doGetHead(w http.ResponseWriter, r *http.Request) {
 	<-connections
 	defer func() {
@@ -282,10 +296,12 @@ func doGetHead(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
+//serverCGI is for server.cgi handler.
 type serverCGI struct {
 	*cgi
 }
 
+//newServerCGI set content-type to text and  returns serverCGI obj.
 func newServerCGI(w http.ResponseWriter, r *http.Request) *serverCGI {
 	c := newCGI(w, r)
 	if c == nil {
@@ -293,15 +309,13 @@ func newServerCGI(w http.ResponseWriter, r *http.Request) *serverCGI {
 	}
 	w.Header().Set("Content-Type", "text/plain")
 
-	if r.Method != "GET" && r.Method != "HEAD" {
-		w.Header().Set("Content-Type", "text/plain")
-	}
-
 	return &serverCGI{
 		c,
 	}
 }
 
+//getRemoteHostname returns remoteaddr
+//if host is specified returns remoteaddr if host==remoteaddr.
 func (s *serverCGI) getRemoteHostname(host string) string {
 	remoteAddr := strings.Split(s.req.RemoteAddr, ":")[0]
 	if host == "" {
@@ -319,6 +333,7 @@ func (s *serverCGI) getRemoteHostname(host string) string {
 	return ""
 }
 
+//makeNode makes and returns node obj from /method/ip:port.
 func (s *serverCGI) makeNode(method string) *node {
 	reg := regexp.MustCompile("^/" + method + "/([^:]*):(\\d+)(.*)")
 	m := reg.FindStringSubmatch(s.path)
@@ -339,6 +354,8 @@ func (s *serverCGI) makeNode(method string) *node {
 	return makeNode(host, path, port)
 }
 
+//parseStamp parses format beginStamp - endStamp/id and returns them.
+//if endStamp is not specified returns last as endStamp.
 func (s *serverCGI) parseStamp(stamp string, last int64) (int64, int64, string) {
 	buf := strings.Split(stamp, "/")
 	var id string
@@ -346,25 +363,28 @@ func (s *serverCGI) parseStamp(stamp string, last int64) (int64, int64, string) 
 		id = buf[1]
 		stamp = buf[0]
 	}
-	nstamp, err := strconv.ParseInt(stamp, 10, 64)
-	if err != nil {
-		return 0, 0, ""
-	}
-	nid, err := strconv.ParseInt(id, 10, 64)
-	if err != nil {
-		return 0, 0, ""
-	}
 	buf = strings.Split(stamp, "-")
+	nstamps := make([]int64, len(buf))
+	var err error
+	for i, nstamp := range buf {
+		if nstamp == "" {
+			continue
+		}
+		nstamps[i], err = strconv.ParseInt(nstamp, 10, 64)
+		if err != nil {
+			return 0, 0, ""
+		}
+	}
 	switch {
 	case stamp == "", stamp == "-":
 		return 0, last, id
 	case strings.HasSuffix(stamp, "-"):
-		return nstamp, last, id
+		return nstamps[0], last, id
 	case len(buf) == 1:
-		return nstamp, nstamp, id
+		return nstamps[0], nstamps[0], id
 	case buf[0] == "":
-		return 0, nid, id
+		return 0, nstamps[1], id
 	default:
-		return nstamp, nid, id
+		return nstamps[0], nstamps[1], id
 	}
 }
