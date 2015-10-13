@@ -42,6 +42,7 @@ import (
 	"time"
 )
 
+//gatewaySetup setups handlers for gateway.cgi
 func gatewaySetup(s *http.ServeMux) {
 	registCompressHandler(s, "/gateway.cgi/motd", printMotd)
 	registCompressHandler(s, "/gateway.cgi/mergedjs", printMergedJS)
@@ -59,6 +60,8 @@ func gatewaySetup(s *http.ServeMux) {
 	registCompressHandler(s, "/", printTitle)
 }
 
+//printGateway just redirects to correspoinding url using thread.cgi.
+//or renders only title.
 func printGatewayThread(w http.ResponseWriter, r *http.Request) {
 	<-connections
 	defer func() {
@@ -87,6 +90,7 @@ func printGatewayThread(w http.ResponseWriter, r *http.Request) {
 	g.print302(uri)
 }
 
+//printCSV renders csv of caches saved in disk.
 func printCSV(w http.ResponseWriter, r *http.Request) {
 	<-connections
 	defer func() {
@@ -100,6 +104,7 @@ func printCSV(w http.ResponseWriter, r *http.Request) {
 	g.renderCSV(cl)
 }
 
+//printCSVChanges renders csv of caches which changes recently and are in disk(validstamp is newer).
 func printCSVChanges(w http.ResponseWriter, r *http.Request) {
 	<-connections
 	defer func() {
@@ -114,6 +119,7 @@ func printCSVChanges(w http.ResponseWriter, r *http.Request) {
 	g.renderCSV(cl)
 }
 
+//printCSVRecent renders csv of caches which are written recently(are updated remotely).
 func printCSVRecent(w http.ResponseWriter, r *http.Request) {
 	<-connections
 	defer func() {
@@ -127,10 +133,12 @@ func printCSVRecent(w http.ResponseWriter, r *http.Request) {
 		g.print403("")
 		return
 	}
-	cl := g.makeRecentCachelist()
+	cl := recentList.makeRecentCachelist()
 	g.renderCSV(cl)
 }
 
+//printRecentRSS renders rss of caches which are written recently(are updated remotely).
+//including title,tags,last-modified.
 func printRecentRSS(w http.ResponseWriter, r *http.Request) {
 	<-connections
 	defer func() {
@@ -143,7 +151,7 @@ func printRecentRSS(w http.ResponseWriter, r *http.Request) {
 	rsss := newRss("UTF-8", "", fmt.Sprintf("%s - %s", g.m["recent"], g.m["logo"]),
 		"http://"+g.host, "",
 		"http://"+g.host+gatewayURL+querySeparator+"recent_rss", g.m["description"], xsl)
-	cl := g.makeRecentCachelist()
+	cl := recentList.makeRecentCachelist()
 	for _, ca := range cl.Caches {
 		title := escape(fileDecode(ca.Datfile))
 		tags := make([]string, ca.tags.Len()+ca.sugtags.Len())
@@ -160,14 +168,48 @@ func printRecentRSS(w http.ResponseWriter, r *http.Request) {
 			title, "", "", html.EscapeString(title), tags, ca.RecentStamp, false)
 	}
 	g.wr.Header().Set("Content-Type", "text/xml; charset=UTF-8")
-	k := rsss.keys()
-	if len(k) != 0 {
+	if k := rsss.keys(); len(k) != 0 {
 		g.wr.Header().Set("Last-Modified", g.rfc822Time(rsss.Feeds[k[0]].Date))
 	}
 	rsss.makeRSS1(g.wr)
-
 }
 
+//appendRSS appends cache ca to rss with contents,url to records,stamp,attached file.
+func (g *gatewayCGI) appendRSS(rsss *RSS, ca *cache) {
+	now := time.Now().Unix()
+	if ca.ValidStamp+rssRange < now {
+		return
+	}
+	title := escape(fileDecode(ca.Datfile))
+	path := application[ca.Typee] + querySeparator + strEncode(title)
+	for _, r := range ca.recs {
+		if r.Stamp+rssRange >= now {
+			continue
+		}
+		if err := r.loadBody(); err != nil {
+			log.Println(err)
+			continue
+		}
+
+		desc := rssTextFormat(r.GetBodyValue("body", ""))
+		content := g.rssHTMLFormat(r.GetBodyValue("body", ""), application[ca.Typee], title)
+		if attach := r.GetBodyValue("attach", ""); attach != "" {
+			suffix := r.GetBodyValue("suffix", "")
+			if reg := regexp.MustCompile("^[0-9A-Za-z]+$"); !reg.MatchString(suffix) {
+				suffix = "txt"
+			}
+			content += fmt.Sprintf("\n    <p><a href=\"http://%s%s%s%s/%s/%d.%s\">%d.%s</a></p>",
+				g.host, application[ca.Typee], querySeparator, ca.Datfile, r.ID, r.Stamp, suffix, r.Stamp, suffix)
+		}
+		permpath := path[1:]
+		if ca.Typee == "thread" {
+			permpath = fmt.Sprintf("%s/%s", path[1:], r.ID[:8])
+		}
+		rsss.append(permpath, title, rssTextFormat(r.GetBodyValue("name", "")), desc, content, ca.tags.getTagstrSlice(), r.Stamp, false)
+	}
+}
+
+//printRSS reneders rss including newer records.
 func printRSS(w http.ResponseWriter, r *http.Request) {
 	<-connections
 	defer func() {
@@ -177,40 +219,11 @@ func printRSS(w http.ResponseWriter, r *http.Request) {
 	if g == nil {
 		return
 	}
-	now := time.Now().Unix()
 	rsss := newRss("UTF-8", "", g.m["logo"], "http://"+g.host, "",
 		"http://"+g.host+gatewayURL+querySeparator+"rss", g.m["description"], xsl)
 	cl := newCacheList()
 	for _, ca := range cl.Caches {
-		if ca.ValidStamp+rssRange < now {
-			continue
-		}
-		title := escape(fileDecode(ca.Datfile))
-		path := application[ca.Typee] + querySeparator + strEncode(title)
-		for _, r := range ca.recs {
-			if r.Stamp+rssRange < now {
-				continue
-			}
-			if err := r.loadBody(); err != nil {
-				log.Println(err)
-			}
-
-			desc := g.rssTextFormat(r.GetBodyValue("body", ""))
-			content := g.rssHTMLFormat(r.GetBodyValue("body", ""), application[ca.Typee], title)
-			if attach := r.GetBodyValue("attach", ""); attach != "" {
-				suffix := r.GetBodyValue("suffix", "")
-				if reg := regexp.MustCompile("^[0-9A-Za-z]+$"); reg.MatchString(suffix) {
-					suffix = "txt"
-				}
-				content += fmt.Sprintf("\n    <p><a href=\"http://%s%s%s%s/%s/%d.%s\">%d.%s</a></p>",
-					g.host, application[ca.Typee], querySeparator, ca.Datfile, r.ID, r.Stamp, suffix, r.Stamp, suffix)
-			}
-			permpath := path[1:]
-			if ca.Typee == "thread" {
-				permpath = fmt.Sprintf("%s/%s", path[1:], r.ID[:8])
-			}
-			rsss.append(permpath, title, g.rssTextFormat(r.GetBodyValue("name", "")), desc, content, ca.tags.getTagstrSlice(), r.Stamp, false)
-		}
+		g.appendRSS(rsss, ca)
 	}
 	g.wr.Header().Set("Content-Type", "text/xml; charset=UTF-8")
 	if k := rsss.keys(); len(k) != 0 {
@@ -219,6 +232,7 @@ func printRSS(w http.ResponseWriter, r *http.Request) {
 	rsss.makeRSS1(g.wr)
 }
 
+//printMergedJS renders merged js with stamp.
 func printMergedJS(w http.ResponseWriter, r *http.Request) {
 	<-connections
 	defer func() {
@@ -235,8 +249,9 @@ func printMergedJS(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		log.Println(err)
 	}
-
 }
+
+//printMotd renders motd.
 func printMotd(w http.ResponseWriter, r *http.Request) {
 	<-connections
 	defer func() {
@@ -258,6 +273,8 @@ func printMotd(w http.ResponseWriter, r *http.Request) {
 		log.Println(err)
 	}
 }
+
+//printNew renders the page for making new thread.
 func printNew(w http.ResponseWriter, r *http.Request) {
 	<-connections
 	defer func() {
@@ -272,6 +289,8 @@ func printNew(w http.ResponseWriter, r *http.Request) {
 	g.printNewElementForm()
 	g.footer(nil)
 }
+
+//printTitle renders list of newer thread in the disk for the top page
 func printTitle(w http.ResponseWriter, r *http.Request) {
 	<-connections
 	defer func() {
@@ -281,7 +300,10 @@ func printTitle(w http.ResponseWriter, r *http.Request) {
 	if g == nil {
 		return
 	}
-
+	if r.FormValue("cmd") != "" {
+		g.jumpNewFile()
+		return
+	}
 	cl := newCacheList()
 	sort.Sort(sort.Reverse(sortByValidStamp{cl.Caches}))
 	outputCachelist := make([]*cache, 0, cl.Len())
@@ -331,6 +353,7 @@ func printTitle(w http.ResponseWriter, r *http.Request) {
 	g.footer(nil)
 }
 
+//printGatewayIndex renders list of new threads in the disk.
 func printGatewayIndex(w http.ResponseWriter, r *http.Request) {
 	<-connections
 	defer func() {
@@ -342,6 +365,8 @@ func printGatewayIndex(w http.ResponseWriter, r *http.Request) {
 	}
 	g.printIndex(false)
 }
+
+//printIndexChanges renders list of new threads in the disk sorted by velocity.
 func printIndexChanges(w http.ResponseWriter, r *http.Request) {
 	<-connections
 	defer func() {
@@ -354,6 +379,7 @@ func printIndexChanges(w http.ResponseWriter, r *http.Request) {
 	g.printIndex(true)
 }
 
+//printRecent renders cache in recentlist.
 func printRecent(w http.ResponseWriter, r *http.Request) {
 	<-connections
 	defer func() {
@@ -369,14 +395,16 @@ func printRecent(w http.ResponseWriter, r *http.Request) {
 	}
 	g.header(title, "", nil, true, nil)
 	g.printParagraph(g.m["desc_recent"])
-	cl := g.makeRecentCachelist()
+	cl := recentList.makeRecentCachelist()
 	g.printIndexList(cl.Caches, "recent", false, false)
 }
 
+//gatewayCGI is for gateway.cgi
 type gatewayCGI struct {
 	*cgi
 }
 
+//newGatewayCGI returns gatewayCGI obj with filter.tag value in form.
 func newGatewayCGI(w http.ResponseWriter, r *http.Request) *gatewayCGI {
 	c := newCGI(w, r)
 	if c == nil {
@@ -400,6 +428,39 @@ func newGatewayCGI(w http.ResponseWriter, r *http.Request) *gatewayCGI {
 	}
 }
 
+//makeOneRow makes one row of CSV depending on c.
+func (g *gatewayCGI) makeOneRow(c string, ca *cache, p, title string) string {
+	switch c {
+	case "file":
+		return ca.Datfile
+	case "stamp":
+		return strconv.FormatInt(ca.ValidStamp, 10)
+	case "date":
+		return time.Unix(ca.ValidStamp, 0).String()
+	case "path":
+		return p
+	case "uri":
+		if g.host != "" && p != "" {
+			return "http://" + g.host + p
+		}
+	case "type":
+		return ca.Typee
+	case "title":
+		return title
+	case "records":
+		return strconv.Itoa(ca.Len())
+	case "size":
+		return strconv.Itoa(ca.Size)
+	case "tag":
+		return ca.tags.string()
+	case "sugtag":
+		return ca.sugtags.string()
+	}
+	return ""
+}
+
+//renderCSV renders CSV including key string of caches in disk.
+//key is specified in url query.
 func (g *gatewayCGI) renderCSV(cl *cacheList) {
 	g.wr.Header().Set("Content-Type", "text/comma-separated-values;charset=UTF-8")
 	p := strings.Split(g.path, "/")
@@ -418,45 +479,18 @@ func (g *gatewayCGI) renderCSV(cl *cacheList) {
 		}
 		row := make([]string, len(cols))
 		for i, c := range cols {
-			switch c {
-			case "file":
-				row[i] = ca.Datfile
-			case "stamp":
-				row[i] = strconv.FormatInt(ca.ValidStamp, 10)
-			case "date":
-				row[i] = time.Unix(ca.ValidStamp, 0).String()
-			case "path":
-				row[i] = p
-			case "uri":
-				if g.host != "" && p != "" {
-					row[i] = "http://" + g.host + p
-				} else {
-					row[i] = ""
-				}
-			case "type":
-				row[i] = ca.Typee
-			case "title":
-				row[i] = title
-			case "records":
-				row[i] = strconv.Itoa(ca.Len())
-			case "size":
-				row[i] = strconv.Itoa(ca.Size)
-			case "tag":
-				row[i] = ca.tags.string()
-			case "sugtag":
-				row[i] = ca.sugtags.string()
-			default:
-			}
+			row[i] = g.makeOneRow(c, ca, p, title)
 		}
 		err := cwr.Write(row)
 		if err != nil {
 			log.Println(err)
 		}
-
 	}
 	cwr.Flush()
 }
 
+//printIndex renders threads in disk.
+//id doChange threads are sorted by velocity.
 func (g *gatewayCGI) printIndex(doChange bool) {
 	str := "index"
 	if doChange {
@@ -475,21 +509,8 @@ func (g *gatewayCGI) printIndex(doChange bool) {
 	g.printIndexList(cl.Caches, str, false, false)
 }
 
-func (g *gatewayCGI) makeRecentCachelist() *cacheList {
-	sort.Sort(sort.Reverse(recentList))
-	var cl []*cache
-	var check []string
-	for _, rec := range recentList.infos {
-		if !hasString(check, rec.datfile) {
-			ca := newCache(rec.datfile)
-			ca.RecentStamp = rec.stamp
-			cl = append(cl, ca)
-			check = append(check, rec.datfile)
-		}
-	}
-	return &cacheList{Caches: cl}
-}
-
+//jumpNewFile renders 302 redirect to page for making new thread specified in url query
+//"link"(thred name) "type"(thread) "tag" "search_new_file"("yes" or "no")
 func (g *gatewayCGI) jumpNewFile() {
 	link := g.req.FormValue("link")
 	t := g.req.FormValue("type")
@@ -506,23 +527,13 @@ func (g *gatewayCGI) jumpNewFile() {
 	case hasString(types, t):
 		tag := strEncode(g.req.FormValue("tag"))
 		search := strEncode(g.req.FormValue("search_new_file"))
-		g.print302(application[t] + querySeparator + strEncode(link) + "?tag=" + tag + "&search_new_filter" + search)
+		g.print302(application[t] + querySeparator + strEncode(link) + "?tag=" + tag + "&search_new_file" + search)
 	default:
 		g.print404(nil, "")
 	}
 }
-func (g *gatewayCGI) rssTextFormat(plain string) string {
-	buf := strings.Replace(plain, "<br>", " ", -1)
-	buf = strings.Replace(buf, "&", "&amp;", -1)
-	reg := regexp.MustCompile("&amp;(#\\d+|lt|gt|amp);")
-	buf = reg.ReplaceAllString(buf, "&\\1")
-	buf = strings.Replace(buf, "<", "&lt;", -1)
-	buf = strings.Replace(buf, ">", "&gt;", -1)
-	buf = strings.Replace(buf, "\r", "", -1)
-	buf = strings.Replace(buf, "\n", "", -1)
-	return buf
-}
 
+//rssHTMLFormat converts and returns plain string to html formats.
 func (g *gatewayCGI) rssHTMLFormat(plain, appli, path string) string {
 	title := strDecode(path)
 	buf := g.htmlFormat(plain, appli, title, true)
@@ -532,11 +543,13 @@ func (g *gatewayCGI) rssHTMLFormat(plain, appli, path string) string {
 	return buf
 }
 
+//mchCategory represents category(tag) for each urls.
 type mchCategory struct {
 	URL  string
 	Text string
 }
 
+//mchCategories returns slice of mchCategory whose tags are in tag.txt.
 func (g *gatewayCGI) mchCategories() []*mchCategory {
 	var categories []*mchCategory
 	if !enable2ch {
@@ -559,6 +572,7 @@ func (g *gatewayCGI) mchCategories() []*mchCategory {
 	return categories
 }
 
+//mchURL returns url for 2ch interface.
 func (g *gatewayCGI) mchURL() string {
 	path := "/2ch/subject.txt"
 	if !enable2ch {
@@ -567,10 +581,5 @@ func (g *gatewayCGI) mchURL() string {
 	if serverName != "" {
 		return "//" + serverName + path
 	}
-	reg := regexp.MustCompile(":\\d+")
-	host := reg.ReplaceAllString(g.req.Host, "")
-	if host == "" {
-		return ""
-	}
-	return fmt.Sprintf("//%s:%d%s", host, datPort, path)
+	return fmt.Sprintf("//%s%s", g.host, path)
 }

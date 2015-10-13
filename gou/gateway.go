@@ -341,7 +341,7 @@ func (c *cgi) resAnchor(id, appli string, title string, absuri bool) string {
 	return fmt.Sprintf("<a href=\"%s%s%s%s/%s\"%s>", prefix, appli, querySeparator, title, id, innerlink)
 }
 
-//htmlFormat converts plain tex to html , including links by [[hoe]].
+//htmlFormat converts plain text to html , including converting link string to <a href="link">.
 func (c *cgi) htmlFormat(plain, appli string, title string, absuri bool) string {
 	buf := strings.Replace(plain, "<br>", "\n", -1)
 	buf = strings.Replace(buf, "\t", "        ", -1)
@@ -370,7 +370,6 @@ func (c *cgi) htmlFormat(plain, appli string, title string, absuri bool) string 
 //bracketLink convert ling string to [[link]] string with href tag.
 // if not thread and rec link, simply return [[link]]
 func (c *cgi) bracketLink(link, appli string, absuri bool) string {
-
 	var prefix string
 	if absuri {
 		prefix = "http://" + c.host
@@ -569,4 +568,22 @@ func (c *cgi) printNewElementForm() {
 		c.isAdmin,
 	}
 	renderTemplate("new_element_form", s, c.wr)
+}
+
+//checkGetCache return true
+//if visitor is firend or admin and user-agent is not robot.
+func (c *cgi) checkGetCache() bool {
+	if !c.hasAuth() {
+		return false
+	}
+	agent := c.req.Header.Get("User-Agent")
+	reg, err := regexp.Compile(robot)
+	if err != nil {
+		log.Println(err)
+		return true
+	}
+	if reg.MatchString(agent) {
+		return false
+	}
+	return true
 }

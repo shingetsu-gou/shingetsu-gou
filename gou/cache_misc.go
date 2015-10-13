@@ -264,3 +264,20 @@ func (r *RecentList) sync() {
 	r.uniq()
 	r.UpdateList.sync()
 }
+
+//makeRecentCachelist returns cachelist copied from recentlist.
+//which doens't contain duplicate caches.
+func (r *RecentList) makeRecentCachelist() *cacheList {
+	var cl caches
+	var check []string
+	for _, rec := range r.infos {
+		if !hasString(check, rec.datfile) {
+			ca := newCache(rec.datfile)
+			ca.RecentStamp = rec.stamp
+			cl = append(cl, ca)
+			check = append(check, rec.datfile)
+		}
+	}
+	sort.Sort(sort.Reverse(sortByStamp{cl}))
+	return &cacheList{cl}
+}

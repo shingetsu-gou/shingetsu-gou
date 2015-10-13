@@ -40,7 +40,9 @@ func cron() {
 	c := newClient()
 	for {
 		time.Sleep(clientCycle)
+		<-connections
 		c.run()
+		connections <- struct{}{}
 	}
 }
 

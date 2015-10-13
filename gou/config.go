@@ -83,10 +83,9 @@ var (
 	saveRemoved = make(map[string]int64)
 
 	defaultPort = setting.getIntValue("Network", "port", 8000)
-	datPort     = defaultPort
 	//	datPort       = setting.getIntValue("Network", "dat_port", 8001)
-	maxConnection = setting.getIntValue("Network", "max_connection", 20)
-
+	//	maxConnection = setting.getIntValue("Network", "max_connection", 20)
+	maxConnection = 1 //for now 1 for synchronous problem.
 	docroot       = setting.getPathValue("Path", "docroot", "./www")
 	logDir        = setting.getPathValue("Path", "log_dir", "./log")
 	runDir        = setting.getPathValue("Path", "run_dir", "../run")

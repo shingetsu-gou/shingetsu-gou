@@ -34,7 +34,6 @@ import (
 	"log"
 	"strconv"
 	"strings"
-	"sync"
 	"time"
 )
 
@@ -43,7 +42,6 @@ type DatakeyTable struct {
 	file            string
 	datakey2filekey map[int64]string
 	filekey2datkey  map[string]int64
-	mutex           sync.Mutex
 }
 
 //newDatakeyTable make DataKeyTable obj.
@@ -104,8 +102,6 @@ func (d *DatakeyTable) save() {
 
 //setEntry stores stamp/value.
 func (d *DatakeyTable) setEntry(stamp int64, filekey string) {
-	d.mutex.Lock()
-	defer d.mutex.Unlock()
 	d.datakey2filekey[stamp] = filekey
 	d.filekey2datkey[filekey] = stamp
 }

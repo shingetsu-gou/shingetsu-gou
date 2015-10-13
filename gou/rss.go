@@ -30,6 +30,7 @@ package gou
 
 import (
 	"io"
+	"regexp"
 	"sort"
 	"strings"
 	"time"
@@ -132,4 +133,17 @@ func (r *RSS) makeRSS1(wr io.Writer) {
 func (r *RSS) W3cdate(dat int64) string {
 	t := time.Unix(dat, 0)
 	return t.Format("2006-01-02T15:04:05Z")
+}
+
+//rssTextFormat formats plain string to stirng usable in html.
+func rssTextFormat(plain string) string {
+	buf := strings.Replace(plain, "<br>", " ", -1)
+	buf = strings.Replace(buf, "&", "&amp;", -1)
+	reg := regexp.MustCompile("&amp;(#\\d+|lt|gt|amp);")
+	buf = reg.ReplaceAllString(buf, "&\\1")
+	buf = strings.Replace(buf, "<", "&lt;", -1)
+	buf = strings.Replace(buf, ">", "&gt;", -1)
+	buf = strings.Replace(buf, "\r", "", -1)
+	buf = strings.Replace(buf, "\n", "", -1)
+	return buf
 }

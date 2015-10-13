@@ -28,13 +28,10 @@
 
 package gou
 
-import "sync"
-
 //updateQue contains update records which will be informed to other nodes
 type updateQue struct {
 	queue map[*record][]*node
 	//	running bool
-	mutex sync.Mutex
 }
 
 //newUpdateQue make updateQue object.
@@ -47,8 +44,6 @@ func newUpdateQue() *updateQue {
 
 //append adds a record and origina n to be broadcasted.
 func (u *updateQue) append(rec *record, n *node) {
-	u.mutex.Lock()
-	defer u.mutex.Unlock()
 	u.queue[rec] = append(u.queue[rec], n)
 }
 
@@ -56,8 +51,6 @@ func (u *updateQue) append(rec *record, n *node) {
 //if success to doUpdateNode, add node to updatelist and recentlist and
 //removes the record from queue.
 func (u *updateQue) run() {
-	u.mutex.Lock()
-	defer u.mutex.Unlock()
 	for rec, ns := range u.queue {
 		for i, n := range ns {
 			if u.doUpdateNode(rec, n) {

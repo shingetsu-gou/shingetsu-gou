@@ -416,7 +416,7 @@ func (nl *NodeList) tellUpdate(c *cache, stamp int64, id string, node *node) {
 		tellstr = ":" + strconv.Itoa(defaultPort) + strings.Replace(serverURL, "/", "+", -1)
 	}
 	arg := strings.Join([]string{"/update/", c.Datfile, strconv.FormatInt(stamp, 10), id, tellstr}, "/")
-	go broadcast(arg, c)
+	broadcast(arg, c)
 }
 
 //broadcast broadcsts msg to nodes which has info of cache c  if ping is ok or is in nodelist.

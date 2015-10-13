@@ -8,7 +8,7 @@
 {{ range $tag:=.Tags }}
   <a href="{{$root.GatewayCGI}}/{{$root.Target}}?tag={{strEncode $tag}}" class="tag">{{$tag}}</a>
 {{ end }}
-{{ if and (eq .Classname "tags") .Isadmin }}
+{{ if and (eq .Classname "tags") .IsAdmin }}
   <a href="{{.AdminCGI}}/edittag?file={{.Cache.Datfile}}" class="btn">{{.Message.edit_tag}}</a>
 {{ end }}
 </p>

@@ -36,7 +36,6 @@ import (
 	"regexp"
 	"sort"
 	"strings"
-	"sync"
 	"time"
 
 	"github.com/axgle/mahonia"
@@ -141,7 +140,6 @@ func notFound(w http.ResponseWriter, r *http.Request) {
 //mchCGI is a class for renderring pages of 2ch interface .
 type mchCGI struct {
 	*cgi
-	mutex         sync.Mutex
 	updateCounter map[string]int
 }
 
@@ -164,30 +162,10 @@ func newMchCGI(w http.ResponseWriter, r *http.Request) *mchCGI {
 	return m
 }
 
-//checkGetCache return true
-//if visitor is firend or admin and user-agent is not robot.
-func (m *mchCGI) checkGetCache() bool {
-	if !m.isFriend && !m.isAdmin {
-		return false
-	}
-	agent := m.getCP932("User-Agent")
-	reg, err := regexp.Compile(robot)
-	if err != nil {
-		log.Println(err)
-		return true
-	}
-	if reg.MatchString(agent) {
-		return false
-	}
-	return true
-}
-
 //counterIsUpdate countup threadKey counter and returns true
 //for each 4 times.
 func (m *mchCGI) counterIsUpdate(threadKey string) bool {
 	updateCount := 4
-	m.mutex.Lock()
-	defer m.mutex.Unlock()
 	m.updateCounter[threadKey]++
 	m.updateCounter[threadKey] %= updateCount
 	return m.updateCounter[threadKey] == 0
@@ -250,7 +228,7 @@ func (m *mchCGI) threadApp(board, datkey string) {
 			data.search(nil)
 		} else {
 			if m.counterIsUpdate(key) {
-				go data.search(nil)
+				data.search(nil) //can use goroutine
 			}
 		}
 	}
