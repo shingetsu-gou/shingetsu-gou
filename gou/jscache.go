@@ -32,6 +32,7 @@ import (
 	"io/ioutil"
 	"log"
 	"os"
+	"path"
 	"strings"
 	"time"
 )
@@ -92,7 +93,7 @@ func (j *jsCache) update() {
 		if !exist || f.ModTime().After(*oldfi.mtime) {
 			m := f.ModTime()
 			fi := finfo{mtime: &m, exist: true}
-			fi.cont, err = ioutil.ReadFile(name)
+			fi.cont, err = ioutil.ReadFile(path.Join(j.path, name))
 			j.files[name] = &fi
 		} else {
 			oldfi.exist = true

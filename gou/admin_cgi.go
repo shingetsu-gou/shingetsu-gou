@@ -93,7 +93,7 @@ func printSearch(w http.ResponseWriter, r *http.Request) {
 	}
 	query := a.req.FormValue("query")
 	if query == "" {
-		a.header(a.m["search"], "", nil, true, nil)
+		a.header(a.m["search"], "", nil, true)
 		a.printParagraph(a.m["desc_search"])
 		a.printSearchForm("")
 		a.footer(nil)
@@ -144,7 +144,7 @@ func printStatus(w http.ResponseWriter, r *http.Request) {
 		ns,
 		a.m,
 	}
-	a.header(a.m["status"], "", nil, true, nil)
+	a.header(a.m["status"], "", nil, true)
 	renderTemplate("status", d, a.wr)
 	a.footer(nil)
 }
@@ -183,7 +183,7 @@ func printEdittag(w http.ResponseWriter, r *http.Request) {
 		*ca.sugtags,
 		*userTagList,
 	}
-	a.header(fmt.Sprintf("%s: %s", a.m["edit_tag"], strTitle), "", nil, true, nil)
+	a.header(fmt.Sprintf("%s: %s", a.m["edit_tag"], strTitle), "", nil, true)
 	renderTemplate("edit_tag", d, a.wr)
 	a.footer(nil)
 }
@@ -234,7 +234,7 @@ type adminCGI struct {
 func newAdminCGI(w http.ResponseWriter, r *http.Request) *adminCGI {
 	c := newCGI(w, r)
 	if c == nil || !c.isAdmin {
-		c.print403("")
+		c.print403()
 		return nil
 	}
 	return &adminCGI{
@@ -310,7 +310,7 @@ func (a *adminCGI) printDeleteRecord(rmFiles []string, records []string) {
 		recs,
 		sid,
 	}
-	a.header(a.m["del_record"], "", nil, true, nil)
+	a.header(a.m["del_record"], "", nil, true)
 	renderTemplate("delete_record", d, a.wr)
 	a.footer(nil)
 }
@@ -425,7 +425,7 @@ func (a *adminCGI) printDeleteFile(files []string) {
 		cas,
 		sid,
 	}
-	a.header(a.m["del_file"], "", nil, true, nil)
+	a.header(a.m["del_file"], "", nil, true)
 	renderTemplate("delete_file", d, a.wr)
 	a.footer(nil)
 }
@@ -464,7 +464,7 @@ func (a *adminCGI) printSearchForm(query string) {
 func (a *adminCGI) printSearchResult(query string) {
 	strQuery := html.EscapeString(query)
 	title := fmt.Sprintf("%s: %s", a.m["search"], strQuery)
-	a.header(title, "", nil, true, nil)
+	a.header(title, "", nil, true)
 	a.printParagraph(a.m["desc_search"])
 	a.printSearchForm(strQuery)
 	reg, err := regexp.Compile(html.EscapeString(query))

@@ -98,7 +98,7 @@ func (u *UpdateList) loadFile() {
 		return nil
 	})
 	if err != nil {
-		log.Fatal(err)
+		log.Println(err)
 	}
 }
 

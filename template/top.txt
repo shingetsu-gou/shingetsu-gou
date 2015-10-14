@@ -1,18 +1,18 @@
+{{/*
+ Copyright (c) 2005-2014 shinGETsu Project.
+ */}}
 {{define "top"}}
 {{$root:=.}}
-{# Saku Gateway Toppage.
- # Copyright (c) 2005-2015 shinGETsu Project.
- #}
 <ul class="topmenu">
-  <li>{{template "gateway_link" .GatewayLink.SetupStruct .GatewayCGI "changes"}}</li>
-  <li>{{template "gateway_link" .GatewayLink.SetupStruct .GatewayCGI "index"}}</li>
-{{ if .IsFriend or .IsAdmin }}
-  <li>{{template "gateway_link" .GatewayLink.SetupStruct .GatewayCGI "recent"}}</li>
-  <li>{{template "gateway_link" .GatewayLink.SetupStruct .GatewayCGI "new"}}</li>
+  <li>{{.GatewayLink.Render .GatewayCGI "changes"}}</li>
+  <li>{{.GatewayLink.Render .GatewayCGI "index"}}</li>
+{{ if or .IsFriend .IsAdmin }}
+  <li>{{.GatewayLink.Render .GatewayCGI "recent"}}</li>
+  <li>{{.GatewayLink.Render .GatewayCGI "new"}}</li>
 {{ end }}
 {{ if .IsAdmin }}
-  <li>{{template "gateway_link" .GatewayLink.SetupStruct .AdminCGI "search"}}</li>
-  <li>{{template "gateway_link" .GatewayLink.SetupStruct .AdminCGI "status"}}</li>
+  <li>{{.GatewayLink.Render .AdminCGI "search"}}</li>
+  <li>{{.GatewayLink.Render .AdminCGI "status"}}</li>
 {{ end }}
 <li><a href="http://www.Shingetsu.Info/">{{.Message.site}}</a></li>
 <li><a href="{{.GatewayCGI}}/motd">{{.Message.agreement}}</a></li>
@@ -30,14 +30,14 @@
   {{ end }}
 {{ end }}
 </ul>
-{{ if and (not .Cachelist)  (.IsFriend or .IsAdmin) }}
-  <p>{{template "gateway_link" .GatewayLink.SetupStruct .GatewayCGI "recent" | printf .Message.empty_list }}</p>
+{{ if and (not .Cachelist)  (or .IsFriend .IsAdmin) }}
+  <p>{{.GatewayLink.Render .GatewayCGI "recent" | unescapedPrintf .Message.empty_list }}</p>
 {{ end }}
 
 {{ if .Taglist }}
   <h2>{{.Message.tag}}</h2>
   <ul class="topmenu">
-  {{ range $t:=.Taglist }}
+  {{ range $t:=.Taglist.Tags }}
     <li><a href="{{$root.GatewayCGI}}/{{$root.Target}}?tag={{strEncode $t}}">{{$t}}</a></li>
   {{ end }}
   </ul>

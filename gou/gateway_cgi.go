@@ -129,7 +129,7 @@ func printCSVRecent(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if !g.isFriend && !g.isAdmin {
-		g.print403("")
+		g.print403()
 		return
 	}
 	cl := recentList.makeRecentCachelist()
@@ -284,7 +284,7 @@ func printNew(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	g.header(g.m["new"], "", nil, true, nil)
+	g.header(g.m["new"], "", nil, true)
 	g.printNewElementForm()
 	g.footer(nil)
 }
@@ -311,7 +311,7 @@ func printTitle(w http.ResponseWriter, r *http.Request) {
 			outputCachelist = append(outputCachelist, ca)
 		}
 	}
-	g.header(g.m["logo"]+" - "+g.m["description"], "", nil, false, nil)
+	g.header(g.m["logo"]+" - "+g.m["description"], "", nil, false)
 	s := struct {
 		Cachelist     []*cache
 		Target        string
@@ -324,7 +324,7 @@ func printTitle(w http.ResponseWriter, r *http.Request) {
 		GatewayCGI    string
 		AdminCGI      string
 		Types         string
-		GatewayLink
+		*GatewayLink
 		ListItem
 	}{
 		outputCachelist,
@@ -338,7 +338,7 @@ func printTitle(w http.ResponseWriter, r *http.Request) {
 		gatewayURL,
 		adminURL,
 		"thread",
-		GatewayLink{
+		&GatewayLink{
 			Message: g.m,
 		},
 		ListItem{
@@ -392,7 +392,7 @@ func printRecent(w http.ResponseWriter, r *http.Request) {
 	if g.filter != "" {
 		title = fmt.Sprintf("%s : %s", g.m["recent"], g.filter)
 	}
-	g.header(title, "", nil, true, nil)
+	g.header(title, "", nil, true)
 	g.printParagraph(g.m["desc_recent"])
 	cl := recentList.makeRecentCachelist()
 	g.printIndexList(cl.Caches, "recent", false, false)
@@ -419,7 +419,7 @@ func newGatewayCGI(w http.ResponseWriter, r *http.Request) *gatewayCGI {
 	}
 
 	if !c.checkVisitor() {
-		c.print403("")
+		c.print403()
 		return nil
 	}
 	return &gatewayCGI{
@@ -499,7 +499,7 @@ func (g *gatewayCGI) printIndex(doChange bool) {
 	if g.filter != "" {
 		title = fmt.Sprintf("%s : %s", g.m["str"], g.filter)
 	}
-	g.header(title, "", nil, true, nil)
+	g.header(title, "", nil, true)
 	g.printParagraph(g.m["desc_"+str])
 	cl := newCacheList()
 	if doChange {
@@ -515,13 +515,13 @@ func (g *gatewayCGI) jumpNewFile() {
 	t := g.req.FormValue("type")
 	switch {
 	case link == "":
-		g.header(g.m["null_title"], "", nil, true, nil)
+		g.header(g.m["null_title"], "", nil, true)
 		g.footer(nil)
 	case strings.ContainsAny(link, "/[]<>"):
-		g.header(g.m["bad_title"], "", nil, true, nil)
+		g.header(g.m["bad_title"], "", nil, true)
 		g.footer(nil)
 	case t == "":
-		g.header(g.m["null_type"], "", nil, true, nil)
+		g.header(g.m["null_type"], "", nil, true)
 		g.footer(nil)
 	case hasString(types, t):
 		tag := strEncode(g.req.FormValue("tag"))

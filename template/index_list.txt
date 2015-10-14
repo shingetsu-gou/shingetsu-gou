@@ -1,9 +1,8 @@
+{{/*
+ Copyright (c) 2005-2014 shinGETsu Project.
+ */}}
 {{define "index_list"}}
 {{$root:=.}}
-{#
- # Saku Gateway Index List.
- # Copyright (c) 2005-2014 shinGETsu Project.
- #}
 {{ if .Target }}
   <form method="get" action="{{.GatewayCGI}}/{{.Target}}" id="filterform" class="form-horizontal"><div>
     <label>{{.Message.filter}} ({{.Message.string}})<br />

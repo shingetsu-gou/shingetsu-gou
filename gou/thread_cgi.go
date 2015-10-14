@@ -70,7 +70,7 @@ func threadSetup(s *loggingServeMux) {
 	reg = "/thread.cgi/{path:[^/]+}/p{page:[0-9]+}$"
 	registToRouter(rtr, reg, printThread)
 
-	s.Handle("/", handlers.CompressHandler(rtr))
+	s.Handle("/thread.cgi", handlers.CompressHandler(rtr))
 }
 
 //printThreadIndex adds records in multiform and redirect to its thread page.
@@ -133,7 +133,7 @@ func newThreadCGI(w http.ResponseWriter, r *http.Request) *threadCGI {
 	c := newCGI(w, r)
 
 	if c == nil || !c.checkVisitor() {
-		c.print403("")
+		c.print403()
 		return nil
 	}
 
@@ -258,7 +258,7 @@ func (t *threadCGI) printThreadHead(id string, page int, ca *cache, rss string) 
 		}
 		newcookie = t.setCookie(ca, access)
 	}
-	t.header(t.path, rss, newcookie, false, nil)
+	t.header(t.path, rss, newcookie, false)
 	return nil
 }
 
@@ -515,33 +515,6 @@ func (t *threadCGI) printAttach(datfile string, stamp int64, id, thumbnailSize, 
 	t.renderAttach(attachFile, suffix, stamp, ca)
 }
 
-//Menubar is var set for menubar.txt
-type Menubar struct {
-	GatewayLink
-	GatewayCGI string
-	Message    message
-	ID         string
-	RSS        string
-	IsAdmin    bool
-	IsFriend   bool
-}
-
-//mekaMenubar makes and returns *Menubar obj.
-func (t *threadCGI) makeMenubar(id, rss string) *Menubar {
-	g := &Menubar{
-		GatewayLink{
-			Message: t.m,
-		},
-		gatewayURL,
-		t.m,
-		id,
-		rss,
-		t.isAdmin,
-		t.isFriend,
-	}
-	return g
-}
-
 //errorTime calculates gaussian distribution by box-muller transformation.
 func (t *threadCGI) errorTime() int64 {
 	x1 := rand.Float64()
@@ -583,7 +556,7 @@ func (t *threadCGI) makeRecord(at *attached, suffix string, ca *cache) *record {
 		body["suffix"] = strings.TrimSpace(suffix)
 	}
 	if len(body) == 0 {
-		t.header(t.m["null_article"], "", nil, true, nil)
+		t.header(t.m["null_article"], "", nil, true)
 		t.footer(nil)
 		return nil
 	}
@@ -615,12 +588,12 @@ func (t *threadCGI) doPost() string {
 	log.Printf("post %s/%d_%s from %s/%s\n", ca.Datfile, ca.stamp, rec.ID, t.req.RemoteAddr, proxyClient)
 
 	if len(rec.recstr()) > recordLimit<<10 {
-		t.header(t.m["big_file"], "", nil, true, nil)
+		t.header(t.m["big_file"], "", nil, true)
 		t.footer(nil)
 		return ""
 	}
 	if spamCheck(rec.recstr()) {
-		t.header(t.m["spam"], "", nil, true, nil)
+		t.header(t.m["spam"], "", nil, true)
 		t.footer(nil)
 		return ""
 	}
@@ -668,7 +641,7 @@ func (t *threadCGI) parseAttached() (*attached, error) {
 	var strAttach = make([]byte, recordLimit<<10)
 	_, err = f.Read(strAttach)
 	if err == nil || err.Error() != "EOF" {
-		t.header(t.m["big_file"], "", nil, true, nil)
+		t.header(t.m["big_file"], "", nil, true)
 		t.footer(nil)
 		return nil, err
 	}

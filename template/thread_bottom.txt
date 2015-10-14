@@ -1,7 +1,7 @@
+{{/*
+ Copyright (c) 2005-2014 shinGETsu Project.
+ */}}
 {{define "thread_bottom"}}
-{# Saku Gateway Thrad Bottom.
- # Copyright (c) 2005-2014 shinGETsu Project.
- #}
 {{ if .cache.Len }}
   <p><a href="#top"
   onclick="window.scroll(0,0); return false;"

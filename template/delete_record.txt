@@ -1,9 +1,8 @@
+{{/*
+ Copyright (c) 2005-2014 shinGETsu Project.
+ */}}
 {{define "delete_record"}}
 {{$root:=.}}
-{#
- # Saku Gateway Delete Record Page.
- # Copyright (c) 2005-2014 shinGETsu Project.
- #}
 <form method="post" action="{{.AdminCGI}}" class="form-horizontal"><div class="well">
   <input type="hidden" name="cmd" value="xrdel" />
   <input type="hidden" name="file" value="{{.Datfile}}" />

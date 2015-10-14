@@ -1,10 +1,8 @@
+{{/*
+ Copyright (c) 2005-2014 shinGETsu Project.
+ */}}
 {{define "post_form"}}
 {{$root:=.}}
-{#
- # Saku Gateway Post Form.
- # Copyright (c) 2005-2014 shinGETsu Project.
- #}
-
 {{ if .IsAdmin }}
   {{ if .Cache }}
     <p><input type="submit" value="{{.Message.del_record}}" class="btn" /></p>

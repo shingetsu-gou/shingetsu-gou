@@ -1,7 +1,7 @@
+{{/*
+ Copyright (c) 2005-2014 shinGETsu Project.
+ */}}
 {{define "menubar"}}
-{# Saku Gateway Menubar.
- # Copyright (c) 2005-2015 shinGETsu Project.
- #}
 {{ if .ID}}
   <aside class="navbar-collapse" id="{{.ID}}">
 {{ else }}
@@ -9,11 +9,11 @@
 {{ end }}
 <ul class="nav navbar-nav">
   <li><a href="{{.GatewayCGI}}">{{.Message.top}}</a></li>
-    <li>{{template "gateway_link" .GatewayLink.SetupStruct .GatewayCGI "changes"}}</li>
-    <li>{{template "gateway_link" .GatewayLink.SetupStruct .GatewayCGI "index"}}</li>
-  {{ if .Isfriend or .Isadmin }}
-    <li>{{template "gateway_link" .GatewayLink.SetupStruct .GatewayCGI "recent"}}</li>
-    <li>{{template "gateway_link" .GatewayLink.SetupStruct .GatewayCGI "new"}}</li>
+    <li>{{.GatewayLink.Render .GatewayCGI "changes"}}</li>
+    <li>{{.GatewayLink.Render .GatewayCGI "index"}}</li>
+  {{ if or .IsFriend .IsAdmin }}
+    <li>{{.GatewayLink.Render .GatewayCGI "recent"}}</li>
+    <li>{{.GatewayLink.Render .GatewayCGI "new"}}</li>
   {{ end }}
   <li><a href="{{.RSS}}">{{.Message.rss}}</a></li>
 </ul>

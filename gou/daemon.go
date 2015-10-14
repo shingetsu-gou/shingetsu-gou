@@ -55,27 +55,22 @@ func SetLogger(printLog, isSilent bool) {
 	switch {
 	case isSilent:
 		log.SetOutput(ioutil.Discard)
-	case printLog:
+	default:
+		//	case printLog:
 		m := io.MultiWriter(os.Stdout, l)
 		log.SetOutput(m)
-	default:
-		log.SetOutput(l)
+		//	default:
+		//		log.SetOutput(l)
 	}
 }
 
 //SetupDaemon setups document root and necessary dirs.
 func SetupDaemon() {
-	dir, err := os.Getwd()
-	if err != nil {
-		log.Fatal(err)
-	}
-	absDocroot = path.Join(dir, docroot)
-	for _, j := range []string{runDir, cacheDir} {
-		i := path.Join(docroot, j)
-		if !IsDir(i) {
-			err := os.Mkdir(i, 07555)
+	for _, j := range []string{runDir, cacheDir, logDir} {
+		if !IsDir(j) {
+			err := os.Mkdir(j, 0755)
 			if err != nil {
-				log.Println(err)
+				log.Fatal(err)
 			}
 		}
 	}
@@ -83,6 +78,7 @@ func SetupDaemon() {
 
 //StartDaemon rm lock files, save pid, start cron job and a http server.
 func StartDaemon() {
+	log.Println("starting daemon and http server...")
 	for _, lock := range []string{lock, searchLock, adminSearch} {
 		l := path.Join(docroot, lock)
 		if IsFile(l) {
@@ -91,9 +87,8 @@ func StartDaemon() {
 			}
 		}
 	}
-	pidfile := path.Join(docroot, pid)
-	pid := os.Getpid()
-	err := ioutil.WriteFile(pidfile, []byte(strconv.Itoa(pid)), 0666)
+	p := os.Getpid()
+	err := ioutil.WriteFile(pid, []byte(strconv.Itoa(p)), 0666)
 	if err != nil {
 		log.Println(err)
 	}

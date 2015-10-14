@@ -1,8 +1,7 @@
+{{/*
+ Copyright (c) 2005-2014 shinGETsu Project.
+ */}}
 {{define "edit_tag"}}
-#
- # Saku Gateway Edit Tag Form.
- # Copyright (c) 2007-2014 shinGETsu Project.
- #}
 <form id="savetag" method="post" action="{{.AdminCGI}}/savetag" class="form-horizontal"><div>
   <input type="hidden" name="file" value="{{.Datfile}}" />
   <div class="control-group">

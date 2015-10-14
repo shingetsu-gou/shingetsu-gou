@@ -1,7 +1,7 @@
+{{/*
+ Copyright (c) 2005-2014 shinGETsu Project.
+ */}}
 {{define "record"}}
-{# Saku Gateway Thread Record.
- # Copyright (c) 2005-2014 shinGETsu Project.
- #}
 <dt id="r{{.Sid}}" data-record-id="{{.Sid}}">
 {{ if .IsAdmin }}
   <input type="checkbox" name="record" value="{{.Rec.Stamp}}_{{.Rec.ID}}" />

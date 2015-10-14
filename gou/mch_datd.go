@@ -55,7 +55,7 @@ func mchSetup(s *loggingServeMux) {
 	registToRouter(rtr, "/2ch/test/bbs\\.cgi", postCommentApp)
 	registToRouter(rtr, "/2ch/(board:[^/]+}/head\\.txt$", headApp)
 	registToRouter(rtr, "/2ch/", notFound)
-	s.Handle("/", handlers.CompressHandler(rtr))
+	s.Handle("/2ch", handlers.CompressHandler(rtr))
 
 }
 

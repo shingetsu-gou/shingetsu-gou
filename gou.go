@@ -53,6 +53,7 @@ func init() {
 }
 
 func main() {
+	log.Println("starting Gou")
 	expandAssets()
 	gou.SetupDaemon()
 	gou.StartDaemon()

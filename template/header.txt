@@ -1,10 +1,9 @@
+{{/*
+ Copyright (c) 2005-2014 shinGETsu Project.
+ */}}
 {{define "header"}}
+<!DOCTYPE HTML>
 {{$root:=.}}
-{#-
- # Saku Gateway Header.
- # Copyright (c) 2005-2014 shinGETsu Project.
- -#}
-<!DOCTYPE html>
 <html xmlns="http://www.W3.Org/1999/xhtml"
   lang="{{.Message.lang}}" xml:lang="{{.Message.lang}}">
 <head>
@@ -17,27 +16,29 @@
   <link rel="author" href="http://www.Shingetsu.Info/" />
   <link rel="contents" href="/" />
   <link rel="index" href="{{.RootPath}}gateway.cgi/index" />
-  <script type="text/javascript" src="{{.RootPath}}jquery/jquery.Min.Js?{{.Dummyquery}}"></script>
-  <script type="text/javascript" src="{{.RootPath}}jquery/jquery.Lazy.Min.Js?{{.Dummyquery}}"></script>
-  <script type="text/javascript" src="{{.RootPath}}bootstrap/js/bootstrap.Min.Js?{{.Dummyquery}}"></script>
+  <script type="text/javascript" src="{{.RootPath}}jquery/jquery.min.js?{{.Dummyquery}}"></script>
+  <script type="text/javascript" src="{{.RootPath}}jquery/jquery.lazy.min.js?{{.Dummyquery}}"></script>
+  <script type="text/javascript" src="{{.RootPath}}bootstrap/js/bootstrap.min.js?{{.Dummyquery}}"></script>
   <link rel="alternate" type="application/rss+xml" title="RSS" href="{{.RSS}}" />
-  <link rel="stylesheet" type="text/css" href="{{.RootPath}}bootstrap/css/bootstrap.Min.Css?{{.Dummyquery}}" />
+  <link rel="stylesheet" type="text/css" href="{{.RootPath}}bootstrap/css/bootstrap.min.css?{{.Dummyquery}}" />
 {{range $e:=.JS }}
   <script type="text/javascript" src="{{$root.RootPath}}{{$e}}?{{$root.Dummyquery}}"></script>
 {{else }}
-  <script type="text/javascript" src="{{$root.RootPath}}gateway.Cgi/mergedjs?{{$root.Mergedjs.GetLatest}}"></script>
+  <script type="text/javascript" src="{{$root.RootPath}}gateway.cgi/mergedjs?{{$root.Mergedjs.GetLatest}}"></script>
 {{end }}
 {{range $e:=.CSS }}
   <link rel="stylesheet" type="text/css" href="{{$root.RootPath}}{{$e}}?{{$root.Dummyquery}}" />
 {{end }}
   <script type="text/javascript">//<![CDATA[
-    shingetsu.RootPath = "{{.RootPath}}";
-    shingetsu.DummyQuery = "{{.Dummyquery}}";
-    shingetsu.UiLang = "{{.Message.lang}}";
+    shingetsu.rootPath = "{{.RootPath}}";
+    shingetsu.dummyQuery = "{{.Dummyquery}}";
+    shingetsu.uiLang = "{{.Message.lang}}";
   //]]></script>
 </head>
 <body>
+{{if .Menubar}}
 {{template "menubar" .Menubar}}
+{{end}}
 <div class="container">
 
 {{ if eq .AppliType "thread" }}

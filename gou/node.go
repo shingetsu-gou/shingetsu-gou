@@ -190,7 +190,7 @@ func newRawNodeList(filepath string) *rawNodeList {
 		return nil
 	})
 	if err != nil {
-		log.Fatal(err)
+		log.Println(err)
 	}
 	return r
 }
@@ -465,7 +465,7 @@ func newLookupTable() *LookupTable {
 		return nil
 	})
 	if err != nil {
-		log.Fatal(err)
+		log.Println(err)
 	}
 	return r
 }

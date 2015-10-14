@@ -30,10 +30,10 @@ package gou
 
 import (
 	"fmt"
+	"html"
 	"html/template"
 	"log"
 	"net/http"
-	"net/url"
 	"os"
 	"path"
 	"regexp"
@@ -49,7 +49,7 @@ type message map[string]string
 
 //newMessage reads from the file excpet #comment and stores them with url unescaping value.
 func newMessage(file string) message {
-	var m message
+	m := make(map[string]string)
 	re := regexp.MustCompile("^\\s*#")
 	err := eachLine(file, func(line string, i int) error {
 		var err error
@@ -58,7 +58,7 @@ func newMessage(file string) message {
 		}
 		buf := strings.Split(line, "<>")
 		if len(buf) == 2 {
-			buf[1], err = url.QueryUnescape(buf[1])
+			buf[1] = html.UnescapeString(buf[1])
 			m[buf[0]] = buf[1]
 		}
 		return err
@@ -103,13 +103,13 @@ type GatewayLink struct {
 	Description string
 }
 
-//SetupStruct setups GatewayLink struct to render gateway_link.txt
+//Render renders "gateway_link.txt" and returns its resutl string which is not escaped in template.
 //GatewayLink.Message must be setted up previously.
-func (c *GatewayLink) SetupStruct(cginame, command string) *GatewayLink {
+func (c GatewayLink) Render(cginame, command string) template.HTML {
 	c.CGIname = cginame
 	c.Command = command
 	c.Description = c.Message["desc_"+command]
-	return c
+	return template.HTML(executeTemplate("gateway_link", c))
 }
 
 //ListItem is for list_item.txt
@@ -202,7 +202,7 @@ type cgi struct {
 //newCGI reads messages file, and set params , returns cgi obj.
 func newCGI(w http.ResponseWriter, r *http.Request) *cgi {
 	c := &cgi{
-		jc: newJsCache(absDocroot),
+		jc: newJsCache(docroot),
 		wr: w,
 	}
 	c.m = searchMessage(r.Header.Get("Accept-Language"))
@@ -231,7 +231,7 @@ func newCGI(w http.ResponseWriter, r *http.Request) *cgi {
 func (c *cgi) extension(suffix string, useMerged bool) []string {
 	var filename []string
 	var merged string
-	err := eachFiles(absDocroot, func(f os.FileInfo) error {
+	err := eachFiles(docroot, func(f os.FileInfo) error {
 		i := f.Name()
 		if strings.HasSuffix(i, "."+suffix) && (!strings.HasPrefix(i, ".") || strings.HasPrefix(i, "_")) {
 			filename = append(filename, i)
@@ -278,24 +278,35 @@ func (c *cgi) printParagraph(contents string) {
 	renderTemplate("paragraph", g, c.wr)
 }
 
-//Header is a parameter sets for header.txt
-type Header struct {
+//Menubar is var set for menubar.txt
+type Menubar struct {
+	GatewayLink
+	GatewayCGI string
 	Message    message
-	RootPath   string
-	Title      string
+	ID         string
 	RSS        string
-	Mergedjs   *jsCache
-	JS         []string
-	CSS        []string
-	Menu       Menubar
-	DenyRobot  bool
-	Dummyquery int64
-	ThreadCGI  string
-	AppliType  string
+	IsAdmin    bool
+	IsFriend   bool
+}
+
+//mekaMenubar makes and returns *Menubar obj.
+func (c *cgi) makeMenubar(id, rss string) *Menubar {
+	g := &Menubar{
+		GatewayLink{
+			Message: c.m,
+		},
+		gatewayURL,
+		c.m,
+		id,
+		rss,
+		c.isAdmin,
+		c.isFriend,
+	}
+	return g
 }
 
 //header renders header.txt with cookie.
-func (c *cgi) header(title, rss string, cookie []*http.Cookie, denyRobot bool, menu *Menubar) {
+func (c *cgi) header(title, rss string, cookie []*http.Cookie, denyRobot bool) {
 	if rss == "" {
 		rss = gatewayURL + "/rss"
 	}
@@ -305,7 +316,20 @@ func (c *cgi) header(title, rss string, cookie []*http.Cookie, denyRobot bool, m
 	} else {
 		c.jc.update()
 	}
-	h := &Header{
+	h := struct {
+		Message    message
+		RootPath   string
+		Title      string
+		RSS        string
+		Mergedjs   *jsCache
+		JS         []string
+		CSS        []string
+		Menubar    *Menubar
+		DenyRobot  bool
+		Dummyquery int64
+		ThreadCGI  string
+		AppliType  string
+	}{
 		c.m,
 		rootPath,
 		title,
@@ -313,7 +337,7 @@ func (c *cgi) header(title, rss string, cookie []*http.Cookie, denyRobot bool, m
 		c.jc,
 		js,
 		c.extension("css", false),
-		*menu,
+		c.makeMenubar("top", rss),
 		denyRobot,
 		time.Now().Unix(),
 		threadURL,
@@ -428,23 +452,22 @@ func (c *cgi) printJump(next string) {
 
 //print302 renders jump page(meaning found and redirect)
 func (c *cgi) print302(next string) {
-	c.header("Loading...", "", nil, false, nil)
+	c.header("Loading...", "", nil, false)
 	c.printJump(next)
 	c.footer(nil)
 }
 
 //print403 renders 403 forbidden page with jump page.
-func (c *cgi) print403(next string) {
-	c.header(c.m["403"], "", nil, true, nil)
+func (c *cgi) print403() {
+	c.header(c.m["403"], "", nil, true)
 	c.printParagraph(c.m["403_body"])
-	c.printJump(next)
 	c.footer(nil)
 }
 
 //print404 render the 404 page.
 //if ca!=nil also renders info page of removing cache.
 func (c *cgi) print404(ca *cache, id string) {
-	c.header(c.m["404"], "", nil, true, nil)
+	c.header(c.m["404"], "", nil, true)
 	c.printParagraph(c.m["404_body"])
 	if ca != nil {
 		c.removeFileForm(ca, "")

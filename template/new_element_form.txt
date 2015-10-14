@@ -1,8 +1,7 @@
+{{/*
+ Copyright (c) 2005-2014 shinGETsu Project.
+ */}}
 {{define "new_element_form"}}
-{#
- # Saku Gateway New Element Form.
- # Copyright (c) 2005-2014 shinGETsu Project.
- #}
 <div class="row">
 <form method="post" action="{{.CGIname}}" class="well form-horizontal span6">
   <input type="hidden" name="cmd" value="new" />

@@ -30,11 +30,13 @@ package gou
 
 import (
 	"errors"
+	"fmt"
 	"html/template"
 	"io/ioutil"
 	"log"
 	"os"
 	"os/user"
+	"path"
 	"regexp"
 	"strings"
 	"time"
@@ -82,23 +84,23 @@ var (
 	syncRange   = make(map[string]int64)
 	saveRemoved = make(map[string]int64)
 
-	defaultPort = setting.getIntValue("Network", "port", 8000)
+	defaultPort = setting.getIntValue("Network", "port", 8010)
 	//	datPort       = setting.getIntValue("Network", "dat_port", 8001)
 	//	maxConnection = setting.getIntValue("Network", "max_connection", 20)
 	maxConnection = 1 //for now 1 for synchronous problem.
 	docroot       = setting.getPathValue("Path", "docroot", "./www")
 	logDir        = setting.getPathValue("Path", "log_dir", "./log")
-	runDir        = setting.getPathValue("Path", "run_dir", "../run")
-	fileDir       = setting.getPathValue("Path", "file_dir", "../file")
-	cacheDir      = setting.getPathValue("Path", "cache_dir", "../cache")
-	templateDir   = setting.getPathValue("Path", "template_dir", "../template")
-	spamList      = setting.getPathValue("Path", "spam_list", "../file/spam.txt")
-	initnodeList  = setting.getPathValue("Path", "initnode_list", "../file/initnode.txt")
-	nodeAllowFile = setting.getPathValue("Path", "node_allow", "../file/node_allow.txt")
-	nodeDenyFile  = setting.getPathValue("Path", "node_deny", "../file/node_deny.txt")
+	runDir        = setting.getPathValue("Path", "run_dir", "./run")
+	fileDir       = setting.getPathValue("Path", "file_dir", "./file")
+	cacheDir      = setting.getPathValue("Path", "cache_dir", "./cache")
+	templateDir   = setting.getPathValue("Path", "template_dir", "./template")
+	spamList      = setting.getPathValue("Path", "spam_list", "./file/spam.txt")
+	initnodeList  = setting.getPathValue("Path", "initnode_list", "./file/initnode.txt")
+	nodeAllowFile = setting.getPathValue("Path", "node_allow", "./file/node_allow.txt")
+	nodeDenyFile  = setting.getPathValue("Path", "node_deny", "./file/node_deny.txt")
 
-	reAdminStr     = setting.getStringValue("Gateway", "admin", "^127")
-	reFriendStr    = setting.getStringValue("Gateway", "friend", "^127")
+	reAdminStr     = setting.getStringValue("Gateway", "admin", "^(127|\\[::1\\])")
+	reFriendStr    = setting.getStringValue("Gateway", "friend", "^(127|\\[::1\\])")
 	reVisitorStr   = setting.getStringValue("Gateway", "visitor", ".")
 	reAdmin        *regexp.Regexp
 	reFriend       *regexp.Regexp
@@ -156,8 +158,6 @@ var (
 		"node.sakura.onafox.net:8000/server.cgi",
 	}
 
-	absDocroot string
-
 	initNode     = newConfList(initnodeList, defaultInitNode)
 	cachedRule   = newRegexpList(spamList)
 	nodeAllow    = newRegexpList(nodeAllowFile)
@@ -190,16 +190,27 @@ type config struct {
 func newConfig() *config {
 	var err error
 	c := &config{}
-	c.i, err = ini.Load("file/saku.ini", "/usr/local/etc/saku/saku.ini", "/etc/saku/saku.ini")
-	if err != nil {
-		log.Fatal("cannot load ini files")
+	c.i = ini.Empty()
+	for _, f := range []string{"file/saku.ini", "/usr/local/etc/saku/saku.ini", "/etc/saku/saku.ini"} {
+		if IsFile(f) {
+			err = c.i.Append(f)
+			if err != nil {
+				log.Fatal("cannot load ini files")
+			}
+		} else {
+			log.Println(f, "not found")
+		}
 	}
 	usr, err := user.Current()
 	if err == nil {
 		h := usr.HomeDir + "/.saku/saku.ini"
-		err = c.i.Append(h)
-		if err != nil {
-			log.Fatal("cannot load ini files")
+		if IsFile(h) {
+			err = c.i.Append(h)
+			if err != nil {
+				log.Fatal("cannot load ini files")
+			}
+		} else {
+			log.Println(h, "not found")
 		}
 	}
 	return c
@@ -228,11 +239,12 @@ func (c *config) getBoolValue(section, key string, vdefault bool) bool {
 //getPathValue gets path from ini file.
 func (c *config) getPathValue(section, key string, vdefault string) string {
 	p := c.i.Section(section).Key(key).MustString(vdefault)
-	usr, err := user.Current()
-	h := p
-	if err == nil {
-		h = usr.HomeDir + p
+	wd, err := os.Getwd()
+	if err != nil {
+		log.Fatal(err)
 	}
+	h := p
+	h = path.Join(wd, p)
 	return h
 }
 
@@ -254,27 +266,28 @@ func getVersion() string {
 
 func setupTemplate() {
 	funcMap := template.FuncMap{
-		"add":         func(a, b int) int { return a + b },
-		"sub":         func(a, b int) int { return a - b },
-		"mul":         func(a, b int) int { return a * b },
-		"div":         func(a, b int) int { return a / b },
-		"toMB":        func(a int) float64 { return float64(a) / (1024 * 1024) },
-		"toKB":        func(a int) float64 { return float64(a) / (1024) },
-		"strEncode":   strEncode,
-		"escape":      escape,
-		"escapeSpace": escapeSpace,
-		"localtime":   func(stamp int64) string { return time.Unix(stamp, 0).Format("2006-01-02 15:04") },
+		"add":             func(a, b int) int { return a + b },
+		"sub":             func(a, b int) int { return a - b },
+		"mul":             func(a, b int) int { return a * b },
+		"div":             func(a, b int) int { return a / b },
+		"toMB":            func(a int) float64 { return float64(a) / (1024 * 1024) },
+		"toKB":            func(a int) float64 { return float64(a) / (1024) },
+		"strEncode":       strEncode,
+		"escape":          escape,
+		"escapeSpace":     escapeSpace,
+		"localtime":       func(stamp int64) string { return time.Unix(stamp, 0).Format("2006-01-02 15:04") },
+		"unescapedPrintf": func(format string, a ...interface{}) template.HTML { return template.HTML(fmt.Sprintf(format, a)) },
 	}
 
-	templateFiles := templateDir + "/*." + templateSuffix
+	templateFiles := templateDir + "/*" + templateSuffix
 	if !IsDir(templateDir) {
 		log.Fatal(templateDir, "not found")
 	}
+	templates.Funcs(funcMap)
 	_, err := templates.ParseGlob(templateFiles)
 	if err != nil {
 		log.Fatal(err)
 	}
-	templates.Funcs(funcMap)
 }
 
 //InitVariables initializes some global and map vars.
@@ -287,10 +300,6 @@ func InitVariables() {
 	recentList = newRecentList()
 	updateList = newUpdateList()
 	queue = newUpdateQue()
-
-	nodeDeny.add("^127")
-	nodeDeny.add("^192\\.168")
-	nodeDeny.add("^bbs\\.shingetsu\\.info")
 
 	var err error
 	reAdmin, err = regexp.Compile(reAdminStr)
@@ -324,8 +333,10 @@ func InitVariables() {
 	}
 
 	//for controlling max connections
+	connections = make(chan struct{}, maxConnection)
 	for i := 0; i < maxConnection; i++ {
 		connections <- struct{}{}
 	}
+
 	setupTemplate()
 }

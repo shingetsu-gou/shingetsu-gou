@@ -1,8 +1,7 @@
+{{/*
+ Copyright (c) 2005-2014 shinGETsu Project.
+ */}}
 {{define "thread_top"}}
-{#
- # Saku Gateway Thrad Top.
- # Copyright (c) 2005-2014 shinGETsu Project.
- #}
 {{ if and (or .IsFriend .IsAdmin) (gt .Cache.Len 0) }}
   <form method="get" action="{{.ThreadCGI}}/{{strEncode .Path}}"><p>
     <input type="hidden" name="search_new_file" value="yes" />
