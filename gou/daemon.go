@@ -38,6 +38,8 @@ import (
 	"strconv"
 	"time"
 
+	"github.com/gorilla/handlers"
+
 	"gopkg.in/natefinch/lumberjack.v2"
 )
 
@@ -70,7 +72,7 @@ func SetupDaemon() {
 	absDocroot = path.Join(dir, docroot)
 	for _, j := range []string{runDir, cacheDir} {
 		i := path.Join(docroot, j)
-		if !isDir(i) {
+		if !IsDir(i) {
 			err := os.Mkdir(i, 07555)
 			if err != nil {
 				log.Println(err)
@@ -83,7 +85,7 @@ func SetupDaemon() {
 func StartDaemon() {
 	for _, lock := range []string{lock, searchLock, adminSearch} {
 		l := path.Join(docroot, lock)
-		if isFile(l) {
+		if IsFile(l) {
 			if err := os.Remove(l); err != nil {
 				log.Println(err)
 			}
@@ -96,7 +98,7 @@ func StartDaemon() {
 		log.Println(err)
 	}
 
-	sm := http.NewServeMux()
+	sm := newLoggingServeMux()
 	s := &http.Server{
 		Addr:           "0.0.0.0:" + strconv.Itoa(defaultPort),
 		Handler:        sm,
@@ -106,6 +108,7 @@ func StartDaemon() {
 	}
 
 	go cron()
+	sm.registCompressHandler("/", handleRoot)
 	adminSetup(sm)
 	serverSetup(sm)
 	gatewaySetup(sm)
@@ -116,4 +119,44 @@ func StartDaemon() {
 	}
 
 	log.Fatal(s.ListenAndServe())
+}
+
+//loggingServerMux is ServerMux with logging
+type loggingServeMux struct {
+	*http.ServeMux
+}
+
+//newLoggingServeMux returns loggingServeMux obj.
+func newLoggingServeMux() *loggingServeMux {
+	return &loggingServeMux{
+		http.NewServeMux(),
+	}
+}
+
+//ServeHTTP just calles http.ServeMux.ServeHTTP after logging.
+func (s *loggingServeMux) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+	log.Println(r.RemoteAddr, r.Method, r.URL.Path, r.Header.Get("User-Agent"))
+	s.ServeMux.ServeHTTP(w, r)
+}
+
+//compressHandler returns handlers.CompressHandler to simplfy.
+func (s *loggingServeMux) registCompressHandler(path string, fn func(w http.ResponseWriter, r *http.Request)) {
+	s.Handle(path, handlers.CompressHandler(http.HandlerFunc(fn)))
+}
+
+//handleRoot handles url not defined other handlers.
+//if root, print titles of threads. if not, serve files on disk.
+func handleRoot(w http.ResponseWriter, r *http.Request) {
+	if r.URL.Path == "/" {
+		printTitle(w, r)
+		return
+	}
+	pathOnDisk := path.Join("www/" + r.URL.Path)
+
+	if IsFile(pathOnDisk) {
+		http.ServeFile(w, r, pathOnDisk)
+		return
+	}
+
+	http.NotFound(w, r)
 }

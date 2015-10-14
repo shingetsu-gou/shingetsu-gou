@@ -44,7 +44,7 @@ import (
 )
 
 //mchSetup setups handlers for 2ch interface.
-func mchSetup(s *http.ServeMux) {
+func mchSetup(s *loggingServeMux) {
 	log.Println("start 2ch interface")
 	dataKeyTable.load()
 	rtr := mux.NewRouter()

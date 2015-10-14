@@ -43,21 +43,20 @@ import (
 )
 
 //gatewaySetup setups handlers for gateway.cgi
-func gatewaySetup(s *http.ServeMux) {
-	registCompressHandler(s, "/gateway.cgi/motd", printMotd)
-	registCompressHandler(s, "/gateway.cgi/mergedjs", printMergedJS)
-	registCompressHandler(s, "/gateway.cgi/rss", printRSS)
-	registCompressHandler(s, "/gateway.cgi/recent_rss", printRecentRSS)
-	registCompressHandler(s, "/gateway.cgi/index", printGatewayIndex)
-	registCompressHandler(s, "/gateway.cgi/changes", printIndexChanges)
-	registCompressHandler(s, "/gateway.cgi/recent", printRecent)
-	registCompressHandler(s, "/gateway.cgi/new", printNew)
-	registCompressHandler(s, "/gateway.cgi/thread", printGatewayThread)
-	registCompressHandler(s, "/gateway.cgi/", printTitle)
-	registCompressHandler(s, "/gateway.cgi/csv/index/", printCSV)
-	registCompressHandler(s, "/gateway.cgi/csv/changes/", printCSVChanges)
-	registCompressHandler(s, "/gateway.cgi/csv/recent/", printCSVRecent)
-	registCompressHandler(s, "/", printTitle)
+func gatewaySetup(s *loggingServeMux) {
+	s.registCompressHandler("/gateway.cgi/motd", printMotd)
+	s.registCompressHandler("/gateway.cgi/mergedjs", printMergedJS)
+	s.registCompressHandler("/gateway.cgi/rss", printRSS)
+	s.registCompressHandler("/gateway.cgi/recent_rss", printRecentRSS)
+	s.registCompressHandler("/gateway.cgi/index", printGatewayIndex)
+	s.registCompressHandler("/gateway.cgi/changes", printIndexChanges)
+	s.registCompressHandler("/gateway.cgi/recent", printRecent)
+	s.registCompressHandler("/gateway.cgi/new", printNew)
+	s.registCompressHandler("/gateway.cgi/thread", printGatewayThread)
+	s.registCompressHandler("/gateway.cgi/", printTitle)
+	s.registCompressHandler("/gateway.cgi/csv/index/", printCSV)
+	s.registCompressHandler("/gateway.cgi/csv/changes/", printCSVChanges)
+	s.registCompressHandler("/gateway.cgi/csv/recent/", printCSVRecent)
 }
 
 //printGateway just redirects to correspoinding url using thread.cgi.

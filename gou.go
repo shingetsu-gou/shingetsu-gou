@@ -30,7 +30,11 @@ package main
 
 import (
 	"flag"
+	"io/ioutil"
+	"log"
 	_ "net/http/pprof"
+	"os"
+	"path"
 
 	"github.com/shinGETsu-gou/shingetsu-gou/gou"
 )
@@ -49,6 +53,31 @@ func init() {
 }
 
 func main() {
+	expandAssets()
 	gou.SetupDaemon()
 	gou.StartDaemon()
+}
+
+//expandAssets expands all files in a Assets if not exist in disk.
+func expandAssets() {
+	for _, fname := range AssetNames() {
+		if gou.IsFile(fname) {
+			continue
+		}
+		path, _ := path.Split(fname)
+		if !gou.IsDir(path) {
+			err := os.MkdirAll(path, 0755)
+			if err != nil {
+				log.Fatal(err)
+			}
+		}
+		c, err := Asset(fname)
+		if err != nil {
+			log.Fatal(err)
+		}
+		err = ioutil.WriteFile(fname, c, 0644)
+		if err != nil {
+			log.Fatal(err)
+		}
+	}
 }

@@ -52,8 +52,22 @@ Or you can download executable binaries from [here](https://github.com/shingetsu
 # Differences from Original Saku
 
 1. mch(2ch interface) listens to the same port as admin.cgi/gateway.cgi/serve.cgi/thread.cgi. dat_port setting in config is ignored.
-2. For now Gou runs on only single process because this doens't consider synchronous. maxconnection setting in config is ignored. This problem
+2. For now Gou runs in only single process because Gou doens't consider synchronism. maxconnection setting in config is ignored. This problem
 would be fixed if everyone thinks Gou is useful :) .
+
+# Note
+
+Files 
+
+* in template/ directory
+* in www/ directory
+* in file/ directory
+
+are embeded into the exexutable binary in https://github.com/shingetsu-gou/shingetsu-gou/releases.
+If these files are not found on your disk, Gou automatically expands these to the disk.
+Once expanded, you can change these files as you wish.
+
+This is for easy-use of Gou; just get a binary, and run it!
 
 # Contribution
 

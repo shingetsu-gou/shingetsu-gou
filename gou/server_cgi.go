@@ -41,17 +41,17 @@ import (
 )
 
 //serverSetup setups handlers for server.cgi
-func serverSetup(s *http.ServeMux) {
-	registCompressHandler(s, "/server.cgi/ping", doPing)
-	registCompressHandler(s, "/server.cgi/node", doNode)
-	registCompressHandler(s, "/server.cgi/join", doJoin)
-	registCompressHandler(s, "/server.cgi/bye", doBye)
-	registCompressHandler(s, "/server.cgi/have", doHave)
-	registCompressHandler(s, "/server.cgi/get", doGetHead)
-	registCompressHandler(s, "/server.cgi/head", doGetHead)
-	registCompressHandler(s, "/server.cgi/update", doUpdate)
-	registCompressHandler(s, "/server.cgi/recent", doRecent)
-	registCompressHandler(s, "/server.cgi/", doMotd)
+func serverSetup(s *loggingServeMux) {
+	s.registCompressHandler("/server.cgi/ping", doPing)
+	s.registCompressHandler("/server.cgi/node", doNode)
+	s.registCompressHandler("/server.cgi/join", doJoin)
+	s.registCompressHandler("/server.cgi/bye", doBye)
+	s.registCompressHandler("/server.cgi/have", doHave)
+	s.registCompressHandler("/server.cgi/get", doGetHead)
+	s.registCompressHandler("/server.cgi/head", doGetHead)
+	s.registCompressHandler("/server.cgi/update", doUpdate)
+	s.registCompressHandler("/server.cgi/recent", doRecent)
+	s.registCompressHandler("/server.cgi/", doMotd)
 }
 
 //doPing just resopnse PONG with remote addr.

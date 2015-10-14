@@ -178,7 +178,7 @@ var (
 	errGet  = errors.New("cannot get data")
 	errSpam = errors.New("this is spam")
 
-	templates *template.Template
+	templates = template.New("")
 )
 
 //config represents ini file.
@@ -252,6 +252,31 @@ func getVersion() string {
 	return "shinGETsu/0.7 (Gou/" + ver + ")"
 }
 
+func setupTemplate() {
+	funcMap := template.FuncMap{
+		"add":         func(a, b int) int { return a + b },
+		"sub":         func(a, b int) int { return a - b },
+		"mul":         func(a, b int) int { return a * b },
+		"div":         func(a, b int) int { return a / b },
+		"toMB":        func(a int) float64 { return float64(a) / (1024 * 1024) },
+		"toKB":        func(a int) float64 { return float64(a) / (1024) },
+		"strEncode":   strEncode,
+		"escape":      escape,
+		"escapeSpace": escapeSpace,
+		"localtime":   func(stamp int64) string { return time.Unix(stamp, 0).Format("2006-01-02 15:04") },
+	}
+
+	templateFiles := templateDir + "/*." + templateSuffix
+	if !IsDir(templateDir) {
+		log.Fatal(templateDir, "not found")
+	}
+	_, err := templates.ParseGlob(templateFiles)
+	if err != nil {
+		log.Fatal(err)
+	}
+	templates.Funcs(funcMap)
+}
+
 //InitVariables initializes some global and map vars.
 func InitVariables() {
 	suggestedTagTable = newSuggestedTagTable()
@@ -302,23 +327,5 @@ func InitVariables() {
 	for i := 0; i < maxConnection; i++ {
 		connections <- struct{}{}
 	}
-
-	funcMap := template.FuncMap{
-		"add":         func(a, b int) int { return a + b },
-		"sub":         func(a, b int) int { return a - b },
-		"mul":         func(a, b int) int { return a * b },
-		"div":         func(a, b int) int { return a / b },
-		"toMB":        func(a int) float64 { return float64(a) / (1024 * 1024) },
-		"toKB":        func(a int) float64 { return float64(a) / (1024) },
-		"strEncode":   strEncode,
-		"escape":      escape,
-		"escapeSpace": escapeSpace,
-		"localtime":   func(stamp int64) string { return time.Unix(stamp, 0).Format("2006-01-02 15:04") },
-	}
-	templateFiles := templateDir + "/*." + templateSuffix
-	templates, err = template.ParseGlob(templateFiles)
-	if err != nil {
-		log.Fatal(err)
-	}
-	templates.Funcs(funcMap)
+	setupTemplate()
 }

@@ -216,7 +216,7 @@ func (c *cache) syncStatus() {
 	c.saveStatus("size", c.Size)
 	c.saveStatus("count", len(c.recs))
 	c.saveStatus("velocity", c.velocity)
-	if !isFile(c.datpath() + "/dat.stat") {
+	if !IsFile(c.datpath() + "/dat.stat") {
 		c.saveStatus("dat", c.Datfile)
 	}
 }
@@ -225,7 +225,7 @@ func (c *cache) syncStatus() {
 func (c *cache) setupDirectories() {
 	for _, d := range []string{"", "/attach", "/body", "/record", "/removed"} {
 		di := c.datpath() + d
-		if !isDir(di) {
+		if !IsDir(di) {
 			err := os.Mkdir(di, 0666)
 			if err != nil {
 				log.Fatal(err)
@@ -342,7 +342,7 @@ func (c *cache) checkBody() {
 	dir := path.Join(cacheDir, c.dathash(), "body")
 	err := eachFiles(dir, func(d os.FileInfo) error {
 		rec := newRecord(c.Datfile, d.Name())
-		if !isFile(rec.path()) {
+		if !IsFile(rec.path()) {
 			err := os.Remove(path.Join(dir, d.Name()))
 			if err != nil {
 				log.Println(err)
@@ -368,7 +368,7 @@ func (c *cache) checkAttach() {
 			idstr = idstr[1:]
 		}
 		rec := newRecord(c.Datfile, idstr)
-		if !isFile(rec.path()) {
+		if !IsFile(rec.path()) {
 			err := os.Remove(path.Join(dir, d.Name()))
 			if err != nil {
 				log.Println(err)
@@ -410,7 +410,7 @@ func (c *cache) removeRecords(limit int64) {
 	}
 	once := make(map[string]struct{})
 	for r, rec := range c.recs {
-		if !isFile(rec.path()) {
+		if !IsFile(rec.path()) {
 			if _, exist := once[rec.ID]; exist {
 				err := rec.remove()
 				if err != nil {
@@ -427,7 +427,7 @@ func (c *cache) removeRecords(limit int64) {
 
 //exists return true is datapath exists.
 func (c *cache) Exists() bool {
-	return isDir(c.datpath())
+	return IsDir(c.datpath())
 }
 
 //search checks  nodes in lookuptable have the cache.

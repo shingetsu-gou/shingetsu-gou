@@ -52,7 +52,6 @@ func newMessage(file string) message {
 	var m message
 	re := regexp.MustCompile("^\\s*#")
 	err := eachLine(file, func(line string, i int) error {
-		line = strings.Trim(line, "\r\n")
 		var err error
 		if re.MatchString(line) {
 			return nil
@@ -66,6 +65,7 @@ func newMessage(file string) message {
 	})
 	if err != nil {
 		log.Println(file, err)
+		return nil
 	}
 	return m
 }
@@ -89,9 +89,7 @@ func searchMessage(acceptLanguage string) message {
 		slang := strings.Split(l, "-")[0]
 		for _, j := range []string{l, slang} {
 			file := path.Join(fileDir, "message-"+j+".txt")
-			if isFile(file) {
-				return newMessage(file)
-			}
+			return newMessage(file)
 		}
 	}
 	return nil
@@ -463,7 +461,7 @@ func (c *cgi) lock() bool {
 	} else {
 		lockfile = searchLock
 	}
-	if !isFile(lockfile) {
+	if !IsFile(lockfile) {
 		touch(lockfile)
 		return true
 	}

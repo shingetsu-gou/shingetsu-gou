@@ -88,7 +88,7 @@ func (c *cacheList) rehash() {
 	err := eachFiles(cacheDir, func(f os.FileInfo) error {
 		datStatFile := path.Join(cacheDir, f.Name(), "dat.stat")
 		var datStat string
-		if isFile(datStatFile) {
+		if IsFile(datStatFile) {
 			datStatt, err := ioutil.ReadFile(datStatFile)
 			if err != nil {
 				log.Println("rehash err", err)

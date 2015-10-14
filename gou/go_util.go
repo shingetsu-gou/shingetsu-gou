@@ -165,8 +165,8 @@ func eachFiles(dir string, handler func(dir os.FileInfo) error) error {
 	return nil
 }
 
-//isFiles returns true is path is an existing file.
-func isFile(path string) bool {
+//IsFile returns true is path is an existing file.
+func IsFile(path string) bool {
 	fs, err := os.Stat(path)
 	if err != nil {
 		return false
@@ -174,8 +174,8 @@ func isFile(path string) bool {
 	return !fs.IsDir()
 }
 
-//isDir returns true is path is an existing dir.
-func isDir(path string) bool {
+//IsDir returns true is path is an existing dir.
+func IsDir(path string) bool {
 	fs, err := os.Stat(path)
 	if err != nil {
 		return false
@@ -225,11 +225,6 @@ func close(f io.Closer) {
 	if err := f.Close(); err != nil {
 		log.Println(err)
 	}
-}
-
-//compressHandler returns handlers.CompressHandler to simplfy.
-func registCompressHandler(s *http.ServeMux, path string, fn func(w http.ResponseWriter, r *http.Request)) {
-	s.Handle(path, handlers.CompressHandler(http.HandlerFunc(fn)))
 }
 
 //compressHandler returns handlers.CompressHandler to simplfy.

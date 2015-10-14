@@ -55,7 +55,7 @@ type client struct {
 //newClient read updated time from the file and creates client instance.
 func newClient() *client {
 	c := &client{utime: make(map[string]time.Time)}
-	if !isFile(clientLog) {
+	if !IsFile(clientLog) {
 		return c
 	}
 	k := []string{"ping", "init", "sync"}

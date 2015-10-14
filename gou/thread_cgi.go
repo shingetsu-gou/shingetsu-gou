@@ -50,7 +50,7 @@ import (
 )
 
 //threadSetup setups handlers for thread.cgi
-func threadSetup(s *http.ServeMux) {
+func threadSetup(s *loggingServeMux) {
 	rtr := mux.NewRouter()
 
 	registToRouter(rtr, "/thread.cgi/", printThreadIndex)
@@ -506,7 +506,7 @@ func (t *threadCGI) printAttach(datfile string, stamp int64, id, thumbnailSize, 
 		return
 	}
 	attachFile := rec.attachPath(suffix, thumbnailSize)
-	if thumbnailSize != "" && !isFile(attachFile) && (forceThumbnail || thumbnailSize == defaultThumbnailSize) {
+	if thumbnailSize != "" && !IsFile(attachFile) && (forceThumbnail || thumbnailSize == defaultThumbnailSize) {
 		rec.makeThumbnail(suffix, thumbnailSize)
 	}
 	if attachFile == "" {

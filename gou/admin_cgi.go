@@ -44,12 +44,12 @@ import (
 )
 
 //adminSetups registers handlers for admin.cgi
-func adminSetup(s *http.ServeMux) {
-	registCompressHandler(s, "/admin.cgi/status", printStatus)
-	registCompressHandler(s, "/admin.cgi/edittag", printEdittag)
-	registCompressHandler(s, "/admin.cgi/savetag", saveTagCGI)
-	registCompressHandler(s, "/admin.cgi/search", printSearch)
-	registCompressHandler(s, "/admin.cgi", execCmd)
+func adminSetup(s *loggingServeMux) {
+	s.registCompressHandler("/admin.cgi/status", printStatus)
+	s.registCompressHandler("/admin.cgi/edittag", printEdittag)
+	s.registCompressHandler("/admin.cgi/savetag", saveTagCGI)
+	s.registCompressHandler("/admin.cgi/search", printSearch)
+	s.registCompressHandler("/admin.cgi", execCmd)
 }
 
 //execCmd execute command specified cmd form.

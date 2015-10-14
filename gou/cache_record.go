@@ -146,7 +146,7 @@ func (r *record) dathash() string {
 
 //Exists return true if record file exists.
 func (r *record) Exists() bool {
-	return isFile(r.path())
+	return IsFile(r.path())
 }
 
 //parse parses one line in record file and set params to record r.
@@ -250,7 +250,7 @@ func (r *record) loadBody() error {
 	if r.contents != nil {
 		return nil
 	}
-	if isFile(r.bodyPath()) {
+	if IsFile(r.bodyPath()) {
 		return r._load(r.bodyPath())
 	}
 	return r.load()
@@ -359,7 +359,7 @@ func (r *record) makeThumbnail(suffix string, thumbnailSize string) {
 
 	attachPath := r.attachPath(suffix, "")
 	thumbnailPath := r.attachPath(suffix, thumbnailSize)
-	if !isDir(thumbnailPath) {
+	if !IsDir(thumbnailPath) {
 		return
 	}
 	size := strings.Split(thumbnailSize, "x")
@@ -389,7 +389,7 @@ func (r *record) saveAttached(v string, force bool) {
 		log.Println(err)
 		return
 	}
-	if force || !isFile(thumbnailPath) {
+	if force || !IsFile(thumbnailPath) {
 		r.makeThumbnail("", "")
 	}
 }
@@ -397,10 +397,10 @@ func (r *record) saveAttached(v string, force bool) {
 //sync saves recstr to the file. if attached file exists, saves it to attached path.
 //and save body part to body path. if signed, also saves body part.
 func (r *record) sync(force bool) {
-	if isFile(r.rmPath()) {
+	if IsFile(r.rmPath()) {
 		return
 	}
-	if force || !isFile(r.path()) {
+	if force || !IsFile(r.path()) {
 		err := writeFile(r.path(), r.recstr()+"\n")
 		if err != nil {
 			log.Println(err)
@@ -480,7 +480,7 @@ func getRecords(datfile string, n *node, head []string) []string {
 	var result []string
 	for _, h := range head {
 		rec := newRecord(datfile, strings.Replace(strings.TrimSpace(h), "<>", "_", -1))
-		if !isFile(rec.path()) && !isFile(rec.rmPath()) {
+		if !IsFile(rec.path()) && !IsFile(rec.rmPath()) {
 			res, err := n.talk(fmt.Sprintf("/get/%s/%d/%s", datfile, rec.Stamp, rec.ID))
 			if err != nil {
 				log.Println("get", err)
