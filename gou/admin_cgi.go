@@ -484,6 +484,6 @@ func (a *adminCGI) printSearchResult(query string) {
 		}
 	}
 	sort.Sort(sort.Reverse(sortByStamp{result}))
-	a.printIndexList(result, "", false, false)
+	a.printIndexList(result, "", true, false)
 	a.footer(nil)
 }

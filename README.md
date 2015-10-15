@@ -52,8 +52,10 @@ Or you can download executable binaries from [here](https://github.com/shingetsu
 # Differences from Original Saku
 
 1. mch(2ch interface) listens to the same port as admin.cgi/gateway.cgi/serve.cgi/thread.cgi. dat_port setting in config is ignored.
-2. For now Gou runs in only single process because Gou doens't consider synchronism. maxconnection setting in config is ignored. This problem
-would be fixed if everyone thinks Gou is useful :) .
+2. For now Gou doesn't consider synchronism. Caches in disk may be broken. This problem would be fixed if everyone thinks Gou is useful :) .
+3. Gou can try to open port by uPnP and NAT-PMP. You can disable this function by setting [Gateway] enable_nat:false in saku.ini, which is true by default.
+4. URL for 2ch interface /2ch_***/subject.txt in saku is /2ch/***/subject.txt in Gou.
+
 
 # Note
 

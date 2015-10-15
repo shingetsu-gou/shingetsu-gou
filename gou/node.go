@@ -29,6 +29,7 @@
 package gou
 
 import (
+	"errors"
 	"log"
 	"math/rand"
 	"net/http"
@@ -50,6 +51,10 @@ func urlopen(url string, timeout time.Duration) ([]string, error) {
 		Timeout: timeout,
 	}
 	resp, err := client.Do(req)
+	if err != nil {
+		log.Println(err)
+		return nil, err
+	}
 	var lines []string
 	err = eachIOLine(resp.Body, func(line string, i int) error {
 		strings.TrimSpace(line)
@@ -115,19 +120,23 @@ func (n *node) talk(message string) ([]string, error) {
 	res, err := urlopen(message, timeout)
 	if err != nil {
 		log.Println(message, err)
-		return nil, err
 	}
-	return res, nil
+	return res, err
 }
 
-//ping pings to n and return response and true if success.
-func (n *node) ping() (string, bool) {
+//ping pings to n and return response.
+func (n *node) ping() (string, error) {
 	res, err := n.talk("/ping")
-	if err == nil && res[0] == "PONG" && len(res) == 2 {
-		return res[1], true
+	if err != nil {
+		log.Println("/ping", n.nodestr, err)
+		return "", err
+	}
+	if res[0] == "PONG" && len(res) == 2 {
+		log.Println("ponged,i am", res[1])
+		return res[1], nil
 	}
 	log.Println("/ping", n.nodestr, "error")
-	return "", false
+	return "", errors.New("connected,but not ponged")
 }
 
 //isAllow returns fase if n is not allowed and denied.
@@ -140,14 +149,22 @@ func (n *node) isAllowed() bool {
 
 //join requests n to join me and return true and other node name if success.
 func (n *node) join() (bool, *node) {
-	if n.isAllowed() {
+	if !n.isAllowed() {
+		log.Println(n.nodestr, "is not allowd")
 		return false, nil
 	}
 	path := strings.Replace(serverURL, "/", "+", -1)
-	port := strconv.Itoa(defaultPort)
+	port := strconv.Itoa(ExternalPort)
 	res, err := n.talk("/join/" + dnsname + ":" + port + path)
 	if err != nil {
 		return false, nil
+	}
+	log.Println(res)
+	switch len(res) {
+	case 0:
+		return false, nil
+	case 1:
+		return res[0] == "WELCOME", nil
 	}
 	return (res[0] == "WELCOME"), newNode(res[1])
 }
@@ -165,7 +182,7 @@ func (n *node) getNode() *node {
 //bye says goodbye to n and returns true if success.
 func (n *node) bye() bool {
 	path := strings.Replace(serverURL, "/", "+", -1)
-	port := strconv.Itoa(defaultPort)
+	port := strconv.Itoa(ExternalPort)
 	res, err := n.talk("/bye/" + dnsname + ":" + port + path)
 	if err != nil {
 		log.Println("/bye", n.nodestr, "error")
@@ -280,7 +297,6 @@ func (nl *NodeList) moreNodes() {
 		nl.removeNode(my)
 	}
 	done := make(map[string]int)
-
 	for {
 		if nl.Len() == 0 {
 			break
@@ -306,7 +322,7 @@ func (nl *NodeList) initialize() {
 	var inode *node
 	for _, i := range initNode.data {
 		inode = newNode(i)
-		if _, ok := inode.ping(); ok {
+		if _, err := inode.ping(); err == nil {
 			nl.join(inode)
 			break
 		}
@@ -330,12 +346,12 @@ func (nl *NodeList) initialize() {
 //myself makes mynode info from dnsname.
 //if dnsname is empty ping to a node in nodelist and get info of myself.
 func (nl *NodeList) myself() *node {
-	if dnsname == "" {
-		return makeNode(dnsname, serverURL, defaultPort)
+	if dnsname != "" {
+		return makeNode(dnsname, serverURL, ExternalPort)
 	}
 	for _, n := range nl.rawNodeList.nodes {
-		if host, ok := n.ping(); ok {
-			return makeNode(host, serverURL, defaultPort)
+		if host, err := n.ping(); err == nil {
+			return makeNode(host, serverURL, ExternalPort)
 		}
 		log.Println("myself() failed at", n.nodestr)
 	}
@@ -347,7 +363,7 @@ func (nl *NodeList) myself() *node {
 //if ng, removes from nodelist.
 func (nl *NodeList) pingAll() {
 	for _, n := range nl.rawNodeList.nodes {
-		if _, ok := n.ping(); !ok {
+		if _, err := n.ping(); err == nil {
 			nl.removeNode(n)
 		}
 	}
@@ -390,7 +406,7 @@ func (nl *NodeList) rejoin(searchlist *SearchList) {
 		if nl.hasNode(n) {
 			continue
 		}
-		if _, ok := n.ping(); !ok || !nl.join(n) {
+		if _, err := n.ping(); err == nil || !nl.join(n) {
 			searchlist.removeNode(n)
 			searchlist.sync()
 		} else {
@@ -413,7 +429,7 @@ func (nl *NodeList) tellUpdate(c *cache, stamp int64, id string, node *node) {
 	case dnsname != "":
 		tellstr = nl.myself().toxstring()
 	default:
-		tellstr = ":" + strconv.Itoa(defaultPort) + strings.Replace(serverURL, "/", "+", -1)
+		tellstr = ":" + strconv.Itoa(ExternalPort) + strings.Replace(serverURL, "/", "+", -1)
 	}
 	arg := strings.Join([]string{"/update/", c.Datfile, strconv.FormatInt(stamp, 10), id, tellstr}, "/")
 	broadcast(arg, c)
@@ -424,7 +440,7 @@ func (nl *NodeList) tellUpdate(c *cache, stamp int64, id string, node *node) {
 //if ping is ng or nodelist has n , remove n from nodes in cache.
 func broadcast(msg string, c *cache) {
 	for _, n := range c.node.nodes {
-		if _, ok := n.ping(); ok || nodeList.hasNode(n) {
+		if _, err := n.ping(); err == nil || nodeList.hasNode(n) {
 			_, err := n.talk(msg)
 			if err != nil {
 				log.Println(err)
@@ -564,7 +580,7 @@ func (sl *SearchList) search(c *cache, myself *node, nodes []*node) *node {
 			lookupTable.sync(false)
 			return n
 		}
-		if _, ok := n.ping(); !ok {
+		if _, err := n.ping(); err != nil {
 			sl.removeNode(n)
 			c.node.removeNode(n)
 		}

@@ -33,13 +33,11 @@ import (
 	"fmt"
 	"log"
 	"net/http"
-	"regexp"
 	"sort"
 	"strings"
 	"time"
 
 	"github.com/axgle/mahonia"
-	"github.com/gorilla/handlers"
 	"github.com/gorilla/mux"
 )
 
@@ -50,13 +48,12 @@ func mchSetup(s *loggingServeMux) {
 	rtr := mux.NewRouter()
 
 	registToRouter(rtr, "/2ch/{board:[^/]+}/$", boardApp)
-	registToRouter(rtr, "/2ch/(board:[^/]+}/dat/{datkey:([^.]+}\\.dat", threadApp)
-	registToRouter(rtr, "/2ch/(board:[^/]+}/subject\\.txt", subjectApp)
-	registToRouter(rtr, "/2ch/test/bbs\\.cgi", postCommentApp)
-	registToRouter(rtr, "/2ch/(board:[^/]+}/head\\.txt$", headApp)
-	registToRouter(rtr, "/2ch/", notFound)
-	s.Handle("/2ch", handlers.CompressHandler(rtr))
-
+	registToRouter(rtr, "/2ch/(board:[^/]+}/dat/{datkey:([^.]+}.dat", threadApp)
+	registToRouter(rtr, "/2ch/(board:[^/]*}/subject.txt", subjectApp)
+	registToRouter(rtr, "/2ch/subject.txt", subjectApp)
+	registToRouter(rtr, "/2ch/test/bbs.cgi", postCommentApp)
+	registToRouter(rtr, "/2ch/(board:[^/]+}/head.txt$", headApp)
+	s.Handle("/2ch/", rtr)
 }
 
 //boardApp just calls boardApp(), only print title.
@@ -126,17 +123,6 @@ func headApp(w http.ResponseWriter, r *http.Request) {
 	a.headApp()
 }
 
-//notFound just renders "404 not found".
-func notFound(w http.ResponseWriter, r *http.Request) {
-	<-connections
-	defer func() {
-		connections <- struct{}{}
-	}()
-	w.WriteHeader(403)
-	br := bytes.NewReader([]byte("404 Not Found"))
-	http.ServeContent(w, r, "a.txt", time.Time{}, br)
-}
-
 //mchCGI is a class for renderring pages of 2ch interface .
 type mchCGI struct {
 	*cgi
@@ -147,11 +133,9 @@ type mchCGI struct {
 //if not allowed print 403.
 func newMchCGI(w http.ResponseWriter, r *http.Request) *mchCGI {
 	c := newCGI(w, r)
-	logRequest(r)
-	if c == nil || c.checkVisitor() {
+	if c == nil || !c.checkVisitor() {
 		w.WriteHeader(403)
-		br := bytes.NewReader([]byte("403 Forbidden"))
-		http.ServeContent(w, r, "a.txt", time.Time{}, br)
+		fmt.Fprintf(w, "403 Forbidden")
 		return nil
 	}
 
@@ -188,7 +172,6 @@ func (m *mchCGI) boardApp() {
 	}
 	message := searchMessage(l)
 	m.wr.Header().Set("Content-Type", "text/html; charset=Shift_JIS")
-	m.wr.WriteHeader(200)
 	board := escape(getBoard(m.path))
 	text := ""
 	if board != "" {
@@ -218,7 +201,7 @@ func (m *mchCGI) threadApp(board, datkey string) {
 	key, err := dataKeyTable.getFilekey(datkey)
 	if err != nil {
 		m.wr.WriteHeader(404)
-		m.serveContent("a.txt", time.Time{}, "404 Not Found")
+		fmt.Fprintf(m.wr, "404 Not Found")
 	}
 	data := newCache(key)
 	data.load()
@@ -235,10 +218,9 @@ func (m *mchCGI) threadApp(board, datkey string) {
 
 	if !data.Exists() {
 		m.wr.WriteHeader(404)
-		m.serveContent("a.txt", time.Time{}, "404 Not Found")
+		fmt.Fprintf(m.wr, "404 Not Found")
 	}
 	thread := makeDat(data, m.req.URL.Host, board)
-	m.wr.WriteHeader(200)
 	str := strings.Join(thread, "\n")
 	m.serveContent("a.txt", time.Unix(data.stamp, 0), str)
 }
@@ -288,23 +270,14 @@ func (m *mchCGI) hasTag(c *cache, board string) bool {
 
 //subjectApp makes list of records title from caches whose tag is same as one stripped from url.
 func (m *mchCGI) subjectApp(board string) {
-	reg := regexp.MustCompile("2ch_(\\S+)")
-	if strings.HasPrefix(board, "2ch") && !reg.MatchString(board) {
-		m.wr.WriteHeader(404)
-		m.wr.Header().Set("Content-Type", "text/plain")
-		m.serveContent("a.txt", time.Time{}, "404 Not Found")
-		return
-	}
-	ma := reg.FindStringSubmatch(board)
 	var boardEncoded, boardName string
-	if ma != nil {
-		boardEncoded = strDecode(ma[1])
+	if board != "" {
+		boardEncoded = strDecode(board)
 	}
 	if boardEncoded != "" {
 		boardName = fileDecode("dummy_" + boardEncoded)
 	}
 	subject, lastStamp := m.makeSubject(boardName)
-	m.wr.WriteHeader(200)
 	m.wr.Header().Set("Content-Type", "text/plain; charset=Shift_JIS")
 	m.serveContent("a.txt", time.Unix(lastStamp, 0), strings.Join(subject, "\n"))
 }

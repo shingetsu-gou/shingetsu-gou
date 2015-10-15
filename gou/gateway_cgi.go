@@ -167,8 +167,8 @@ func printRecentRSS(w http.ResponseWriter, r *http.Request) {
 			title, "", "", html.EscapeString(title), tags, ca.RecentStamp, false)
 	}
 	g.wr.Header().Set("Content-Type", "text/xml; charset=UTF-8")
-	if k := rsss.keys(); len(k) != 0 {
-		g.wr.Header().Set("Last-Modified", g.rfc822Time(rsss.Feeds[k[0]].Date))
+	if rsss.len() != 0 {
+		g.wr.Header().Set("Last-Modified", g.rfc822Time(rsss.Feeds[0].Date))
 	}
 	rsss.makeRSS1(g.wr)
 }
@@ -225,8 +225,8 @@ func printRSS(w http.ResponseWriter, r *http.Request) {
 		g.appendRSS(rsss, ca)
 	}
 	g.wr.Header().Set("Content-Type", "text/xml; charset=UTF-8")
-	if k := rsss.keys(); len(k) != 0 {
-		g.wr.Header().Set("Last-Modified", g.rfc822Time(rsss.Feeds[k[0]].Date))
+	if rsss.len() != 0 {
+		g.wr.Header().Set("Last-Modified", g.rfc822Time(rsss.Feeds[0].Date))
 	}
 	rsss.makeRSS1(g.wr)
 }
@@ -330,7 +330,7 @@ func printTitle(w http.ResponseWriter, r *http.Request) {
 		outputCachelist,
 		"changes",
 		userTagList,
-		g.mchURL(),
+		g.mchURL(""),
 		g.mchCategories(),
 		g.m,
 		g.isAdmin,
@@ -345,6 +345,7 @@ func printTitle(w http.ResponseWriter, r *http.Request) {
 			IsAdmin: g.isAdmin,
 			filter:  g.filter,
 			tag:     g.tag,
+			Message: g.m,
 		},
 	}
 	renderTemplate("top", s, g.wr)
@@ -395,7 +396,7 @@ func printRecent(w http.ResponseWriter, r *http.Request) {
 	g.header(title, "", nil, true)
 	g.printParagraph(g.m["desc_recent"])
 	cl := recentList.makeRecentCachelist()
-	g.printIndexList(cl.Caches, "recent", false, false)
+	g.printIndexList(cl.Caches, "recent", true, false)
 }
 
 //gatewayCGI is for gateway.cgi
@@ -505,7 +506,7 @@ func (g *gatewayCGI) printIndex(doChange bool) {
 	if doChange {
 		sort.Sort(sort.Reverse(sortByVelocity{cl.Caches}))
 	}
-	g.printIndexList(cl.Caches, str, false, false)
+	g.printIndexList(cl.Caches, str, true, false)
 }
 
 //jumpNewFile renders 302 redirect to page for making new thread specified in url query
@@ -554,10 +555,9 @@ func (g *gatewayCGI) mchCategories() []*mchCategory {
 	if !enable2ch {
 		return categories
 	}
-	mchURL := g.mchURL()
 	err := eachLine(runDir+"/tag.txt", func(line string, i int) error {
 		tag := strings.TrimRight(line, "\r\n")
-		catURL := strings.Replace(mchURL, "2ch", fileEncode("2ch", tag), -1)
+		catURL := g.mchURL(tag)
 		categories = append(categories, &mchCategory{
 			catURL,
 			tag,
@@ -572,8 +572,11 @@ func (g *gatewayCGI) mchCategories() []*mchCategory {
 }
 
 //mchURL returns url for 2ch interface.
-func (g *gatewayCGI) mchURL() string {
-	path := "/2ch/subject.txt"
+func (g *gatewayCGI) mchURL(dat string) string {
+	path := "/2ch/" + dat + "/subject.txt"
+	if dat == "" {
+		path = "/2ch/subject.txt"
+	}
 	if !enable2ch {
 		return ""
 	}

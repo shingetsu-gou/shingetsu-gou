@@ -167,7 +167,7 @@ func (r *record) parse(recstr string) error {
 	r.ID = tmp[1]
 	r.contents = make(map[string]string)
 	r.keyOrder = make([]string, len(tmp))
-	for i, kv := range tmp {
+	for i, kv := range tmp[2:] {
 		buf := strings.Split(kv, ":")
 		if len(buf) < 2 {
 			continue
@@ -490,4 +490,19 @@ func getRecords(datfile string, n *node, head []string) []string {
 		}
 	}
 	return result
+}
+
+func makeRecord(line string) *record {
+	line = strings.TrimLeft(line, "\r\n")
+	buf := strings.Split(line, "<>")
+	if len(buf) <= 2 || buf[0] == "" || buf[1] == "" || buf[2] == "" {
+		return nil
+	}
+	idstr := buf[0] + "_" + buf[1]
+	vr := newRecord(buf[2], idstr)
+	if err := vr.parse(line); err != nil {
+		log.Println(err)
+		return nil
+	}
+	return vr
 }

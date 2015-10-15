@@ -31,7 +31,7 @@ package gou
 import (
 	"errors"
 	"fmt"
-	"html/template"
+	htmlTemplate "html/template"
 	"io/ioutil"
 	"log"
 	"os"
@@ -39,6 +39,7 @@ import (
 	"path"
 	"regexp"
 	"strings"
+	textTemplate "text/template"
 	"time"
 
 	"gopkg.in/ini.v1"
@@ -48,7 +49,7 @@ const (
 	clientCycle        = 5 * time.Minute  // Seconds; Access client.cgi
 	pingCycle          = 5 * time.Minute  // Seconds; Check nodes
 	syncCycle          = 5 * time.Hour    // Seconds; Check cache
-	initCycle          = 20 * time.Minute // Seconds; Check initial node
+	initCycle          = 1 * time.Minute  // Seconds; Check initial node
 	defaultUpdateRange = 24 * time.Hour   // Seconds
 	timeErrorSigma     = 60 * 60          // Seconds
 	searchTimeout      = 10 * time.Minute // Seconds
@@ -84,20 +85,20 @@ var (
 	syncRange   = make(map[string]int64)
 	saveRemoved = make(map[string]int64)
 
-	defaultPort = setting.getIntValue("Network", "port", 8010)
+	//DefaultPort is listening port
+	DefaultPort = setting.getIntValue("Network", "port", 8010)
 	//	datPort       = setting.getIntValue("Network", "dat_port", 8001)
-	//	maxConnection = setting.getIntValue("Network", "max_connection", 20)
-	maxConnection = 1 //for now 1 for synchronous problem.
-	docroot       = setting.getPathValue("Path", "docroot", "./www")
-	logDir        = setting.getPathValue("Path", "log_dir", "./log")
-	runDir        = setting.getPathValue("Path", "run_dir", "./run")
-	fileDir       = setting.getPathValue("Path", "file_dir", "./file")
-	cacheDir      = setting.getPathValue("Path", "cache_dir", "./cache")
-	templateDir   = setting.getPathValue("Path", "template_dir", "./template")
-	spamList      = setting.getPathValue("Path", "spam_list", "./file/spam.txt")
-	initnodeList  = setting.getPathValue("Path", "initnode_list", "./file/initnode.txt")
-	nodeAllowFile = setting.getPathValue("Path", "node_allow", "./file/node_allow.txt")
-	nodeDenyFile  = setting.getPathValue("Path", "node_deny", "./file/node_deny.txt")
+	maxConnection = setting.getIntValue("Network", "max_connection", 20)
+	docroot       = setting.getPathValue("Path", "docroot", "./www")                    //path from cwd
+	logDir        = setting.getPathValue("Path", "log_dir", "./log")                    //path from cwd
+	runDir        = setting.getRelativePathValue("Path", "run_dir", "../run")           //path from docroot
+	fileDir       = setting.getRelativePathValue("Path", "file_dir", "../file")         //path from docroot
+	cacheDir      = setting.getRelativePathValue("Path", "cache_dir", "../cache")       //path from docroot
+	templateDir   = setting.getRelativePathValue("Path", "template_dir", "../template") //path from docroot
+	spamList      = setting.getRelativePathValue("Path", "spam_list", "../file/spam.txt")
+	initnodeList  = setting.getRelativePathValue("Path", "initnode_list", "../file/initnode.txt")
+	nodeAllowFile = setting.getRelativePathValue("Path", "node_allow", "../file/node_allow.txt")
+	nodeDenyFile  = setting.getRelativePathValue("Path", "node_deny", "../file/node_deny.txt")
 
 	reAdminStr     = setting.getStringValue("Gateway", "admin", "^(127|\\[::1\\])")
 	reFriendStr    = setting.getStringValue("Gateway", "friend", "^(127|\\[::1\\])")
@@ -112,6 +113,10 @@ var (
 	recentRange    = setting.getInt64Value("Gateway", "recent_range", 31*24*60*60)
 	recordLimit    = setting.getIntValue("Gateway", "record_limit", 2048)
 	enable2ch      = setting.getBoolValue("Gateway", "enable_2ch", false)
+	//EnableNAT is enable if you want to use nat.
+	EnableNAT = setting.getBoolValue("Gateway", "enable_nat", true)
+	//ExternalPort is opened port by NAT.if no NAT it equals to DeafultPort.
+	ExternalPort = DefaultPort
 
 	motd        = fileDir + "/motd.txt"
 	nodeFile    = runDir + "/node.txt"
@@ -152,10 +157,6 @@ var (
 	defaultInitNode = []string{
 		"node.shingetsu.info:8000/server.cgi",
 		"pushare.zenno.info:8000/server.cgi",
-		"rep4649.ddo.jp:8000/server.cgi",
-		"skaphy.dyndns.info:8039/saku/server.cgi",
-		"saku.dpforest.info:8000/server.cgi",
-		"node.sakura.onafox.net:8000/server.cgi",
 	}
 
 	initNode     = newConfList(initnodeList, defaultInitNode)
@@ -178,7 +179,8 @@ var (
 	errGet  = errors.New("cannot get data")
 	errSpam = errors.New("this is spam")
 
-	templates = template.New("")
+	htemplates = htmlTemplate.New("")
+	ttemplates = textTemplate.New("")
 )
 
 //config represents ini file.
@@ -237,6 +239,16 @@ func (c *config) getBoolValue(section, key string, vdefault bool) bool {
 }
 
 //getPathValue gets path from ini file.
+func (c *config) getRelativePathValue(section, key string, vdefault string) string {
+	p := c.i.Section(section).Key(key).MustString(vdefault)
+	h := p
+	if !path.IsAbs(p) {
+		h = path.Join(docroot, p)
+	}
+	return h
+}
+
+//getPathValue gets path from ini file.
 func (c *config) getPathValue(section, key string, vdefault string) string {
 	p := c.i.Section(section).Key(key).MustString(vdefault)
 	wd, err := os.Getwd()
@@ -244,7 +256,9 @@ func (c *config) getPathValue(section, key string, vdefault string) string {
 		log.Fatal(err)
 	}
 	h := p
-	h = path.Join(wd, p)
+	if !path.IsAbs(p) {
+		h = path.Join(wd, p)
+	}
 	return h
 }
 
@@ -252,10 +266,10 @@ func (c *config) getPathValue(section, key string, vdefault string) string {
 func getVersion() string {
 	ver := "0.0.0"
 
-	versionFile := docroot + "/" + fileDir + "/version.txt"
+	versionFile := fileDir + "/version.txt"
 	f, err := os.Open(versionFile)
+	defer fclose(f)
 	if err == nil {
-		defer close(f)
 		cont, err := ioutil.ReadAll(f)
 		if err == nil {
 			ver += "; git/" + string(cont)
@@ -264,27 +278,37 @@ func getVersion() string {
 	return "shinGETsu/0.7 (Gou/" + ver + ")"
 }
 
+//setupTemplate adds funcmap to template var and parse files.
 func setupTemplate() {
-	funcMap := template.FuncMap{
-		"add":             func(a, b int) int { return a + b },
-		"sub":             func(a, b int) int { return a - b },
-		"mul":             func(a, b int) int { return a * b },
-		"div":             func(a, b int) int { return a / b },
-		"toMB":            func(a int) float64 { return float64(a) / (1024 * 1024) },
-		"toKB":            func(a int) float64 { return float64(a) / (1024) },
-		"strEncode":       strEncode,
-		"escape":          escape,
-		"escapeSpace":     escapeSpace,
-		"localtime":       func(stamp int64) string { return time.Unix(stamp, 0).Format("2006-01-02 15:04") },
-		"unescapedPrintf": func(format string, a ...interface{}) template.HTML { return template.HTML(fmt.Sprintf(format, a)) },
+	funcMap := map[string]interface{}{
+		"add":         func(a, b int) int { return a + b },
+		"sub":         func(a, b int) int { return a - b },
+		"mul":         func(a, b int) int { return a * b },
+		"div":         func(a, b int) int { return a / b },
+		"toMB":        func(a int) float64 { return float64(a) / (1024 * 1024) },
+		"toKB":        func(a int) float64 { return float64(a) / (1024) },
+		"strEncode":   strEncode,
+		"escape":      escape,
+		"escapeSpace": escapeSpace,
+		"localtime":   func(stamp int64) string { return time.Unix(stamp, 0).Format("2006-01-02 15:04") },
+		"unescapedPrintf": func(format string, a ...interface{}) htmlTemplate.HTML {
+			return htmlTemplate.HTML(fmt.Sprintf(format, a))
+		},
 	}
 
 	templateFiles := templateDir + "/*" + templateSuffix
 	if !IsDir(templateDir) {
 		log.Fatal(templateDir, "not found")
 	}
-	templates.Funcs(funcMap)
-	_, err := templates.ParseGlob(templateFiles)
+	htemplates.Funcs(htmlTemplate.FuncMap(funcMap))
+	_, err := htemplates.ParseGlob(templateFiles)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	templateFiles = templateDir + "/rss1" + templateSuffix
+	ttemplates.Funcs(textTemplate.FuncMap(funcMap))
+	_, err = ttemplates.ParseFiles(templateFiles)
 	if err != nil {
 		log.Fatal(err)
 	}

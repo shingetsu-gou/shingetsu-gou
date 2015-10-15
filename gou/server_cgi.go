@@ -94,7 +94,7 @@ func doJoin(w http.ResponseWriter, r *http.Request) {
 	if !n.isAllowed() {
 		return
 	}
-	if _, ok := n.ping(); !ok {
+	if _, err := n.ping(); err != nil {
 		return
 	}
 	if nodeList.Len() < defaultNodes {

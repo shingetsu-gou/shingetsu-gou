@@ -1,9 +1,4 @@
-{{/*
- Copyright (c) 2005-2014 shinGETsu Project.
- */}}
-{{define "rss1"}}
-{{$root:=.}}
-<?xml version="1.0" encoding="{{.Encode}}"?>
+{{define "rss1"}}<?xml version="1.0" encoding="{{.Encode}}"?>
 {{ if .XSL }}
   <?xml-stylesheet href="{{.XSL}}" type="text/xsl"?>
 {{ end }}
@@ -14,9 +9,9 @@
   xmlns:content="http://purl.Org/rss/1.0/modules/content/"
   xml:lang="{{.Lang}}">
 <channel rdf:about="{{.URI}}">
-<title>{{.Title}}</title>
+<title>{{html .Title}}</title>
 <link>{{.Link}}</link>
-<description>{{.Description}}</description>
+<description>{{html .Description}}</description>
 <items><rdf:Seq>
 {{ range $f,$v:=.Feeds }}
   <rdf:li rdf:resource="{{$f}}"/>
@@ -24,19 +19,20 @@
 </rdf:Seq></items>
 </channel>
 
+{{$root:=.}}
 {{ range $k,$f:=.Feeds}}
-  <item rdf:about="{{$f.Link}}">
-  <title>{{$f.Title}}</title>
-  <link>{{$f.Link}}</link>
-  <dc:date>{{$root.W3cdate $f.Date}}</dc:date>
+  <item rdf:about="{{html $f.Link}}">
+  <title>{{html $f.Title}}</title>
+  <link>{{html $f.Link}}</link>
+  <dc:date>{{html $root.W3cdate $f.Date}}</dc:date>
   {{ if $f.Creator ne ""}}
-    <dc:creator>{{$f.Creator}}</dc:creator>
+    <dc:creator>{{html $f.Creator}}</dc:creator>
   {{ end }}
   {{ range $sub:=$f.Subject }}
     <dc:subject>{{escape $sub}}</dc:subject>
   {{ end }}
   {{ if $f.Description ne ""}}
-    <description>{{$f.Description}}</description>
+    <description>{{html $f.Description}}</description>
   {{ end }}
   {{ if $f.Content}}
     <content:encoded><![CDATA[{{$f.Content}}]]></content:encoded>
@@ -45,3 +41,7 @@
 {{ end }}
 </rdf:RDF>
 {{end}}
+
+{{/*
+ Copyright (c) 2005-2014 shinGETsu Project.
+ */}}

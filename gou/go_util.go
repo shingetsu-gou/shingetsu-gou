@@ -31,7 +31,6 @@ package gou
 import (
 	"bufio"
 	"bytes"
-	"fmt"
 	"image"
 	"image/gif"
 	"image/jpeg"
@@ -44,14 +43,13 @@ import (
 	"os"
 	"strings"
 
-	"github.com/gorilla/handlers"
 	"github.com/gorilla/mux"
 	"github.com/nfnt/resize"
 )
 
 //eachIOLine iterates each line to  a ReadCloser and calls func.
 func eachIOLine(f io.ReadCloser, handler func(line string, num int) error) error {
-	defer close(f)
+	defer fclose(f)
 	scanner := bufio.NewScanner(f)
 	for i := 0; scanner.Scan(); i++ {
 		err := handler(scanner.Text(), i)
@@ -103,7 +101,7 @@ func findString(s []string, val string) int {
 //writeSlice write ary into a path.
 func writeSlice(path string, ary []string) error {
 	f, err := os.Create(path)
-	defer close(f)
+	defer fclose(f)
 	if err != nil {
 		log.Println(err)
 		return err
@@ -125,7 +123,7 @@ func writeMap(path string, ary map[string][]string) error {
 		log.Println(err)
 		return err
 	}
-	defer close(f)
+	defer fclose(f)
 
 	for k, v := range ary {
 		_, err := f.WriteString(k + "<>" + strings.Join(v, " ") + "\n")
@@ -139,8 +137,8 @@ func writeMap(path string, ary map[string][]string) error {
 
 //renderTemplate executes template and write to wr.
 func renderTemplate(file string, st interface{}, wr io.Writer) {
-	if err := templates.ExecuteTemplate(wr, file, st); err != nil {
-		fmt.Println(err)
+	if err := htemplates.ExecuteTemplate(wr, file, st); err != nil {
+		log.Println(err)
 	}
 }
 
@@ -189,13 +187,13 @@ func moveFile(dst, src string) error {
 	if err != nil {
 		return err
 	}
-	defer close(in)
+	defer fclose(in)
 
 	out, err := os.Create(dst)
 	if err != nil {
 		return err
 	}
-	defer close(out)
+	defer fclose(out)
 
 	_, err = io.Copy(out, in)
 	if err != nil {
@@ -221,7 +219,7 @@ func shuffle(slc shufflable) {
 }
 
 //close closes io.Close, if err exists ,println err.
-func close(f io.Closer) {
+func fclose(f io.Closer) {
 	if err := f.Close(); err != nil {
 		log.Println(err)
 	}
@@ -229,7 +227,7 @@ func close(f io.Closer) {
 
 //compressHandler returns handlers.CompressHandler to simplfy.
 func registToRouter(s *mux.Router, path string, fn func(w http.ResponseWriter, r *http.Request)) {
-	s.Handle(path, handlers.CompressHandler(http.HandlerFunc(fn)))
+	s.Handle(path, http.HandlerFunc(fn))
 }
 
 //fileSize returns file size of file.
@@ -260,7 +258,7 @@ func makeThumbnail(from, to, suffix string, x, y uint) {
 		log.Println(err)
 		return
 	}
-	defer close(file)
+	defer fclose(file)
 
 	img, _, err := image.Decode(file)
 	if err != nil {
@@ -273,7 +271,7 @@ func makeThumbnail(from, to, suffix string, x, y uint) {
 		log.Println(err)
 		return
 	}
-	defer close(out)
+	defer fclose(out)
 	switch suffix {
 	case "jpg", "jpeg":
 		err = jpeg.Encode(out, m, nil)
@@ -292,7 +290,7 @@ func makeThumbnail(from, to, suffix string, x, y uint) {
 //touch makes an empty file "name".
 func touch(fname string) {
 	f, err := os.Create(fname)
-	defer close(f)
+	defer fclose(f)
 	if err != nil {
 		log.Println(err)
 	}

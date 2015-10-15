@@ -54,8 +54,8 @@ func newUpdateInfoFromLine(line string) (*updateInfo, error) {
 		return nil, err
 	}
 	u := &updateInfo{
-		id:      strs[2],
-		datfile: strs[3],
+		id:      strs[1],
+		datfile: strs[2],
 	}
 	var err error
 	u.stamp, err = strconv.ParseInt(strs[0], 10, 64)
@@ -197,7 +197,7 @@ func newRecentList() *RecentList {
 	return &RecentList{r}
 }
 
-//getAll retrieves recent records from nodes insearchlist and stores them.
+//getAll retrieves recent records from nodes ins earchlist and stores them.
 //tags are shuffled and truncated to tagsize and stored to sugtags in cache.
 //also source nodes are stored into lookuptable.
 //also tags which recentlist doen't have in sugtagtable are truncated
@@ -216,19 +216,21 @@ func (r *RecentList) getAll() {
 			continue
 		}
 		for _, line := range res {
-			rec := &record{}
-			err := rec.parse(line)
-			if err == nil {
-				r.append(rec)
-				ca := newCache(rec.datfile)
-				tags := strings.Fields(strings.TrimSpace(rec.GetBodyValue("tag", "")))
-				shuffle(sort.StringSlice(tags))
-				tags = tags[tagSize:]
-				if len(tags) > 0 {
-					ca.sugtags.addString(tags)
-					ca.sugtags.sync()
-					lookupTable.add(rec.datfile, n)
-				}
+			rec := makeRecord(line)
+			if rec == nil {
+				continue
+			}
+			r.append(rec)
+			ca := newCache(rec.datfile)
+			tags := strings.Fields(strings.TrimSpace(rec.GetBodyValue("tag", "")))
+			shuffle(sort.StringSlice(tags))
+			if len(tags) > tagSize {
+				tags = tags[:tagSize]
+			}
+			if len(tags) > 0 {
+				ca.sugtags.addString(tags)
+				ca.sugtags.sync()
+				lookupTable.add(rec.datfile, n)
 			}
 		}
 		if count >= searchDepth {
@@ -265,7 +267,7 @@ func (r *RecentList) sync() {
 	r.UpdateList.sync()
 }
 
-//makeRecentCachelist returns cachelist copied from recentlist.
+//makeRecentCachelist returns sorted cachelist copied from recentlist.
 //which doens't contain duplicate caches.
 func (r *RecentList) makeRecentCachelist() *cacheList {
 	var cl caches
@@ -278,6 +280,6 @@ func (r *RecentList) makeRecentCachelist() *cacheList {
 			check = append(check, rec.datfile)
 		}
 	}
-	sort.Sort(sort.Reverse(sortByStamp{cl}))
+	sort.Sort(sort.Reverse(sortByRecentStamp{cl}))
 	return &cacheList{cl}
 }

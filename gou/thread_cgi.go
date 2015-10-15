@@ -55,10 +55,10 @@ func threadSetup(s *loggingServeMux) {
 
 	registToRouter(rtr, "/thread.cgi/", printThreadIndex)
 
-	reg := "/thread.cgi/thread_{datfile:[0-9A-F]+)/{stamp:[0-9a-f]{32}}/s{id:\\d+}\\.{thumbnailSize:\\d+x\\d+}\\.{suffix:.*}"
+	reg := "/thread.cgi/thread_{datfile:[0-9A-F]+)/{stamp:[0-9a-f]{32}}/s{id:\\d+}.{thumbnailSize:\\d+x\\d+}.{suffix:.*}"
 	registToRouter(rtr, reg, printAttach)
 
-	reg = "/thread.cgi/thread_{datfile:[0-9A-F]+)/{stamp:[0-9a-f]{32}}/{id:\\d+}\\.{suffix:.*}"
+	reg = "/thread.cgi/thread_{datfile:[0-9A-F]+)/{stamp:[0-9a-f]{32}}/{id:\\d+}.{suffix:.*}"
 	registToRouter(rtr, reg, printAttach)
 
 	reg = "/thread.cgi/{path:[^/]+}/?$"
@@ -70,7 +70,7 @@ func threadSetup(s *loggingServeMux) {
 	reg = "/thread.cgi/{path:[^/]+}/p{page:[0-9]+}$"
 	registToRouter(rtr, reg, printThread)
 
-	s.Handle("/thread.cgi", handlers.CompressHandler(rtr))
+	s.Handle("/thread.cgi/", handlers.CompressHandler(rtr))
 }
 
 //printThreadIndex adds records in multiform and redirect to its thread page.
@@ -136,7 +136,7 @@ func newThreadCGI(w http.ResponseWriter, r *http.Request) *threadCGI {
 		c.print403()
 		return nil
 	}
-
+	c.appliType = "thread"
 	return &threadCGI{
 		c,
 	}
@@ -474,7 +474,7 @@ func (t *threadCGI) renderAttach(attachFile, suffix string, stamp int64, ca *cac
 		t.wr.Header().Set("Content-Disposition", "attachment")
 	}
 	f, err := os.Open(attachFile)
-	defer close(f)
+	defer fclose(f)
 
 	if err != nil {
 		log.Println(err)
@@ -634,7 +634,7 @@ func (t *threadCGI) parseAttached() (*attached, error) {
 	filename := attach.Value["filename"][0]
 	fpStrAttach := attach.File[filename][0]
 	f, err := fpStrAttach.Open()
-	defer close(f)
+	defer fclose(f)
 	if err != nil {
 		return nil, err
 	}

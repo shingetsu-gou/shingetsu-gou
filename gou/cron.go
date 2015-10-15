@@ -77,7 +77,7 @@ func (c *client) sync() {
 	if err != nil {
 		log.Fatal(err)
 	}
-	defer close(f)
+	defer fclose(f)
 	for _, v := range []string{"ping", "init", "sync"} {
 		_, err := f.WriteString(strconv.FormatInt(c.utime[v].Unix(), 10) + "\n")
 		if err != nil {
@@ -94,6 +94,7 @@ func (c *client) check(key string) {
 
 //run runs cron, and update everything if it is after specified cycle.
 func (c *client) run() {
+	log.Println("starting cron...")
 	t := time.Now()
 	c.timelimit = t.Add(clientTimeout)
 	if t.Sub(c.utime["ping"]) >= pingCycle {
@@ -117,6 +118,7 @@ func (c *client) run() {
 	if t.Sub(c.utime["sync"]) >= syncCycle {
 		c.doSync()
 	}
+	log.Println("cron finished")
 }
 
 //doPing pins all nodes and sync.
@@ -131,7 +133,7 @@ func (c *client) doPing() {
 func (c *client) doUpdate() {
 	q := newUpdateQue()
 	go q.run()
-	log.Println("updatequeue started")
+	log.Println("updatequeue finished")
 }
 
 //doInit tries to find nodes from initNode and also add them to the search list.

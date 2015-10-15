@@ -241,6 +241,7 @@ type UserTagList struct {
 
 //newUserTagList return userTagList obj.
 func newUserTagList() *UserTagList {
+	log.Println(taglist)
 	t := newTagList(taglist)
 	return &UserTagList{t}
 }

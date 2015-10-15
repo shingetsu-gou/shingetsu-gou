@@ -10,7 +10,7 @@
     <button class="btn"><i class="glyphicon glyphicon-search"></i> {{.Message.show}}</button>
   </div></form>
   <form method="get" action="{{.GatewayCGI}}/{{.Target}}" id="tagform" class="form-search"><div>
-    <label>{{.Message.Tag}} ({{.Message.string}})<br />
+    <label>{{.Message.tag}} ({{.Message.string}})<br />
     <input name="tag" value="{{.Tag}}" class="form-control" size="40" /></label>
     <button class="btn"><i class="glyphicon glyphicon-tag"></i> {{.Message.show}}</button>
   </div></form>
@@ -31,15 +31,15 @@
 
 {{ range $type:=.Types }}
   <ul id="{{$type}}_index">
-  {{ range $cache:=.Cachelist }}
+  {{ range $cache:=$root.Cachelist }}
     {{ if eq $cache.Typee $type }}
-      {{template "list_item" $root.ListItem.SetupStruct $cache false $root.Target $root.SearchNewFile}}
+      {{$root.ListItem.Render $cache true $root.Target $root.SearchNewFile}}
     {{ end }}
   {{ end }}
   </ul>
 {{ end }}
 {{ if and (not .Cachelist) (or .IsFriend .IsAdmin)}}
-  <p>{{template "gateway_link" (.GatewayLink.SetupStruct .GatewayCGI "recent") | printf .Message.empty_list }}</p>
+  <p>{{.GatewayLink.Render .GatewayCGI "recent" | unescapedPrintf .Message.empty_list }}</p>
 {{ end }}
 
 {{ if .IsAdmin }}
@@ -49,7 +49,7 @@
 
 {{ if .Target}}
   <p><a href="{{.GatewayCGI}}/csv/{{.Target}}/file,stamp,date,path,uri,type,title,records,size,tag,sugtag" class="btn">CSV</a>
-  {{ if .Target eq "recent" }}
+  {{ if eq .Target "recent" }}
   <a href="{{.GatewayCGI}}/recent_rss" class="btn">RSS</a>
   {{ end }}
   </p>

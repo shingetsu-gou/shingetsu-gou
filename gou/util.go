@@ -31,10 +31,8 @@ package gou
 import (
 	"crypto/md5"
 	"encoding/hex"
-	"fmt"
 	"log"
 	"mime"
-	"net/http"
 	"net/url"
 	"path/filepath"
 	"regexp"
@@ -134,19 +132,6 @@ func getBoard(url string) string {
 		return ""
 	}
 	return fileDecode("dummy_" + m[1])
-}
-
-//logRequest logs request paramrs
-func logRequest(req *http.Request) {
-	msg := fmt.Sprintf("%s %s %s %s %s %s %s", req.FormValue("REMOTE_ADDR"),
-		req.FormValue("HTTP_X_FORWARDED_FOR"),
-		req.FormValue("REQUEST_METHOD"),
-		req.FormValue("PATH_INFO"),
-		req.FormValue("SERVER_PROTOCOL"),
-		req.FormValue("REFERER"),
-		req.FormValue("USER_AGENT"),
-	)
-	log.Println(msg)
 }
 
 //from title.py

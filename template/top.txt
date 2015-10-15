@@ -48,7 +48,7 @@
   <ul class="topmenu">
     <li><a href="{{.MchURL}}">{{.Message.all}}</a></li>
   {{ range $category:=.MchCategories }}
-    <li><a href="{{$category.Url}}">{{$category.Text}}</a></li>
+    <li><a href="{{$category.URL}}">{{$category.Text}}</a></li>
   {{ end }}
   </ul>
 {{ end }}

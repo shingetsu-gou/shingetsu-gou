@@ -30,8 +30,8 @@ package gou
 
 import (
 	"io"
+	"log"
 	"regexp"
-	"sort"
 	"strings"
 	"time"
 )
@@ -42,10 +42,10 @@ type Item struct {
 	Link        string
 	Description string
 	Creator     string
-	Subject     []string
 	Date        int64
 	content     string
 	Content     string
+	Subject     []string
 }
 
 //RSS represents RSS info.
@@ -54,11 +54,11 @@ type RSS struct {
 	Lang        string
 	Title       string
 	Link        string
-	URI         string
 	Description string
-	XSL         string
-	Feeds       map[string]*Item
+	Feeds       []*Item
 	parent      string
+	URI         string
+	XSL         string
 }
 
 //newRSS makes RSS object.
@@ -77,7 +77,6 @@ func newRss(encode, lang, title, parent, link, uri, description, xsl string) *RS
 		XSL:         xsl,
 		Link:        link,
 		URI:         uri,
-		Feeds:       make(map[string]*Item),
 	}
 	if parent != "" && parent[len(parent)-1] != '/' {
 		r.parent += "/"
@@ -106,19 +105,12 @@ func (r *RSS) append(link, title, creator, description, content string, subject 
 		content:     content,
 	}
 
-	r.Feeds[link] = i
+	r.Feeds = append(r.Feeds, i)
 }
 
 //keys returns keys of feeds i.e. link .
-func (r *RSS) keys() []string {
-	items := make([]string, len(r.Feeds))
-	i := 0
-	for k := range r.Feeds {
-		items[i] = k
-		i++
-	}
-	sort.Strings(items)
-	return items
+func (r *RSS) len() int {
+	return len(r.Feeds)
 }
 
 //makeRSS renders template.
@@ -126,7 +118,9 @@ func (r *RSS) makeRSS1(wr io.Writer) {
 	for _, c := range r.Feeds {
 		c.Content = strings.Replace(c.content, "]]", "&#93;&#93;>", -1)
 	}
-	renderTemplate("rss1", *r, wr)
+	if err := ttemplates.ExecuteTemplate(wr, "rss1", *r); err != nil {
+		log.Println(err)
+	}
 }
 
 //W3cdate returns RSS formated date string.

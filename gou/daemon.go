@@ -47,7 +47,7 @@ import (
 func SetLogger(printLog, isSilent bool) {
 	log.SetFlags(log.Ldate | log.Ltime | log.Lshortfile)
 	l := &lumberjack.Logger{
-		Filename:   logDir + "gou.log",
+		Filename:   path.Join(logDir, "gou.log"),
 		MaxSize:    1, // megabytes
 		MaxBackups: 2,
 		MaxAge:     28, //days
@@ -79,8 +79,7 @@ func SetupDaemon() {
 //StartDaemon rm lock files, save pid, start cron job and a http server.
 func StartDaemon() {
 	log.Println("starting daemon and http server...")
-	for _, lock := range []string{lock, searchLock, adminSearch} {
-		l := path.Join(docroot, lock)
+	for _, l := range []string{lock, searchLock, adminSearch} {
 		if IsFile(l) {
 			if err := os.Remove(l); err != nil {
 				log.Println(err)
@@ -95,7 +94,7 @@ func StartDaemon() {
 
 	sm := newLoggingServeMux()
 	s := &http.Server{
-		Addr:           "0.0.0.0:" + strconv.Itoa(defaultPort),
+		Addr:           "0.0.0.0:" + strconv.Itoa(DefaultPort),
 		Handler:        sm,
 		ReadTimeout:    10 * time.Second,
 		WriteTimeout:   10 * time.Second,
@@ -146,12 +145,13 @@ func handleRoot(w http.ResponseWriter, r *http.Request) {
 		printTitle(w, r)
 		return
 	}
-	pathOnDisk := path.Join("www/" + r.URL.Path)
+	pathOnDisk := path.Join(docroot, r.URL.Path)
 
 	if IsFile(pathOnDisk) {
 		http.ServeFile(w, r, pathOnDisk)
 		return
 	}
 
+	log.Println("not found", r.URL.Path)
 	http.NotFound(w, r)
 }

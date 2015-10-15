@@ -35,8 +35,10 @@ import (
 	_ "net/http/pprof"
 	"os"
 	"path"
+	"time"
 
 	"github.com/shinGETsu-gou/shingetsu-gou/gou"
+	"github.com/shingetsu-gou/go-nat"
 )
 
 //init initialize all variables and logger by arguments
@@ -53,6 +55,19 @@ func init() {
 }
 
 func main() {
+	if gou.EnableNAT {
+		n, err := nat.NewNetStatus()
+		if err != nil {
+			log.Println(err)
+		} else {
+			m, err := n.LoopPortMapping("tcp", gou.DefaultPort, "shingetsu-gou", 10*time.Minute)
+			if err != nil {
+				log.Println(err)
+			}
+			gou.ExternalPort = m.ExternalPort
+		}
+	}
+
 	log.Println("starting Gou")
 	expandAssets()
 	gou.SetupDaemon()

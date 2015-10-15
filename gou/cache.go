@@ -110,7 +110,7 @@ func newCache(datfile string) *cache {
 	c.Size = int(c.loadStatus("size"))
 	c.velocity = int(c.loadStatus("velocity"))
 	c.node = newRawNodeList(path.Join(c.datpath(), "node.txt"))
-	c.tags = newTagList(path.Join(c.Datfile, "tag.txt"))
+	c.tags = newTagList(path.Join(c.datpath(), "tag.txt"))
 	if v, exist := suggestedTagTable.sugtaglist[c.Datfile]; exist {
 		c.sugtags = v
 	} else {
@@ -285,6 +285,8 @@ func (c *cache) getData(stamp int64, id string, n *node) error {
 
 //addData adds rec to cache.
 func (c *cache) addData(rec *record) {
+
+	c.setupDirectories()
 	c.recs[rec.Idstr()] = rec
 	c.Size += len(rec.Idstr()) + 1
 	c.velocity++

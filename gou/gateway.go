@@ -124,6 +124,7 @@ type ListItem struct {
 	StrOpts    string
 	GatewayCGI string
 	Appli      map[string]string
+	Message    message
 	filter     string
 	tag        string
 }
@@ -148,12 +149,12 @@ func (l *ListItem) checkCache(ca *cache, target string) (string, bool) {
 	return x, true
 }
 
-//SetupStruct setups ListItem struct to render list_item.txt
-//ListItem.IsAdmin,filter,tag must be setted up previously.
-func (l *ListItem) SetupStruct(ca *cache, remove bool, target string, search bool) ListItem {
+//Render renders "list_items.txt" and returns its resutl string which is not escaped in template.
+//ListItem.IsAdmin,filter,tag,Message must be setted up previously.
+func (l ListItem) Render(ca *cache, remove bool, target string, search bool) template.HTML {
 	x, ok := l.checkCache(ca, target)
 	if !ok {
-		return *l
+		return template.HTML("")
 	}
 	x = escapeSpace(x)
 	var strOpts string
@@ -181,7 +182,7 @@ func (l *ListItem) SetupStruct(ca *cache, remove bool, target string, search boo
 	l.StrOpts = strOpts
 	l.GatewayCGI = gatewayURL
 	l.Appli = application
-	return *l
+	return template.HTML(executeTemplate("list_item", l))
 }
 
 //cgi is a base class for all http handlers.
@@ -197,6 +198,7 @@ type cgi struct {
 	path      string
 	filter    string
 	tag       string
+	appliType string
 }
 
 //newCGI reads messages file, and set params , returns cgi obj.
@@ -223,6 +225,7 @@ func newCGI(w http.ResponseWriter, r *http.Request) *cgi {
 	if c.host == "" {
 		c.host = r.Host
 	}
+	log.Println("isAdmin", c.isAdmin, "isFriend", c.isFriend, "isVisitor", c.isVisitor)
 	return c
 }
 
@@ -341,7 +344,7 @@ func (c *cgi) header(title, rss string, cookie []*http.Cookie, denyRobot bool) {
 		denyRobot,
 		time.Now().Unix(),
 		threadURL,
-		"thread",
+		c.appliType,
 	}
 	if cookie != nil {
 		for _, co := range cookie {
@@ -531,7 +534,7 @@ func (c *cgi) printIndexList(cl []*cache, target string, footer bool, searchNewF
 		Filter        string
 		Tag           string
 		Taglist       *UserTagList
-		Chachelist    []*cache
+		Cachelist     []*cache
 		GatewayCGI    string
 		AdminCGI      string
 		Message       message
@@ -561,6 +564,7 @@ func (c *cgi) printIndexList(cl []*cache, target string, footer bool, searchNewF
 			IsAdmin: c.isAdmin,
 			filter:  c.filter,
 			tag:     c.tag,
+			Message: c.m,
 		},
 	}
 	renderTemplate("index_list", s, c.wr)
