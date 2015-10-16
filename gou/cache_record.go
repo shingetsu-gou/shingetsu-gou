@@ -166,7 +166,7 @@ func (r *record) parse(recstr string) error {
 	}
 	r.ID = tmp[1]
 	r.contents = make(map[string]string)
-	r.keyOrder = make([]string, len(tmp))
+	r.keyOrder = make([]string, len(tmp)-2)
 	for i, kv := range tmp[2:] {
 		buf := strings.Split(kv, ":")
 		if len(buf) < 2 {
@@ -470,9 +470,27 @@ func (r *record) checkSign() bool {
 
 //meets checks the record meets condisions of args
 func (r *record) meets(i string, stamp int64, id string, begin, end int64) bool {
-	return r.parse(i) == nil &&
-		(stamp != 0 || r.Stamp == stamp) && (id != "" || r.ID == id) &&
-		begin <= r.Stamp && (end <= 0 || r.Stamp <= end) && r.md5check()
+	if r.parse(i) != nil {
+		log.Println("parse NG")
+		return false
+	}
+	if stamp > 0 && r.Stamp != stamp {
+		log.Println("stamp NG")
+		return false
+	}
+	if id != "" && r.ID == id {
+		log.Println("id NG")
+		return false
+	}
+	if begin > r.Stamp || (end > 0 && r.Stamp > end) {
+		log.Println("stamp range NG")
+		return false
+	}
+	if !r.md5check() {
+		log.Println("md5 NG")
+		return false
+	}
+	return true
 }
 
 //getRecords gets the records which have id=head from n

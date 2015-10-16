@@ -218,8 +218,10 @@ func newCGI(w http.ResponseWriter, r *http.Request) *cgi {
 		return nil
 	}
 	p := strings.Split(r.URL.Path, "/")
+	//  /thread.cgi/hoe
+	// 0/         1/  2
 	if len(p) > 1 {
-		c.path = "/" + strings.Join(p[1:], "/")
+		c.path = strings.Join(p[2:], "/")
 	}
 	c.host = serverName
 	if c.host == "" {
@@ -271,12 +273,13 @@ func (c *cgi) rfc822Time(stamp int64) string {
 	return time.Unix(stamp, 0).Format("2006-01-02 15:04:05")
 }
 
-//printParagraph render paragraph.txt
-func (c *cgi) printParagraph(contents string) {
+//printParagraph render paragraph.txt,just print constents.
+//contentsKey must be a key of Message map.
+func (c *cgi) printParagraph(contentsKey string) {
 	g := struct {
-		Contents string
+		Contents template.HTML
 	}{
-		Contents: contents,
+		Contents: template.HTML(c.m[contentsKey]),
 	}
 	renderTemplate("paragraph", g, c.wr)
 }
@@ -361,7 +364,7 @@ func (c *cgi) resAnchor(id, appli string, title string, absuri bool) string {
 	if absuri {
 		prefix = "http://" + c.host
 	} else {
-		innerlink = " class=\"innderlink\""
+		innerlink = " class=\"innerlink\""
 	}
 	return fmt.Sprintf("<a href=\"%s%s%s%s/%s\"%s>", prefix, appli, querySeparator, title, id, innerlink)
 }
@@ -372,23 +375,19 @@ func (c *cgi) htmlFormat(plain, appli string, title string, absuri bool) string 
 	buf = strings.Replace(buf, "\t", "        ", -1)
 	buf = escape(buf)
 	reg := regexp.MustCompile("https?://[^\\x00-\\x20\"'()<>\\[\\]\\x7F-\\xFF]{2,}")
-	buf = reg.ReplaceAllString(buf, "<a href=\"\\g<0>\">\\g<0></a>")
-	reg = regexp.MustCompile("(&gt;&gt;)([0-9a-f]{8})")
-	id := reg.ReplaceAllString(buf, "\\2")
-	buf = reg.ReplaceAllString(buf, c.resAnchor(id, appli, title, absuri)+"\\g<0></a>")
-
-	var tmp string
+	buf = reg.ReplaceAllString(buf, "<a href=\"$0\">$0</a>")
+	reg = regexp.MustCompile("&gt;&gt;[0-9a-f]{8}")
+	buf = reg.ReplaceAllStringFunc(buf, func(str string) string {
+		regg := regexp.MustCompile("(&gt;&gt;)([0-9a-f]{8})")
+		id := regg.ReplaceAllString(str, "$2")
+		return regg.ReplaceAllString(str, c.resAnchor(id, appli, title, absuri)+"$1$2</a>")
+	})
 	reg = regexp.MustCompile("\\[\\[([^<>]+?)\\]\\]")
-	for buf != "" {
-		if reg.MatchString(buf) {
-			reg.ReplaceAllStringFunc(buf, func(str string) string {
-				return c.bracketLink(str, appli, absuri)
-			})
-		} else {
-			tmp += buf
-			break
-		}
-	}
+	tmp := reg.ReplaceAllStringFunc(buf, func(str string) string {
+		log.Println("<"+str+">", "<"+str[2:len(str)-2]+">")
+		bl := c.bracketLink(str[2:len(str)-2], appli, absuri)
+		return bl
+	})
 	return escapeSpace(tmp)
 }
 
@@ -463,7 +462,7 @@ func (c *cgi) print302(next string) {
 //print403 renders 403 forbidden page with jump page.
 func (c *cgi) print403() {
 	c.header(c.m["403"], "", nil, true)
-	c.printParagraph(c.m["403_body"])
+	c.printParagraph("403_body")
 	c.footer(nil)
 }
 
@@ -471,7 +470,7 @@ func (c *cgi) print403() {
 //if ca!=nil also renders info page of removing cache.
 func (c *cgi) print404(ca *cache, id string) {
 	c.header(c.m["404"], "", nil, true)
-	c.printParagraph(c.m["404_body"])
+	c.printParagraph("404_body")
 	if ca != nil {
 		c.removeFileForm(ca, "")
 	}

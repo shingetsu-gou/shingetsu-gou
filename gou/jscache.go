@@ -33,6 +33,7 @@ import (
 	"log"
 	"os"
 	"path"
+	"sort"
 	"strings"
 	"time"
 )
@@ -68,11 +69,18 @@ func (j *jsCache) GetLatest() int64 {
 	return l.Unix()
 }
 
-//getContent concat contents of all js files.
+//getContent concat contents of all js files sorted by keys(filenames).
 func (j *jsCache) getContent() string {
 	j.update()
 	var cont string
+	keys := make([]string, len(j.files))
+	i := 0
 	for k := range j.files {
+		keys[i] = k
+		i++
+	}
+	sort.Strings(keys)
+	for _, k := range keys {
 		cont += string(j.files[k].cont)
 	}
 	return cont

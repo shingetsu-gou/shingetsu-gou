@@ -200,7 +200,9 @@ type rawNodeList struct {
 //newRawNodeList read the file and returns rawNodeList obj .
 func newRawNodeList(filepath string) *rawNodeList {
 	r := &rawNodeList{filepath: filepath}
-
+	if !IsDir(filepath) {
+		return r
+	}
 	err := eachLine(filepath, func(line string, i int) error {
 		n := newNode(line)
 		r.nodes = append(r.nodes, n)
@@ -297,18 +299,17 @@ func (nl *NodeList) moreNodes() {
 		nl.removeNode(my)
 	}
 	done := make(map[string]int)
-	for {
-		if nl.Len() == 0 {
-			break
-		}
+	for nl.Len() != 0 && nl.Len() < defaultNodes {
 		nn := nl.random()
 		newN := nn.getNode()
-		if _, exist := done[newN.nodestr]; newN != nil && !exist {
-			nl.join(newN)
-			done[newN.nodestr] = 1
+		if newN != nil {
+			if _, exist := done[newN.nodestr]; !exist {
+				nl.join(newN)
+				done[newN.nodestr] = 1
+			}
 		}
 		done[nn.nodestr]++
-		if done[nn.nodestr] > retry && nl.Len() >= defaultNodes {
+		if done[nn.nodestr] > retry {
 			break
 		}
 	}
@@ -566,6 +567,7 @@ func (sl *SearchList) search(c *cache, myself *node, nodes []*node) *node {
 	if nodes != nil {
 		nl.extend(nodes)
 	}
+	nl.extend(sl.nodes)
 	shuffle(nl)
 	count := 0
 	for _, n := range nl.nodes {
@@ -573,7 +575,7 @@ func (sl *SearchList) search(c *cache, myself *node, nodes []*node) *node {
 			continue
 		}
 		count++
-		res, err := n.talk("/have" + c.Datfile)
+		res, err := n.talk("/have/" + c.Datfile)
 		if err == nil && res[0] == "YES" {
 			sl.sync()
 			lookupTable.add(c.Datfile, n)

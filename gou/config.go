@@ -190,6 +190,8 @@ type config struct {
 
 //newConfig make a config instance from the ini files and returns it.
 func newConfig() *config {
+		log.SetFlags(log.Ldate | log.Ltime | log.Lshortfile)
+
 	var err error
 	c := &config{}
 	c.i = ini.Empty()

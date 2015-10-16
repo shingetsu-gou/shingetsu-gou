@@ -37,7 +37,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/axgle/mahonia"
+	"github.com/gorilla/handlers"
 	"github.com/gorilla/mux"
 )
 
@@ -53,7 +53,7 @@ func mchSetup(s *loggingServeMux) {
 	registToRouter(rtr, "/2ch/subject.txt", subjectApp)
 	registToRouter(rtr, "/2ch/test/bbs.cgi", postCommentApp)
 	registToRouter(rtr, "/2ch/(board:[^/]+}/head.txt$", headApp)
-	s.Handle("/2ch/", rtr)
+	s.Handle("/2ch/", handlers.CompressHandler(rtr))
 }
 
 //boardApp just calls boardApp(), only print title.
@@ -159,8 +159,7 @@ func (m *mchCGI) counterIsUpdate(threadKey string) bool {
 //data type),time=t after converted cp932. ServeContent is used to make clients possible
 //to use range request.
 func (m *mchCGI) serveContent(name string, t time.Time, str string) {
-	str = mahonia.NewEncoder("cp932").ConvertString(str)
-	br := bytes.NewReader([]byte(str))
+	br := bytes.NewReader([]byte(toSJIS(str)))
 	http.ServeContent(m.wr, m.req, name, t, br)
 }
 
@@ -302,9 +301,9 @@ func (m *mchCGI) makeSubject(board string) ([]string, int64) {
 		}
 		titleStr := fileDecode(c.Datfile)
 		if titleStr != "" {
-			titleStr = strings.Replace(titleStr, "\n", "", -1)
+			titleStr = strings.Trim(titleStr, "\r\n")
 		}
-		subjects = append(subjects, fmt.Sprintf("%d.dat<>%s (%d)\n",
+		subjects = append(subjects, fmt.Sprintf("%d.dat<>%s (%d)",
 			key, titleStr, len(c.recs)))
 	}
 	return subjects, lastStamp

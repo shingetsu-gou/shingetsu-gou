@@ -95,7 +95,7 @@ func (c *cache) dathash() string {
 
 //datpath returns real file path of this cache.
 func (c *cache) datpath() string {
-	return cacheDir + c.dathash()
+	return path.Join(cacheDir, c.dathash())
 }
 
 //newCache read files to set params and returns cache obj.
@@ -114,7 +114,7 @@ func newCache(datfile string) *cache {
 	if v, exist := suggestedTagTable.sugtaglist[c.Datfile]; exist {
 		c.sugtags = v
 	} else {
-		c.sugtags = newSuggestedTagList(nil)
+		c.sugtags = newSuggestedTagList(c.Datfile, nil)
 	}
 	for _, t := range types {
 		if strings.HasPrefix(c.Datfile, t) {
@@ -154,12 +154,16 @@ func (c *cache) keys() []string {
 
 //load loads records from files on the disk if not loaded.
 func (c *cache) load() {
+	r := path.Join(c.datpath(), "record")
+	if !IsDir(r) {
+		return
+	}
 	if c.loaded && !c.Exists() {
 		return
 	}
 	c.loaded = true
-	err := eachFiles(c.datpath(), func(dir os.FileInfo) error {
-		c.recs[dir.Name()] = newRecord(c.Datfile, dir.Name())
+	err := eachFiles(r, func(f os.FileInfo) error {
+		c.recs[f.Name()] = newRecord(c.Datfile, f.Name())
 		return nil
 	})
 	if err != nil {
@@ -176,6 +180,9 @@ func (c *cache) hasRecord() bool {
 
 //loadStatus load int value from the file on disk.
 func (c *cache) loadStatus(key string) int64 {
+	if !IsDir(c.datpath()) {
+		return 0
+	}
 	p := path.Join(c.datpath(), key+".stat")
 	f, err := ioutil.ReadFile(p)
 	if err != nil {
@@ -226,7 +233,7 @@ func (c *cache) setupDirectories() {
 	for _, d := range []string{"", "/attach", "/body", "/record", "/removed"} {
 		di := c.datpath() + d
 		if !IsDir(di) {
-			err := os.Mkdir(di, 0666)
+			err := os.Mkdir(di, 0755)
 			if err != nil {
 				log.Fatal(err)
 			}

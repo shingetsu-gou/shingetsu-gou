@@ -56,6 +56,9 @@ func newDatakeyTable(file string) *DatakeyTable {
 //loadInternal loads stamp/value from the file .
 func (d *DatakeyTable) loadInternal() {
 	err := eachLine(d.file, func(line string, i int) error {
+		if line == "" {
+			return nil
+		}
 		dat := strings.Split(strings.TrimSpace(line), "<>")
 		stamp, err := strconv.ParseInt(dat[0], 10, 64)
 		if err != nil {
@@ -128,6 +131,7 @@ func (d *DatakeyTable) setFromCache(ca *cache) {
 		}
 		firstStamp++
 	}
+	d.setEntry(firstStamp, ca.Datfile)
 }
 
 //getDatKey returns stamp from filekey.

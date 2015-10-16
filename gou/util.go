@@ -48,7 +48,9 @@ func md5digest(dat string) string {
 //strEncode returns enscaped string for url , including "~"
 func strEncode(query string) string {
 	str := url.QueryEscape(query)
-	return strings.Replace(str, "~", "%7E", -1)
+	str=strings.Replace(str, "~", "%7E", -1)
+	str=strings.Replace(str, "+", "%20", -1)
+	return str
 }
 
 //escapeSpace converts spaces into html space.
@@ -67,7 +69,7 @@ func escapeSpace(msg string) string {
 func escape(msg string) string {
 	msg = strings.Replace(msg, "&", "&amp;", -1)
 	reg := regexp.MustCompile("&amp;(#\\d+|#[Xx][0-9A-Fa-f]+|[A-Za-z0-9]+);")
-	msg = string(reg.ReplaceAllString(msg, "&\\1;"))
+	msg = string(reg.ReplaceAllString(msg, "&$1;"))
 	msg = strings.Replace(msg, "<", "&lt", -1)
 	msg = strings.Replace(msg, ">", "&gt;", -1)
 	msg = strings.Replace(msg, "\r", "", -1)

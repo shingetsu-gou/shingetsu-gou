@@ -43,6 +43,9 @@ import (
 	"os"
 	"strings"
 
+	"golang.org/x/text/encoding/japanese"
+	"golang.org/x/text/transform"
+
 	"github.com/gorilla/mux"
 	"github.com/nfnt/resize"
 )
@@ -100,6 +103,9 @@ func findString(s []string, val string) int {
 
 //writeSlice write ary into a path.
 func writeSlice(path string, ary []string) error {
+	if path == "" {
+		panic("path is null")
+	}
 	f, err := os.Create(path)
 	defer fclose(f)
 	if err != nil {
@@ -294,4 +300,22 @@ func touch(fname string) {
 	if err != nil {
 		log.Println(err)
 	}
+}
+
+// toSJIS Converts an string (a valid UTF-8 string) to a ShiftJIS string
+func toSJIS(b string) string {
+	r, err := ioutil.ReadAll(transform.NewReader(bytes.NewReader([]byte(b)), japanese.ShiftJIS.NewEncoder()))
+	if err != nil {
+		log.Fatal(err)
+	}
+	return string(r)
+}
+
+//fromSJIS Converts an array of bytes (a valid ShiftJIS string) to a UTF-8 string
+func fromSJIS(b string) string {
+	r, err := ioutil.ReadAll(transform.NewReader(bytes.NewReader([]byte(b)), japanese.ShiftJIS.NewDecoder()))
+	if err != nil {
+		log.Fatal(err)
+	}
+	return string(r)
 }

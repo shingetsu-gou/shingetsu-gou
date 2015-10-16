@@ -7,9 +7,9 @@
   {{template "menubar" .Menubar}}
 {{ end }}
 
+<div class="address"><img src="/gou.png" width=5%></div>
 <div class="address">Powered by 
-  <a href="http://www.Shingetsu.Info/">shinGETsu</a>.</div>
-
+  <a href="http://www.Shingetsu.Info/">shinGETsu</a> and Gou.</div>
 </body>
 </html>
 {{end}}

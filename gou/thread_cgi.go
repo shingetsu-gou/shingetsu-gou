@@ -29,6 +29,7 @@
 package gou
 
 import (
+	"html/template"
 	"errors"
 	"fmt"
 	"html"
@@ -61,13 +62,13 @@ func threadSetup(s *loggingServeMux) {
 	reg = "/thread.cgi/thread_{datfile:[0-9A-F]+)/{stamp:[0-9a-f]{32}}/{id:\\d+}.{suffix:.*}"
 	registToRouter(rtr, reg, printAttach)
 
-	reg = "/thread.cgi/{path:[^/]+}/?$"
+	reg = "/thread.cgi/{path:[^/]+}{/?$}"
 	registToRouter(rtr, reg, printThread)
 
-	reg = "/thread.cgi/{path:([^/]+}/{id:[0-9a-f]{8}}$"
+	reg = "/thread.cgi/{path:([^/]+}/{id:[0-9a-f]{8}}{$}"
 	registToRouter(rtr, reg, printThread)
 
-	reg = "/thread.cgi/{path:[^/]+}/p{page:[0-9]+}$"
+	reg = "/thread.cgi/{path:[^/]+}/p{page:[0-9]+}{$}"
 	registToRouter(rtr, reg, printThread)
 
 	s.Handle("/thread.cgi/", handlers.CompressHandler(rtr))
@@ -216,7 +217,7 @@ func (t *threadCGI) printTag(ca *cache) {
 		Classname  string
 		Target     string
 		GatewayCGI string
-		adminCGI   string
+		AdminCGI   string
 		IsAdmin    bool
 		Message    message
 	}{
@@ -265,11 +266,12 @@ func (t *threadCGI) printThreadHead(id string, page int, ca *cache, rss string) 
 //printThreadTop renders toppart of thread page.
 func (t *threadCGI) printThreadTop(id string, nPage int, ca *cache) {
 	var lastrec *record
+	var resAnchor string
 	ids := ca.keys()
 	if ca.Len() > 0 && nPage == 0 && id == "" && len(ids) == 0 {
 		lastrec = ca.recs[ids[len(ids)-1]]
+		resAnchor = t.resAnchor(lastrec.ID[:8], threadURL, t.path, false)
 	}
-	resAnchor := t.resAnchor(lastrec.ID[:8], threadURL, t.path, false)
 	s := struct {
 		Path      string
 		Cache     *cache
@@ -277,8 +279,8 @@ func (t *threadCGI) printThreadTop(id string, nPage int, ca *cache) {
 		IsFriend  bool
 		IsAdmin   bool
 		Message   message
-		threadCGI string
-		adminCGI  string
+		ThreadCGI string
+		AdminCGI  string
 		ResAnchor string
 	}{
 		t.path,
@@ -299,21 +301,32 @@ func (t *threadCGI) printThreadTop(id string, nPage int, ca *cache) {
 func (t *threadCGI) printThreadBody(id string, nPage int, ca *cache) {
 	ids := ca.keys()
 	fmt.Fprintln(t.wr, "<dl id=\"records\">")
+	from := len(ids) - threadPageSize*(nPage+1)
+	to := len(ids) - threadPageSize*(nPage)
+	if from < 0 {
+		from = 0
+	}
+	if to < 0 {
+		to = 0
+	}
 	var inrange []string
 	switch {
 	case id != "":
 		inrange = ids
 	case nPage > 0:
-		inrange = ids[len(ids)-threadPageSize*(nPage+1) : len(ids)-threadPageSize*nPage]
+		inrange = ids[from:to]
 	default:
-		inrange = ids[len(ids)-threadPageSize*(nPage+1):]
+		inrange = ids[from:]
 	}
+
+	log.Println(from, to)
 	for _, k := range inrange {
 		rec := ca.get(k, nil)
 		if (id == "" || rec.ID[:8] == id) && rec.loadBody() == nil {
 			t.printRecord(ca, rec)
 		}
 	}
+
 	fmt.Fprintln(t.wr, "</dl>")
 }
 
@@ -338,7 +351,6 @@ func (t *threadCGI) printThread(path, id string, nPage int) {
 		userTagList.sync()
 	}
 	t.printTag(ca)
-
 	t.printPageNavi(nPage, ca, id)
 	t.printThreadTop(id, nPage, ca)
 	t.printThreadBody(id, nPage, ca)
@@ -352,6 +364,7 @@ func (t *threadCGI) printThread(path, id string, nPage int) {
 		ca,
 		t.m,
 	}
+	log.Println("1")
 	renderTemplate("thread_bottom", ss, t.wr)
 
 	if ca.Len() > 0 {
@@ -403,8 +416,17 @@ func (t *threadCGI) printRecord(ca *cache, rec *record) {
 	}
 	body := rec.GetBodyValue("body", "")
 	body = t.htmlFormat(body, threadURL, t.path, false)
-	removeID := rec.GetBodyValue("remove_id", "")[:8]
+	log.Println(body)
+	removeID := rec.GetBodyValue("remove_id", "")
+	if len(removeID) > 8 {
+		removeID = removeID[:8]
+	}
 	resAnchor := t.resAnchor(removeID, threadURL, t.path, false)
+
+	id8 := rec.ID
+	if len(id8) > 8 {
+		id8 = id8[:8]
+	}
 
 	s := struct {
 		Cache      *cache
@@ -413,27 +435,31 @@ func (t *threadCGI) printRecord(ca *cache, rec *record) {
 		Path       string
 		AttachSize int64
 		Suffix     string
-		Body       string
+		Body       template.HTML
 		ThreadCGI  string
 		Thumbnail  string
 		IsAdmin    bool
 		RemoveID   string
 		ResAnchor  string
+		Message    message
 	}{
 		ca,
 		rec,
-		rec.GetBodyValue("id", "")[:8],
+		id8,
 		t.path,
 		attachSize,
 		suffix,
-		body,
+		template.HTML(body),
 		threadURL,
 		thumbnailSize,
 		t.isAdmin,
 		removeID,
 		resAnchor,
+		t.m,
 	}
 	renderTemplate("record", s, t.wr)
+	log.Println("1")
+
 }
 
 //printPostForm renders post_form.txt,page for posting attached file.

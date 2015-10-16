@@ -63,8 +63,14 @@ func (t tagList) Less(i, j int) bool {
 
 //newTagList read the tag info from datfile and return a tagList instance.
 func newTagList(path string) *tagList {
+	if path == "" {
+		panic("path is null")
+	}
 	t := &tagList{
 		path: path,
+	}
+	if !IsDir(path) {
+		return t
 	}
 	err := eachLine(path, func(line string, i int) error {
 		t.Tags = append(t.Tags, &tag{line, 0})
@@ -156,7 +162,7 @@ func newSuggestedTagTable() *SuggestedTagTable {
 		sugtaglist: make(map[string]*suggestedTagList),
 	}
 	err := eachKeyValueLine(sugtag, func(k string, vs []string, i int) error {
-		s.sugtaglist[k] = newSuggestedTagList(vs)
+		s.sugtaglist[k] = newSuggestedTagList("", vs)
 		return nil
 	})
 	if err != nil {
@@ -220,8 +226,9 @@ type suggestedTagList struct {
 }
 
 //newSuggestedTagList create suggestedTagList obj and adds tags tagstr=value.
-func newSuggestedTagList(values []string) *suggestedTagList {
+func newSuggestedTagList(path string, values []string) *suggestedTagList {
 	s := &suggestedTagList{}
+	s.path = path
 	for _, v := range values {
 		s.Tags = append(s.Tags, &tag{v, 0})
 	}
@@ -231,7 +238,14 @@ func newSuggestedTagList(values []string) *suggestedTagList {
 //prune truncates non-weighted tagList to size=size.
 func (s *suggestedTagList) prune(size int) {
 	sort.Sort(sort.Reverse(s.tagList))
-	s.tagList.Tags = s.tagList.Tags[:size]
+	if s.tagList.Len() > size {
+		s.tagList.Tags = s.tagList.Tags[:size]
+	}
+}
+
+//sync stores myself to suggestedTagTable.
+func (s *suggestedTagList) sync() {
+	suggestedTagTable.sugtaglist[s.path] = s
 }
 
 //UserTagList represents tags saved by the user.

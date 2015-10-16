@@ -161,7 +161,7 @@ func (c *client) doSync() {
 		nodeList.join(n)
 	}
 	nodeList.sync()
-	log.Println("nodelist.josin finished")
+	log.Println("nodelist.join finished")
 
 	cl := newCacheList()
 	cl.rehash()

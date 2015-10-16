@@ -3,14 +3,14 @@
   <?xml-stylesheet href="{{.XSL}}" type="text/xsl"?>
 {{ end }}
 <rdf:RDF
-  xmlns="http://purl.Org/rss/1.0/"
-  xmlns:rdf="http://www.W3.Org/1999/02/22-rdf-syntax-ns#"
-  xmlns:dc="http://purl.Org/dc/elements/1.1/"
-  xmlns:content="http://purl.Org/rss/1.0/modules/content/"
+  xmlns="http://purl.org/rss/1.0/"
+  xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#"
+  xmlns:dc="http://purl.org/dc/elements/1.1/"
+  xmlns:content="http://purl.org/rss/1.0/modules/content/"
   xml:lang="{{.Lang}}">
 <channel rdf:about="{{.URI}}">
 <title>{{html .Title}}</title>
-<link>{{.Link}}</link>
+<link>{{.Link}}/</link>
 <description>{{html .Description}}</description>
 <items><rdf:Seq>
 {{ range $f,$v:=.Feeds }}

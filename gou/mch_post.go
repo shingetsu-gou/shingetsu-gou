@@ -35,8 +35,6 @@ import (
 	"strconv"
 	"strings"
 	"time"
-
-	"github.com/axgle/mahonia"
 )
 
 //postComment creates a record from args and adds it to cache.
@@ -68,12 +66,12 @@ func (m *mchCGI) errorResp(msg string, info map[string]string) string {
 	info["message"] = msg
 	str := executeTemplate("2ch_error", info)
 	m.wr.Header().Set("Content-Type", "text/html; charset=Shift_JIS")
-	return mahonia.NewEncoder("cp932").ConvertString(str)
+	return toSJIS(str)
 }
 
 //getCP932 returns form value of key with cp932 code.
 func (m *mchCGI) getCP932(key string) string {
-	return mahonia.NewDecoder("cp932").ConvertString(m.req.FormValue(key))
+	return fromSJIS(m.req.FormValue(key))
 }
 
 //getcommentData returns comment data with map in cp932 code.
@@ -167,5 +165,5 @@ func (m *mchCGI) postCommentApp() string {
 	m.wr.Header().Set("Content-Type", "text/html; charset=Shift_JIS")
 	successMsg := `<html lang="ja"><head><meta http-equiv="Content-Type" content="text/html"><title>書きこみました。</title></head><body>書きこみが終わりました。<br><br></body></html>`
 
-	return mahonia.NewDecoder("cp932").ConvertString(successMsg)
+	return toSJIS(successMsg)
 }

@@ -94,7 +94,7 @@ func printSearch(w http.ResponseWriter, r *http.Request) {
 	query := a.req.FormValue("query")
 	if query == "" {
 		a.header(a.m["search"], "", nil, true)
-		a.printParagraph(a.m["desc_search"])
+		a.printParagraph("desc_search")
 		a.printSearchForm("")
 		a.footer(nil)
 	} else {
@@ -465,11 +465,11 @@ func (a *adminCGI) printSearchResult(query string) {
 	strQuery := html.EscapeString(query)
 	title := fmt.Sprintf("%s: %s", a.m["search"], strQuery)
 	a.header(title, "", nil, true)
-	a.printParagraph(a.m["desc_search"])
+	a.printParagraph("desc_search")
 	a.printSearchForm(strQuery)
 	reg, err := regexp.Compile(html.EscapeString(query))
 	if err != nil {
-		a.printParagraph(a.m["regexp_error"])
+		a.printParagraph("regexp_error")
 		a.footer(nil)
 		return
 	}

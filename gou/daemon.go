@@ -45,7 +45,6 @@ import (
 
 //SetLogger setups logger. whici outputs nothing, or file , or file and stdout
 func SetLogger(printLog, isSilent bool) {
-	log.SetFlags(log.Ldate | log.Ltime | log.Lshortfile)
 	l := &lumberjack.Logger{
 		Filename:   path.Join(logDir, "gou.log"),
 		MaxSize:    1, // megabytes
@@ -129,7 +128,7 @@ func newLoggingServeMux() *loggingServeMux {
 
 //ServeHTTP just calles http.ServeMux.ServeHTTP after logging.
 func (s *loggingServeMux) ServeHTTP(w http.ResponseWriter, r *http.Request) {
-	log.Println(r.RemoteAddr, r.Method, r.URL.Path, r.Header.Get("User-Agent"))
+	log.Println(r.RemoteAddr, r.Method, r.URL.Path, r.Header.Get("User-Agent"), r.Header.Get("Referer"))
 	s.ServeMux.ServeHTTP(w, r)
 }
 

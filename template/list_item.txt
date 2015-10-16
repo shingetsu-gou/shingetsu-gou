@@ -2,6 +2,7 @@
  Copyright (c) 2005-2014 shinGETsu Project.
  */}}
 {{define "list_item"}}
+{{$root:=.}}
 <li>
 {{ if and .IsAdmin .Remove }}
   <label style="display:inline-block">
@@ -21,14 +22,14 @@
 {{ if .Tags}}
   <span class="tags">
   {{ range $tag:=.Tags.Tags }}
-    <a href="{{.GatewayCGI}}/{{.Target}}?tag={{strEncode $tag.Tagstr}}" class="tag">{{$tag.Tagstr}}</a>
+    <a href="{{$root.GatewayCGI}}/{{$root.Target}}?tag={{strEncode $tag.Tagstr}}" class="tag">{{$tag.Tagstr}}</a>
   {{ end }}
   </span>
 {{ end }}
 {{ if .Sugtags}}
   <span class="sugtags">
   {{ range $tag:=.Sugtags }}
-    <a href="{{.GatewayCGI}}/{{.Target}}?tag={{strEncode $tag.Tagstr}}" class="tag">{{$tag.Tagstr}}</a>
+    <a href="{{$root.GatewayCGI}}/{{$root.Target}}?tag={{strEncode $tag.Tagstr}}" class="tag">{{$tag.Tagstr}}</a>
   {{ end }}
   </span>
 {{ end }}
