@@ -450,7 +450,7 @@ func (g *gatewayCGI) makeOneRow(c string, ca *cache, p, title string) string {
 	case "records":
 		return strconv.Itoa(ca.Len())
 	case "size":
-		return strconv.Itoa(ca.Size)
+		return strconv.Itoa(ca.Size())
 	case "tag":
 		return ca.tags.string()
 	case "sugtag":
@@ -503,6 +503,7 @@ func (g *gatewayCGI) printIndex(doChange bool) {
 	g.header(title, "", nil, true)
 	g.printParagraph("desc_"+str)
 	cl := newCacheList()
+	log.Println(cl.Len(),cl.Caches[0].Len())
 	if doChange {
 		sort.Sort(sort.Reverse(sortByVelocity{cl.Caches}))
 	}

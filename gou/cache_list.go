@@ -29,12 +29,10 @@
 package gou
 
 import (
-	"io/ioutil"
 	"log"
 	"os"
 	"path"
 	"regexp"
-	"strings"
 	"time"
 )
 
@@ -81,49 +79,6 @@ func (c *cacheList) load() {
 	}
 }
 
-//rehash reads thread name from dat.stat (if not exists, creates it from dir name),
-//and changes dir name to hashed name.
-func (c *cacheList) rehash() {
-	toreload := false
-	err := eachFiles(cacheDir, func(f os.FileInfo) error {
-		datStatFile := path.Join(cacheDir, f.Name(), "dat.stat")
-		var datStat string
-		if IsFile(datStatFile) {
-			datStatt, err := ioutil.ReadFile(datStatFile)
-			if err != nil {
-				log.Println("rehash err", err)
-				return nil
-			}
-			datStat = string(datStatt)
-			datStat = strings.Trim(strings.Split(string(datStat), "\n")[0], "\r\n")
-		} else {
-			datStat = f.Name()
-			err := ioutil.WriteFile(datStatFile, []byte(datStat+"\n"), 0755)
-			if err != nil {
-				log.Println("rehash err", err)
-				return nil
-			}
-		}
-		hash := fileHash(datStat)
-		if hash == f.Name() {
-			return nil
-		}
-		log.Println("rehash", f.Name(), "to", hash)
-		err := moveFile(path.Join(cacheDir, f.Name()), path.Join(cacheDir, hash))
-		if err != nil {
-			return err
-		}
-		toreload = true
-		return nil
-	})
-	if err != nil {
-		log.Println("rehash err", err)
-	}
-	if toreload {
-		c.load()
-	}
-}
-
 //getall reload all records in cache in cachelist from network,
 //and reset params.
 func (c *cacheList) getall(timelimit time.Time) {
@@ -136,28 +91,29 @@ func (c *cacheList) getall(timelimit time.Time) {
 			return
 		}
 		if !ca.Exists() {
-			return
+			continue
 		}
 		ca.search(my)
-		ca.Size = 0
 		ca.velocity = 0
 		ca.ValidStamp = 0
 		for _, rec := range ca.recs {
 			if !rec.Exists() {
 				continue
 			}
-			if rec.load() != nil {
+			if err := rec.load(); err == nil {
 				if ca.stamp < rec.Stamp {
 					ca.stamp = rec.Stamp
 				}
 				if ca.ValidStamp < rec.Stamp {
 					ca.ValidStamp = rec.Stamp
 				}
-				ca.Size += rec.len()
 				if now.Add(-7 * 24 * time.Hour).Before(time.Unix(rec.Stamp, 0)) {
 					ca.velocity++
 				}
 				rec.sync(false)
+			} else {
+				log.Println(err)
+				rec.remove()
 			}
 		}
 		ca.checkBody()

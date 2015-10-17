@@ -18,7 +18,7 @@
 {{ end }}
 
 <a href="{{index .Appli .Cache.Typee}}/{{strEncode .Title}}{{.StrOpts}}">{{.Title}}</a>
-({{.Cache.Len}}/{{toMB .Cache.Size}}{{.Message.mb}})
+({{.Cache.Len}}/{{toMB .Cache.Size|printf "%.1f"}}{{.Message.mb}})
 {{ if .Tags}}
   <span class="tags">
   {{ range $tag:=.Tags.Tags }}

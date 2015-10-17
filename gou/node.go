@@ -274,7 +274,7 @@ func (t *rawNodeList) findNode(n *node) int {
 //or returns false if not exists.
 func (t *rawNodeList) removeNode(n *node) bool {
 	if i := findString(t.getNodestrSlice(), n.nodestr); i >= 0 {
-		t.nodes = append(t.nodes[:i], t.nodes[i:]...)
+		t.nodes = append(t.nodes[:i], t.nodes[i+1:]...)
 		return true
 	}
 	return false

@@ -32,7 +32,6 @@ import (
 	"flag"
 	"io/ioutil"
 	"log"
-	_ "net/http/pprof"
 	"os"
 	"path"
 	"time"

@@ -3,9 +3,7 @@
  */}}
 {{define "page_navi"}}
 {{$root:=.}}
-{{ if .Cache.Len}}
-  |
-{{ end }}
+{{ if .Cache.Len}}|{{ end }}
 {{ if or .Page .ID }}
   <a href="{{.ThreadCGI}}/{{strEncode .Path}}">{{.Message.last_page}}</a>
 {{ end }}

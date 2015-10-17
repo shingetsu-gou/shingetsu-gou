@@ -29,10 +29,10 @@
 package gou
 
 import (
-	"html/template"
 	"errors"
 	"fmt"
 	"html"
+	"html/template"
 	"io"
 	"log"
 	"math"
@@ -56,10 +56,10 @@ func threadSetup(s *loggingServeMux) {
 
 	registToRouter(rtr, "/thread.cgi/", printThreadIndex)
 
-	reg := "/thread.cgi/thread_{datfile:[0-9A-F]+)/{stamp:[0-9a-f]{32}}/s{id:\\d+}.{thumbnailSize:\\d+x\\d+}.{suffix:.*}"
+	reg := "/thread.cgi/{datfile:thread_[0-9A-F]+}/{id:[0-9a-f]{32}}/s{stamp:\\d+}.{thumbnailSize:\\d+x\\d+}.{suffix:.*}"
 	registToRouter(rtr, reg, printAttach)
 
-	reg = "/thread.cgi/thread_{datfile:[0-9A-F]+)/{stamp:[0-9a-f]{32}}/{id:\\d+}.{suffix:.*}"
+	reg = "/thread.cgi/{datfile:thread_[0-9A-F]+}/{id:[0-9a-f]{32}}/{stamp:\\d+}.{suffix:.*}"
 	registToRouter(rtr, reg, printAttach)
 
 	reg = "/thread.cgi/{path:[^/]+}{/?$}"
@@ -97,10 +97,11 @@ func printAttach(w http.ResponseWriter, r *http.Request) {
 			var err error
 			stamp, err = strconv.ParseInt(m["stamp"], 10, 64)
 			if err != nil {
+				log.Println(err)
 				return
 			}
 		}
-		a.printAttach(m["datfile"], stamp, m["id"], m["thumbnailSize"], m["suffix"])
+		a.printAttach(m["datfile"], m["id"], stamp, m["thumbnailSize"], m["suffix"])
 	}
 }
 
@@ -294,13 +295,12 @@ func (t *threadCGI) printThreadTop(id string, nPage int, ca *cache) {
 		resAnchor,
 	}
 	renderTemplate("thread_top", s, t.wr)
-	fmt.Fprintln(t.wr, "</p>")
 }
 
 //printThreadBody renders body(records list) part of thread page with paging.
 func (t *threadCGI) printThreadBody(id string, nPage int, ca *cache) {
 	ids := ca.keys()
-	fmt.Fprintln(t.wr, "<dl id=\"records\">")
+	fmt.Fprintln(t.wr, "</p>\n<dl id=\"records\">")
 	from := len(ids) - threadPageSize*(nPage+1)
 	to := len(ids) - threadPageSize*(nPage)
 	if from < 0 {
@@ -319,7 +319,6 @@ func (t *threadCGI) printThreadBody(id string, nPage int, ca *cache) {
 		inrange = ids[from:]
 	}
 
-	log.Println(from, to)
 	for _, k := range inrange {
 		rec := ca.get(k, nil)
 		if (id == "" || rec.ID[:8] == id) && rec.loadBody() == nil {
@@ -338,11 +337,11 @@ func (t *threadCGI) printThread(path, id string, nPage int) {
 	}
 	filePath := fileEncode("thread", t.path)
 	ca := newCache(filePath)
+	ca.load()
 	rss := gatewayURL + "/rss"
 	if t.printThreadHead(id, nPage, ca, rss) != nil {
 		return
 	}
-
 	tags := strings.Fields(strings.TrimSpace(t.req.FormValue("tag")))
 	if t.isAdmin && len(tags) > 0 {
 		ca.tags.addString(tags)
@@ -351,8 +350,8 @@ func (t *threadCGI) printThread(path, id string, nPage int) {
 		userTagList.sync()
 	}
 	t.printTag(ca)
-	t.printPageNavi(nPage, ca, id)
 	t.printThreadTop(id, nPage, ca)
+	t.printPageNavi(nPage, ca, id)
 	t.printThreadBody(id, nPage, ca)
 
 	escapedPath := html.EscapeString(t.path)
@@ -406,7 +405,7 @@ func (t *threadCGI) printRecord(ca *cache, rec *record) {
 		if !reg.MatchString(suffix) {
 			suffix = "txt"
 		}
-		typ := mime.TypeByExtension(suffix)
+		typ := mime.TypeByExtension("." + suffix)
 		if typ == "" {
 			typ = "text/plain"
 		}
@@ -416,7 +415,6 @@ func (t *threadCGI) printRecord(ca *cache, rec *record) {
 	}
 	body := rec.GetBodyValue("body", "")
 	body = t.htmlFormat(body, threadURL, t.path, false)
-	log.Println(body)
 	removeID := rec.GetBodyValue("remove_id", "")
 	if len(removeID) > 8 {
 		removeID = removeID[:8]
@@ -427,7 +425,6 @@ func (t *threadCGI) printRecord(ca *cache, rec *record) {
 	if len(id8) > 8 {
 		id8 = id8[:8]
 	}
-
 	s := struct {
 		Cache      *cache
 		Rec        *record
@@ -458,8 +455,6 @@ func (t *threadCGI) printRecord(ca *cache, rec *record) {
 		t.m,
 	}
 	renderTemplate("record", s, t.wr)
-	log.Println("1")
-
 }
 
 //printPostForm renders post_form.txt,page for posting attached file.
@@ -490,7 +485,7 @@ func (t *threadCGI) printPostForm(ca *cache) {
 
 //renderAttach render the content of attach file with content-type=typ.
 func (t *threadCGI) renderAttach(attachFile, suffix string, stamp int64, ca *cache) {
-	typ := mime.TypeByExtension(suffix)
+	typ := mime.TypeByExtension("." + suffix)
 	if typ == "" {
 		typ = "text/plain"
 	}
@@ -515,9 +510,8 @@ func (t *threadCGI) renderAttach(attachFile, suffix string, stamp int64, ca *cac
 }
 
 //printAttach renders the content of attach file and makes thumnail if needed and possible.
-func (t *threadCGI) printAttach(datfile string, stamp int64, id, thumbnailSize, suffix string) {
+func (t *threadCGI) printAttach(datfile, id string, stamp int64, thumbnailSize, suffix string) {
 	ca := newCache(datfile)
-
 	switch {
 	case ca.hasRecord():
 	case t.checkGetCache():

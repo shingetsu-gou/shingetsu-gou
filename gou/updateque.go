@@ -61,7 +61,7 @@ func (u *updateQue) run() {
 				recentList.sync()
 				break
 			}
-			u.queue[rec] = append(u.queue[rec][:i], u.queue[rec][i:]...)
+			u.queue[rec] = append(u.queue[rec][:i], u.queue[rec][i+1:]...)
 		}
 	}
 }

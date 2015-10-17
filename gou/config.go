@@ -190,7 +190,7 @@ type config struct {
 
 //newConfig make a config instance from the ini files and returns it.
 func newConfig() *config {
-		log.SetFlags(log.Ldate | log.Ltime | log.Lshortfile)
+	log.SetFlags(log.Ldate | log.Ltime | log.Lshortfile)
 
 	var err error
 	c := &config{}
@@ -289,6 +289,7 @@ func setupTemplate() {
 		"div":         func(a, b int) int { return a / b },
 		"toMB":        func(a int) float64 { return float64(a) / (1024 * 1024) },
 		"toKB":        func(a int) float64 { return float64(a) / (1024) },
+		"toInt":       func(a int64) int { return int(a) },
 		"strEncode":   strEncode,
 		"escape":      escape,
 		"escapeSpace": escapeSpace,

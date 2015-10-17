@@ -192,6 +192,7 @@ func (s *SuggestedTagTable) keys() []string {
 
 //sync saves sugtaglists.
 func (s *SuggestedTagTable) sync() {
+	log.Println("syncing..")
 	m := make(map[string][]string)
 	for k, v := range s.sugtaglist {
 		s := v.getTagstrSlice()
@@ -207,9 +208,10 @@ func (s *SuggestedTagTable) sync() {
 //or truncates its size to tagsize if listed.
 func (s *SuggestedTagTable) prune(recentlist *RecentList) {
 	tmp := s.keys()
+	log.Println(tmp)
 	for _, r := range recentlist.infos {
 		if l := findString(tmp, r.datfile); l != -1 {
-			tmp = append(tmp[:l], tmp[l:]...)
+			tmp = append(tmp[:l], tmp[l+1:]...)
 		}
 		if v, exist := s.sugtaglist[r.datfile]; exist {
 			v.prune(tagSize)

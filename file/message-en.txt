@@ -110,3 +110,6 @@ google<>GOOGLE
 limit<>limit
 mb<>MB
 kb<>KB
+alloc_mem<>allocated memory
+totalalloc_mem<>total allocated memory
+

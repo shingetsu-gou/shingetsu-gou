@@ -24,7 +24,7 @@
 <span class="stamp" data-stamp="{{.Rec.Stamp}}">{{localtime .Rec.Stamp}}</span>
 {{ if .Rec.HasBodyValue "attach"}}
   <a href="{{.ThreadCGI}}/{{.Cache.Datfile}}/{{.Rec.ID}}/{{.Rec.Stamp}}.{{.Suffix}}">{{.Rec.Stamp}}.{{.Suffix}}</a>
-  ({{toKB .AttachSize}}{{.Message.kb}})
+  ({{toKB (toInt .AttachSize)|printf "%.0f"}}{{.Message.kb}})
 {{ end }}
 </dt>
 <dd id="b{{.Sid}}">{{.Body}}
@@ -33,11 +33,11 @@
   {{.ResAnchor}}</a>]
 {{ end }}
 {{ if .Thumbnail}}
-  <br /><a href="{{.ThreadCGI}}/{{.Cache.Datfile}}/{{.Rec.Id}}/{{.Rec.Stamp}}.{{.Suffix}}">
-    <img src="/x.Gif" data-lazyimg data-src="{{.ThreadCGI}}/{{.Cache.Datfile}}/{{.Rec.Id}}/s{{.Rec.Stamp}}.{{.Thumbnail}}.{{.Suffix}}" alt="" /></a>
+  <br /><a href="{{.ThreadCGI}}/{{.Cache.Datfile}}/{{.Rec.ID}}/{{.Rec.Stamp}}.{{.Suffix}}">
+    <img src="/x.gif" data-lazyimg data-src="{{.ThreadCGI}}/{{.Cache.Datfile}}/{{.Rec.ID}}/s{{.Rec.Stamp}}.{{.Thumbnail}}.{{.Suffix}}" alt="" /></a>
 {{ else}}
   {{if and (.Rec.GetBodyValue "attach" "") (eq .Suffix "jpg" "gif" "png") }}
-  <br /><img src="/x.Gif" data-lazyimg data-src="{{.ThreadCGI}}/{{.Cache.Datfile}}/{{.Rec.ID}}/{{.Rec.Stamp}}.{{.Suffix}}" height="210" alt="" /></a>
+  <br /><img src="/x.gif" data-lazyimg data-src="{{.ThreadCGI}}/{{.Cache.Datfile}}/{{.Rec.ID}}/{{.Rec.Stamp}}.{{.Suffix}}" height="210" alt="" /></a>
 {{ end }}
 {{ end }}
 </dd>

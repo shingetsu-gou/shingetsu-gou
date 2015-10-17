@@ -145,7 +145,7 @@ func (u *UpdateList) hasInfo(r *record) bool {
 //remove removes info which is same as record r
 func (u *UpdateList) remove(rec *record) {
 	if l := u.find(rec); l != -1 {
-		u.infos = append(u.infos[:l], u.infos[l:]...)
+		u.infos = append(u.infos[:l], u.infos[l+1:]...)
 	}
 }
 
@@ -153,7 +153,7 @@ func (u *UpdateList) remove(rec *record) {
 func (u *UpdateList) removeInfo(r *updateInfo) {
 	for i, v := range u.infos {
 		if v.datfile == r.datfile && v.id == r.id && v.stamp == r.stamp {
-			u.infos = append(u.infos[:i], u.infos[i:]...)
+			u.infos = append(u.infos[:i], u.infos[i+1:]...)
 			return
 		}
 	}
@@ -172,7 +172,7 @@ func (u *UpdateList) getRecstrSlice() []string {
 func (u *UpdateList) sync() {
 	for i, r := range u.infos {
 		if u.updateRange > 0 && r.stamp+u.updateRange < time.Now().Unix() {
-			u.infos = append(u.infos[:i], u.infos[i:]...)
+			u.infos = append(u.infos[:i], u.infos[i+1:]...)
 		}
 		err := writeSlice(u.updateFile, u.getRecstrSlice())
 		if err != nil {
@@ -247,7 +247,7 @@ func (r *RecentList) getAll() {
 //new ones are alive.
 func (r *RecentList) uniq() {
 	date := make(map[string]*updateInfo)
-	for i, rec := range r.infos {
+	for _, rec := range r.infos {
 		if _, exist := date[rec.datfile]; !exist {
 			date[rec.datfile] = rec
 		} else {
@@ -255,7 +255,7 @@ func (r *RecentList) uniq() {
 				r.removeInfo(date[rec.datfile])
 				date[rec.datfile] = rec
 			} else {
-				r.infos = append(r.infos[:i], r.infos[i:]...)
+				r.removeInfo(rec)
 			}
 		}
 	}

@@ -112,3 +112,6 @@ limit<>最大
 mb<>MB
 kb<>KB
 google<>Google
+alloc_mem<>使用中メモリ
+totalalloc_mem<>最大使用メモリ
+

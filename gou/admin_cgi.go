@@ -37,6 +37,7 @@ import (
 	"net/http"
 	"os"
 	"regexp"
+	"runtime"
 	"sort"
 	"strconv"
 	"strings"
@@ -119,16 +120,21 @@ func printStatus(w http.ResponseWriter, r *http.Request) {
 	size := 0
 	for _, ca := range cl.Caches {
 		records += ca.Len()
-		size += ca.Size
+		size += ca.Size()
 	}
 	my := nodeList.myself()
+
+	var mem runtime.MemStats
+	runtime.ReadMemStats(&mem)
+
 	s := map[string]string{
-		"linked_nodes": strconv.Itoa(nodeList.Len()),
-		"known_nodes":  strconv.Itoa(searchList.Len()),
-		"files":        strconv.Itoa(cl.Len()),
-		"records":      strconv.Itoa(records),
-		"cache_size":   fmt.Sprintf("%.1f%s", float64(size)/1024/1024, a.m["mb"]),
-		"self_node":    my.nodestr,
+		"linked_nodes":   strconv.Itoa(nodeList.Len()),
+		"known_nodes":    strconv.Itoa(searchList.Len()),
+		"files":          strconv.Itoa(cl.Len()),
+		"records":        strconv.Itoa(records),
+		"cache_size":     fmt.Sprintf("%.1f%s", float64(size)/1024/1024, a.m["mb"]),
+		"self_node":      my.nodestr,
+		"alloc_mem":      fmt.Sprintf("%.1f%s", float64(mem.Alloc)/1024/1024, a.m["mb"]),
 	}
 	ns := map[string][]string{
 		"linked_nodes": nodeList.getNodestrSlice(),
@@ -338,7 +344,6 @@ func (a *adminCGI) doDeleteRecord(rmFiles []string, records []string, dopost str
 	ca := newCache(datfile)
 	for _, r := range records {
 		rec := newRecord(datfile, r)
-		ca.Size -= int(rec.size())
 		if rec.remove() == nil && dopost != "" {
 			ca.syncStatus()
 			a.postDeleteMessage(ca, rec)

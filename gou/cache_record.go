@@ -198,6 +198,9 @@ func (r *record) size() int64 {
 //remove moves the record file  to remove path
 //and removes all thumbnails ,attached files and body files.
 func (r *record) remove() error {
+	if !IsDir(r.rmPath()) {
+		return nil
+	}
 	err := moveFile(r.path(), r.rmPath())
 	if err != nil {
 		log.Println(err)
@@ -359,7 +362,8 @@ func (r *record) makeThumbnail(suffix string, thumbnailSize string) {
 
 	attachPath := r.attachPath(suffix, "")
 	thumbnailPath := r.attachPath(suffix, thumbnailSize)
-	if !IsDir(thumbnailPath) {
+	log.Println(attachPath, thumbnailPath)
+	if IsFile(thumbnailPath) {
 		return
 	}
 	size := strings.Split(thumbnailSize, "x")

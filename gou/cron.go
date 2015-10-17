@@ -164,9 +164,6 @@ func (c *client) doSync() {
 	log.Println("nodelist.join finished")
 
 	cl := newCacheList()
-	cl.rehash()
-	log.Println("cachelist.rehash finished")
-
 	cl.cleanRecords()
 	log.Println("cachelist.cleanRecords finished")
 

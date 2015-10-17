@@ -351,6 +351,7 @@ func (c *cgi) header(title, rss string, cookie []*http.Cookie, denyRobot bool) {
 	}
 	if cookie != nil {
 		for _, co := range cookie {
+			log.Println(co)
 			http.SetCookie(c.wr, co)
 		}
 	}
@@ -384,7 +385,6 @@ func (c *cgi) htmlFormat(plain, appli string, title string, absuri bool) string 
 	})
 	reg = regexp.MustCompile("\\[\\[([^<>]+?)\\]\\]")
 	tmp := reg.ReplaceAllStringFunc(buf, func(str string) string {
-		log.Println("<"+str+">", "<"+str[2:len(str)-2]+">")
 		bl := c.bracketLink(str[2:len(str)-2], appli, absuri)
 		return bl
 	})

@@ -45,13 +45,12 @@ import (
 type cache struct {
 	node        *rawNodeList
 	Datfile     string
-	Size        int      // size of cache file
 	velocity    int      // records count per unit time
 	Typee       string   //"thread"
 	tags        *tagList //made by the user
-	ValidStamp  int64
-	RecentStamp int64
-	stamp       int64 //when the cache is modified
+	ValidStamp  int64    //stamp of newerst record
+	RecentStamp int64    //when got by "/recent"
+	stamp       int64    //when the cache is modified
 	sugtags     *suggestedTagList
 	recs        map[string]*record
 	loaded      bool // loaded records
@@ -107,7 +106,6 @@ func newCache(datfile string) *cache {
 	c.stamp = c.loadStatus("stamp")
 	c.RecentStamp = c.stamp
 	c.ValidStamp = c.loadStatus("validstamp")
-	c.Size = int(c.loadStatus("size"))
 	c.velocity = int(c.loadStatus("velocity"))
 	c.node = newRawNodeList(path.Join(c.datpath(), "node.txt"))
 	c.tags = newTagList(path.Join(c.datpath(), "tag.txt"))
@@ -125,9 +123,35 @@ func newCache(datfile string) *cache {
 	return c
 }
 
-//len returns size of records
+//len returns size of records on disk.
 func (c *cache) Len() int {
-	return len(c.recs)
+	l, _ := c.lenSize()
+	return l
+}
+
+//Size returns sum of records size on disk.
+func (c *cache) Size() int {
+	_, l := c.lenSize()
+	return l
+}
+
+//lenSize reads records from disk and returns # and total size.
+func (c *cache) lenSize() (int, int) {
+	var size int64
+	var len int
+	d := path.Join(c.datpath(), "record")
+	if !IsDir(d) {
+		return 0, 0
+	}
+	err := eachFiles(d, func(dir os.FileInfo) error {
+		size += dir.Size()
+		len++
+		return nil
+	})
+	if err != nil {
+		log.Fatal(err)
+	}
+	return len, int(size)
 }
 
 //get returns records which hav key=i.
@@ -175,7 +199,7 @@ func (c *cache) load() {
 func (c *cache) hasRecord() bool {
 	removed := path.Join(c.datpath(), "removed")
 	d, err := ioutil.ReadDir(removed)
-	return len(c.recs) > 0 || (err != nil && len(d) > 0)
+	return len(c.recs) > 0 || (err == nil && len(d) > 0)
 }
 
 //loadStatus load int value from the file on disk.
@@ -220,8 +244,6 @@ func (c *cache) saveStatus(key string, val interface{}) {
 func (c *cache) syncStatus() {
 	c.saveStatus("stamp", c.stamp)
 	c.saveStatus("validstamp", c.ValidStamp)
-	c.saveStatus("size", c.Size)
-	c.saveStatus("count", len(c.recs))
 	c.saveStatus("velocity", c.velocity)
 	if !IsFile(c.datpath() + "/dat.stat") {
 		c.saveStatus("dat", c.Datfile)
@@ -231,7 +253,7 @@ func (c *cache) syncStatus() {
 //setupDirectories make necessary dirs.
 func (c *cache) setupDirectories() {
 	for _, d := range []string{"", "/attach", "/body", "/record", "/removed"} {
-		di := c.datpath() + d
+		di := path.Join(c.datpath(), d)
 		if !IsDir(di) {
 			err := os.Mkdir(di, 0755)
 			if err != nil {
@@ -261,7 +283,7 @@ func (c *cache) checkData(res []string, stamp int64, id string, begin, end int64
 					log.Println(err)
 				}
 			} else {
-				c.updateStamp(r)
+				c.addData(r)
 			}
 		} else {
 			log.Printf("warning:%s/%d or %d):broken record", c.Datfile, stamp, r.Stamp)
@@ -295,9 +317,11 @@ func (c *cache) addData(rec *record) {
 
 	c.setupDirectories()
 	c.recs[rec.Idstr()] = rec
-	c.Size += len(rec.Idstr()) + 1
 	c.velocity++
 	c.updateStamp(rec)
+	if c.ValidStamp < rec.Stamp {
+		c.ValidStamp = rec.Stamp
+	}
 }
 
 //updateStamp updates cache's stamp to rec if rec is newer.
@@ -337,6 +361,7 @@ func (c *cache) getWithRange(n *node) bool {
 	}
 	count, err := c.checkData(res, -1, "", begin, now)
 	if err == nil || count > 0 {
+		log.Println(c.ValidStamp, "saved")
 		c.syncStatus()
 		if oldcount == 0 {
 			c.loaded = true
@@ -461,8 +486,10 @@ func (c *cache) search(myself *node) bool {
 			c.node.append(n)
 			c.node.sync()
 		}
+		log.Println("found", c.Datfile)
 		return true
 	}
 	c.syncStatus()
+	log.Println("not found", c.Datfile)
 	return false
 }

@@ -50,17 +50,27 @@ import (
 	"github.com/nfnt/resize"
 )
 
-//eachIOLine iterates each line to  a ReadCloser and calls func.
+//eachIOLine iterates each line to  a ReadCloser ,calls func and close f.
 func eachIOLine(f io.ReadCloser, handler func(line string, num int) error) error {
 	defer fclose(f)
-	scanner := bufio.NewScanner(f)
-	for i := 0; scanner.Scan(); i++ {
-		err := handler(scanner.Text(), i)
+	r := bufio.NewReader(f)
+	var err error
+	for i := 0; err == nil; i++ {
+		var line string
+		line, err = r.ReadString('\n')
 		if err != nil {
-			return err
+			break
+		}
+		line = strings.Trim(line, "\n\r")
+		errr := handler(line, i)
+		if errr != nil {
+			return errr
 		}
 	}
-	return scanner.Err()
+	if err == io.EOF {
+		return nil
+	}
+	return err
 }
 
 //eachLine iterates each line and calls a func.
@@ -155,7 +165,7 @@ func executeTemplate(file string, st interface{}) string {
 	return doc.String()
 }
 
-//eachFiles iterates each files in dir and calls handler.
+//eachFiles iterates each dirs in dir and calls handler,not recirsively.
 func eachFiles(dir string, handler func(dir os.FileInfo) error) error {
 	dirs, err := ioutil.ReadDir(dir)
 	if err != nil {
