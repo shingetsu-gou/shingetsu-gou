@@ -48,8 +48,8 @@ func md5digest(dat string) string {
 //strEncode returns enscaped string for url , including "~"
 func strEncode(query string) string {
 	str := url.QueryEscape(query)
-	str=strings.Replace(str, "~", "%7E", -1)
-	str=strings.Replace(str, "+", "%20", -1)
+	str = strings.Replace(str, "~", "%7E", -1)
+	str = strings.Replace(str, "+", "%20", -1)
 	return str
 }
 

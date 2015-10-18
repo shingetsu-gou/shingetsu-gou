@@ -314,7 +314,16 @@ func touch(fname string) {
 
 // toSJIS Converts an string (a valid UTF-8 string) to a ShiftJIS string
 func toSJIS(b string) string {
-	r, err := ioutil.ReadAll(transform.NewReader(bytes.NewReader([]byte(b)), japanese.ShiftJIS.NewEncoder()))
+	return convertSJIS(b, true)
+}
+
+// toSJIS Converts an string (a valid UTF-8 string) to/from a ShiftJIS string
+func convertSJIS(b string, toSJIS bool) string {
+	t := japanese.ShiftJIS.NewDecoder()
+	if toSJIS {
+		t = japanese.ShiftJIS.NewEncoder()
+	}
+	r, err := ioutil.ReadAll(transform.NewReader(bytes.NewReader([]byte(b)), t))
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -323,9 +332,5 @@ func toSJIS(b string) string {
 
 //fromSJIS Converts an array of bytes (a valid ShiftJIS string) to a UTF-8 string
 func fromSJIS(b string) string {
-	r, err := ioutil.ReadAll(transform.NewReader(bytes.NewReader([]byte(b)), japanese.ShiftJIS.NewDecoder()))
-	if err != nil {
-		log.Fatal(err)
-	}
-	return string(r)
+	return convertSJIS(b, false)
 }

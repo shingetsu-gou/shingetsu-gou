@@ -128,13 +128,13 @@ func printStatus(w http.ResponseWriter, r *http.Request) {
 	runtime.ReadMemStats(&mem)
 
 	s := map[string]string{
-		"linked_nodes":   strconv.Itoa(nodeList.Len()),
-		"known_nodes":    strconv.Itoa(searchList.Len()),
-		"files":          strconv.Itoa(cl.Len()),
-		"records":        strconv.Itoa(records),
-		"cache_size":     fmt.Sprintf("%.1f%s", float64(size)/1024/1024, a.m["mb"]),
-		"self_node":      my.nodestr,
-		"alloc_mem":      fmt.Sprintf("%.1f%s", float64(mem.Alloc)/1024/1024, a.m["mb"]),
+		"linked_nodes": strconv.Itoa(nodeList.Len()),
+		"known_nodes":  strconv.Itoa(searchList.Len()),
+		"files":        strconv.Itoa(cl.Len()),
+		"records":      strconv.Itoa(records),
+		"cache_size":   fmt.Sprintf("%.1f%s", float64(size)/1024/1024, a.m["mb"]),
+		"self_node":    my.nodestr,
+		"alloc_mem":    fmt.Sprintf("%.1f%s", float64(mem.Alloc)/1024/1024, a.m["mb"]),
 	}
 	ns := map[string][]string{
 		"linked_nodes": nodeList.getNodestrSlice(),

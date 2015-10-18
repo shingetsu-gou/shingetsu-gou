@@ -31,6 +31,7 @@ package gou
 import (
 	"errors"
 	"fmt"
+	"html/template"
 	htmlTemplate "html/template"
 	"io/ioutil"
 	"log"
@@ -283,17 +284,18 @@ func getVersion() string {
 //setupTemplate adds funcmap to template var and parse files.
 func setupTemplate() {
 	funcMap := map[string]interface{}{
-		"add":         func(a, b int) int { return a + b },
-		"sub":         func(a, b int) int { return a - b },
-		"mul":         func(a, b int) int { return a * b },
-		"div":         func(a, b int) int { return a / b },
-		"toMB":        func(a int) float64 { return float64(a) / (1024 * 1024) },
-		"toKB":        func(a int) float64 { return float64(a) / (1024) },
-		"toInt":       func(a int64) int { return int(a) },
-		"strEncode":   strEncode,
-		"escape":      escape,
-		"escapeSpace": escapeSpace,
-		"localtime":   func(stamp int64) string { return time.Unix(stamp, 0).Format("2006-01-02 15:04") },
+		"add":          func(a, b int) int { return a + b },
+		"sub":          func(a, b int) int { return a - b },
+		"mul":          func(a, b int) int { return a * b },
+		"div":          func(a, b int) int { return a / b },
+		"toMB":         func(a int) float64 { return float64(a) / (1024 * 1024) },
+		"toKB":         func(a int) float64 { return float64(a) / (1024) },
+		"toInt":        func(a int64) int { return int(a) },
+		"stopEscaping": func(a string) template.HTML { return template.HTML(a) },
+		"strEncode":    strEncode,
+		"escape":       escape,
+		"escapeSpace":  escapeSpace,
+		"localtime":    func(stamp int64) string { return time.Unix(stamp, 0).Format("2006-01-02 15:04") },
 		"unescapedPrintf": func(format string, a ...interface{}) htmlTemplate.HTML {
 			return htmlTemplate.HTML(fmt.Sprintf(format, a))
 		},

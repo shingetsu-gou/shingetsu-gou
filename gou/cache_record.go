@@ -152,7 +152,7 @@ func (r *record) Exists() bool {
 //parse parses one line in record file and set params to record r.
 func (r *record) parse(recstr string) error {
 	var err error
-	recstr = strings.TrimSpace(recstr)
+	recstr = strings.TrimRight(recstr,"\r\n")
 	tmp := strings.Split(recstr, "<>")
 	if len(tmp) < 2 {
 		err := errors.New(recstr + ":bad format")
@@ -168,7 +168,7 @@ func (r *record) parse(recstr string) error {
 	r.contents = make(map[string]string)
 	r.keyOrder = make([]string, len(tmp)-2)
 	for i, kv := range tmp[2:] {
-		buf := strings.Split(kv, ":")
+		buf := strings.SplitN(kv, ":", 2)
 		if len(buf) < 2 {
 			continue
 		}

@@ -62,13 +62,13 @@ func threadSetup(s *loggingServeMux) {
 	reg = "/thread.cgi/{datfile:thread_[0-9A-F]+}/{id:[0-9a-f]{32}}/{stamp:\\d+}.{suffix:.*}"
 	registToRouter(rtr, reg, printAttach)
 
-	reg = "/thread.cgi/{path:[^/]+}{/?$}"
+	reg = "/thread.cgi/{path:[^/]+}{end:/?$}"
 	registToRouter(rtr, reg, printThread)
 
-	reg = "/thread.cgi/{path:([^/]+}/{id:[0-9a-f]{8}}{$}"
+	reg = "/thread.cgi/{path:([^/]+}/{id:[0-9a-f]{8}}{end:$}"
 	registToRouter(rtr, reg, printThread)
 
-	reg = "/thread.cgi/{path:[^/]+}/p{page:[0-9]+}{$}"
+	reg = "/thread.cgi/{path:[^/]+}/p{page:[0-9]+}{end:$}"
 	registToRouter(rtr, reg, printThread)
 
 	s.Handle("/thread.cgi/", handlers.CompressHandler(rtr))
@@ -177,14 +177,14 @@ func (t *threadCGI) setCookie(ca *cache, access string) []*http.Cookie {
 }
 
 //printPageNavi renders page_navi.txt, part for paging.
-func (t *threadCGI) printPageNavi(page int, ca *cache, id string) {
+func (t *threadCGI) printPageNavi(path string,page int, ca *cache, id string) {
 	first := ca.Len() / threadPageSize
 	if ca.Len()%threadPageSize == 0 {
 		first++
 	}
 	pages := make([]int, first)
 	for i := 0; i < first; i++ {
-		pages[i] = i
+		pages[i] = i+1
 	}
 	s := struct {
 		Page           int
@@ -199,7 +199,7 @@ func (t *threadCGI) printPageNavi(page int, ca *cache, id string) {
 	}{
 		page,
 		ca,
-		t.path,
+		path,
 		id,
 		first,
 		threadURL,
@@ -235,7 +235,7 @@ func (t *threadCGI) printTag(ca *cache) {
 }
 
 //printThreadHead renders head part of thread page with cookie.
-func (t *threadCGI) printThreadHead(id string, page int, ca *cache, rss string) error {
+func (t *threadCGI) printThreadHead(path,id string, page int, ca *cache, rss string) error {
 	switch {
 	case ca.hasRecord():
 	case t.checkGetCache():
@@ -260,12 +260,12 @@ func (t *threadCGI) printThreadHead(id string, page int, ca *cache, rss string) 
 		}
 		newcookie = t.setCookie(ca, access)
 	}
-	t.header(t.path, rss, newcookie, false)
+	t.header(path, rss, newcookie, false)
 	return nil
 }
 
 //printThreadTop renders toppart of thread page.
-func (t *threadCGI) printThreadTop(id string, nPage int, ca *cache) {
+func (t *threadCGI) printThreadTop(path,id string, nPage int, ca *cache) {
 	var lastrec *record
 	var resAnchor string
 	ids := ca.keys()
@@ -284,7 +284,7 @@ func (t *threadCGI) printThreadTop(id string, nPage int, ca *cache) {
 		AdminCGI  string
 		ResAnchor string
 	}{
-		t.path,
+		path,
 		ca,
 		lastrec,
 		t.isFriend,
@@ -335,11 +335,11 @@ func (t *threadCGI) printThread(path, id string, nPage int) {
 		t.printThreadAjax(id)
 		return
 	}
-	filePath := fileEncode("thread", t.path)
+	filePath := fileEncode("thread", path)
 	ca := newCache(filePath)
 	ca.load()
 	rss := gatewayURL + "/rss"
-	if t.printThreadHead(id, nPage, ca, rss) != nil {
+	if t.printThreadHead(path,id, nPage, ca, rss) != nil {
 		return
 	}
 	tags := strings.Fields(strings.TrimSpace(t.req.FormValue("tag")))
@@ -350,11 +350,11 @@ func (t *threadCGI) printThread(path, id string, nPage int) {
 		userTagList.sync()
 	}
 	t.printTag(ca)
-	t.printThreadTop(id, nPage, ca)
-	t.printPageNavi(nPage, ca, id)
+	t.printThreadTop(path,id, nPage, ca)
+	t.printPageNavi(path,nPage, ca, id)
 	t.printThreadBody(id, nPage, ca)
 
-	escapedPath := html.EscapeString(t.path)
+	escapedPath := html.EscapeString(path)
 	escapedPath = strings.Replace(escapedPath, "  ", "&nbsp;&nbsp;", -1)
 	ss := struct {
 		Cache   *cache
@@ -367,7 +367,7 @@ func (t *threadCGI) printThread(path, id string, nPage int) {
 	renderTemplate("thread_bottom", ss, t.wr)
 
 	if ca.Len() > 0 {
-		t.printPageNavi(nPage, ca, id)
+		t.printPageNavi(path,nPage, ca, id)
 		fmt.Fprintf(t.wr, "</p>")
 	}
 	t.printPostForm(ca)

@@ -19,7 +19,7 @@
 {{ end }}
 {{$pubkey:=.Rec.GetBodyValue "pubkey" "" }}
 {{ if $pubkey}}
-  <span class="sign" title="{{.Message.signature}}:{{.Rec.GetBodyValue "target"}}">{{$pubkey}}</span>
+  <span class="sign" title="{{.Message.signature}}:{{.Rec.GetBodyValue "target" ""}}">{{$pubkey}}</span>
 {{ end }}
 <span class="stamp" data-stamp="{{.Rec.Stamp}}">{{localtime .Rec.Stamp}}</span>
 {{ if .Rec.HasBodyValue "attach"}}

@@ -116,12 +116,12 @@ func StartDaemon() {
 	log.Fatal(s.ListenAndServe())
 }
 
-func (sm *loggingServeMux)registerPprof() {
-	sm.Handle("/debug/pprof/", http.HandlerFunc(pprof.Index))
-	sm.Handle("/debug/pprof/cmdline", http.HandlerFunc(pprof.Cmdline))
-	sm.Handle("/debug/pprof/profile", http.HandlerFunc(pprof.Profile))
-	sm.Handle("/debug/pprof/symbol", http.HandlerFunc(pprof.Symbol))
-	sm.Handle("/debug/pprof/trace", http.HandlerFunc(pprof.Trace))
+func (s *loggingServeMux) registerPprof() {
+	s.Handle("/debug/pprof/", http.HandlerFunc(pprof.Index))
+	s.Handle("/debug/pprof/cmdline", http.HandlerFunc(pprof.Cmdline))
+	s.Handle("/debug/pprof/profile", http.HandlerFunc(pprof.Profile))
+	s.Handle("/debug/pprof/symbol", http.HandlerFunc(pprof.Symbol))
+	s.Handle("/debug/pprof/trace", http.HandlerFunc(pprof.Trace))
 }
 
 //loggingServerMux is ServerMux with logging

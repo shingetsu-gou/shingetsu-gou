@@ -10,7 +10,7 @@
 {{ if gt .Page 1}}
   <a href="{{.ThreadCGI}}/{{strEncode .Path}}/p{{sub .Page 1}}">{{.Message.new_page}}</a>
 {{ end }}
-{{ if gt .First 1}}
+{{ if ge .First 1}}
   {{ range $p:=.Pages }}
     {{ if and ( eq $root.ID "") (eq $p $root.Page) }}
       {{$p}}

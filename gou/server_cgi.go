@@ -44,13 +44,13 @@ import (
 func serverSetup(s *loggingServeMux) {
 	s.registCompressHandler("/server.cgi/ping", doPing)
 	s.registCompressHandler("/server.cgi/node", doNode)
-	s.registCompressHandler("/server.cgi/join", doJoin)
-	s.registCompressHandler("/server.cgi/bye", doBye)
-	s.registCompressHandler("/server.cgi/have", doHave)
-	s.registCompressHandler("/server.cgi/get", doGetHead)
-	s.registCompressHandler("/server.cgi/head", doGetHead)
-	s.registCompressHandler("/server.cgi/update", doUpdate)
-	s.registCompressHandler("/server.cgi/recent", doRecent)
+	s.registCompressHandler("/server.cgi/join/", doJoin)
+	s.registCompressHandler("/server.cgi/bye/", doBye)
+	s.registCompressHandler("/server.cgi/have/", doHave)
+	s.registCompressHandler("/server.cgi/get/", doGetHead)
+	s.registCompressHandler("/server.cgi/head/", doGetHead)
+	s.registCompressHandler("/server.cgi/update/", doUpdate)
+	s.registCompressHandler("/server.cgi/recent/", doRecent)
 	s.registCompressHandler("/server.cgi/", doMotd)
 }
 
@@ -60,7 +60,12 @@ func doPing(w http.ResponseWriter, r *http.Request) {
 	defer func() {
 		connections <- struct{}{}
 	}()
-	fmt.Fprint(w, "PONG\n"+r.RemoteAddr+"\n")
+	host, _, err := net.SplitHostPort(r.RemoteAddr)
+	if err != nil {
+		log.Println(err)
+		return
+	}
+	fmt.Fprint(w, "PONG\n"+host+"\n")
 }
 
 //doNode returns one of nodelist. if nodelist.len=0 returns one of initNode.
@@ -111,7 +116,7 @@ func doJoin(w http.ResponseWriter, r *http.Request) {
 	nodeList.removeNode(suggest)
 	nodeList.sync()
 	suggest.bye()
-	fmt.Fprintf(s.wr, "WELCOME\n%s\n", suggest)
+	fmt.Fprintf(s.wr, "WELCOME\n%s\n", suggest.nodestr)
 }
 
 //doBye  removes from nodelist and says bye to the node specified in url.
@@ -145,9 +150,10 @@ func doHave(w http.ResponseWriter, r *http.Request) {
 	if s == nil {
 		return
 	}
-	reg := regexp.MustCompile("^/have/([0-9A-Za-z_]+)$")
+	reg := regexp.MustCompile("^have/([0-9A-Za-z_]+)$")
 	m := reg.FindStringSubmatch(s.path)
 	if m == nil {
+		log.Println(s.path)
 		fmt.Fprintln(w, "NO")
 		log.Println("illegal url")
 		return
@@ -171,14 +177,14 @@ func doUpdate(w http.ResponseWriter, r *http.Request) {
 	if s == nil {
 		return
 	}
-	reg := regexp.MustCompile("^/update/(\\w+)/(\\d+)/(\\w+)/([^:]*):(\\d+)(.*)")
+	reg := regexp.MustCompile("^update/(\\w+)/(\\d+)/(\\w+)/([^:]*):(\\d+)(.*)")
 	m := reg.FindStringSubmatch(s.path)
 	if m == nil {
 		log.Println("illegal url")
 		return
 	}
-	datfile, stamp, id, host, path := m[0], m[1], m[2], m[3], m[5]
-	port, err := strconv.Atoi(m[4])
+	datfile, stamp, id, host, path := m[1], m[2], m[3], m[4], m[6]
+	port, err := strconv.Atoi(m[5])
 	if err != nil {
 		log.Println(err)
 		return
@@ -222,7 +228,7 @@ func doRecent(w http.ResponseWriter, r *http.Request) {
 	if s == nil {
 		return
 	}
-	reg := regexp.MustCompile("^/recent/?([-0-9A-Za-z/]*)$")
+	reg := regexp.MustCompile("^recent/?([-0-9A-Za-z/]*)$")
 	m := reg.FindStringSubmatch(s.path)
 	if m == nil {
 		log.Println("illegal url")
@@ -272,10 +278,10 @@ func doGetHead(w http.ResponseWriter, r *http.Request) {
 	if s == nil {
 		return
 	}
-	reg := regexp.MustCompile("/(get|head)/([0-9A-Za-z_]+)/([-0-9A-Za-z/]*)$")
+	reg := regexp.MustCompile("^(get|head)/([0-9A-Za-z_]+)/?([-0-9A-Za-z/]*)$")
 	m := reg.FindStringSubmatch(s.path)
 	if m == nil {
-		log.Println("illegal url")
+		log.Println("illegal url",s.path)
 		return
 	}
 	method, datfile, stamp := m[1], m[2], m[3]
@@ -317,12 +323,17 @@ func newServerCGI(w http.ResponseWriter, r *http.Request) *serverCGI {
 //getRemoteHostname returns remoteaddr
 //if host is specified returns remoteaddr if host==remoteaddr.
 func (s *serverCGI) getRemoteHostname(host string) string {
-	remoteAddr := strings.Split(s.req.RemoteAddr, ":")[0]
+	remoteAddr, _, err := net.SplitHostPort(s.req.RemoteAddr)
+	if err != nil {
+		log.Println(err)
+		return ""
+	}
 	if host == "" {
 		return remoteAddr
 	}
 	ipaddr, err := net.LookupIP(host)
 	if err != nil {
+		log.Println(err)
 		return ""
 	}
 	for _, ipa := range ipaddr {
@@ -335,7 +346,7 @@ func (s *serverCGI) getRemoteHostname(host string) string {
 
 //makeNode makes and returns node obj from /method/ip:port.
 func (s *serverCGI) makeNode(method string) *node {
-	reg := regexp.MustCompile("^/" + method + "/([^:]*):(\\d+)(.*)")
+	reg := regexp.MustCompile("^" + method + "/([^:]*):(\\d+)(.*)")
 	m := reg.FindStringSubmatch(s.path)
 	if m == nil {
 		log.Println("illegal url")
@@ -344,6 +355,7 @@ func (s *serverCGI) makeNode(method string) *node {
 	path := m[3]
 	host := s.getRemoteHostname(m[1])
 	if host == "" {
+		log.Println("no host")
 		return nil
 	}
 	port, err := strconv.Atoi(m[2])

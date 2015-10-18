@@ -501,9 +501,8 @@ func (g *gatewayCGI) printIndex(doChange bool) {
 		title = fmt.Sprintf("%s : %s", g.m["str"], g.filter)
 	}
 	g.header(title, "", nil, true)
-	g.printParagraph("desc_"+str)
+	g.printParagraph("desc_" + str)
 	cl := newCacheList()
-	log.Println(cl.Len(),cl.Caches[0].Len())
 	if doChange {
 		sort.Sort(sort.Reverse(sortByVelocity{cl.Caches}))
 	}

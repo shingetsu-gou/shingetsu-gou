@@ -272,7 +272,7 @@ func (c *cache) checkData(res []string, stamp int64, id string, begin, end int64
 	count := 0
 	for _, i := range res {
 		r := newRecord(c.Datfile, "")
-		if r.meets(i, stamp, id, begin, end) {
+		if err := r.parse(i); err == nil && r.meets(i, stamp, id, begin, end) {
 			count++
 			if len(i) > recordLimit*1024 || spamCheck(i) {
 				err = errSpam
@@ -286,7 +286,7 @@ func (c *cache) checkData(res []string, stamp int64, id string, begin, end int64
 				c.addData(r)
 			}
 		} else {
-			log.Printf("warning:%s/%d or %d):broken record", c.Datfile, stamp, r.Stamp)
+			log.Println("warning::broken record", c.Datfile, i)
 		}
 	}
 	if count == 0 {
@@ -492,4 +492,39 @@ func (c *cache) search(myself *node) bool {
 	c.syncStatus()
 	log.Println("not found", c.Datfile)
 	return false
+}
+
+//updateFromRecords reload all records in cache from network,
+//and reset params.
+func (c *cache) updateFromRecords() {
+	my := nodeList.myself()
+	if !c.Exists() {
+		return
+	}
+	c.search(my)
+	c.velocity = 0
+	c.ValidStamp = 0
+	for _, rec := range c.recs {
+		if !rec.Exists() {
+			continue
+		}
+		if err := rec.load(); err != nil {
+			log.Println(err)
+			err := rec.remove()
+			if err != nil {
+				log.Println(err)
+			}
+			continue
+		}
+		if c.stamp < rec.Stamp {
+			c.stamp = rec.Stamp
+		}
+		if c.ValidStamp < rec.Stamp {
+			c.ValidStamp = rec.Stamp
+		}
+		if time.Now().Add(-7 * 24 * time.Hour).Before(time.Unix(rec.Stamp, 0)) {
+			c.velocity++
+		}
+		rec.sync(false)
+	}
 }

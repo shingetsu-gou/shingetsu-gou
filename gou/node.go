@@ -32,6 +32,7 @@ import (
 	"errors"
 	"log"
 	"math/rand"
+	"net"
 	"net/http"
 	"regexp"
 	"strconv"
@@ -71,14 +72,16 @@ type node struct {
 
 //newNode checks nodestr format and returns node obj.
 func newNode(nodestr string) *node {
-	n := &node{}
-	if nodestr == "" {
-		log.Fatal("nodestr must not empty")
-	}
 	nodestr = strings.TrimSpace(nodestr)
-	if match, err := regexp.MatchString("\\d+/[^: ]+$", nodestr); !match || err != nil {
-		log.Fatal("bad format", err)
+	if nodestr == "" {
+		log.Printf("nodestr must not empty")
+		return nil
 	}
+	if match, err := regexp.MatchString("\\d+/[^: ]+$", nodestr); !match || err != nil {
+		log.Printf("bad format", err)
+		return nil
+	}
+	n := &node{}
 	n.nodestr = strings.Replace(nodestr, "+", "/", -1)
 	return n
 }
@@ -94,7 +97,7 @@ func (n *node) equals(nn *node) bool {
 //makeNode makes node from host info.
 func makeNode(host, path string, port int) *node {
 	n := &node{}
-	n.nodestr = host + ":" + strconv.Itoa(port) + strings.Replace(path, "+", "/", -1)
+	n.nodestr = net.JoinHostPort(host, strconv.Itoa(port)) + strings.Replace(path, "+", "/", -1)
 	return n
 }
 

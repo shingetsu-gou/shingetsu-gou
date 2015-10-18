@@ -81,17 +81,17 @@ func primize(x *big.Int) *big.Int {
 
 //privatekey reppresents private key,
 type privateKey struct {
-	keyN *big.Int
-	keyD *big.Int
+	keyN *big.Int //public part
+	keyD *big.Int //private part
 }
 
 //getKey returns base64 encoded private key
 func (p *privateKey) getKeys() (string, string) {
-	return intToBase64(*p.keyN), intToBase64(*p.keyD)
+	return intToBase64(p.keyN), intToBase64(p.keyD)
 }
 
 //newPrivateKey makes private key from seeds.
-func newPrivateKey(qSeed, pSeed big.Int) *privateKey {
+func newPrivateKey(pSeed, qSeed big.Int) *privateKey {
 	q := &qSeed
 	p := &pSeed
 	var tmp big.Int
@@ -132,25 +132,26 @@ func base64ToInt(s string) *big.Int {
 }
 
 //intToBase64 makes string from int.
-func intToBase64(n big.Int) string {
+func intToBase64(n *big.Int) string {
 	var result string
 	and := big.NewInt(0x3f)
-	var tmp big.Int
+	var tmp, nn big.Int
+	nn.Set(n)
 
-	for n.Cmp(big.NewInt(0)) > 0 {
-		bit := tmp.And(&n, and).Uint64()
+	for nn.Cmp(big.NewInt(0)) > 0 {
+		bit := tmp.And(&nn, and).Uint64()
 		result += string(base64en[bit])
-		n.Rsh(&n, 6)
+		nn.Rsh(&nn, 6)
 	}
-	return result
+	return result + string(base64en[0]*byte(86-len(result)))
 }
 
 //sign signs mesg by p.
 func (p *privateKey) sign(mesg string) string {
 	var enc, m big.Int
-	m.SetBytes([]byte(mesg))
+	setBytesReverse(&m, []byte(mesg))
 	enc.Exp(&m, p.keyD, p.keyN)
-	return intToBase64(enc)
+	return intToBase64(&enc)
 }
 
 //verify verifies testsig by publicKey.
@@ -159,7 +160,7 @@ func verify(mesg, testsig, publicKey string) bool {
 		return false
 	}
 	var m, decrypted big.Int
-	m.SetBytes([]byte(mesg))
+	setBytesReverse(&m, []byte(mesg))
 	n := base64ToInt(publicKey)
 	intSig := base64ToInt(testsig)
 	decrypted.Exp(intSig, rsaPublicE, n)
@@ -177,10 +178,17 @@ func cutKey(key string) string {
 	return string(k)
 }
 
+func setBytesReverse(b *big.Int, d []byte) *big.Int {
+	buf := make([]byte, len(d))
+	for i := 0; i < len(d); i++ {
+		buf[len(d)-i-1] = d[i]
+	}
+	return b.SetBytes(buf)
+}
+
 //makePrivateKey makes privatekey from keystr
 func makePrivateKey(keystr string) *privateKey {
 	var seedbuf [64]byte
-
 	seed1 := md5.Sum([]byte(keystr))
 	seed2 := md5.Sum([]byte(keystr + "pad1"))
 	seed3 := md5.Sum([]byte(keystr + "pad2"))
@@ -192,8 +200,8 @@ func makePrivateKey(keystr string) *privateKey {
 	copy(seedbuf[48:64], seed4[:])
 
 	var p, q big.Int
-	p.SetBytes(seedbuf[0:28])
-	q.SetBytes(seedbuf[28:64])
+	setBytesReverse(&p, seedbuf[0:28])
+	setBytesReverse(&q, seedbuf[28:64])
 	p.SetBit(&p, 215, 1)
 	q.SetBit(&q, 279, 1)
 	return newPrivateKey(p, q)

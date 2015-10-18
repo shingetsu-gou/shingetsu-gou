@@ -83,39 +83,13 @@ func (c *cacheList) load() {
 //and reset params.
 func (c *cacheList) getall(timelimit time.Time) {
 	shuffle(c)
-	my := nodeList.myself()
 	for _, ca := range c.Caches {
 		now := time.Now()
 		if now.After(timelimit) {
 			log.Println("client timeout")
 			return
 		}
-		if !ca.Exists() {
-			continue
-		}
-		ca.search(my)
-		ca.velocity = 0
-		ca.ValidStamp = 0
-		for _, rec := range ca.recs {
-			if !rec.Exists() {
-				continue
-			}
-			if err := rec.load(); err == nil {
-				if ca.stamp < rec.Stamp {
-					ca.stamp = rec.Stamp
-				}
-				if ca.ValidStamp < rec.Stamp {
-					ca.ValidStamp = rec.Stamp
-				}
-				if now.Add(-7 * 24 * time.Hour).Before(time.Unix(rec.Stamp, 0)) {
-					ca.velocity++
-				}
-				rec.sync(false)
-			} else {
-				log.Println(err)
-				rec.remove()
-			}
-		}
+		ca.updateFromRecords()
 		ca.checkBody()
 		ca.checkAttach()
 		ca.syncStatus()
