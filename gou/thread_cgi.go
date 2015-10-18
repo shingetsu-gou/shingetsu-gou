@@ -29,6 +29,7 @@
 package gou
 
 import (
+	"encoding/base64"
 	"errors"
 	"fmt"
 	"html"
@@ -38,6 +39,7 @@ import (
 	"math"
 	"math/rand"
 	"mime"
+	"mime/multipart"
 	"net/http"
 	"os"
 	"path"
@@ -65,7 +67,7 @@ func threadSetup(s *loggingServeMux) {
 	reg = "/thread.cgi/{path:[^/]+}{end:/?$}"
 	registToRouter(rtr, reg, printThread)
 
-	reg = "/thread.cgi/{path:([^/]+}/{id:[0-9a-f]{8}}{end:$}"
+	reg = "/thread.cgi/{path:[^/]+}/{id:[0-9a-f]{8}}{end:$}"
 	registToRouter(rtr, reg, printThread)
 
 	reg = "/thread.cgi/{path:[^/]+}/p{page:[0-9]+}{end:$}"
@@ -146,7 +148,13 @@ func newThreadCGI(w http.ResponseWriter, r *http.Request) *threadCGI {
 
 //printThreadIndex adds records in multiform and redirect to its thread page.
 func (t *threadCGI) printThreadIndex() {
-	if t.req.FormValue("cmd") != "post" || strings.HasPrefix(t.req.FormValue("file"), "thread_") || t.req.Method != "POST" {
+	err := t.req.ParseMultipartForm(int64(recordLimit) << 10)
+	if err != nil {
+		t.print404(nil, "")
+		return
+	}
+	if t.req.FormValue("cmd") != "post" || !strings.HasPrefix(t.req.FormValue("file"), "thread_") {
+		log.Println("404")
 		t.print404(nil, "")
 		return
 	}
@@ -157,6 +165,7 @@ func (t *threadCGI) printThreadIndex() {
 	}
 	datfile := t.req.FormValue("file")
 	title := strEncode(fileDecode(datfile))
+	log.Println(title, id)
 	t.print302(threadURL + querySeparator + title + "#r" + id)
 }
 
@@ -177,14 +186,14 @@ func (t *threadCGI) setCookie(ca *cache, access string) []*http.Cookie {
 }
 
 //printPageNavi renders page_navi.txt, part for paging.
-func (t *threadCGI) printPageNavi(path string,page int, ca *cache, id string) {
+func (t *threadCGI) printPageNavi(path string, page int, ca *cache, id string) {
 	first := ca.Len() / threadPageSize
 	if ca.Len()%threadPageSize == 0 {
 		first++
 	}
-	pages := make([]int, first)
-	for i := 0; i < first; i++ {
-		pages[i] = i+1
+	pages := make([]int, first+1)
+	for i := 0; i <= first; i++ {
+		pages[i] = i
 	}
 	s := struct {
 		Page           int
@@ -235,7 +244,7 @@ func (t *threadCGI) printTag(ca *cache) {
 }
 
 //printThreadHead renders head part of thread page with cookie.
-func (t *threadCGI) printThreadHead(path,id string, page int, ca *cache, rss string) error {
+func (t *threadCGI) printThreadHead(path, id string, page int, ca *cache, rss string) error {
 	switch {
 	case ca.hasRecord():
 	case t.checkGetCache():
@@ -265,7 +274,7 @@ func (t *threadCGI) printThreadHead(path,id string, page int, ca *cache, rss str
 }
 
 //printThreadTop renders toppart of thread page.
-func (t *threadCGI) printThreadTop(path,id string, nPage int, ca *cache) {
+func (t *threadCGI) printThreadTop(path, id string, nPage int, ca *cache) {
 	var lastrec *record
 	var resAnchor string
 	ids := ca.keys()
@@ -331,6 +340,7 @@ func (t *threadCGI) printThreadBody(id string, nPage int, ca *cache) {
 
 //printThread renders whole thread list page.
 func (t *threadCGI) printThread(path, id string, nPage int) {
+
 	if id != "" && t.req.FormValue("ajax") != "" {
 		t.printThreadAjax(id)
 		return
@@ -339,7 +349,7 @@ func (t *threadCGI) printThread(path, id string, nPage int) {
 	ca := newCache(filePath)
 	ca.load()
 	rss := gatewayURL + "/rss"
-	if t.printThreadHead(path,id, nPage, ca, rss) != nil {
+	if t.printThreadHead(path, id, nPage, ca, rss) != nil {
 		return
 	}
 	tags := strings.Fields(strings.TrimSpace(t.req.FormValue("tag")))
@@ -350,8 +360,8 @@ func (t *threadCGI) printThread(path, id string, nPage int) {
 		userTagList.sync()
 	}
 	t.printTag(ca)
-	t.printThreadTop(path,id, nPage, ca)
-	t.printPageNavi(path,nPage, ca, id)
+	t.printThreadTop(path, id, nPage, ca)
+	t.printPageNavi(path, nPage, ca, id)
 	t.printThreadBody(id, nPage, ca)
 
 	escapedPath := html.EscapeString(path)
@@ -363,11 +373,10 @@ func (t *threadCGI) printThread(path, id string, nPage int) {
 		ca,
 		t.m,
 	}
-	log.Println("1")
 	renderTemplate("thread_bottom", ss, t.wr)
 
 	if ca.Len() > 0 {
-		t.printPageNavi(path,nPage, ca, id)
+		t.printPageNavi(path, nPage, ca, id)
 		fmt.Fprintf(t.wr, "</p>")
 	}
 	t.printPostForm(ca)
@@ -572,7 +581,7 @@ func (t *threadCGI) makeRecord(at *attached, suffix string, ca *cache) *record {
 	}
 
 	if at != nil {
-		body["attach"] = string(at.Data)
+		body["attach"] = at.Data
 		body["suffix"] = strings.TrimSpace(suffix)
 	}
 	if len(body) == 0 {
@@ -603,7 +612,6 @@ func (t *threadCGI) doPost() string {
 	if rec == nil {
 		return ""
 	}
-
 	proxyClient := t.req.Header.Get("X_FORWARDED_FOR")
 	log.Printf("post %s/%d_%s from %s/%s\n", ca.Datfile, ca.stamp, rec.ID, t.req.RemoteAddr, proxyClient)
 
@@ -627,6 +635,7 @@ func (t *threadCGI) doPost() string {
 	}
 
 	if t.req.FormValue("dopost") != "" {
+		log.Println(rec, "is queued")
 		queue.append(rec, nil)
 	}
 
@@ -637,7 +646,7 @@ func (t *threadCGI) doPost() string {
 //attached represents attached file name and contents.
 type attached struct {
 	Filename string
-	Data     []byte
+	Data     string
 }
 
 //parseAttached reads attached file and returns attached obj.
@@ -648,26 +657,36 @@ func (t *threadCGI) parseAttached() (*attached, error) {
 		return nil, err
 	}
 	attach := t.req.MultipartForm
-	if len(attach.File) <= 0 {
+	if len(attach.File) == 0 {
 		return nil, errors.New("attached file not found")
 	}
-	filename := attach.Value["filename"][0]
-	fpStrAttach := attach.File[filename][0]
+	var fpStrAttach *multipart.FileHeader
+	for _, v := range attach.File {
+		fpStrAttach = v[0]
+	}
 	f, err := fpStrAttach.Open()
 	defer fclose(f)
 	if err != nil {
+		log.Println(err)
 		return nil, err
 	}
 	var strAttach = make([]byte, recordLimit<<10)
-	_, err = f.Read(strAttach)
-	if err == nil || err.Error() != "EOF" {
+	s, err := f.Read(strAttach)
+	if s > recordLimit<<10 {
+		log.Println("attached file is too big")
 		t.header(t.m["big_file"], "", nil, true)
 		t.footer(nil)
 		return nil, err
 	}
+	if err != nil {
+		log.Println(err)
+		return nil, err
+	}
+	log.Println(fpStrAttach.Filename)
+	coded:=base64.StdEncoding.EncodeToString(strAttach[:s])
 	return &attached{
-		filename,
-		strAttach,
+		fpStrAttach.Filename,
+		coded,
 	}, nil
 }
 

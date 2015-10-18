@@ -121,7 +121,6 @@ func (s *loggingServeMux) registerPprof() {
 	s.Handle("/debug/pprof/cmdline", http.HandlerFunc(pprof.Cmdline))
 	s.Handle("/debug/pprof/profile", http.HandlerFunc(pprof.Profile))
 	s.Handle("/debug/pprof/symbol", http.HandlerFunc(pprof.Symbol))
-	s.Handle("/debug/pprof/trace", http.HandlerFunc(pprof.Trace))
 }
 
 //loggingServerMux is ServerMux with logging

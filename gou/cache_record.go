@@ -152,7 +152,7 @@ func (r *record) Exists() bool {
 //parse parses one line in record file and set params to record r.
 func (r *record) parse(recstr string) error {
 	var err error
-	recstr = strings.TrimRight(recstr,"\r\n")
+	recstr = strings.TrimRight(recstr, "\r\n")
 	tmp := strings.Split(recstr, "<>")
 	if len(tmp) < 2 {
 		err := errors.New(recstr + ":bad format")
@@ -479,15 +479,15 @@ func (r *record) meets(i string, stamp int64, id string, begin, end int64) bool 
 		return false
 	}
 	if stamp > 0 && r.Stamp != stamp {
-		log.Println("stamp NG")
+		log.Println("stamp NG", r.Stamp, stamp)
 		return false
 	}
 	if id != "" && r.ID == id {
-		log.Println("id NG")
+		log.Println("id NG", id, r.ID)
 		return false
 	}
 	if begin > r.Stamp || (end > 0 && r.Stamp > end) {
-		log.Println("stamp range NG")
+		log.Println("stamp range NG", begin, end, r.Stamp)
 		return false
 	}
 	if !r.md5check() {

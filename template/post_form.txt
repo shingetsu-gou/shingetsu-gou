@@ -10,7 +10,7 @@
   </form>
 {{ end }}
 
-<form id="postarticle" name="postarticle" method="post" action="{{.ThreadCGI}}"
+<form id="postarticle" name="postarticle" method="post" action="{{.ThreadCGI}}/"
   enctype="multipart/form-data" class="well form-horizontal"><div>
 
   <input type="hidden" name="cmd" value="post" />

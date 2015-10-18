@@ -9,7 +9,7 @@
   </p></form>
 {{ end }}
 {{ if .IsAdmin }}
-  <form method="post" action="{{.AdminCGI}}">
+  <form method="post" action="{{.AdminCGI}}/">
   <p id="pagenavi">
   <input type="hidden" name="cmd" value="rdel" />
   <input type="hidden" name="file" value="{{.Cache.Datfile}}" />

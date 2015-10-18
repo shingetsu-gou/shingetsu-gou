@@ -3,7 +3,7 @@
  */}}
 {{define "delete_file"}}
 {{$root:=.}}
-<form method="post" action="{{.AdminCGI}}">
+<form method="post" action="{{.AdminCGI}}/">
 <div class="well form-horizontal"><div class="form-actions">
   <input type="hidden" name="cmd" value="xfdel" />
   <input type="hidden" name="sid" value="{{.Sid}}" />

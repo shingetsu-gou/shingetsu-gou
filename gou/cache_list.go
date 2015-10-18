@@ -192,7 +192,11 @@ func (c *cacheList) cleanRecords() {
 //removeRemoved removes removed files if old.
 func (c *cacheList) removeRemoved() {
 	for _, ca := range c.Caches {
-		err := eachFiles(path.Join(ca.Datfile, "removed"), func(f os.FileInfo) error {
+		r := path.Join(ca.Datfile, "removed")
+		if !IsDir(r) {
+			continue
+		}
+		err := eachFiles(r, func(f os.FileInfo) error {
 			rec := newRecord(ca.Datfile, f.Name())
 			if ca.saveRemoved() > 0 && rec.Stamp+ca.saveRemoved() < time.Now().Unix() &&
 				rec.Stamp < ca.stamp {

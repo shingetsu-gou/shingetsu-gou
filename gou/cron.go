@@ -98,8 +98,13 @@ func (c *client) run() {
 	t := time.Now()
 	c.timelimit = t.Add(clientTimeout)
 	if t.Sub(c.utime["ping"]) >= pingCycle {
-		c.doPing()
-		c.doUpdate()
+		c.check("ping")
+		nodeList.pingAll()
+		nodeList.sync()
+		log.Println("nodelist.pingall finished")
+
+		queue.run()
+		log.Println("updatequeue finished")
 	}
 	if nodeList.Len() == 0 {
 		c.doInit()
@@ -112,28 +117,14 @@ func (c *client) run() {
 		c.doInit()
 	} else {
 		if nodeList.Len() < defaultNodes {
-			c.doRejoin()
+			nodeList.rejoin(searchList)
+			log.Println("nodelist.rejoin finished")
 		}
 	}
 	if t.Sub(c.utime["sync"]) >= syncCycle {
 		c.doSync()
 	}
 	log.Println("cron finished")
-}
-
-//doPing pins all nodes and sync.
-func (c *client) doPing() {
-	c.check("ping")
-	nodeList.pingAll()
-	nodeList.sync()
-	log.Println("nodelist.pingall finished")
-}
-
-//doUpdate tells updated records to nodes in the node list.
-func (c *client) doUpdate() {
-	q := newUpdateQue()
-	go q.run()
-	log.Println("updatequeue finished")
 }
 
 //doInit tries to find nodes from initNode and also add them to the search list.
@@ -146,11 +137,6 @@ func (c *client) doInit() {
 	log.Println("nodelist.init finished")
 }
 
-//doRejoin checks nodes in the search list are alive and add them to the node list.
-func (c *client) doRejoin() {
-	nodeList.rejoin(searchList)
-	log.Println("nodelist.rejoin finished")
-}
 
 //doSync checks nodes in the nodelist are alive, reloads cachelist, removes old removed files,
 //reloads all tags from cachelist,reload srecent list from nodes in search list,

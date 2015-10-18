@@ -47,9 +47,9 @@ import (
 )
 
 const (
-	clientCycle        = 5 * time.Minute  // Seconds; Access client.cgi
-	pingCycle          = 5 * time.Minute  // Seconds; Check nodes
-	syncCycle          = 5 * time.Hour    // Seconds; Check cache
+	clientCycle        = 1 * time.Minute  // Seconds; Access client.cgi
+	pingCycle          = 1 * time.Minute  // Seconds; Check nodes
+	syncCycle          = 1 * time.Hour    // Seconds; Check cache
 	initCycle          = 1 * time.Minute  // Seconds; Check initial node
 	defaultUpdateRange = 24 * time.Hour   // Seconds
 	timeErrorSigma     = 60 * 60          // Seconds

@@ -28,6 +28,10 @@
 
 package gou
 
+import (
+	"log"
+)
+
 //updateQue contains update records which will be informed to other nodes
 type updateQue struct {
 	queue map[*record][]*node
@@ -53,6 +57,7 @@ func (u *updateQue) append(rec *record, n *node) {
 func (u *updateQue) run() {
 	for rec, ns := range u.queue {
 		for i, n := range ns {
+			log.Println("updateging", rec)
 			if u.doUpdateNode(rec, n) {
 				delete(u.queue, rec)
 				updateList.append(rec)
@@ -76,12 +81,15 @@ func (u *updateQue) doUpdateNode(rec *record, n *node) bool {
 	ca := newCache(rec.datfile)
 	var err error
 	switch {
-	case !ca.Exists(), n == nil: //no cache, only broadcast updates.
+	case !ca.Exists(), n == nil:
+		log.Println("no cache, only broadcast updates.")
 		nodeList.tellUpdate(ca, rec.Stamp, rec.ID, n)
 		return true
-	case ca.Len() > 0: //cache and records exists, get data from node n.
+	case ca.Len() > 0:
+		log.Println("cache and records exists, get data from node n.")
 		err = ca.getData(rec.Stamp, rec.ID, n)
-	default: //cache exists ,but no records. get data with range.
+	default:
+		log.Println("cache exists ,but no records. get data with range.")
 		ca.getWithRange(n)
 		if flagGot := rec.Exists(); !flagGot {
 			err = errGet
@@ -89,10 +97,13 @@ func (u *updateQue) doUpdateNode(rec *record, n *node) bool {
 	}
 	switch err {
 	case errGet:
+		log.Println("could not get")
 		return false
 	case errSpam:
+		log.Println("makrd spam")
 		return true
 	default:
+		log.Println("telling update")
 		nodeList.tellUpdate(ca, rec.Stamp, rec.ID, nil)
 		nodeList.join(n)
 		nodeList.sync()

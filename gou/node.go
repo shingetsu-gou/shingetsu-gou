@@ -78,7 +78,7 @@ func newNode(nodestr string) *node {
 		return nil
 	}
 	if match, err := regexp.MatchString("\\d+/[^: ]+$", nodestr); !match || err != nil {
-		log.Printf("bad format", err)
+		log.Println("bad format", err)
 		return nil
 	}
 	n := &node{}
@@ -435,7 +435,7 @@ func (nl *NodeList) tellUpdate(c *cache, stamp int64, id string, node *node) {
 	default:
 		tellstr = ":" + strconv.Itoa(ExternalPort) + strings.Replace(serverURL, "/", "+", -1)
 	}
-	arg := strings.Join([]string{"/update/", c.Datfile, strconv.FormatInt(stamp, 10), id, tellstr}, "/")
+	arg := strings.Join([]string{"/update", c.Datfile, strconv.FormatInt(stamp, 10), id, tellstr}, "/")
 	broadcast(arg, c)
 }
 

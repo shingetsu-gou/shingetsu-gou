@@ -175,6 +175,7 @@ func doUpdate(w http.ResponseWriter, r *http.Request) {
 	}()
 	s := newServerCGI(w, r)
 	if s == nil {
+		log.Println("failed to create cgi struct")
 		return
 	}
 	reg := regexp.MustCompile("^update/(\\w+)/(\\d+)/(\\w+)/([^:]*):(\\d+)(.*)")
@@ -191,11 +192,13 @@ func doUpdate(w http.ResponseWriter, r *http.Request) {
 	}
 	host = s.getRemoteHostname(host)
 	if host == "" {
+		log.Println("host is null")
 		return
 	}
 
 	n := makeNode(host, path, port)
 	if !n.isAllowed() {
+		log.Println("detects spam")
 		return
 	}
 	searchList.append(n)
@@ -210,12 +213,14 @@ func doUpdate(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if nstamp < now.Add(-defaultUpdateRange).Unix() || nstamp > now.Add(defaultUpdateRange).Unix() {
+		log.Println("old")
 		return
 	}
 	rec := newRecord(datfile, stamp+"_"+id)
 	if !updateList.hasInfo(rec) {
 		queue.append(rec, n)
 	}
+	fmt.Fprintln(w, "OK")
 }
 
 //doRecent renders records whose timestamp is in range of one specified in url.
@@ -226,6 +231,7 @@ func doRecent(w http.ResponseWriter, r *http.Request) {
 	}()
 	s := newServerCGI(w, r)
 	if s == nil {
+		log.Println("NG")
 		return
 	}
 	reg := regexp.MustCompile("^recent/?([-0-9A-Za-z/]*)$")
@@ -281,12 +287,14 @@ func doGetHead(w http.ResponseWriter, r *http.Request) {
 	reg := regexp.MustCompile("^(get|head)/([0-9A-Za-z_]+)/?([-0-9A-Za-z/]*)$")
 	m := reg.FindStringSubmatch(s.path)
 	if m == nil {
-		log.Println("illegal url",s.path)
+		log.Println("illegal url", s.path)
 		return
 	}
 	method, datfile, stamp := m[1], m[2], m[3]
 	ca := newCache(datfile)
+	ca.load()
 	begin, end, id := s.parseStamp(stamp, ca.stamp)
+	log.Println(method, datfile, stamp, begin, end)
 	for _, r := range ca.recs {
 		if begin <= r.Stamp && r.Stamp <= end && (id == "" || strings.HasSuffix(r.Idstr(), id)) {
 			if method == "get" {
@@ -294,6 +302,7 @@ func doGetHead(w http.ResponseWriter, r *http.Request) {
 				if err != nil {
 					log.Println(err)
 				}
+				log.Println(r.recstr(),":GET")
 				fmt.Fprintf(s.wr, r.recstr())
 			} else {
 				fmt.Fprintln(s.wr, strings.Replace(r.Idstr(), "_", "<>", -1))

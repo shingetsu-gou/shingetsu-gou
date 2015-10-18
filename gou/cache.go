@@ -272,15 +272,15 @@ func (c *cache) checkData(res []string, stamp int64, id string, begin, end int64
 	count := 0
 	for _, i := range res {
 		r := newRecord(c.Datfile, "")
-		if err := r.parse(i); err == nil && r.meets(i, stamp, id, begin, end) {
+		if er := r.parse(i); er == nil && r.meets(i, stamp, id, begin, end) {
 			count++
 			if len(i) > recordLimit*1024 || spamCheck(i) {
 				err = errSpam
 				log.Printf("warning:%s/%s:too large or spam record", c.Datfile, r.Idstr())
 				c.addData(r)
-				err := r.remove()
-				if err != nil {
-					log.Println(err)
+				errr := r.remove()
+				if errr != nil {
+					log.Println(errr)
 				}
 			} else {
 				c.addData(r)
@@ -322,6 +322,7 @@ func (c *cache) addData(rec *record) {
 	if c.ValidStamp < rec.Stamp {
 		c.ValidStamp = rec.Stamp
 	}
+	rec.sync(true)
 }
 
 //updateStamp updates cache's stamp to rec if rec is newer.

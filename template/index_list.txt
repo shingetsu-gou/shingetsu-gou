@@ -17,7 +17,7 @@
 {{ end }}
 
 {{ if .IsAdmin }}
-  <form method="post" action="{{.AdminCGI}}">
+  <form method="post" action="{{.AdminCGI}}/">
   <p><input type="hidden" name="cmd" value="fdel" /></p>
 {{ end }}
 
