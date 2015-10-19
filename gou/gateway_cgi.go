@@ -151,6 +151,7 @@ func printRecentRSS(w http.ResponseWriter, r *http.Request) {
 		"http://"+g.host, "",
 		"http://"+g.host+gatewayURL+querySeparator+"recent_rss", g.m["description"], xsl)
 	cl := recentList.makeRecentCachelist()
+	log.Println(cl)
 	for _, ca := range cl.Caches {
 		title := escape(fileDecode(ca.Datfile))
 		tags := make([]string, ca.tags.Len()+ca.sugtags.Len())
@@ -167,7 +168,7 @@ func printRecentRSS(w http.ResponseWriter, r *http.Request) {
 			title, "", "", html.EscapeString(title), tags, ca.RecentStamp, false)
 	}
 	g.wr.Header().Set("Content-Type", "text/xml; charset=UTF-8")
-	if rsss.len() != 0 {
+	if rsss.Len() != 0 {
 		g.wr.Header().Set("Last-Modified", g.rfc822Time(rsss.Feeds[0].Date))
 	}
 	rsss.makeRSS1(g.wr)
@@ -181,15 +182,15 @@ func (g *gatewayCGI) appendRSS(rsss *RSS, ca *cache) {
 	}
 	title := escape(fileDecode(ca.Datfile))
 	path := application[ca.Typee] + querySeparator + strEncode(title)
+	ca.load()
 	for _, r := range ca.recs {
-		if r.Stamp+rssRange >= now {
+		if r.Stamp+rssRange < now {
 			continue
 		}
 		if err := r.loadBody(); err != nil {
 			log.Println(err)
 			continue
 		}
-
 		desc := rssTextFormat(r.GetBodyValue("body", ""))
 		content := g.rssHTMLFormat(r.GetBodyValue("body", ""), application[ca.Typee], title)
 		if attach := r.GetBodyValue("attach", ""); attach != "" {
@@ -225,7 +226,7 @@ func printRSS(w http.ResponseWriter, r *http.Request) {
 		g.appendRSS(rsss, ca)
 	}
 	g.wr.Header().Set("Content-Type", "text/xml; charset=UTF-8")
-	if rsss.len() != 0 {
+	if rsss.Len() != 0 {
 		g.wr.Header().Set("Last-Modified", g.rfc822Time(rsss.Feeds[0].Date))
 	}
 	rsss.makeRSS1(g.wr)

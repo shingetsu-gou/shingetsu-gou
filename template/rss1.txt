@@ -13,8 +13,8 @@
 <link>{{.Link}}/</link>
 <description>{{html .Description}}</description>
 <items><rdf:Seq>
-{{ range $f,$v:=.Feeds }}
-  <rdf:li rdf:resource="{{$f}}"/>
+{{ range $v:=.Feeds }}
+  <rdf:li rdf:resource="{{$v.Link}}"/>
 {{ end }}
 </rdf:Seq></items>
 </channel>
@@ -24,15 +24,15 @@
   <item rdf:about="{{html $f.Link}}">
   <title>{{html $f.Title}}</title>
   <link>{{html $f.Link}}</link>
-  <dc:date>{{html $root.W3cdate $f.Date}}</dc:date>
-  {{ if $f.Creator ne ""}}
-    <dc:creator>{{html $f.Creator}}</dc:creator>
+  <dc:date>{{html ($root.W3cdate $f.Date)}}</dc:date>
+  {{ if $f.Creator}}
+    <dc:creator>{{$f.Creator}}</dc:creator>
   {{ end }}
   {{ range $sub:=$f.Subject }}
     <dc:subject>{{escape $sub}}</dc:subject>
   {{ end }}
-  {{ if $f.Description ne ""}}
-    <description>{{html $f.Description}}</description>
+  {{ if $f.Description}}
+    <description>{{$f.Description}}</description>
   {{ end }}
   {{ if $f.Content}}
     <content:encoded><![CDATA[{{$f.Content}}]]></content:encoded>

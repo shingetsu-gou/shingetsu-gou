@@ -32,6 +32,7 @@ import (
 	"io"
 	"log"
 	"regexp"
+	"sort"
 	"strings"
 	"time"
 )
@@ -61,6 +62,21 @@ type RSS struct {
 	XSL         string
 }
 
+//Swap swaps feed[i] and feed[j]
+func (r *RSS) Swap(i, j int) {
+	r.Feeds[j], r.Feeds[i] = r.Feeds[i], r.Feeds[j]
+}
+
+//Less returns true if date of feed[i]<one of [j]
+func (r *RSS) Less(i, j int) bool {
+	return r.Feeds[i].Date < r.Feeds[j].Date
+}
+
+//Len returns # of feeds.
+func (r *RSS) Len() int {
+	return len(r.Feeds)
+}
+
 //newRSS makes RSS object.
 func newRss(encode, lang, title, parent, link, uri, description, xsl string) *RSS {
 	if encode == "" {
@@ -77,6 +93,7 @@ func newRss(encode, lang, title, parent, link, uri, description, xsl string) *RS
 		XSL:         xsl,
 		Link:        link,
 		URI:         uri,
+		parent:      parent,
 	}
 	if parent != "" && parent[len(parent)-1] != '/' {
 		r.parent += "/"
@@ -92,7 +109,7 @@ func newRss(encode, lang, title, parent, link, uri, description, xsl string) *RS
 
 //append adds RSS an item.
 func (r *RSS) append(link, title, creator, description, content string, subject []string, date int64, abs bool) {
-	if abs {
+	if !abs {
 		link = r.parent + link
 	}
 	i := &Item{
@@ -104,13 +121,7 @@ func (r *RSS) append(link, title, creator, description, content string, subject 
 		Subject:     subject,
 		content:     content,
 	}
-
 	r.Feeds = append(r.Feeds, i)
-}
-
-//keys returns keys of feeds i.e. link .
-func (r *RSS) len() int {
-	return len(r.Feeds)
 }
 
 //makeRSS renders template.
@@ -118,13 +129,14 @@ func (r *RSS) makeRSS1(wr io.Writer) {
 	for _, c := range r.Feeds {
 		c.Content = strings.Replace(c.content, "]]", "&#93;&#93;>", -1)
 	}
+	sort.Sort(sort.Reverse(r))
 	if err := ttemplates.ExecuteTemplate(wr, "rss1", *r); err != nil {
 		log.Println(err)
 	}
 }
 
 //W3cdate returns RSS formated date string.
-func (r *RSS) W3cdate(dat int64) string {
+func (r RSS) W3cdate(dat int64) string {
 	t := time.Unix(dat, 0)
 	return t.Format("2006-01-02T15:04:05Z")
 }
@@ -134,7 +146,7 @@ func rssTextFormat(plain string) string {
 	buf := strings.Replace(plain, "<br>", " ", -1)
 	buf = strings.Replace(buf, "&", "&amp;", -1)
 	reg := regexp.MustCompile("&amp;(#\\d+|lt|gt|amp);")
-	buf = reg.ReplaceAllString(buf, "&\\1")
+	buf = reg.ReplaceAllString(buf, "&$1;")
 	buf = strings.Replace(buf, "<", "&lt;", -1)
 	buf = strings.Replace(buf, ">", "&gt;", -1)
 	buf = strings.Replace(buf, "\r", "", -1)

@@ -52,7 +52,7 @@ const (
 	syncCycle          = 1 * time.Hour    // Seconds; Check cache
 	initCycle          = 1 * time.Minute  // Seconds; Check initial node
 	defaultUpdateRange = 24 * time.Hour   // Seconds
-	timeErrorSigma     = 60 * 60          // Seconds
+	timeErrorSigma     = 60               // Seconds
 	searchTimeout      = 10 * time.Minute // Seconds
 	defaultTimeout     = 20 * time.Second // Seconds; Timeout for TCP
 	getTimeout         = 2 * time.Minute  // Seconds; Timeout for /get

@@ -216,6 +216,7 @@ func (r *RecentList) getAll() {
 			continue
 		}
 		for _, line := range res {
+			log.Println(line)
 			rec := makeRecord(line)
 			if rec == nil {
 				continue

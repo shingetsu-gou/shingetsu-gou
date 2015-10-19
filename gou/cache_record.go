@@ -88,6 +88,9 @@ func (r *record) recstr() string {
 
 //bodystr returns body part of one line in the record file.
 func (r *record) bodystr() string {
+	if len(r.contents) == 0 {
+		return ""
+	}
 	rs := make([]string, len(r.contents))
 	for i, k := range r.keyOrder {
 		rs[i] = k + ":" + r.contents[k]
@@ -149,7 +152,7 @@ func (r *record) Exists() bool {
 	return IsFile(r.path())
 }
 
-//parse parses one line in record file and set params to record r.
+//parse parses one line in record file and response of /recent/ and set params to record r.
 func (r *record) parse(recstr string) error {
 	var err error
 	recstr = strings.TrimRight(recstr, "\r\n")
@@ -166,8 +169,9 @@ func (r *record) parse(recstr string) error {
 	}
 	r.ID = tmp[1]
 	r.contents = make(map[string]string)
-	r.keyOrder = make([]string, len(tmp)-2)
-	for i, kv := range tmp[2:] {
+	//reposense of recentlist  : stamp<>id<>thread_***<>tag:***
+	//record str : stamp<>id<>body:***<>...
+	for _, kv := range tmp[2:] {
 		buf := strings.SplitN(kv, ":", 2)
 		if len(buf) < 2 {
 			continue
@@ -176,7 +180,7 @@ func (r *record) parse(recstr string) error {
 		buf[1] = strings.Replace(buf[1], "<", "&lt;", -1)
 		buf[1] = strings.Replace(buf[1], ">", "&gt;", -1)
 		buf[1] = strings.Replace(buf[1], "\n", "<br>", -1)
-		r.keyOrder[i] = buf[0]
+		r.keyOrder = append(r.keyOrder, buf[0])
 		r.contents[buf[0]] = buf[1]
 	}
 	if r.contents["attach"] != "-1" {
@@ -276,9 +280,10 @@ func (r *record) build(stamp int64, body map[string]string, passwd string) strin
 		pubkey, _ := k.getKeys()
 		md := md5digest(r.bodystr())
 		sign := k.sign(md)
+		log.Println(pubkey, sign, targets)
 		r.contents["pubkey"] = pubkey
 		r.contents["sign"] = sign
-		r.contents["target"] = targets
+		r.contents["target"] = strings.Join(r.keyOrder, ",")
 		r.keyOrder = append(r.keyOrder, "pubkey")
 		r.keyOrder = append(r.keyOrder, "sign")
 		r.keyOrder = append(r.keyOrder, "target")
@@ -505,7 +510,7 @@ func getRecords(datfile string, n *node, head []string) []string {
 		if !IsFile(rec.path()) && !IsFile(rec.rmPath()) {
 			res, err := n.talk(fmt.Sprintf("/get/%s/%d/%s", datfile, rec.Stamp, rec.ID))
 			if err != nil {
-				log.Println("get", err)
+				log.Println(err)
 				return nil
 			}
 			result = append(result, strings.TrimSpace(res[0]))

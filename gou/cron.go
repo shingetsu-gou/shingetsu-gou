@@ -137,7 +137,6 @@ func (c *client) doInit() {
 	log.Println("nodelist.init finished")
 }
 
-
 //doSync checks nodes in the nodelist are alive, reloads cachelist, removes old removed files,
 //reloads all tags from cachelist,reload srecent list from nodes in search list,
 //and reloads cache info from files in the disk.

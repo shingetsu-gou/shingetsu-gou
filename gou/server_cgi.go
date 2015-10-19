@@ -153,7 +153,6 @@ func doHave(w http.ResponseWriter, r *http.Request) {
 	reg := regexp.MustCompile("^have/([0-9A-Za-z_]+)$")
 	m := reg.FindStringSubmatch(s.path)
 	if m == nil {
-		log.Println(s.path)
 		fmt.Fprintln(w, "NO")
 		log.Println("illegal url")
 		return
@@ -231,7 +230,6 @@ func doRecent(w http.ResponseWriter, r *http.Request) {
 	}()
 	s := newServerCGI(w, r)
 	if s == nil {
-		log.Println("NG")
 		return
 	}
 	reg := regexp.MustCompile("^recent/?([-0-9A-Za-z/]*)$")
@@ -248,11 +246,11 @@ func doRecent(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		ca := newCache(i.datfile)
-		var tagstr string
-		if ca.tags != nil {
-			tagstr = "tag:" + ca.tags.string()
+		cont := fmt.Sprintf("%d<>%s<>%s", i.stamp, i.id, i.datfile)
+		if ca.tags != nil && ca.tags.Len() > 0 {
+			cont += "<>tag:" + ca.tags.string()
 		}
-		_, err := fmt.Fprintf(w, "%d<>%s<>%s%s\n", i.stamp, i.id, i.datfile, tagstr)
+		_, err := fmt.Fprintf(w, "%s\n", cont)
 		if err != nil {
 			log.Println(err)
 		}
@@ -302,7 +300,6 @@ func doGetHead(w http.ResponseWriter, r *http.Request) {
 				if err != nil {
 					log.Println(err)
 				}
-				log.Println(r.recstr(),":GET")
 				fmt.Fprintf(s.wr, r.recstr())
 			} else {
 				fmt.Fprintln(s.wr, strings.Replace(r.Idstr(), "_", "<>", -1))

@@ -74,7 +74,7 @@ type node struct {
 func newNode(nodestr string) *node {
 	nodestr = strings.TrimSpace(nodestr)
 	if nodestr == "" {
-		log.Printf("nodestr must not empty")
+		log.Printf("nodestr is empty")
 		return nil
 	}
 	if match, err := regexp.MatchString("\\d+/[^: ]+$", nodestr); !match || err != nil {

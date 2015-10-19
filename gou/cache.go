@@ -110,6 +110,7 @@ func newCache(datfile string) *cache {
 	c.node = newRawNodeList(path.Join(c.datpath(), "node.txt"))
 	c.tags = newTagList(path.Join(c.datpath(), "tag.txt"))
 	if v, exist := suggestedTagTable.sugtaglist[c.Datfile]; exist {
+		log.Println(c.Datfile,"exist")
 		c.sugtags = v
 	} else {
 		c.sugtags = newSuggestedTagList(c.Datfile, nil)

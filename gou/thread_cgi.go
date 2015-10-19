@@ -154,7 +154,6 @@ func (t *threadCGI) printThreadIndex() {
 		return
 	}
 	if t.req.FormValue("cmd") != "post" || !strings.HasPrefix(t.req.FormValue("file"), "thread_") {
-		log.Println("404")
 		t.print404(nil, "")
 		return
 	}
@@ -576,8 +575,10 @@ func (t *threadCGI) guessSuffix(at *attached) string {
 //if nobody render null_article page.
 func (t *threadCGI) makeRecord(at *attached, suffix string, ca *cache) *record {
 	body := make(map[string]string)
-	if value := t.req.FormValue("body"); value != "" {
-		body["body"] = escape(value)
+	for _, name := range []string{"body", "base_stamp", "base_id", "name", "mail"} {
+		if value := t.req.FormValue(name); value != "" {
+			body[name] = escape(value)
+		}
 	}
 
 	if at != nil {
@@ -683,7 +684,7 @@ func (t *threadCGI) parseAttached() (*attached, error) {
 		return nil, err
 	}
 	log.Println(fpStrAttach.Filename)
-	coded:=base64.StdEncoding.EncodeToString(strAttach[:s])
+	coded := base64.StdEncoding.EncodeToString(strAttach[:s])
 	return &attached{
 		fpStrAttach.Filename,
 		coded,

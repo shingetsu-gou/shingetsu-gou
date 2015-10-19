@@ -63,8 +63,9 @@ func main() {
 			m, err := n.LoopPortMapping("tcp", gou.DefaultPort, "shingetsu-gou", 10*time.Minute)
 			if err != nil {
 				log.Println(err)
+			} else {
+				gou.ExternalPort = m.ExternalPort
 			}
-			gou.ExternalPort = m.ExternalPort
 		}
 	}
 

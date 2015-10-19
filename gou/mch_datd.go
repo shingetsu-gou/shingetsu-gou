@@ -303,6 +303,7 @@ func (m *mchCGI) makeSubject(board string) ([]string, int64) {
 		if titleStr != "" {
 			titleStr = strings.Trim(titleStr, "\r\n")
 		}
+		log.Println(key, titleStr, len(c.recs), c.Datfile)
 		subjects = append(subjects, fmt.Sprintf("%d.dat<>%s (%d)",
 			key, titleStr, len(c.recs)))
 	}

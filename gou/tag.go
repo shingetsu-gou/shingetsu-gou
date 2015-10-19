@@ -93,7 +93,7 @@ func (t *tagList) getTagstrSlice() []string {
 
 //string concatenates and returns tagstr of tags.
 func (t *tagList) string() string {
-	return strings.Join(t.getTagstrSlice(), "")
+	return strings.Join(t.getTagstrSlice(), " ")
 }
 
 //checkAppend append tagstr=val tag if tagList doesn't have its tag.

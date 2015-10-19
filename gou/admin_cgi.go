@@ -257,7 +257,7 @@ func (a *adminCGI) makeSid() string {
 	sid := md5digest(r)
 	err := ioutil.WriteFile(adminSid, []byte(sid+"\n"), 0755)
 	if err != nil {
-		log.Println(adminSid, err)
+		log.Println(err)
 	}
 	return sid
 }
@@ -267,7 +267,7 @@ func (a *adminCGI) checkSid() bool {
 	sid := a.req.FormValue("sid")
 	bsaved, err := ioutil.ReadFile(adminSid)
 	if err != nil {
-		log.Println(adminSid, err)
+		log.Println(err)
 		return false
 	}
 	saved := strings.TrimRight(string(bsaved), "\r\n")
