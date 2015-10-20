@@ -366,6 +366,10 @@ func InitVariables() {
 	defaultThumbnailSize = setting.getStringValue("Application Thread", "thumbnail_size", "")
 	forceThumbnail = setting.getBoolValue("Application Thread", "force_thumbnail", false)
 
+	application = map[string]string{
+		"thread": threadURL,
+	}
+
 	version = getVersion()
 
 	initNode = newConfList(initnodeList, defaultInitNode)
