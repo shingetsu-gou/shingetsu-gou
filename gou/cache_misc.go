@@ -174,10 +174,10 @@ func (u *UpdateList) sync() {
 		if u.updateRange > 0 && r.stamp+u.updateRange < time.Now().Unix() {
 			u.infos = append(u.infos[:i], u.infos[i+1:]...)
 		}
-		err := writeSlice(u.updateFile, u.getRecstrSlice())
-		if err != nil {
-			log.Println(err)
-		}
+	}
+	err := writeSlice(u.updateFile, u.getRecstrSlice())
+	if err != nil {
+		log.Println(err)
 	}
 }
 
@@ -263,6 +263,7 @@ func (r *RecentList) uniq() {
 
 //sync singlize records and save new ones.
 func (r *RecentList) sync() {
+	log.Println("recentlist sync")
 	r.uniq()
 	r.UpdateList.sync()
 }
