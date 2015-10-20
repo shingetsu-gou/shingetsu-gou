@@ -258,6 +258,9 @@ func (t *rawNodeList) append(n *node) {
 
 //extend adds slice of nodes with check.
 func (t *rawNodeList) extend(ns []*node) {
+	if ns == nil {
+		return
+	}
 	for _, n := range ns {
 		t.append(n)
 	}
@@ -567,9 +570,7 @@ func (sl *SearchList) join(n *node) {
 //if found, n is added to lookuptable.
 func (sl *SearchList) search(c *cache, myself *node, nodes []*node) *node {
 	nl := &rawNodeList{}
-	if nodes != nil {
-		nl.extend(nodes)
-	}
+	nl.extend(nodes)
 	nl.extend(sl.nodes)
 	shuffle(nl)
 	count := 0
@@ -577,7 +578,6 @@ func (sl *SearchList) search(c *cache, myself *node, nodes []*node) *node {
 		if n.equals(myself) || !n.isAllowed() {
 			continue
 		}
-		count++
 		res, err := n.talk("/have/" + c.Datfile)
 		if err == nil && len(res) > 0 && res[0] == "YES" {
 			sl.sync()
@@ -590,7 +590,7 @@ func (sl *SearchList) search(c *cache, myself *node, nodes []*node) *node {
 			c.node.removeNode(n)
 		}
 		lookupTable.remove(c.Datfile, n)
-		if count > searchDepth {
+		if count++; count > searchDepth {
 			break
 		}
 	}

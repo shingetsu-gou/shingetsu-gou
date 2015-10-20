@@ -47,23 +47,24 @@ import (
 )
 
 const (
-	clientCycle        = 5 * time.Minute  // Seconds; Access client.cgi
-	pingCycle          = 5 * time.Minute  // Seconds; Check nodes
-	syncCycle          = 1 * time.Hour    // Seconds; Check cache
-	initCycle          = 20 * time.Minute // Seconds; Check initial node
-	defaultUpdateRange = 24 * time.Hour   // Seconds
-	timeErrorSigma     = 60               // Seconds
-	searchTimeout      = 10 * time.Minute // Seconds
-	defaultTimeout     = 20 * time.Second // Seconds; Timeout for TCP
-	getTimeout         = 2 * time.Minute  // Seconds; Timeout for /get
-	clientTimeout      = 30 * time.Minute // Seconds; client_timeout < sync_cycle
-	retry              = 5                // Times; Common setting
-	retryJoin          = 2                // Times; Join network
-	defaultNodes       = 5                // Nodes keeping in node list
-	shareNodes         = 5                // Nodes having the file
-	searchDepth        = 30               // Search node size
-	titleLimit         = 30               //Charactors
-	defaultLanguage    = "en"             // Language code (see RFC3066)
+	clientCycle        = 5 * time.Minute    // Seconds; Access client.cgi
+	pingCycle          = 5 * time.Minute    // Seconds; Check nodes
+	syncCycle          = 1 * time.Hour      // Seconds; Check cache
+	initCycle          = 20 * time.Minute   // Seconds; Check initial node
+	defaultUpdateRange = 24 * time.Hour     // Seconds
+	timeErrorSigma     = 60                 // Seconds
+	searchTimeout      = 10 * time.Minute   // Seconds
+	defaultTimeout     = 20 * time.Second   // Seconds; Timeout for TCP
+	getTimeout         = 2 * time.Minute    // Seconds; Timeout for /get
+	clientTimeout      = 30 * time.Minute   // Seconds; client_timeout < sync_cycle
+	retry              = 5                  // Times; Common setting
+	retryJoin          = 2                  // Times; Join network
+	defaultNodes       = 5                  // Nodes keeping in node list
+	shareNodes         = 5                  // Nodes having the file
+	searchDepth        = 30                 // Search node size
+	titleLimit         = 30                 //Charactors
+	defaultLanguage    = "en"               // Language code (see RFC3066)
+	saveCookie         = 7 * 24 * time.Hour // Seconds
 
 	// regexp
 	robot = "Google|bot|Yahoo|archiver|Wget|Crawler|Yeti|Baidu"
@@ -73,11 +74,10 @@ const (
 	rootPath       = "/" // path of URI for root
 
 	templateSuffix = ".txt"
+	useCookie      = true
 )
 
 var (
-	setting = newConfig()
-
 	types = []string{"thread"}
 
 	saveRecord  = make(map[string]int64)
@@ -87,84 +87,80 @@ var (
 	saveRemoved = make(map[string]int64)
 
 	//DefaultPort is listening port
-	DefaultPort = setting.getIntValue("Network", "port", 8010)
-	//	datPort       = setting.getIntValue("Network", "dat_port", 8001)
-	maxConnection = setting.getIntValue("Network", "max_connection", 20)
-	docroot       = setting.getPathValue("Path", "docroot", "./www")                    //path from cwd
-	logDir        = setting.getPathValue("Path", "log_dir", "./log")                    //path from cwd
-	runDir        = setting.getRelativePathValue("Path", "run_dir", "../run")           //path from docroot
-	fileDir       = setting.getRelativePathValue("Path", "file_dir", "../file")         //path from docroot
-	cacheDir      = setting.getRelativePathValue("Path", "cache_dir", "../cache")       //path from docroot
-	templateDir   = setting.getRelativePathValue("Path", "template_dir", "../template") //path from docroot
-	spamList      = setting.getRelativePathValue("Path", "spam_list", "../file/spam.txt")
-	initnodeList  = setting.getRelativePathValue("Path", "initnode_list", "../file/initnode.txt")
-	nodeAllowFile = setting.getRelativePathValue("Path", "node_allow", "../file/node_allow.txt")
-	nodeDenyFile  = setting.getRelativePathValue("Path", "node_deny", "../file/node_deny.txt")
+	DefaultPort   int
+	maxConnection int
+	docroot       string
+	logDir        string
+	runDir        string
+	fileDir       string
+	cacheDir      string
+	templateDir   string
+	spamList      string
+	initnodeList  string
+	nodeAllowFile string
+	nodeDenyFile  string
 
-	reAdminStr     = setting.getStringValue("Gateway", "admin", "^(127|\\[::1\\])")
-	reFriendStr    = setting.getStringValue("Gateway", "friend", "^(127|\\[::1\\])")
-	reVisitorStr   = setting.getStringValue("Gateway", "visitor", ".")
+	reAdminStr     string
+	reFriendStr    string
+	reVisitorStr   string
 	reAdmin        *regexp.Regexp
 	reFriend       *regexp.Regexp
 	reVisitor      *regexp.Regexp
-	serverName     = setting.getStringValue("Gateway", "server_name", "")
-	tagSize        = setting.getIntValue("Gateway", "tag_size", 20)
-	rssRange       = setting.getInt64Value("Gateway", "rss_range", 3*24*60*60)
-	topRecentRange = setting.getInt64Value("Gateway", "top_recent_range", 3*24*60*60)
-	recentRange    = setting.getInt64Value("Gateway", "recent_range", 31*24*60*60)
-	recordLimit    = setting.getIntValue("Gateway", "record_limit", 2048)
-	enable2ch      = setting.getBoolValue("Gateway", "enable_2ch", false)
+	serverName     string
+	tagSize        int
+	rssRange       int64
+	topRecentRange int64
+	recentRange    int64
+	recordLimit    int
+	enable2ch      bool
 	//EnableNAT is enable if you want to use nat.
-	EnableNAT = setting.getBoolValue("Gateway", "enable_nat", false)
+	EnableNAT bool
 	//ExternalPort is opened port by NAT.if no NAT it equals to DeafultPort.
-	ExternalPort = DefaultPort
+	ExternalPort int
 
-	motd        = fileDir + "/motd.txt"
-	nodeFile    = runDir + "/node.txt"
-	searchFile  = runDir + "/search.txt"
-	update      = runDir + "/update.txt"
-	recent      = runDir + "/recent.txt"
-	clientLog   = runDir + "/client.txt"
-	lock        = runDir + "/lock.txt"
-	searchLock  = runDir + "/touch.txt"
-	adminSearch = runDir + "/admintouch.txt"
-	adminSid    = runDir + "/sid.txt"
-	pid         = runDir + "/pid.txt"
-	lookup      = runDir + "/lookup.txt"
-	taglist     = runDir + "/tag.txt"
-	sugtag      = runDir + "/sugtag.txt"
+	motd        string
+	nodeFile    string
+	searchFile  string
+	update      string
+	recent      string
+	clientLog   string
+	lock        string
+	searchLock  string
+	adminSearch string
+	adminSid    string
+	pid         string
+	lookup      string
+	taglist     string
+	sugtag      string
 
-	serverURL  = rootPath + "server.cgi"
-	gatewayURL = rootPath + "gateway.cgi"
-	threadURL  = rootPath + "thread.cgi"
-	adminURL   = rootPath + "admin.cgi"
-	xsl        = rootPath + "rss1.xsl"
+	serverURL  string
+	gatewayURL string
+	threadURL  string
+	adminURL   string
+	xsl        string
 
-	threadPageSize       = setting.getIntValue("Application Thread", "page_size", 50)
-	defaultThumbnailSize = setting.getStringValue("Application Thread", "thumbnail_size", "")
-	forceThumbnail       = setting.getBoolValue("Application Thread", "force_thumbnail", false)
+	threadPageSize       int
+	defaultThumbnailSize string
+	forceThumbnail       bool
 
-	application = map[string]string{"thread": threadURL}
-	useCookie   = true
-	saveCookie  = 7 * 24 * time.Hour
-	// Seconds
+	application map[string]string
 
 	// asis, md5, sha1, sha224, sha256, sha384, or sha512
 	//	cache_hash_method = "asis"
 	//others are not implemented for gou for now.
 
-	version = getVersion()
+	version string
 
 	defaultInitNode = []string{
 		"node.shingetsu.info:8000/server.cgi",
 		"pushare.zenno.info:8000/server.cgi",
 	}
 
-	initNode     = newConfList(initnodeList, defaultInitNode)
-	cachedRule   = newRegexpList(spamList)
-	nodeAllow    = newRegexpList(nodeAllowFile)
-	nodeDeny     = newRegexpList(nodeDenyFile)
-	dataKeyTable = newDatakeyTable(runDir + "/datakey.txt")
+	initNode     *confList
+	cachedRule   *regexpList
+	nodeAllow    *regexpList
+	nodeDeny     *regexpList
+	dataKeyTable *DatakeyTable
 
 	queue             *updateQue
 	suggestedTagTable *SuggestedTagTable
@@ -189,8 +185,6 @@ type config struct {
 
 //newConfig make a config instance from the ini files and returns it.
 func newConfig() *config {
-	log.SetFlags(log.Ldate | log.Ltime | log.Lshortfile)
-
 	var err error
 	c := &config{}
 	c.i = ini.Empty()
@@ -319,6 +313,67 @@ func setupTemplate() {
 
 //InitVariables initializes some global and map vars.
 func InitVariables() {
+	setting := newConfig()
+
+	DefaultPort = setting.getIntValue("Network", "port", 8010)
+	maxConnection = setting.getIntValue("Network", "max_connection", 20)
+	docroot = setting.getPathValue("Path", "docroot", "./www")                        //path from cwd
+	logDir = setting.getPathValue("Path", "log_dir", "./log")                         //path from cwd
+	runDir = setting.getRelativePathValue("Path", "run_dir", "../run")                //path from docroot
+	fileDir = setting.getRelativePathValue("Path", "file_dir", "../file")             //path from docroot
+	cacheDir = setting.getRelativePathValue("Path", "cache_dir", "../cache")          //path from docroot
+	templateDir = setting.getRelativePathValue("Path", "template_dir", "../template") //path from docroot
+	spamList = setting.getRelativePathValue("Path", "spam_list", "../file/spam.txt")
+	initnodeList = setting.getRelativePathValue("Path", "initnode_list", "../file/initnode.txt")
+	nodeAllowFile = setting.getRelativePathValue("Path", "node_allow", "../file/node_allow.txt")
+	nodeDenyFile = setting.getRelativePathValue("Path", "node_deny", "../file/node_deny.txt")
+
+	reAdminStr = setting.getStringValue("Gateway", "admin", "^(127|\\[::1\\])")
+	reFriendStr = setting.getStringValue("Gateway", "friend", "^(127|\\[::1\\])")
+	reVisitorStr = setting.getStringValue("Gateway", "visitor", ".")
+	serverName = setting.getStringValue("Gateway", "server_name", "")
+	tagSize = setting.getIntValue("Gateway", "tag_size", 20)
+	rssRange = setting.getInt64Value("Gateway", "rss_range", 3*24*60*60)
+	topRecentRange = setting.getInt64Value("Gateway", "top_recent_range", 3*24*60*60)
+	recentRange = setting.getInt64Value("Gateway", "recent_range", 31*24*60*60)
+	recordLimit = setting.getIntValue("Gateway", "record_limit", 2048)
+	enable2ch = setting.getBoolValue("Gateway", "enable_2ch", false)
+	EnableNAT = setting.getBoolValue("Gateway", "enable_nat", false)
+	ExternalPort = DefaultPort
+
+	motd = fileDir + "/motd.txt"
+	nodeFile = runDir + "/node.txt"
+	searchFile = runDir + "/search.txt"
+	update = runDir + "/update.txt"
+	recent = runDir + "/recent.txt"
+	clientLog = runDir + "/client.txt"
+	lock = runDir + "/lock.txt"
+	searchLock = runDir + "/touch.txt"
+	adminSearch = runDir + "/admintouch.txt"
+	adminSid = runDir + "/sid.txt"
+	pid = runDir + "/pid.txt"
+	lookup = runDir + "/lookup.txt"
+	taglist = runDir + "/tag.txt"
+	sugtag = runDir + "/sugtag.txt"
+
+	serverURL = rootPath + "server.cgi"
+	gatewayURL = rootPath + "gateway.cgi"
+	threadURL = rootPath + "thread.cgi"
+	adminURL = rootPath + "admin.cgi"
+	xsl = rootPath + "rss1.xsl"
+
+	threadPageSize = setting.getIntValue("Application Thread", "page_size", 50)
+	defaultThumbnailSize = setting.getStringValue("Application Thread", "thumbnail_size", "")
+	forceThumbnail = setting.getBoolValue("Application Thread", "force_thumbnail", false)
+
+	version = getVersion()
+
+	initNode = newConfList(initnodeList, defaultInitNode)
+	cachedRule = newRegexpList(spamList)
+	nodeAllow = newRegexpList(nodeAllowFile)
+	nodeDeny = newRegexpList(nodeDenyFile)
+	dataKeyTable = newDatakeyTable(runDir + "/datakey.txt")
+
 	suggestedTagTable = newSuggestedTagTable()
 	userTagList = newUserTagList()
 	lookupTable = newLookupTable()

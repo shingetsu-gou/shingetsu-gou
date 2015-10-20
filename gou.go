@@ -43,6 +43,7 @@ import (
 //init initialize all variables and logger by arguments
 func init() {
 	log.SetFlags(log.Ldate | log.Ltime | log.Lshortfile)
+	expandAssets()
 	gou.InitVariables()
 
 	var printLog, isSilent bool
@@ -70,7 +71,6 @@ func main() {
 	}
 
 	log.Println("starting Gou")
-	expandAssets()
 	gou.SetupDaemon()
 	gou.StartDaemon()
 }
@@ -81,6 +81,7 @@ func expandAssets() {
 		if gou.IsFile(fname) {
 			continue
 		}
+		log.Println("expanding", fname)
 		path, _ := path.Split(fname)
 		if !gou.IsDir(path) {
 			err := os.MkdirAll(path, 0755)
