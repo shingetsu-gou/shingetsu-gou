@@ -58,7 +58,7 @@ func eachIOLine(f io.ReadCloser, handler func(line string, num int) error) error
 	for i := 0; err == nil; i++ {
 		var line string
 		line, err = r.ReadString('\n')
-		if err != nil {
+		if err != nil && line == "" {
 			break
 		}
 		line = strings.Trim(line, "\n\r")

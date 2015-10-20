@@ -95,7 +95,8 @@ func (d *DatakeyTable) save() {
 	str := make([]string, len(d.datakey2filekey))
 	i := 0
 	for stamp, filekey := range d.datakey2filekey {
-		str[i] = fmt.Sprintf("%d<>%s\n", stamp, filekey)
+		str[i] = fmt.Sprintf("%d<>%s", stamp, filekey)
+		i++
 	}
 	err := writeSlice(d.file, str)
 	if err != nil {

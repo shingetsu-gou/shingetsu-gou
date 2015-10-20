@@ -50,17 +50,13 @@ func adminSetup(s *loggingServeMux) {
 	s.registCompressHandler("/admin.cgi/edittag", printEdittag)
 	s.registCompressHandler("/admin.cgi/savetag", saveTagCGI)
 	s.registCompressHandler("/admin.cgi/search", printSearch)
-	s.registCompressHandler("/admin.cgi", execCmd)
+	s.registCompressHandler("/admin.cgi/", execCmd)
 }
 
 //execCmd execute command specified cmd form.
 //i.e. confirmagion page for deleting rec/file(rdel/fdel) and for deleting.
 //(xrdel/xfdel)
 func execCmd(w http.ResponseWriter, r *http.Request) {
-	<-connections
-	defer func() {
-		connections <- struct{}{}
-	}()
 	a := newAdminCGI(w, r)
 	if a == nil {
 		return
@@ -69,6 +65,7 @@ func execCmd(w http.ResponseWriter, r *http.Request) {
 	rmFiles := a.req.Form["file"]
 	rmRecords := a.req.Form["record"]
 
+	log.Println("removing, cmd", cmd, "rmFiles", rmFiles, "rmRecords", rmRecords, "dopost=", a.req.FormValue("dopost"))
 	switch cmd {
 	case "rdel":
 		a.printDeleteRecord(rmFiles, rmRecords)
@@ -84,10 +81,6 @@ func execCmd(w http.ResponseWriter, r *http.Request) {
 //printSearch renders the page for searching if query=""
 //or do query if query!=""
 func printSearch(w http.ResponseWriter, r *http.Request) {
-	<-connections
-	defer func() {
-		connections <- struct{}{}
-	}()
 	a := newAdminCGI(w, r)
 	if a == nil {
 		return
@@ -107,10 +100,6 @@ func printSearch(w http.ResponseWriter, r *http.Request) {
 //#linknodes,#knownNodes,#files,#records,cacheSize,selfnode/linknodes/knownnodes
 // ip:port,
 func printStatus(w http.ResponseWriter, r *http.Request) {
-	<-connections
-	defer func() {
-		connections <- struct{}{}
-	}()
 	a := newAdminCGI(w, r)
 	if a == nil {
 		return
@@ -157,16 +146,12 @@ func printStatus(w http.ResponseWriter, r *http.Request) {
 
 //printEdittag renders the page for editing tags in thread specified by form "file".
 func printEdittag(w http.ResponseWriter, r *http.Request) {
-	<-connections
-	defer func() {
-		connections <- struct{}{}
-	}()
 	a := newAdminCGI(w, r)
 	if a == nil {
 		return
 	}
 	datfile := a.req.FormValue("file")
-	strTitle := fileEncode(datfile, "")
+	strTitle := fileDecode(datfile)
 	ca := newCache(datfile)
 	datfile = html.EscapeString(datfile)
 
@@ -196,10 +181,6 @@ func printEdittag(w http.ResponseWriter, r *http.Request) {
 
 //saveTagCGI saves edited tags of file and render this file with 302.
 func saveTagCGI(w http.ResponseWriter, r *http.Request) {
-	<-connections
-	defer func() {
-		connections <- struct{}{}
-	}()
 	a := newAdminCGI(w, r)
 	if a == nil {
 		return
@@ -287,19 +268,18 @@ type DeleteRecord struct {
 }
 
 //Getbody retuns contents of rec.
-func (d *DeleteRecord) Getbody(rec *record) string {
+func (d DeleteRecord) Getbody(rec *record) string {
 	err := rec.loadBody()
 	if err != nil {
 		log.Println(err)
 	}
-	recstr := html.EscapeString(rec.recstr())
-	return recstr
+	return rec.recstr()
 }
 
 //printDeleteRecord renders comfirmation page for deleting a record.
 //renders info about rec.
 func (a *adminCGI) printDeleteRecord(rmFiles []string, records []string) {
-	if rmFiles != nil || records != nil {
+	if rmFiles == nil || records == nil {
 		a.print404(nil, "")
 		return
 	}
@@ -324,7 +304,7 @@ func (a *adminCGI) printDeleteRecord(rmFiles []string, records []string) {
 //doDeleteRecord dels records in rmFiles files and 302 to this file page.
 //with cheking sid. if dopost tells other nodes.
 func (a *adminCGI) doDeleteRecord(rmFiles []string, records []string, dopost string) {
-	if a.req.Method != "POST" || a.checkSid() {
+	if a.req.Method != "POST" || !a.checkSid() {
 		a.print404(nil, "")
 		return
 	}

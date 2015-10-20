@@ -30,6 +30,7 @@ package gou
 
 import (
 	"encoding/csv"
+	"encoding/hex"
 	"fmt"
 	"html"
 	"io/ioutil"
@@ -62,11 +63,6 @@ func gatewaySetup(s *loggingServeMux) {
 //printGateway just redirects to correspoinding url using thread.cgi.
 //or renders only title.
 func printGatewayThread(w http.ResponseWriter, r *http.Request) {
-	<-connections
-	defer func() {
-		connections <- struct{}{}
-	}()
-
 	reg := regexp.MustCompile("^/gateway.cgi/(thread)/?([^/]*)$")
 	m := reg.FindStringSubmatch(r.URL.Path)
 	var uri string
@@ -91,10 +87,6 @@ func printGatewayThread(w http.ResponseWriter, r *http.Request) {
 
 //printCSV renders csv of caches saved in disk.
 func printCSV(w http.ResponseWriter, r *http.Request) {
-	<-connections
-	defer func() {
-		connections <- struct{}{}
-	}()
 	g := newGatewayCGI(w, r)
 	if g == nil {
 		return
@@ -105,10 +97,6 @@ func printCSV(w http.ResponseWriter, r *http.Request) {
 
 //printCSVChanges renders csv of caches which changes recently and are in disk(validstamp is newer).
 func printCSVChanges(w http.ResponseWriter, r *http.Request) {
-	<-connections
-	defer func() {
-		connections <- struct{}{}
-	}()
 	g := newGatewayCGI(w, r)
 	if g == nil {
 		return
@@ -120,10 +108,6 @@ func printCSVChanges(w http.ResponseWriter, r *http.Request) {
 
 //printCSVRecent renders csv of caches which are written recently(are updated remotely).
 func printCSVRecent(w http.ResponseWriter, r *http.Request) {
-	<-connections
-	defer func() {
-		connections <- struct{}{}
-	}()
 	g := newGatewayCGI(w, r)
 	if g == nil {
 		return
@@ -139,10 +123,6 @@ func printCSVRecent(w http.ResponseWriter, r *http.Request) {
 //printRecentRSS renders rss of caches which are written recently(are updated remotely).
 //including title,tags,last-modified.
 func printRecentRSS(w http.ResponseWriter, r *http.Request) {
-	<-connections
-	defer func() {
-		connections <- struct{}{}
-	}()
 	g := newGatewayCGI(w, r)
 	if g == nil {
 		return
@@ -151,7 +131,6 @@ func printRecentRSS(w http.ResponseWriter, r *http.Request) {
 		"http://"+g.host, "",
 		"http://"+g.host+gatewayURL+querySeparator+"recent_rss", g.m["description"], xsl)
 	cl := recentList.makeRecentCachelist()
-	log.Println(cl)
 	for _, ca := range cl.Caches {
 		title := escape(fileDecode(ca.Datfile))
 		tags := make([]string, ca.tags.Len()+ca.sugtags.Len())
@@ -211,10 +190,6 @@ func (g *gatewayCGI) appendRSS(rsss *RSS, ca *cache) {
 
 //printRSS reneders rss including newer records.
 func printRSS(w http.ResponseWriter, r *http.Request) {
-	<-connections
-	defer func() {
-		connections <- struct{}{}
-	}()
 	g := newGatewayCGI(w, r)
 	if g == nil {
 		return
@@ -234,10 +209,6 @@ func printRSS(w http.ResponseWriter, r *http.Request) {
 
 //printMergedJS renders merged js with stamp.
 func printMergedJS(w http.ResponseWriter, r *http.Request) {
-	<-connections
-	defer func() {
-		connections <- struct{}{}
-	}()
 	g := newGatewayCGI(w, r)
 	if g == nil {
 		return
@@ -253,10 +224,6 @@ func printMergedJS(w http.ResponseWriter, r *http.Request) {
 
 //printMotd renders motd.
 func printMotd(w http.ResponseWriter, r *http.Request) {
-	<-connections
-	defer func() {
-		connections <- struct{}{}
-	}()
 	g := newGatewayCGI(w, r)
 	if g == nil {
 		return
@@ -276,10 +243,6 @@ func printMotd(w http.ResponseWriter, r *http.Request) {
 
 //printNew renders the page for making new thread.
 func printNew(w http.ResponseWriter, r *http.Request) {
-	<-connections
-	defer func() {
-		connections <- struct{}{}
-	}()
 	g := newGatewayCGI(w, r)
 	if g == nil {
 		return
@@ -292,10 +255,6 @@ func printNew(w http.ResponseWriter, r *http.Request) {
 
 //printTitle renders list of newer thread in the disk for the top page
 func printTitle(w http.ResponseWriter, r *http.Request) {
-	<-connections
-	defer func() {
-		connections <- struct{}{}
-	}()
 	g := newGatewayCGI(w, r)
 	if g == nil {
 		return
@@ -356,10 +315,6 @@ func printTitle(w http.ResponseWriter, r *http.Request) {
 
 //printGatewayIndex renders list of new threads in the disk.
 func printGatewayIndex(w http.ResponseWriter, r *http.Request) {
-	<-connections
-	defer func() {
-		connections <- struct{}{}
-	}()
 	g := newGatewayCGI(w, r)
 	if g == nil {
 		return
@@ -369,10 +324,6 @@ func printGatewayIndex(w http.ResponseWriter, r *http.Request) {
 
 //printIndexChanges renders list of new threads in the disk sorted by velocity.
 func printIndexChanges(w http.ResponseWriter, r *http.Request) {
-	<-connections
-	defer func() {
-		connections <- struct{}{}
-	}()
 	g := newGatewayCGI(w, r)
 	if g == nil {
 		return
@@ -382,10 +333,6 @@ func printIndexChanges(w http.ResponseWriter, r *http.Request) {
 
 //printRecent renders cache in recentlist.
 func printRecent(w http.ResponseWriter, r *http.Request) {
-	<-connections
-	defer func() {
-		connections <- struct{}{}
-	}()
 	g := newGatewayCGI(w, r)
 	if g == nil {
 		return
@@ -574,7 +521,7 @@ func (g *gatewayCGI) mchCategories() []*mchCategory {
 
 //mchURL returns url for 2ch interface.
 func (g *gatewayCGI) mchURL(dat string) string {
-	path := "/2ch/" + dat + "/subject.txt"
+	path := "/2ch/" + strings.ToUpper(hex.EncodeToString([]byte(dat))) + "/subject.txt"
 	if dat == "" {
 		path = "/2ch/subject.txt"
 	}

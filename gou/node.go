@@ -58,7 +58,7 @@ func urlopen(url string, timeout time.Duration) ([]string, error) {
 	}
 	var lines []string
 	err = eachIOLine(resp.Body, func(line string, i int) error {
-		strings.TrimSpace(line)
+		strings.TrimRight(line, "\r\n")
 		lines = append(lines, line)
 		return nil
 	})
@@ -579,7 +579,7 @@ func (sl *SearchList) search(c *cache, myself *node, nodes []*node) *node {
 		}
 		count++
 		res, err := n.talk("/have/" + c.Datfile)
-		if err == nil && res[0] == "YES" {
+		if err == nil && len(res) > 0 && res[0] == "YES" {
 			sl.sync()
 			lookupTable.add(c.Datfile, n)
 			lookupTable.sync(false)

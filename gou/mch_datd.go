@@ -47,21 +47,20 @@ func mchSetup(s *loggingServeMux) {
 	dataKeyTable.load()
 	rtr := mux.NewRouter()
 
-	registToRouter(rtr, "/2ch/{board:[^/]+}/$", boardApp)
-	registToRouter(rtr, "/2ch/(board:[^/]+}/dat/{datkey:([^.]+}.dat", threadApp)
-	registToRouter(rtr, "/2ch/(board:[^/]*}/subject.txt", subjectApp)
+	registToRouter(rtr, "/2ch/", boardApp)
+	registToRouter(rtr, "/2ch/dat/{datkey:[^\\.]+}.dat", threadApp)
+	registToRouter(rtr, "/2ch/{board:[^/]+}/subject.txt", subjectApp)
 	registToRouter(rtr, "/2ch/subject.txt", subjectApp)
-	registToRouter(rtr, "/2ch/test/bbs.cgi", postCommentApp)
-	registToRouter(rtr, "/2ch/(board:[^/]+}/head.txt$", headApp)
+	registToRouter(rtr, "/2ch/{board:[^/]+}/head.txt", headApp)
+	registToRouter(rtr, "/2ch/head.txt", headApp)
 	s.Handle("/2ch/", handlers.CompressHandler(rtr))
+
+	s.registCompressHandler("/test/bbs.cgi", postCommentApp)
+
 }
 
 //boardApp just calls boardApp(), only print title.
 func boardApp(w http.ResponseWriter, r *http.Request) {
-	<-connections
-	defer func() {
-		connections <- struct{}{}
-	}()
 	a := newMchCGI(w, r)
 	if a == nil {
 		return
@@ -71,24 +70,20 @@ func boardApp(w http.ResponseWriter, r *http.Request) {
 
 //threadApp renders dat files(record data) in the thread.
 func threadApp(w http.ResponseWriter, r *http.Request) {
-	<-connections
-	defer func() {
-		connections <- struct{}{}
-	}()
 	a := newMchCGI(w, r)
 	if a == nil {
 		return
 	}
 	m := mux.Vars(r)
-	a.threadApp(m["board"], m["datkey"])
+	board := m["board"]
+	if board == "" {
+		board = "2ch"
+	}
+	a.threadApp(board, m["datkey"])
 }
 
 //subjectApp renders time-subject lines of the thread.
 func subjectApp(w http.ResponseWriter, r *http.Request) {
-	<-connections
-	defer func() {
-		connections <- struct{}{}
-	}()
 	a := newMchCGI(w, r)
 	if a == nil {
 		return
@@ -99,10 +94,6 @@ func subjectApp(w http.ResponseWriter, r *http.Request) {
 
 //postCommentApp posts one record to the thread.
 func postCommentApp(w http.ResponseWriter, r *http.Request) {
-	<-connections
-	defer func() {
-		connections <- struct{}{}
-	}()
 	a := newMchCGI(w, r)
 	if a == nil {
 		return
@@ -112,10 +103,6 @@ func postCommentApp(w http.ResponseWriter, r *http.Request) {
 
 //headApp just renders motd.
 func headApp(w http.ResponseWriter, r *http.Request) {
-	<-connections
-	defer func() {
-		connections <- struct{}{}
-	}()
 	a := newMchCGI(w, r)
 	if a == nil {
 		return
@@ -219,7 +206,7 @@ func (m *mchCGI) threadApp(board, datkey string) {
 		m.wr.WriteHeader(404)
 		fmt.Fprintf(m.wr, "404 Not Found")
 	}
-	thread := makeDat(data, m.req.URL.Host, board)
+	thread := makeDat(data, board, m.req.Host)
 	str := strings.Join(thread, "\n")
 	m.serveContent("a.txt", time.Unix(data.stamp, 0), str)
 }
@@ -288,7 +275,7 @@ func (m *mchCGI) makeSubject(board string) ([]string, int64) {
 	cl := m.makeSubjectCachelist(board)
 	var lastStamp int64
 	for _, c := range cl {
-		if !loadFromNet && len(c.recs) == 0 {
+		if !loadFromNet && c.Len() == 0 {
 			continue
 		}
 		if lastStamp < c.stamp {
@@ -300,12 +287,12 @@ func (m *mchCGI) makeSubject(board string) ([]string, int64) {
 			continue
 		}
 		titleStr := fileDecode(c.Datfile)
-		if titleStr != "" {
-			titleStr = strings.Trim(titleStr, "\r\n")
+		if titleStr == "" {
+			continue
 		}
-		log.Println(key, titleStr, len(c.recs), c.Datfile)
+		titleStr = strings.Trim(titleStr, "\r\n")
 		subjects = append(subjects, fmt.Sprintf("%d.dat<>%s (%d)",
-			key, titleStr, len(c.recs)))
+			key, titleStr, c.Len()))
 	}
 	return subjects, lastStamp
 }

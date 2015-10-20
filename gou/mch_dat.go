@@ -38,12 +38,7 @@ import (
 
 //datastr2ch unixtime str ecpochStr to the certain format string.
 //e.g. 2006/01/02(日) 15:04:05.99
-func datestr2ch(epochStr string) string {
-	epoch, err := strconv.ParseInt(epochStr, 10, 64)
-	if err != nil {
-		log.Println(err)
-		return ""
-	}
+func datestr2ch(epoch int64) string {
 	t := time.Unix(epoch, 0)
 	d := t.Format("2006/01/02(%s) 15:04:05.99")
 	wdays := []string{"日", "月", "火", "水", "木", "金", "土"}
@@ -72,7 +67,7 @@ func newResTable(ca *cache) *resTable {
 }
 
 //makeDat makes dat lines of 2ch from cache.
-func makeDat(ca *cache, host string, board string) []string {
+func makeDat(ca *cache, board, host string) []string {
 	dat := make([]string, len(ca.keys()))
 	table := newResTable(ca)
 
@@ -91,11 +86,10 @@ func makeDat(ca *cache, host string, board string) []string {
 			name += "◆" + rec.GetBodyValue("pubkey", "")[:10]
 		}
 		comment := fmt.Sprintf("%s<>%s<>%s<>%s<>",
-			name, rec.GetBodyValue("main", ""), datestr2ch(rec.GetBodyValue("stamp", "")), makeBody(rec, host, board, table))
+			name, rec.GetBodyValue("main", ""), datestr2ch(rec.Stamp), makeBody(rec, host, board, table))
 		if i == 0 {
 			comment += fileDecode(ca.Datfile)
 		}
-		comment += "\n"
 		dat[i] = comment
 	}
 
@@ -124,14 +118,15 @@ func makeAttachLink(rec *record, sakuHost string) string {
 //makeRSSAnchor replace id to the record number.
 func makeRSSAnchor(body string, table *resTable) string {
 	reg := regexp.MustCompile("&gt;&gt;([0-9a-f]{8})")
-	return reg.ReplaceAllStringFunc(body, func(id string) string {
+	return reg.ReplaceAllStringFunc(body, func(str string) string {
+		id := reg.FindStringSubmatch(str)[1]
 		no := table.id2num[id]
-		return strconv.Itoa(no)
+		return "&gt;&gt;" + strconv.Itoa(no)
 	})
 }
 
 //makeBracketLink add links to [[hoe]] .
-func makeBracketLink(body string, datHost, board string, table *resTable) string {
+func makeBracketLink(body, datHost, board string, table *resTable) string {
 	regs := []*regexp.Regexp{
 		regexp.MustCompile("^(?P<title>[^/]+)$"),
 		regexp.MustCompile("^/(?P<type>[a-z]+)/(?P<title>[^/]+)$"),
@@ -139,7 +134,8 @@ func makeBracketLink(body string, datHost, board string, table *resTable) string
 		regexp.MustCompile("^/(?P<type>[a-z]+)/(?P<title>[^/]+)/(?P<id>[0-9a-f]{8})$"),
 	}
 	reg := regexp.MustCompile("\\[\\[([^<>]+?)\\]\\]")
-	return reg.ReplaceAllStringFunc(body, func(link string) string {
+	return reg.ReplaceAllStringFunc(body, func(str string) string {
+		link := reg.FindStringSubmatch(str)[1]
 		result := make(map[string]string)
 		for _, r := range regs {
 			if match := r.FindStringSubmatch(link); match != nil {
@@ -161,14 +157,14 @@ func makeBracketLink(body string, datHost, board string, table *resTable) string
 			log.Println(err)
 			return body
 		}
-		if result["id"] != "" {
-			url := fmt.Sprintf("http://%s/2ch/test/read.cgi/%s/%d/", datHost, board, datkey)
+		if result["id"] == "" {
+			url := fmt.Sprintf("http://%s/test/read.cgi/%s/%d/", datHost, board, datkey)
 			return fmt.Sprintf("[[%s(%s)]]", result["title"], url)
 		}
 		ca := newCache(file)
 		table = newResTable(ca)
 		no := table.id2num[result["id"]]
-		url := fmt.Sprintf("http://%s/2ch/test/read.cgi/%s/%d/%d", datHost, board, datkey, no)
-		return fmt.Sprintf("[[%s(&gt;&gt;%s %s)]]", result["title"], result["id"], url)
+		url := fmt.Sprintf("http://%s/test/read.cgi/%s/%d/%d", datHost, board, datkey, no)
+		return fmt.Sprintf("[[%s(&gt;&gt;%d %s)]]", result["title"], no, url)
 	})
 }

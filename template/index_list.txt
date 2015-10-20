@@ -24,7 +24,7 @@
 {{ if .Target}}
   <p class="tags">
   {{ range $t:=.Taglist.Tags }}
-    <a href="{{.GatewayCGI}}/{{.Target}}?tag={{strEncode $t.Tagstr}}" class="tag">{{$t.Tagstr}}</a>
+    <a href="{{$root.GatewayCGI}}/{{$root.Target}}?tag={{strEncode $t.Tagstr}}" class="tag">{{$t.Tagstr}}</a>
   {{ end }}
   </p>
 {{ end }}

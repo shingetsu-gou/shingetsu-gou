@@ -69,7 +69,7 @@ func newTagList(path string) *tagList {
 	t := &tagList{
 		path: path,
 	}
-	if !IsDir(path) {
+	if !IsFile(path) {
 		return t
 	}
 	err := eachLine(path, func(line string, i int) error {
@@ -208,7 +208,6 @@ func (s *SuggestedTagTable) sync() {
 //or truncates its size to tagsize if listed.
 func (s *SuggestedTagTable) prune(recentlist *RecentList) {
 	tmp := s.keys()
-	log.Println(tmp)
 	for _, r := range recentlist.infos {
 		if l := findString(tmp, r.datfile); l != -1 {
 			tmp = append(tmp[:l], tmp[l+1:]...)
@@ -257,7 +256,6 @@ type UserTagList struct {
 
 //newUserTagList return userTagList obj.
 func newUserTagList() *UserTagList {
-	log.Println(taglist)
 	t := newTagList(taglist)
 	return &UserTagList{t}
 }

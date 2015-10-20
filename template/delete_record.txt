@@ -7,7 +7,7 @@
   <input type="hidden" name="cmd" value="xrdel" />
   <input type="hidden" name="file" value="{{.Datfile}}" />
   <input type="hidden" name="sid" value="{{.Sid}}" />
-  {{ if eq .Records.Len 1 }}
+  {{ if eq (len .Records) 1 }}
     <div class="control-group">
       <label class="control-label" for="dopost">{{.Message.send}}</label>
       <div class="controls">

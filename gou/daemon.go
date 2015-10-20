@@ -29,15 +29,19 @@
 package gou
 
 import (
+	"fmt"
 	"io"
 	"io/ioutil"
 	"log"
+	"net"
 	"net/http"
 	"net/http/pprof"
 	"os"
 	"path"
 	"strconv"
 	"time"
+
+	"golang.org/x/net/netutil"
 
 	"github.com/gorilla/handlers"
 
@@ -92,12 +96,18 @@ func StartDaemon() {
 		log.Println(err)
 	}
 
+	listener, err := net.Listen("tcp", fmt.Sprintf("0.0.0.0:%d", DefaultPort))
+	if err != nil {
+		log.Fatalln(err)
+	}
+	limitListener := netutil.LimitListener(listener, maxConnection)
+
 	sm := newLoggingServeMux()
 	s := &http.Server{
 		Addr:           "0.0.0.0:" + strconv.Itoa(DefaultPort),
 		Handler:        sm,
-		ReadTimeout:    10 * time.Second,
-		WriteTimeout:   10 * time.Second,
+		ReadTimeout:    60 * time.Second,
+		WriteTimeout:   60 * time.Second,
 		MaxHeaderBytes: 1 << 20,
 	}
 
@@ -113,7 +123,7 @@ func StartDaemon() {
 		mchSetup(sm)
 	}
 
-	log.Fatal(s.ListenAndServe())
+	log.Fatal(s.Serve(limitListener))
 }
 
 func (s *loggingServeMux) registerPprof() {

@@ -38,7 +38,7 @@
   <h2>{{.Message.tag}}</h2>
   <ul class="topmenu">
   {{ range $t:=.Taglist.Tags }}
-    <li><a href="{{$root.GatewayCGI}}/{{$root.Target}}?tag={{strEncode $t}}">{{$t}}</a></li>
+    <li><a href="{{$root.GatewayCGI}}/{{$root.Target}}?tag={{$t.Tagstr}}">{{$t.Tagstr}}</a></li>
   {{ end }}
   </ul>
 {{ end }}

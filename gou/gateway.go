@@ -89,7 +89,9 @@ func searchMessage(acceptLanguage string) message {
 		slang := strings.Split(l, "-")[0]
 		for _, j := range []string{l, slang} {
 			file := path.Join(fileDir, "message-"+j+".txt")
-			return newMessage(file)
+			if IsFile(file) {
+				return newMessage(file)
+			}
 		}
 	}
 	return nil
@@ -351,7 +353,6 @@ func (c *cgi) header(title, rss string, cookie []*http.Cookie, denyRobot bool) {
 	}
 	if cookie != nil {
 		for _, co := range cookie {
-			log.Println(co)
 			http.SetCookie(c.wr, co)
 		}
 	}
@@ -607,6 +608,7 @@ func (c *cgi) checkGetCache() bool {
 		return true
 	}
 	if reg.MatchString(agent) {
+		log.Println("ng")
 		return false
 	}
 	return true

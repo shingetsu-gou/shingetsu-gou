@@ -70,7 +70,7 @@ func escape(msg string) string {
 	msg = strings.Replace(msg, "&", "&amp;", -1)
 	reg := regexp.MustCompile("&amp;(#\\d+|#[Xx][0-9A-Fa-f]+|[A-Za-z0-9]+);")
 	msg = string(reg.ReplaceAllString(msg, "&$1;"))
-	msg = strings.Replace(msg, "<", "&lt", -1)
+	msg = strings.Replace(msg, "<", "&lt;", -1)
 	msg = strings.Replace(msg, ">", "&gt;", -1)
 	msg = strings.Replace(msg, "\r", "", -1)
 	msg = strings.Replace(msg, "\n", "<br>", -1)
@@ -157,7 +157,7 @@ func fileDecode(query string) string {
 	}
 	b, err := hex.DecodeString(strs[1])
 	if err != nil {
-		log.Println("illegal file name", query)
+		log.Println("illegal file name", query, err)
 		return ""
 	}
 	return string(b)

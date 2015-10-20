@@ -29,6 +29,7 @@
 package gou
 
 import (
+	"fmt"
 	"html"
 	"log"
 	"regexp"
@@ -62,11 +63,10 @@ func (m *mchCGI) postComment(threadKey, name, mail, body, passwd, tag string) er
 }
 
 //errorResp render erro page with cp932 code.
-func (m *mchCGI) errorResp(msg string, info map[string]string) string {
-	info["message"] = msg
-	str := executeTemplate("2ch_error", info)
+func (m *mchCGI) errorResp(msg string, info map[string]string) {
 	m.wr.Header().Set("Content-Type", "text/html; charset=Shift_JIS")
-	return toSJIS(str)
+	info["message"] = msg
+	renderTemplate("2ch_error", info, m.wr)
 }
 
 //getCP932 returns form value of key with cp932 code.
@@ -82,14 +82,14 @@ func (m *mchCGI) getCommentData() map[string]string {
 	}
 	return map[string]string{
 		"subject": m.getCP932("subject"),
-		"from":    m.getCP932("FROM"),
+		"name":    m.getCP932("FROM"),
 		"mail":    mail,
-		"message": m.getCP932("MESSAGE"),
+		"body":    m.getCP932("MESSAGE"),
 		"key":     m.getCP932("key"),
 	}
 }
 
-func (m *mchCGI) checkInfo(info map[string]string) (string, string) {
+func (m *mchCGI) checkInfo(info map[string]string) string {
 	key := ""
 	if info["subject"] != "" {
 		key = fileEncode("thread", info["subject"])
@@ -97,38 +97,45 @@ func (m *mchCGI) checkInfo(info map[string]string) (string, string) {
 		var err error
 		key, err = dataKeyTable.getFilekey(info["key"])
 		if err != nil {
-			return "", m.errorResp(err.Error(), info)
+			m.errorResp(err.Error(), info)
+			return ""
 		}
 	}
 
 	switch {
 	case info["body"] == "":
-		return "", m.errorResp("本文がありません.", info)
+		m.errorResp("本文がありません.", info)
+		return ""
 	case newCache(key).Exists(), m.hasAuth():
 	case info["subject"] != "":
-		return "", m.errorResp("掲示版を作る権限がありません", info)
+		m.errorResp("掲示版を作る権限がありません", info)
+		return ""
 	default:
-		return "", m.errorResp("掲示版がありません", info)
+		m.errorResp("掲示版がありません", info)
+		return ""
 	}
 
 	if info["subject"] == "" && key == "" {
-		return "", m.errorResp("フォームが変です.", info)
+		m.errorResp("フォームが変です.", info)
+		return ""
 	}
-	return key, ""
+	return key
 }
 
 //postCommentApp
-func (m *mchCGI) postCommentApp() string {
+func (m *mchCGI) postCommentApp() {
+
 	if m.req.Method != "POST" {
 		m.wr.Header().Set("Content-Type", "text/plain")
 		m.wr.WriteHeader(404)
-		return "404 Not Found"
+		fmt.Fprintf(m.wr, "404 Not Found")
+		return
 	}
 	info := m.getCommentData()
-	info["host"] = m.req.URL.Host
-	key, errmsg := m.checkInfo(info)
-	if errmsg != "" {
-		return errmsg
+	info["host"] = m.req.Host
+	key := m.checkInfo(info)
+	if key == "" {
+		return
 	}
 
 	referer := m.getCP932("Referer")
@@ -139,11 +146,11 @@ func (m *mchCGI) postCommentApp() string {
 	}
 	table := newResTable(newCache(key))
 	reg = regexp.MustCompile(">>([1-9][0-9]*)")
-	body := reg.ReplaceAllStringFunc(info["body"], func(noStr string) string {
+	body := reg.ReplaceAllStringFunc(info["body"], func(str string) string {
+		noStr := reg.FindStringSubmatch(str)[1]
 		no, err := strconv.Atoi(noStr)
 		if err != nil {
-			log.Println(err)
-			return m.errorResp(err.Error(), info)
+			log.Fatal(err)
 		}
 		return ">>" + table.num2id[no]
 	})
@@ -156,14 +163,13 @@ func (m *mchCGI) postCommentApp() string {
 		passwd = ary[1]
 	}
 	if passwd != "" && !m.isAdmin {
-		return m.errorResp("自ノード以外で署名機能は使えません", info)
+		m.errorResp("自ノード以外で署名機能は使えません", info)
 	}
 	err := m.postComment(key, name, info["mail"], body, passwd, tag)
 	if err == errSpam {
-		return m.errorResp("スパムとみなされました", info)
+		m.errorResp("スパムとみなされました", info)
 	}
 	m.wr.Header().Set("Content-Type", "text/html; charset=Shift_JIS")
-	successMsg := `<html lang="ja"><head><meta http-equiv="Content-Type" content="text/html"><title>書きこみました。</title></head><body>書きこみが終わりました。<br><br></body></html>`
-
-	return toSJIS(successMsg)
+	fmt.Fprintln(m.wr,
+		toSJIS(`<html lang="ja"><head><meta http-equiv="Content-Type" content="text/html"><title>書きこみました。</title></head><body>書きこみが終わりました。<br><br></body></html>`))
 }

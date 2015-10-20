@@ -30,7 +30,7 @@
 <dd id="b{{.Sid}}">{{.Body}}
 {{ if and .RemoveID (.Rec.HasBodyValue "remove_stamp") }}
   <br />[[{{.Message.remove}}]:
-  {{.ResAnchor}}</a>]
+  {{stopEscaping .ResAnchor}}{{.RemoveID}}</a>]
 {{ end }}
 {{ if .Thumbnail}}
   <br /><a href="{{.ThreadCGI}}/{{.Cache.Datfile}}/{{.Rec.ID}}/{{.Rec.Stamp}}.{{.Suffix}}">

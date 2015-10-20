@@ -47,10 +47,10 @@ import (
 )
 
 const (
-	clientCycle        = 1 * time.Minute  // Seconds; Access client.cgi
-	pingCycle          = 1 * time.Minute  // Seconds; Check nodes
+	clientCycle        = 5 * time.Minute  // Seconds; Access client.cgi
+	pingCycle          = 5 * time.Minute  // Seconds; Check nodes
 	syncCycle          = 1 * time.Hour    // Seconds; Check cache
-	initCycle          = 1 * time.Minute  // Seconds; Check initial node
+	initCycle          = 20 * time.Minute // Seconds; Check initial node
 	defaultUpdateRange = 24 * time.Hour   // Seconds
 	timeErrorSigma     = 60               // Seconds
 	searchTimeout      = 10 * time.Minute // Seconds
@@ -115,7 +115,7 @@ var (
 	recordLimit    = setting.getIntValue("Gateway", "record_limit", 2048)
 	enable2ch      = setting.getBoolValue("Gateway", "enable_2ch", false)
 	//EnableNAT is enable if you want to use nat.
-	EnableNAT = setting.getBoolValue("Gateway", "enable_nat", true)
+	EnableNAT = setting.getBoolValue("Gateway", "enable_nat", false)
 	//ExternalPort is opened port by NAT.if no NAT it equals to DeafultPort.
 	ExternalPort = DefaultPort
 
@@ -174,8 +174,6 @@ var (
 	nodeList          *NodeList
 	recentList        *RecentList
 	updateList        *UpdateList
-
-	connections chan struct{}
 
 	errGet  = errors.New("cannot get data")
 	errSpam = errors.New("this is spam")
@@ -359,12 +357,6 @@ func InitVariables() {
 		if saveRemoved[t] > time.Now().Unix() {
 			log.Fatal("save_removed is too big")
 		}
-	}
-
-	//for controlling max connections
-	connections = make(chan struct{}, maxConnection)
-	for i := 0; i < maxConnection; i++ {
-		connections <- struct{}{}
 	}
 
 	setupTemplate()

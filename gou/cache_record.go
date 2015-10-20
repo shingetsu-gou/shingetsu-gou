@@ -88,9 +88,6 @@ func (r *record) recstr() string {
 
 //bodystr returns body part of one line in the record file.
 func (r *record) bodystr() string {
-	if len(r.contents) == 0 {
-		return ""
-	}
 	rs := make([]string, len(r.contents))
 	for i, k := range r.keyOrder {
 		rs[i] = k + ":" + r.contents[k]
@@ -169,6 +166,7 @@ func (r *record) parse(recstr string) error {
 	}
 	r.ID = tmp[1]
 	r.contents = make(map[string]string)
+	r.keyOrder = nil
 	//reposense of recentlist  : stamp<>id<>thread_***<>tag:***
 	//record str : stamp<>id<>body:***<>...
 	for _, kv := range tmp[2:] {
@@ -269,7 +267,6 @@ func (r *record) build(stamp int64, body map[string]string, passwd string) strin
 	r.keyOrder = make([]string, len(body))
 	r.Stamp = stamp
 	i := 0
-	var targets string
 	for key, value := range body {
 		r.contents[key] = value
 		r.keyOrder[i] = key
@@ -280,7 +277,6 @@ func (r *record) build(stamp int64, body map[string]string, passwd string) strin
 		pubkey, _ := k.getKeys()
 		md := md5digest(r.bodystr())
 		sign := k.sign(md)
-		log.Println(pubkey, sign, targets)
 		r.contents["pubkey"] = pubkey
 		r.contents["sign"] = sign
 		r.contents["target"] = strings.Join(r.keyOrder, ",")
@@ -487,7 +483,7 @@ func (r *record) meets(i string, stamp int64, id string, begin, end int64) bool 
 		log.Println("stamp NG", r.Stamp, stamp)
 		return false
 	}
-	if id != "" && r.ID == id {
+	if id != "" && r.ID != id {
 		log.Println("id NG", id, r.ID)
 		return false
 	}
@@ -520,7 +516,7 @@ func getRecords(datfile string, n *node, head []string) []string {
 }
 
 func makeRecord(line string) *record {
-	line = strings.TrimLeft(line, "\r\n")
+	line = strings.TrimRight(line, "\r\n")
 	buf := strings.Split(line, "<>")
 	if len(buf) <= 2 || buf[0] == "" || buf[1] == "" || buf[2] == "" {
 		return nil
