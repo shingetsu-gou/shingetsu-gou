@@ -30,6 +30,7 @@ package main
 
 import (
 	"flag"
+	"fmt"
 	"io/ioutil"
 	"log"
 	"os"
@@ -43,8 +44,6 @@ import (
 //init initialize all variables and logger by arguments
 func init() {
 	log.SetFlags(log.Ldate | log.Ltime | log.Lshortfile)
-	expandAssets()
-	gou.InitVariables()
 
 	var printLog, isSilent bool
 	flag.BoolVar(&printLog, "verbose", false, "print logs")
@@ -53,9 +52,12 @@ func init() {
 	flag.Parse()
 
 	gou.SetLogger(printLog, isSilent)
+	expandAssets()
+	gou.InitVariables()
 }
 
 func main() {
+	fmt.Println("starting Gou...")
 	if gou.EnableNAT {
 		n, err := nat.NewNetStatus()
 		if err != nil {
@@ -70,7 +72,6 @@ func main() {
 		}
 	}
 
-	log.Println("starting Gou")
 	gou.SetupDaemon()
 	gou.StartDaemon()
 }

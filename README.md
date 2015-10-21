@@ -54,9 +54,10 @@ Or you can download executable binaries from [here](https://github.com/shingetsu
 
 1. mch(2ch interface) listens to the same port as admin.cgi/gateway.cgi/serve.cgi/thread.cgi. dat_port setting in config is ignored.
 2. For now Gou doesn't consider synchronism(mutex etc). Caches in disk may be broken. This problem would be fixed if everyone thinks Gou is useful :smile: .
-3. Gou can try to open port by uPnP and NAT-PMP. You can disable this function by setting enable_nat:true in [Gateway]  in saku.ini, which is false by default, but is true in attached saku.ini in binary.
+3. Gou can try to open port by uPnP and NAT-PMP. You can enable this function by setting enable_nat:true in [Gateway]  in saku.ini, which is false by default, but is true in attached saku.ini in binary.
 4. URL for 2ch interface /2ch_hoehoe/subject.txt in saku is /2ch/hoehoe/subject.txt in Gou.
-
+5. files in template directory are not compatible with Gou and Saku.
+6. count.txt and size.txt in cache directories are not used in Gou.
 
 # Note
 

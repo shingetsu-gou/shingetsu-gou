@@ -25,7 +25,7 @@ desc_comment<>Reason to remove (if you send to other nodes).
 desc_send<>Turn off first post for new BBS when you want to save your anonymity.
 
 # top page
-logo<>%E6%96%B0%E6%9C%88
+logo<>shinGETsu
 description<>P2P anonymous BBS
 site<>Official Site
 status<>Status

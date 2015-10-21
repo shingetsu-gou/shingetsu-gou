@@ -59,12 +59,11 @@ func SetLogger(printLog, isSilent bool) {
 	switch {
 	case isSilent:
 		log.SetOutput(ioutil.Discard)
-	default:
-		//	case printLog:
+	case printLog:
 		m := io.MultiWriter(os.Stdout, l)
 		log.SetOutput(m)
-		//	default:
-		//		log.SetOutput(l)
+	default:
+		log.SetOutput(l)
 	}
 }
 
@@ -82,7 +81,6 @@ func SetupDaemon() {
 
 //StartDaemon rm lock files, save pid, start cron job and a http server.
 func StartDaemon() {
-	log.Println("starting daemon and http server...")
 	for _, l := range []string{lock, searchLock, adminSearch} {
 		if IsFile(l) {
 			if err := os.Remove(l); err != nil {
@@ -120,9 +118,10 @@ func StartDaemon() {
 	threadSetup(sm)
 
 	if enable2ch {
+		fmt.Println("started 2ch interface...")
 		mchSetup(sm)
 	}
-
+	fmt.Println("started daemon and http server...")
 	log.Fatal(s.Serve(limitListener))
 }
 

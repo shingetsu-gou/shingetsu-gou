@@ -9,7 +9,7 @@
 
 <div class="address"><img src="/gou.png" width=5%></div>
 <div class="address">Powered by 
-  <a href="http://www.Shingetsu.Info/">shinGETsu</a> and Gou.</div>
+  <a href="http://www.Shingetsu.Info/">shinGETsu</a> and <a href="https://github.com/shingetsu-gou/shingetsu-gou">Gou</a>.</div>
 </body>
 </html>
 {{end}}
