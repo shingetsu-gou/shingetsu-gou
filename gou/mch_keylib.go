@@ -87,7 +87,7 @@ func (d *DatakeyTable) load() {
 	for _, rec := range recentList.infos {
 		c := newCache(rec.datfile)
 		c.load()
-		c.RecentStamp = rec.stamp
+		c.RecentStamp = rec.Stamp
 		d.setFromCache(c)
 	}
 	d.save()

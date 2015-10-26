@@ -29,6 +29,8 @@
 package gou
 
 import (
+	"crypto/md5"
+	"encoding/binary"
 	"errors"
 	"fmt"
 	"log"
@@ -39,27 +41,27 @@ import (
 	"time"
 )
 
-//updateInfo represents one line in updatelist/recentlist
-type updateInfo struct {
-	stamp   int64
-	id      string
-	datfile string
+//RecordHead represents one line in updatelist/recentlist
+type RecordHead struct {
+	datfile string //cache file name
+	Stamp   int64  //unixtime
+	ID      string //md5(bodystr)
 }
 
 //newUpdateInfoFromLine parse one line in udpate/recent list and returns updateInfo obj.
-func newUpdateInfoFromLine(line string) (*updateInfo, error) {
+func newRecordHeadFromLine(line string) (*RecordHead, error) {
 	strs := strings.Split(strings.TrimRight(line, "\n\r"), "<>")
 	if len(strs) < 3 {
 		err := errors.New("illegal format")
 		log.Println(err)
 		return nil, err
 	}
-	u := &updateInfo{
-		id:      strs[1],
+	u := &RecordHead{
+		ID:      strs[1],
 		datfile: strs[2],
 	}
 	var err error
-	u.stamp, err = strconv.ParseInt(strs[0], 10, 64)
+	u.Stamp, err = strconv.ParseInt(strs[0], 10, 64)
 	if err != nil {
 		log.Println(err)
 		return nil, err
@@ -67,35 +69,86 @@ func newUpdateInfoFromLine(line string) (*updateInfo, error) {
 	return u, nil
 }
 
+//equals returns true if u=v
+func (u *RecordHead) equals(rec *RecordHead) bool {
+	return u.datfile == rec.datfile && u.ID == rec.ID && u.Stamp == rec.Stamp
+}
+
+//hash returns md5 of RecordHead.
+func (u *RecordHead) hash() [16]byte {
+	m := md5.New()
+	m.Write([]byte(u.datfile))
+	binary.Write(m, binary.LittleEndian, u.Stamp)
+	m.Write([]byte(u.ID))
+	var r [16]byte
+	m.Sum(r[:])
+	return r
+}
+
 //recstr returns one line of update/recentlist file.
-func (u *updateInfo) recstr() string {
-	return fmt.Sprintf("%d<>%s<>%s", u.stamp, u.id, u.datfile)
+func (u *RecordHead) recstr() string {
+	return fmt.Sprintf("%d<>%s<>%s", u.Stamp, u.ID, u.datfile)
 }
 
-//UpdateList represents records list updated by remote nodes.
-type UpdateList struct {
-	updateFile  string
-	updateRange int64
-	infos       []*updateInfo
-	mutex       sync.RWMutex
+//Idstr returns real file name of the record file.
+func (u *RecordHead) Idstr() string {
+	return fmt.Sprintf("%d_%s", u.Stamp, u.ID)
 }
 
-//newUpdateList makes UpdateList obj.
-func newUpdateList() *UpdateList {
-	u := &UpdateList{
-		updateFile:  update,
-		updateRange: int64(defaultUpdateRange),
+type recordHeads []*RecordHead
+
+//Less returns true if stamp of infos[i] < [j]
+func (r recordHeads) Less(i, j int) bool {
+	return r[i].Stamp < r[j].Stamp
+}
+
+//Swap swaps infos order.
+func (r recordHeads) Swap(i, j int) {
+	r[i], r[j] = r[j], r[i]
+}
+
+//Len returns size of infos
+func (r recordHeads) Len() int {
+	return len(r)
+}
+
+//has returns true if recordHeads has rec.
+func (r recordHeads) has(rec *RecordHead) bool {
+	for _, v := range r {
+		if v.equals(rec) {
+			return true
+		}
 	}
-	u.loadFile()
-	return u
+	return false
+}
+
+//RecentList represents records list udpated by remote host and
+//gotten by /gateway.cgi/recent
+type RecentList struct {
+	infos   recordHeads
+	isDirty bool
+	mutex   sync.RWMutex
+	fmutex  sync.RWMutex
+}
+
+//newRecentList load a file and create a RecentList obj.
+func newRecentList() *RecentList {
+	r := &RecentList{}
+	r.loadFile()
+	return r
 }
 
 //loadFile reads from file and add records.
-func (u *UpdateList) loadFile() {
-	err := eachLine(u.updateFile, func(line string, i int) error {
-		vr, err := newUpdateInfoFromLine(line)
+func (r *RecentList) loadFile() {
+	r.fmutex.RLock()
+	defer r.fmutex.RUnlock()
+	err := eachLine(recent, func(line string, i int) error {
+		vr, err := newRecordHeadFromLine(line)
 		if err == nil {
-			u.infos = append(u.infos, vr)
+			r.mutex.Lock()
+			r.infos = append(r.infos, vr)
+			r.isDirty = true
+			r.mutex.Unlock()
 		}
 		return nil
 	})
@@ -105,34 +158,27 @@ func (u *UpdateList) loadFile() {
 }
 
 //append add a infos generated from the record.
-func (u *UpdateList) append(r *record) {
-	ui := &updateInfo{
-		stamp:   r.Stamp,
-		datfile: r.datfile,
-		id:      r.ID,
+func (r *RecentList) append(rec *record) {
+	loc := r.find(rec)
+	r.mutex.Lock()
+	defer r.mutex.Unlock()
+	if loc >= 0 {
+		if r.infos[loc].Stamp > rec.Stamp {
+			return
+		}
+		r.infos[loc] = &rec.RecordHead
 	}
-	u.infos = append(u.infos, ui)
-}
-
-//Less returns true if stamp of infos[i] < [j]
-func (u *UpdateList) Less(i, j int) bool {
-	return u.infos[i].stamp < u.infos[j].stamp
-}
-
-//Swap swaps infos order.
-func (u *UpdateList) Swap(i, j int) {
-	u.infos[i], u.infos[j] = u.infos[j], u.infos[i]
-}
-
-//Len returns size of infos
-func (u *UpdateList) Len() int {
-	return len(u.infos)
+	r.infos = append(r.infos, &rec.RecordHead)
+	sort.Sort(r.infos)
+	r.isDirty = true
 }
 
 //find finds records and returns index. returns -1 if not found.
-func (u *UpdateList) find(r *record) int {
-	for i, v := range u.infos {
-		if v.datfile == r.datfile && v.id == r.ID && v.stamp == r.Stamp {
+func (r *RecentList) find(rec *record) int {
+	r.mutex.RLock()
+	defer r.mutex.RUnlock()
+	for i, v := range r.infos {
+		if v.equals(&rec.RecordHead) {
 			return i
 		}
 	}
@@ -140,63 +186,61 @@ func (u *UpdateList) find(r *record) int {
 }
 
 //hasRecord returns true if has record r.
-func (u *UpdateList) hasInfo(r *record) bool {
-	return u.find(r) != -1
+func (r *RecentList) hasInfo(rec *record) bool {
+	return r.find(rec) != -1
 }
 
 //remove removes info which is same as record r
-func (u *UpdateList) remove(rec *record) {
-	if l := u.find(rec); l != -1 {
-		u.infos = append(u.infos[:l], u.infos[l+1:]...)
+func (r *RecentList) remove(rec *record) {
+	if l := r.find(rec); l != -1 {
+		r.mutex.Lock()
+		defer r.mutex.Unlock()
+		r.infos = append(r.infos[:l], r.infos[l+1:]...)
 	}
 }
 
 //removeInfo removes info r
-func (u *UpdateList) removeInfo(r *updateInfo) {
-	for i, v := range u.infos {
-		if v.datfile == r.datfile && v.id == r.id && v.stamp == r.stamp {
-			u.infos = append(u.infos[:i], u.infos[i+1:]...)
+func (r *RecentList) removeInfo(rec *RecordHead) {
+	r.mutex.RLock()
+	for i, v := range r.infos {
+		r.mutex.RUnlock()
+		if v.equals(rec) {
+			r.mutex.Lock()
+			defer r.mutex.Unlock()
+			r.infos, r.infos[len(r.infos)-1] = append(r.infos[:i], r.infos[i+1:]...), nil
 			return
 		}
+		r.mutex.RLock()
 	}
+	r.mutex.RUnlock()
 }
 
 //getRecstrSlice returns slice of recstr string of infos.
-func (u *UpdateList) getRecstrSlice() []string {
-	result := make([]string, len(u.infos))
-	for i, v := range u.infos {
+func (r *RecentList) getRecstrSlice() []string {
+	r.mutex.RLock()
+	defer r.mutex.RUnlock()
+	result := make([]string, len(r.infos))
+	for i, v := range r.infos {
 		result[i] = v.recstr()
 	}
 	return result
 }
 
 //sync remove old records and save to the file.
-func (u *UpdateList) sync() {
-	for i, r := range u.infos {
-		if u.updateRange > 0 && r.stamp+u.updateRange < time.Now().Unix() {
-			u.infos = append(u.infos[:i], u.infos[i+1:]...)
+func (r *RecentList) sync() {
+	r.mutex.Lock()
+	for i, rec := range r.infos {
+		if defaultUpdateRange > 0 && rec.Stamp+int64(defaultUpdateRange) < time.Now().Unix() {
+			r.infos, r.infos[len(r.infos)-1] = append(r.infos[:i], r.infos[i+1:]...), nil
 		}
 	}
-	err := writeSlice(u.updateFile, u.getRecstrSlice())
+	r.mutex.Unlock()
+	r.fmutex.Lock()
+	err := writeSlice(recent, r.getRecstrSlice())
+	r.fmutex.Unlock()
 	if err != nil {
 		log.Println(err)
 	}
-}
-
-//RecentList represents records list udpated by remote host and
-//gotten by /gateway.cgi/recent
-type RecentList struct {
-	*UpdateList
-}
-
-//newRecentList load a file and create a RecentList obj.
-func newRecentList() *RecentList {
-	r := &UpdateList{
-		updateFile:  recent,
-		updateRange: recentRange,
-	}
-	r.loadFile()
-	return &RecentList{r}
 }
 
 //getAll retrieves recent records from nodes in searchlist and stores them.
@@ -204,17 +248,17 @@ func newRecentList() *RecentList {
 //also source nodes are stored into lookuptable.
 //also tags which recentlist doen't have in sugtagtable are truncated
 func (r *RecentList) getAll() {
-	lt := newLookupTable()
 	var begin int64
 	if recentRange > 0 {
 		begin = time.Now().Unix() - recentRange
 	}
-	nodes := lookupTable.getAllNodes()
+	nodes := nodeManager.random(nil, shareNodes)
 	var res []string
 	for count, n := range nodes {
 		var err error
 		res, err = n.talk("/recent/" + strconv.FormatInt(begin, 10) + "-")
 		if err != nil {
+			nodeManager.removeFromAllTable(n)
 			log.Println(err)
 			continue
 		}
@@ -233,7 +277,7 @@ func (r *RecentList) getAll() {
 			if len(tags) > 0 {
 				ca.sugtags.addString(tags)
 				ca.sugtags.sync()
-				lt.appendToTable(rec.datfile, n)
+				nodeManager.appendToTable(rec.datfile, n)
 			}
 		}
 		if count >= searchDepth {
@@ -241,46 +285,22 @@ func (r *RecentList) getAll() {
 		}
 	}
 	r.sync()
-	lookupTable.nodes = lt.nodes
-	lookupTable.sync()
+	nodeManager.sync()
 	suggestedTagTable.prune(r)
 	suggestedTagTable.sync()
-}
-
-//uniq removes infos which has same datfile.
-//new ones are alive.
-func (r *RecentList) uniq() {
-	date := make(map[string]*updateInfo)
-	for _, rec := range r.infos {
-		if _, exist := date[rec.datfile]; !exist {
-			date[rec.datfile] = rec
-		} else {
-			if date[rec.datfile].stamp < rec.stamp {
-				r.removeInfo(date[rec.datfile])
-				date[rec.datfile] = rec
-			} else {
-				r.removeInfo(rec)
-			}
-		}
-	}
-}
-
-//sync singlize records and save new ones.
-func (r *RecentList) sync() {
-	log.Println("recentlist sync")
-	r.uniq()
-	r.UpdateList.sync()
 }
 
 //makeRecentCachelist returns sorted cachelist copied from recentlist.
 //which doens't contain duplicate caches.
 func (r *RecentList) makeRecentCachelist() *cacheList {
+	r.mutex.RLock()
+	defer r.mutex.RUnlock()
 	var cl caches
 	var check []string
 	for _, rec := range r.infos {
 		if !hasString(check, rec.datfile) {
 			ca := newCache(rec.datfile)
-			ca.RecentStamp = rec.stamp
+			ca.RecentStamp = rec.Stamp
 			cl = append(cl, ca)
 			check = append(check, rec.datfile)
 		}

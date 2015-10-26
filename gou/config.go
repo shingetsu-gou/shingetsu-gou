@@ -64,6 +64,7 @@ const (
 	titleLimit         = 30                 //Charactors
 	defaultLanguage    = "en"               // Language code (see RFC3066)
 	saveCookie         = 7 * 24 * time.Hour // Seconds
+	oldUpdated         = time.Hour
 
 	// regexp
 	robot = "Google|bot|Yahoo|archiver|Wget|Crawler|Yeti|Baidu"
@@ -163,12 +164,12 @@ var (
 	nodeAllow    *regexpList
 	nodeDeny     *regexpList
 	dataKeyTable *DatakeyTable
+	que          *updateQue
 
 	suggestedTagTable *SuggestedTagTable
 	userTagList       *UserTagList
-	lookupTable       *LookupTable
+	nodeManager       *NodeManager
 	recentList        *RecentList
-	updateList        *UpdateList
 
 	errGet  = errors.New("cannot get data")
 	errSpam = errors.New("this is spam")
@@ -362,9 +363,9 @@ func InitVariables() {
 
 	suggestedTagTable = newSuggestedTagTable()
 	userTagList = newUserTagList()
-	lookupTable = newLookupTable()
+	nodeManager = newNodeManager()
 	recentList = newRecentList()
-	updateList = newUpdateList()
+	que = newUpdateQue()
 
 	var err error
 	reAdmin, err = regexp.Compile(reAdminStr)

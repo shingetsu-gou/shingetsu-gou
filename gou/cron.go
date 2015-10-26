@@ -35,23 +35,23 @@ import (
 
 //cron runs cron, and update everything if it is after specified cycle.
 func cron() {
-	lookupTable.initialize()
+	nodeManager.initialize()
 	doSync()
 
 	for {
 		select {
 		case <-time.After(clientCycle):
-			lookupTable.rejoin()
+			nodeManager.rejoin()
 
 		case <-time.After(pingCycle):
-			lookupTable.pingAll()
-			lookupTable.initialize()
-			lookupTable.sync()
+			nodeManager.pingAll()
+			nodeManager.initialize()
+			nodeManager.sync()
 			doSync()
 			log.Println("nodelist.pingall finished")
 
-		case <-time.After(initCycle * time.Duration(lookupTable.listLen())):
-			lookupTable.initialize()
+		case <-time.After(initCycle * time.Duration(nodeManager.listLen())):
+			nodeManager.initialize()
 
 		case <-time.After(syncCycle):
 			doSync()
@@ -63,13 +63,13 @@ func cron() {
 //reloads all tags from cachelist,reload srecent list from nodes in search list,
 //and reloads cache info from files in the disk.
 func doSync() {
-	if lookupTable.listLen() == 0 {
+	if nodeManager.listLen() == 0 {
 		return
 	}
-	lookupTable.rejoinList()
+	nodeManager.rejoinList()
 	log.Println("lookupTable.join finished")
 
-	lookupTable.sync()
+	nodeManager.sync()
 	log.Println("lookupTable.join finished")
 
 	cl := newCacheList()

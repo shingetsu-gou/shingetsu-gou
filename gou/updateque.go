@@ -28,34 +28,61 @@
 
 package gou
 
-import "log"
+import (
+	"log"
+	"sync"
+	"time"
+)
+
+type updateQue struct {
+	mutex   sync.Mutex
+	updated map[[16]byte]time.Time
+}
+
+func newUpdateQue() *updateQue {
+	return &updateQue{
+		updated: make(map[[16]byte]time.Time),
+	}
+}
 
 //run do doUpdateNode for each records using related nodes.
 //if success to doUpdateNode, add node to updatelist and recentlist and
 //removes the record from queue.
-func updateNodes(rec *record, n *node) {
+func (u *updateQue) updateNodes(rec *record, n *node) {
 	log.Println("updating", rec)
-	if doUpdateNode(rec, n) {
-		updateList.append(rec)
-		updateList.sync()
+	if u.doUpdateNode(rec, n) {
 		recentList.append(rec)
 		recentList.sync()
+	}
+}
+
+//deleteOldUpdated removes old updated records from updated map.
+func (u *updateQue) deleteOldUpdated() {
+	for k, v := range u.updated {
+		if v.After(time.Now().Add(oldUpdated)) {
+			delete(u.updated, k)
+		}
 	}
 }
 
 //doUpdateNode broadcast and get data for each new records.
 //if can get data (even if spam) return true, if fails to get, return false.
 //if no fail, broadcast updates to node in cache and added n to nodelist and searchlist.
-func doUpdateNode(rec *record, n *node) bool {
-	if updateList.hasInfo(rec) {
+func (u *updateQue) doUpdateNode(rec *record, n *node) bool {
+	u.mutex.Lock()
+	if _, exist := u.updated[rec.hash()]; exist {
 		return true
 	}
+	u.deleteOldUpdated()
+	u.updated[rec.hash()] = time.Now()
+	u.mutex.Unlock()
+
 	ca := newCache(rec.datfile)
 	var err error
 	switch {
 	case !ca.Exists(), n == nil:
 		log.Println("no cache, only broadcast updates.")
-		lookupTable.tellUpdate(ca, rec.Stamp, rec.ID, n)
+		nodeManager.tellUpdate(ca, rec.Stamp, rec.ID, n)
 		return true
 	case ca.Len() > 0:
 		log.Println("cache and records exists, get data from node n.")
@@ -76,8 +103,8 @@ func doUpdateNode(rec *record, n *node) bool {
 		return true
 	default:
 		log.Println("telling update")
-		lookupTable.tellUpdate(ca, rec.Stamp, rec.ID, nil)
-		lookupTable.join(n)
+		nodeManager.tellUpdate(ca, rec.Stamp, rec.ID, nil)
+		nodeManager.join(n)
 		return true
 	}
 }

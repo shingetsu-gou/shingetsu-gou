@@ -58,7 +58,7 @@ func (m *mchCGI) postComment(threadKey, name, mail, body, passwd, tag string) er
 	if tag != "" {
 		saveTag(c, tag)
 	}
-	go updateNodes(rec, nil)
+	go que.updateNodes(rec, nil)
 	return nil
 }
 

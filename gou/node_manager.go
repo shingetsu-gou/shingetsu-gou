@@ -36,8 +36,8 @@ import (
 	"sync"
 )
 
-//LookupTable represents map datfile to it's source node list.
-type LookupTable struct {
+//NodeManager represents map datfile to it's source node list.
+type NodeManager struct {
 	isDirty bool
 	nodes   map[string]nodeSlice //map[""] is nodelist
 	mutex   sync.RWMutex
@@ -45,8 +45,8 @@ type LookupTable struct {
 }
 
 //newLookupTable read the file and returns LookupTable obj.
-func newLookupTable() *LookupTable {
-	r := &LookupTable{
+func newNodeManager() *NodeManager {
+	r := &NodeManager{
 		nodes: make(map[string]nodeSlice),
 	}
 	err := eachKeyValueLine(lookup, func(key string, value []string, i int) error {
@@ -64,7 +64,7 @@ func newLookupTable() *LookupTable {
 }
 
 //appendToList add node n to nodelist if it is allowd and list doesn't have it.
-func (lt *LookupTable) getFromList(n int) *node {
+func (lt *NodeManager) getFromList(n int) *node {
 	if lt.listLen() == 0 {
 		return nil
 	}
@@ -74,32 +74,32 @@ func (lt *LookupTable) getFromList(n int) *node {
 }
 
 //FileLen returns # of datfile.
-func (lt *LookupTable) FileLen() int {
+func (lt *NodeManager) FileLen() int {
 	lt.mutex.RLock()
 	defer lt.mutex.RUnlock()
 	return len(lt.nodes) - 1
 }
 
 //nodeLen returns size of all nodes.
-func (lt *LookupTable) nodeLen() int {
+func (lt *NodeManager) nodeLen() int {
 	ns := lt.getAllNodes()
 	return ns.Len()
 }
 
 //listLen returns size of nodelist.
-func (lt *LookupTable) listLen() int {
+func (lt *NodeManager) listLen() int {
 	lt.mutex.RLock()
 	defer lt.mutex.RUnlock()
 	return len(lt.nodes[""])
 }
 
 //getNodestr returns nodestr of all nodes.
-func (lt *LookupTable) getNodestrSlice() []string {
+func (lt *NodeManager) getNodestrSlice() []string {
 	return lt.getAllNodes().getNodestrSlice()
 }
 
 //getAllNodes returns all nodes in table.
-func (lt *LookupTable) getAllNodes() nodeSlice {
+func (lt *NodeManager) getAllNodes() nodeSlice {
 	var n nodeSlice
 	n = make([]*node, lt.nodeLen())
 	i := 0
@@ -115,7 +115,7 @@ func (lt *LookupTable) getAllNodes() nodeSlice {
 }
 
 //getNodestr returns nodestr of all nodes.
-func (lt *LookupTable) getNodestrSliceInTable(datfile string) []string {
+func (lt *NodeManager) getNodestrSliceInTable(datfile string) []string {
 	lt.mutex.RLock()
 	n := lt.nodes["datfile"]
 	lt.mutex.RUnlock()
@@ -123,7 +123,7 @@ func (lt *LookupTable) getNodestrSliceInTable(datfile string) []string {
 }
 
 //random selects #n node randomly except exclude nodes.
-func (lt *LookupTable) random(exclude nodeSlice, num int) []*node {
+func (lt *NodeManager) random(exclude nodeSlice, num int) []*node {
 	all := lt.getAllNodes()
 	if exclude != nil {
 		for i, n := range all {
@@ -141,7 +141,7 @@ func (lt *LookupTable) random(exclude nodeSlice, num int) []*node {
 }
 
 //appendToTable add node n to table if it is allowd and list doesn't have it.
-func (lt *LookupTable) appendToTable(datfile string, n *node) {
+func (lt *NodeManager) appendToTable(datfile string, n *node) {
 	lt.mutex.RLock()
 	l := len(lt.nodes[datfile])
 	lt.mutex.RUnlock()
@@ -155,7 +155,7 @@ func (lt *LookupTable) appendToTable(datfile string, n *node) {
 }
 
 //extendTable adds slice of nodes with check.
-func (lt *LookupTable) extendToTable(datfile string, ns []*node) {
+func (lt *NodeManager) extendToTable(datfile string, ns []*node) {
 	if ns == nil {
 		return
 	}
@@ -165,22 +165,22 @@ func (lt *LookupTable) extendToTable(datfile string, ns []*node) {
 }
 
 //appendToList add node n to nodelist if it is allowd and list doesn't have it.
-func (lt *LookupTable) appendToList(n *node) {
+func (lt *NodeManager) appendToList(n *node) {
 	lt.appendToTable("", n)
 }
 
 //extendToList adds node slice to nodelist.
-func (lt *LookupTable) extendToList(ns []*node) {
+func (lt *NodeManager) extendToList(ns []*node) {
 	lt.extendToTable("", ns)
 }
 
 //hasNode returns true if nodelist in all tables has n.
-func (lt *LookupTable) hasNode(n *node) bool {
+func (lt *NodeManager) hasNode(n *node) bool {
 	return len(lt.findNode(n)) > 0
 }
 
 //findNode returns datfile of node n, or -1 if not exist.
-func (lt *LookupTable) findNode(n *node) []string {
+func (lt *NodeManager) findNode(n *node) []string {
 	var r []string
 	lt.mutex.RLock()
 	for k := range lt.nodes {
@@ -195,18 +195,18 @@ func (lt *LookupTable) findNode(n *node) []string {
 }
 
 //hasNodeInTable returns true if nodelist has n.
-func (lt *LookupTable) hasNodeInTable(datfile string, n *node) bool {
+func (lt *NodeManager) hasNodeInTable(datfile string, n *node) bool {
 	return lt.findNodeInTable(datfile, n) != -1
 }
 
 //findNode returns location of node n, or -1 if not exist.
-func (lt *LookupTable) findNodeInTable(datfile string, n *node) int {
+func (lt *NodeManager) findNodeInTable(datfile string, n *node) int {
 	return findString(lt.getNodestrSliceInTable(datfile), n.nodestr)
 }
 
 //removeFromTable removes node n and return true if exists.
 //or returns false if not exists.
-func (lt *LookupTable) removeFromTable(datfile string, n *node) bool {
+func (lt *NodeManager) removeFromTable(datfile string, n *node) bool {
 	lt.mutex.Lock()
 	defer lt.mutex.Unlock()
 	if i := findString(lt.nodes[datfile].getNodestrSlice(), n.nodestr); i >= 0 {
@@ -219,13 +219,13 @@ func (lt *LookupTable) removeFromTable(datfile string, n *node) bool {
 
 //removeFromList removes node n from nodelist and return true if exists.
 //or returns false if not exists.
-func (lt *LookupTable) removeFromList(n *node) bool {
+func (lt *NodeManager) removeFromList(n *node) bool {
 	return lt.removeFromTable("", n)
 }
 
 //removeNode removes node n from all tables and return true if exists.
 //or returns false if not exists.
-func (lt *LookupTable) removeFromAllTable(n *node) bool {
+func (lt *NodeManager) removeFromAllTable(n *node) bool {
 	del := false
 	lt.mutex.RLock()
 	for k := range lt.nodes {
@@ -236,7 +236,7 @@ func (lt *LookupTable) removeFromAllTable(n *node) bool {
 }
 
 //moreNodes gets another node info from each nodes in nodelist.
-func (lt *LookupTable) moreNodes() {
+func (lt *NodeManager) moreNodes() {
 	no := 0
 	count := 0
 	all := lt.getAllNodes()
@@ -259,7 +259,7 @@ func (lt *LookupTable) moreNodes() {
 
 //initialize pings one of initNode except myself and added it if success,
 //and get another node info from each nodes in nodelist.
-func (lt *LookupTable) initialize() {
+func (lt *NodeManager) initialize() {
 	if lt.listLen() > defaultNodes {
 		return
 	}
@@ -285,7 +285,7 @@ func (lt *LookupTable) initialize() {
 
 //myself makes mynode info from dnsname.
 //if dnsname is empty ping to a node in nodelist and get info of myself.
-func (lt *LookupTable) myself() *node {
+func (lt *NodeManager) myself() *node {
 	if dnsname != "" {
 		return makeNode(dnsname, serverURL, ExternalPort)
 	}
@@ -306,7 +306,7 @@ func (lt *LookupTable) myself() *node {
 //join tells n to join and adds n to nodelist if welcomed.
 //if n returns another nodes, repeats it and return true..
 //removes fron nodelist if not welcomed and return false.
-func (lt *LookupTable) join(n *node) bool {
+func (lt *NodeManager) join(n *node) bool {
 	flag := false
 	if lt.hasNode(n) {
 		return false
@@ -331,7 +331,7 @@ func (lt *LookupTable) join(n *node) bool {
 
 //tellUpdate makes mynode info from node or dnsname or ip addr,
 //and broadcast the updates of record id=id in cache c.datfile with stamp.
-func (lt *LookupTable) tellUpdate(c *cache, stamp int64, id string, node *node) {
+func (lt *NodeManager) tellUpdate(c *cache, stamp int64, id string, node *node) {
 	var tellstr string
 	switch {
 	case node != nil:
@@ -357,7 +357,7 @@ func (lt *LookupTable) tellUpdate(c *cache, stamp int64, id string, node *node) 
 
 //Get returns rawnodelist associated with datfile
 //if not found return def
-func (lt *LookupTable) get(datfile string, def []*node) []*node {
+func (lt *NodeManager) get(datfile string, def []*node) []*node {
 	lt.mutex.RLock()
 	defer lt.mutex.RUnlock()
 	if v, exist := lt.nodes[datfile]; exist {
@@ -369,7 +369,7 @@ func (lt *LookupTable) get(datfile string, def []*node) []*node {
 }
 
 //stringmap returns map of k=datfile, v=nodestr of rawnodelist.
-func (lt *LookupTable) stringMap() map[string][]string {
+func (lt *NodeManager) stringMap() map[string][]string {
 	lt.mutex.RLock()
 	defer lt.mutex.RUnlock()
 	result := make(map[string][]string)
@@ -383,7 +383,7 @@ func (lt *LookupTable) stringMap() map[string][]string {
 }
 
 //sync saves  k=datfile, v=nodestr map to the file.
-func (lt *LookupTable) sync() {
+func (lt *NodeManager) sync() {
 	if lt.isDirty {
 		m := lt.stringMap()
 		lt.fmutex.Lock()
@@ -402,7 +402,7 @@ func (lt *LookupTable) sync() {
 //search checks one allowed nodes which selected randomly from nodes has the datfile record.
 //if not found,n is removed from lookuptable. also if not pingable  removes n from searchlist and cache c.
 //if found, n is added to lookuptable.
-func (lt *LookupTable) search(c *cache, myself *node, nodes []*node) *node {
+func (lt *NodeManager) search(c *cache, myself *node, nodes []*node) *node {
 	lt.mutex.RLock()
 	ns := lt.nodes[c.Datfile].extend(nodes)
 	lt.mutex.RUnlock()
@@ -434,7 +434,7 @@ func (lt *LookupTable) search(c *cache, myself *node, nodes []*node) *node {
 //rejoin add nodes in searchlist if ping is ok and len(nodelist)<defaultNodes
 //and doesn't have it's node.
 //if ping is ng, removes node from searchlist.
-func (lt *LookupTable) rejoin() {
+func (lt *NodeManager) rejoin() {
 	all := lt.getAllNodes()
 	for _, n := range all {
 		if lt.listLen() >= defaultNodes {
@@ -457,7 +457,7 @@ func (lt *LookupTable) rejoin() {
 
 //pingAll pings to all nodes in nodelist.
 //if ng, removes from nodelist.
-func (lt *LookupTable) pingAll() {
+func (lt *NodeManager) pingAll() {
 	lt.mutex.RLock()
 	for _, n := range lt.nodes[""] {
 		lt.mutex.RUnlock()
@@ -470,7 +470,7 @@ func (lt *LookupTable) pingAll() {
 }
 
 //rejoinlist joins all node in nodelist.
-func (lt *LookupTable) rejoinList() {
+func (lt *NodeManager) rejoinList() {
 	lt.mutex.RLock()
 	defer lt.mutex.RUnlock()
 	for _, n := range lt.nodes[""] {

@@ -118,13 +118,13 @@ func printStatus(w http.ResponseWriter, r *http.Request) {
 		records += ca.Len()
 		size += ca.Size()
 	}
-	my := lookupTable.myself()
+	my := nodeManager.myself()
 
 	var mem runtime.MemStats
 	runtime.ReadMemStats(&mem)
 
 	s := map[string]string{
-		"linked_nodes": strconv.Itoa(lookupTable.nodeLen()),
+		"linked_nodes": strconv.Itoa(nodeManager.nodeLen()),
 		"files":        strconv.Itoa(cl.Len()),
 		"records":      strconv.Itoa(records),
 		"cache_size":   fmt.Sprintf("%.1f%s", float64(size)/1024/1024, a.m["mb"]),
@@ -132,7 +132,7 @@ func printStatus(w http.ResponseWriter, r *http.Request) {
 		"alloc_mem":    fmt.Sprintf("%.1f%s", float64(mem.Alloc)/1024/1024, a.m["mb"]),
 	}
 	ns := map[string][]string{
-		"linked_nodes": lookupTable.getNodestrSlice(),
+		"linked_nodes": nodeManager.getNodestrSlice(),
 	}
 
 	d := struct {
@@ -400,11 +400,9 @@ func (a *adminCGI) postDeleteMessage(ca *cache, rec *record) {
 	id := rec.build(stamp, body, passwd)
 	ca.addData(rec)
 	ca.syncStatus()
-	updateList.append(rec)
-	updateList.sync()
 	recentList.append(rec)
 	recentList.sync()
-	go lookupTable.tellUpdate(ca, stamp, id, nil)
+	go nodeManager.tellUpdate(ca, stamp, id, nil)
 }
 
 //printDeleteFile renders the page for confirmation of deleting file.

@@ -67,8 +67,8 @@ func doPing(w http.ResponseWriter, r *http.Request) {
 
 //doNode returns one of nodelist. if nodelist.len=0 returns one of initNode.
 func doNode(w http.ResponseWriter, r *http.Request) {
-	if lookupTable.listLen() > 0 {
-		fmt.Fprintln(w, lookupTable.getNodestrSliceInTable("")[0])
+	if nodeManager.listLen() > 0 {
+		fmt.Fprintln(w, nodeManager.getNodestrSliceInTable("")[0])
 	} else {
 		fmt.Fprintln(w, initNode.data[0])
 	}
@@ -93,13 +93,13 @@ func doJoin(w http.ResponseWriter, r *http.Request) {
 	if _, err := n.ping(); err != nil {
 		return
 	}
-	if lookupTable.listLen() < defaultNodes {
-		lookupTable.appendToList(n)
+	if nodeManager.listLen() < defaultNodes {
+		nodeManager.appendToList(n)
 		fmt.Fprintln(s.wr, "WELCOME")
 		return
 	}
-	suggest := lookupTable.getFromList(0)
-	lookupTable.removeFromList(suggest)
+	suggest := nodeManager.getFromList(0)
+	nodeManager.removeFromList(suggest)
 	suggest.bye()
 	fmt.Fprintf(s.wr, "WELCOME\n%s\n", suggest.nodestr)
 }
@@ -117,7 +117,7 @@ func doBye(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	lookupTable.removeFromList(n)
+	nodeManager.removeFromList(n)
 	fmt.Fprintln(s.wr, "BYEBYE")
 }
 
@@ -177,8 +177,8 @@ func doUpdate(w http.ResponseWriter, r *http.Request) {
 		log.Println("detects spam")
 		return
 	}
-	lookupTable.appendToTable(datfile, n)
-	lookupTable.sync()
+	nodeManager.appendToTable(datfile, n)
+	nodeManager.sync()
 	now := time.Now()
 	nstamp, err := strconv.ParseInt(stamp, 10, 64)
 	if err != nil {
@@ -190,9 +190,7 @@ func doUpdate(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	rec := newRecord(datfile, stamp+"_"+id)
-	if !updateList.hasInfo(rec) {
-		go updateNodes(rec, n)
-	}
+	go que.updateNodes(rec, n)
 	fmt.Fprintln(w, "OK")
 }
 
@@ -214,11 +212,11 @@ func doRecent(w http.ResponseWriter, r *http.Request) {
 	last := time.Now().Unix() + recentRange
 	begin, end, _ := s.parseStamp(stamp, last)
 	for _, i := range recentList.infos {
-		if begin > i.stamp || i.stamp > end {
+		if begin > i.Stamp || i.Stamp > end {
 			return
 		}
 		ca := newCache(i.datfile)
-		cont := fmt.Sprintf("%d<>%s<>%s", i.stamp, i.id, i.datfile)
+		cont := fmt.Sprintf("%d<>%s<>%s", i.Stamp, i.ID, i.datfile)
 		if ca.tags != nil && ca.tags.Len() > 0 {
 			cont += "<>tag:" + ca.tags.string()
 		}

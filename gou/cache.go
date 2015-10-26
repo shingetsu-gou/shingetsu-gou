@@ -477,9 +477,9 @@ func (c *cache) Exists() bool {
 //if found adds to nodelist ,get records , and adds to nodes in cache.
 func (c *cache) search(myself *node) bool {
 	if myself != nil {
-		myself = lookupTable.myself()
+		myself = nodeManager.myself()
 	}
-	n := lookupTable.search(c, myself, lookupTable.get(c.Datfile, nil))
+	n := nodeManager.search(c, myself, nodeManager.get(c.Datfile, nil))
 	if n != nil {
 		c.getWithRange(n)
 		return true
@@ -490,7 +490,7 @@ func (c *cache) search(myself *node) bool {
 //updateFromRecords reload all records in cache from network,
 //and reset params.
 func (c *cache) updateFromRecords() {
-	my := lookupTable.myself()
+	my := nodeManager.myself()
 	if !c.Exists() {
 		return
 	}

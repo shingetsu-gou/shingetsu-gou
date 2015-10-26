@@ -43,9 +43,7 @@ import (
 
 //record represents one record.
 type record struct {
-	datfile              string //cache file name
-	Stamp                int64  //unixtime
-	ID                   string //md5(bodystr)
+	RecordHead
 	contents             map[string]string
 	keyOrder             []string
 	noNeedToLoadAttached bool
@@ -60,7 +58,8 @@ func (r *record) len() int {
 //if parse failes returns nil.
 func newRecord(datfile, idstr string) *record {
 	var err error
-	r := &record{datfile: datfile}
+	r := &record{}
+	r.datfile = datfile
 	if idstr != "" {
 		buf := strings.Split(idstr, "_")
 		if len(buf) != 2 {
@@ -74,16 +73,6 @@ func newRecord(datfile, idstr string) *record {
 		r.ID = buf[1]
 	}
 	return r
-}
-
-//Idstr returns real file name of the record file.
-func (r *record) Idstr() string {
-	return fmt.Sprintf("%d_%s", r.Stamp, r.ID)
-}
-
-//recstr returns one line in the record file.
-func (r *record) recstr() string {
-	return fmt.Sprintf("%d<>%s<>%s", r.Stamp, r.ID, r.bodystr())
 }
 
 //bodystr returns body part of one line in the record file.

@@ -628,7 +628,7 @@ func (t *threadCGI) doPost() string {
 
 	if t.req.FormValue("dopost") != "" {
 		log.Println(rec, "is queued")
-		go updateNodes(rec, nil)
+		go que.updateNodes(rec, nil)
 	}
 
 	return rec.ID[:8]

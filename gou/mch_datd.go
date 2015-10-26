@@ -219,7 +219,7 @@ func (m *mchCGI) makeSubjectCachelist(board string) []*cache {
 		if !hasString(seen, rec.datfile) {
 			seen = append(seen, rec.datfile)
 			c := newCache(rec.datfile)
-			c.RecentStamp = rec.stamp
+			c.RecentStamp = rec.Stamp
 			cl.append(c)
 		}
 	}
