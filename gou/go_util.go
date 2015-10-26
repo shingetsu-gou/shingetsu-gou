@@ -198,8 +198,8 @@ func IsDir(path string) bool {
 }
 
 //moveFile moves a file from src to dest.
-func moveFile(src,dst string) error {
-	log.Println(src,dst)
+func moveFile(src, dst string) error {
+	log.Println(src, dst)
 	in, err := os.Open(src)
 	if err != nil {
 		return err
@@ -299,15 +299,6 @@ func makeThumbnail(from, to, suffix string, x, y uint) {
 	default:
 		log.Println("illegal format", suffix)
 	}
-	if err != nil {
-		log.Println(err)
-	}
-}
-
-//touch makes an empty file "name".
-func touch(fname string) {
-	f, err := os.Create(fname)
-	defer fclose(f)
 	if err != nil {
 		log.Println(err)
 	}

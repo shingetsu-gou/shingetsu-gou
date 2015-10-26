@@ -183,7 +183,7 @@ func (lt *LookupTable) hasNode(n *node) bool {
 func (lt *LookupTable) findNode(n *node) []string {
 	var r []string
 	lt.mutex.RLock()
-	for k, _ := range lt.nodes {
+	for k := range lt.nodes {
 		lt.mutex.RUnlock()
 		if lt.hasNodeInTable(k, n) {
 			r = append(r, k)
@@ -228,7 +228,7 @@ func (lt *LookupTable) removeFromList(n *node) bool {
 func (lt *LookupTable) removeFromAllTable(n *node) bool {
 	del := false
 	lt.mutex.RLock()
-	for k, _ := range lt.nodes {
+	for k := range lt.nodes {
 		defer lt.mutex.RUnlock()
 		del = del || lt.removeFromTable(k, n)
 	}

@@ -75,8 +75,8 @@ const (
 	templateSuffix = ".txt"
 	useCookie      = true
 
-	Version = "Git/unstable" //shoud be overwritten when building on travis.
-
+	//Version is one of Gou. it shoud be overwritten when building on travis.
+	Version = "Git/unstable"
 )
 
 var (

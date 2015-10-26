@@ -189,7 +189,7 @@ func (g *gatewayCGI) appendRSS(rsss *RSS, ca *cache) {
 				suffix = "txt"
 			}
 			content += fmt.Sprintf("\n    <p><a href=\"http://%s%s%s%s/%s/%d.%s\">%d.%s</a></p>",
-				g.host, application[ca.Typee], querySeparator, ca.Datfile, r.ID, r.Stamp, suffix, r.Stamp, suffix)
+				g.host(), application[ca.Typee], querySeparator, ca.Datfile, r.ID, r.Stamp, suffix, r.Stamp, suffix)
 		}
 		permpath := path[1:]
 		if ca.Typee == "thread" {
@@ -558,5 +558,5 @@ func (g *gatewayCGI) mchURL(dat string) string {
 	if serverName != "" {
 		return "//" + serverName + path
 	}
-	return fmt.Sprintf("//%s%s", g.host, path)
+	return fmt.Sprintf("//%s%s", g.host(), path)
 }

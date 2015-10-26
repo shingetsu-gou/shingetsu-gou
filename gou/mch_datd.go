@@ -62,7 +62,7 @@ func mchSetup(s *loggingServeMux) {
 
 //boardApp just calls boardApp(), only print title.
 func boardApp(w http.ResponseWriter, r *http.Request) {
-	a ,err:= newMchCGI(w, r)
+	a, err := newMchCGI(w, r)
 	defer a.close()
 	if err != nil {
 		log.Println(err)
@@ -73,7 +73,7 @@ func boardApp(w http.ResponseWriter, r *http.Request) {
 
 //threadApp renders dat files(record data) in the thread.
 func threadApp(w http.ResponseWriter, r *http.Request) {
-	a ,err:= newMchCGI(w, r)
+	a, err := newMchCGI(w, r)
 	defer a.close()
 	if err != nil {
 		log.Println(err)
@@ -89,7 +89,7 @@ func threadApp(w http.ResponseWriter, r *http.Request) {
 
 //subjectApp renders time-subject lines of the thread.
 func subjectApp(w http.ResponseWriter, r *http.Request) {
-	a ,err:= newMchCGI(w, r)
+	a, err := newMchCGI(w, r)
 	defer a.close()
 	if err != nil {
 		log.Println(err)
@@ -101,7 +101,7 @@ func subjectApp(w http.ResponseWriter, r *http.Request) {
 
 //postCommentApp posts one record to the thread.
 func postCommentApp(w http.ResponseWriter, r *http.Request) {
-	a ,err:= newMchCGI(w, r)
+	a, err := newMchCGI(w, r)
 	defer a.close()
 	if err != nil {
 		log.Println(err)
@@ -112,7 +112,7 @@ func postCommentApp(w http.ResponseWriter, r *http.Request) {
 
 //headApp just renders motd.
 func headApp(w http.ResponseWriter, r *http.Request) {
-	a ,err:= newMchCGI(w, r)
+	a, err := newMchCGI(w, r)
 	defer a.close()
 	if err != nil {
 		log.Println(err)
