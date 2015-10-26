@@ -32,6 +32,7 @@ import (
 	"log"
 	"sort"
 	"strings"
+	"sync"
 )
 
 //tag represents one tag.
@@ -42,12 +43,16 @@ type tag struct {
 
 //tagList represents list of tags and base of other tag list.
 type tagList struct {
-	path string
-	Tags []*tag
+	path   string
+	Tags   []*tag
+	mutex  sync.RWMutex
+	fmutex sync.Mutex
 }
 
 //Len returns size of tags.
 func (t tagList) Len() int {
+	t.mutex.RLock()
+	defer t.mutex.RUnlock()
 	return len(t.Tags)
 }
 
@@ -84,6 +89,9 @@ func newTagList(path string) *tagList {
 
 //getTagstrSlice returns tagstr slice of tags.
 func (t *tagList) getTagstrSlice() []string {
+	t.mutex.RLock()
+	defer t.mutex.RUnlock()
+
 	result := make([]string, len(t.Tags))
 	for i, v := range t.Tags {
 		result[i] = v.Tagstr
@@ -101,11 +109,15 @@ func (t *tagList) checkAppend(val string) {
 	if strings.ContainsAny(val, "<>&") || hasString(t.getTagstrSlice(), val) {
 		return
 	}
+	t.mutex.Lock()
+	defer t.mutex.Unlock()
 	t.Tags = append(t.Tags, &tag{val, 1})
 }
 
 //update removes tags and add tagstr=val tags.
 func (t *tagList) update(val []string) {
+	t.mutex.Lock()
+	defer t.mutex.Unlock()
 	t.Tags = t.Tags[:0]
 	for _, v := range val {
 		ta := &tag{
@@ -117,6 +129,8 @@ func (t *tagList) update(val []string) {
 
 //hasTagstr return true if one of tags has tagstr
 func (t *tagList) hasTagstr(tagstr string) bool {
+	t.mutex.RLock()
+	defer t.mutex.RUnlock()
 	for _, v := range t.Tags {
 		if v.Tagstr == tagstr {
 			return true
@@ -136,7 +150,9 @@ func (t *tagList) addString(vals []string) {
 func (t *tagList) add(vals []*tag) {
 	for _, val := range vals {
 		if i := findString(t.getTagstrSlice(), val.Tagstr); i >= 0 {
+			t.mutex.Lock()
 			t.Tags[i].weight++
+			t.mutex.Unlock()
 		} else {
 			t.checkAppend(val.Tagstr)
 		}
@@ -145,6 +161,8 @@ func (t *tagList) add(vals []*tag) {
 
 //sync saves tagstr of tags.
 func (t *tagList) sync() {
+	t.fmutex.Lock()
+	defer t.fmutex.Unlock()
 	err := writeSlice(t.path, t.getTagstrSlice())
 	if err != nil {
 		log.Println(err)
@@ -154,6 +172,8 @@ func (t *tagList) sync() {
 //SuggestedTagTable represents tags associated with datfile retrieved from network.
 type SuggestedTagTable struct {
 	sugtaglist map[string]*suggestedTagList
+	mutex      sync.RWMutex
+	fmutex     sync.Mutex
 }
 
 //newSuggestedTagTable make SuggestedTagTable obj and read info from the file.
@@ -173,14 +193,19 @@ func newSuggestedTagTable() *SuggestedTagTable {
 
 //get returns suggestedTagList associated with datfile or returns def if not exists.
 func (s *SuggestedTagTable) get(datfile string, def *suggestedTagList) *suggestedTagList {
+	s.mutex.RLock()
+	defer s.mutex.RUnlock()
 	if v, exist := s.sugtaglist[datfile]; exist {
-		return v
+		ss := newSuggestedTagList(v.path, v.getTagstrSlice())
+		return ss
 	}
 	return def
 }
 
 //keys return datfile names of sugtaglist.
 func (s *SuggestedTagTable) keys() []string {
+	s.mutex.RLock()
+	defer s.mutex.RUnlock()
 	ary := make([]string, len(s.sugtaglist))
 	i := 0
 	for k := range s.sugtaglist {
@@ -194,11 +219,15 @@ func (s *SuggestedTagTable) keys() []string {
 func (s *SuggestedTagTable) sync() {
 	log.Println("syncing..")
 	m := make(map[string][]string)
+	s.mutex.RLock()
 	for k, v := range s.sugtaglist {
 		s := v.getTagstrSlice()
 		m[k] = s
 	}
+	s.mutex.RUnlock()
+	s.fmutex.Lock()
 	err := writeMap(sugtag, m)
+	s.fmutex.Unlock()
 	if err != nil {
 		log.Println(err)
 	}
@@ -212,13 +241,17 @@ func (s *SuggestedTagTable) prune(recentlist *RecentList) {
 		if l := findString(tmp, r.datfile); l != -1 {
 			tmp = append(tmp[:l], tmp[l+1:]...)
 		}
+		s.mutex.RLock()
 		if v, exist := s.sugtaglist[r.datfile]; exist {
 			v.prune(tagSize)
 		}
+		defer s.mutex.RUnlock()
 	}
+	s.mutex.Lock()
 	for _, datfile := range tmp {
 		delete(s.sugtaglist, datfile)
 	}
+	s.mutex.Unlock()
 }
 
 //suggestedTabList represents tags retrieved from network.
@@ -246,7 +279,9 @@ func (s *suggestedTagList) prune(size int) {
 
 //sync stores myself to suggestedTagTable.
 func (s *suggestedTagList) sync() {
+	suggestedTagTable.mutex.Lock()
 	suggestedTagTable.sugtaglist[s.path] = s
+	suggestedTagTable.mutex.Unlock()
 }
 
 //UserTagList represents tags saved by the user.
@@ -268,6 +303,8 @@ func (u *UserTagList) sync() {
 
 //updateall removes all tags and reload from cachlist.
 func (u *UserTagList) updateAll() {
+	u.mutex.Lock()
+	defer u.mutex.Unlock()
 	cachelist := newCacheList()
 	if u.Tags != nil {
 		u.Tags = u.Tags[:0]

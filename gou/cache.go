@@ -38,22 +38,23 @@ import (
 	"sort"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 )
 
 //cache represents cache of one file.
 type cache struct {
-	node        *rawNodeList
 	Datfile     string
 	velocity    int      // records count per unit time
 	Typee       string   //"thread"
 	tags        *tagList //made by the user
-	ValidStamp  int64    //stamp of newerst record
+	ValidStamp  int64    //last record stamp excpet spam
 	RecentStamp int64    //when got by "/recent"
-	stamp       int64    //when the cache is modified
+	stamp       int64    //last record stamp including spam
 	sugtags     *suggestedTagList
 	recs        map[string]*record
 	loaded      bool // loaded records
+	mutex       sync.RWMutex
 }
 
 //saveRecord returns max # of records to be saved.
@@ -99,6 +100,9 @@ func (c *cache) datpath() string {
 
 //newCache read files to set params and returns cache obj.
 func newCache(datfile string) *cache {
+	if c, exist := cacheMap[datfile]; exist {
+		return c
+	}
 	c := &cache{
 		Datfile: datfile,
 		recs:    make(map[string]*record),
@@ -107,20 +111,27 @@ func newCache(datfile string) *cache {
 	c.RecentStamp = c.stamp
 	c.ValidStamp = c.loadStatus("validstamp")
 	c.velocity = int(c.loadStatus("velocity"))
-	c.node = newRawNodeList(path.Join(c.datpath(), "node.txt"))
 	c.tags = newTagList(path.Join(c.datpath(), "tag.txt"))
+	suggestedTagTable.mutex.RLock()
 	if v, exist := suggestedTagTable.sugtaglist[c.Datfile]; exist {
 		c.sugtags = v
 	} else {
 		c.sugtags = newSuggestedTagList(c.Datfile, nil)
 	}
+	defer suggestedTagTable.mutex.RUnlock()
 	for _, t := range types {
 		if strings.HasPrefix(c.Datfile, t) {
 			c.Typee = t
 			break
 		}
 	}
+	cacheMap[datfile] = c
 	return c
+}
+
+//close removes myself from caches.
+func (c *cache) close() {
+	delete(cacheMap, c.Datfile)
 }
 
 //len returns size of records on disk.
@@ -274,7 +285,7 @@ func (c *cache) checkData(res []string, stamp int64, id string, begin, end int64
 		r := newRecord(c.Datfile, "")
 		if er := r.parse(i); er == nil && r.meets(i, stamp, id, begin, end) {
 			count++
-			if len(i) > recordLimit*1024 || spamCheck(i) {
+			if len(i) > recordLimit*1024 || cachedRule.check(i) {
 				err = errSpam
 				log.Printf("warning:%s/%s:too large or spam record", c.Datfile, r.Idstr())
 				c.addData(r)
@@ -314,8 +325,6 @@ func (c *cache) getData(stamp int64, id string, n *node) error {
 
 //addData adds rec to cache.
 func (c *cache) addData(rec *record) {
-
-	c.setupDirectories()
 	c.recs[rec.Idstr()] = rec
 	c.velocity++
 	c.updateStamp(rec)
@@ -327,7 +336,6 @@ func (c *cache) addData(rec *record) {
 
 //updateStamp updates cache's stamp to rec if rec is newer.
 func (c *cache) updateStamp(rec *record) {
-	c.setupDirectories()
 	rec.sync(false)
 	if c.stamp < rec.Stamp {
 		c.stamp = rec.Stamp
@@ -468,35 +476,21 @@ func (c *cache) Exists() bool {
 //search checks  nodes in lookuptable have the cache.
 //if found adds to nodelist ,get records , and adds to nodes in cache.
 func (c *cache) search(myself *node) bool {
-	c.setupDirectories()
 	if myself != nil {
-		myself = nodeList.myself()
+		myself = lookupTable.myself()
 	}
-	n := searchList.search(c, myself, lookupTable.get(c.Datfile, nil))
+	n := lookupTable.search(c, myself, lookupTable.get(c.Datfile, nil))
 	if n != nil {
-		if !nodeList.hasNode(n) {
-			nodeList.append(n)
-			nodeList.sync()
-		}
 		c.getWithRange(n)
-		if !c.node.hasNode(n) {
-			for c.node.Len() >= shareNodes {
-				n = c.node.random()
-				c.node.removeNode(n)
-			}
-			c.node.append(n)
-			c.node.sync()
-		}
 		return true
 	}
-	c.syncStatus()
 	return false
 }
 
 //updateFromRecords reload all records in cache from network,
 //and reset params.
 func (c *cache) updateFromRecords() {
-	my := nodeList.myself()
+	my := lookupTable.myself()
 	if !c.Exists() {
 		return
 	}

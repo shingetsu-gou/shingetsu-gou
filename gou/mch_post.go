@@ -50,7 +50,7 @@ func (m *mchCGI) postComment(threadKey, name, mail, body, passwd, tag string) er
 	c := newCache(threadKey)
 	rec := newRecord(c.Datfile, "")
 	rec.build(stamp, recbody, passwd)
-	if spamCheck(rec.recstr()) {
+	if cachedRule.check(rec.recstr()) {
 		return errSpam
 	}
 	c.addData(rec)
@@ -58,7 +58,7 @@ func (m *mchCGI) postComment(threadKey, name, mail, body, passwd, tag string) er
 	if tag != "" {
 		saveTag(c, tag)
 	}
-	queue.append(rec, nil)
+	go updateNodes(rec, nil)
 	return nil
 }
 
@@ -162,7 +162,7 @@ func (m *mchCGI) postCommentApp() {
 		name = ary[0]
 		passwd = ary[1]
 	}
-	if passwd != "" && !m.isAdmin {
+	if passwd != "" && !m.isAdmin() {
 		m.errorResp("自ノード以外で署名機能は使えません", info)
 	}
 	err := m.postComment(key, name, info["mail"], body, passwd, tag)

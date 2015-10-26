@@ -33,7 +33,6 @@ import (
 	"fmt"
 	"html/template"
 	htmlTemplate "html/template"
-	"io/ioutil"
 	"log"
 	"os"
 	"os/user"
@@ -75,6 +74,9 @@ const (
 
 	templateSuffix = ".txt"
 	useCookie      = true
+
+	Version = "Git/unstable" //shoud be overwritten when building on travis.
+
 )
 
 var (
@@ -162,12 +164,9 @@ var (
 	nodeDeny     *regexpList
 	dataKeyTable *DatakeyTable
 
-	queue             *updateQue
 	suggestedTagTable *SuggestedTagTable
 	userTagList       *UserTagList
 	lookupTable       *LookupTable
-	searchList        *SearchList
-	nodeList          *NodeList
 	recentList        *RecentList
 	updateList        *UpdateList
 
@@ -176,6 +175,9 @@ var (
 
 	htemplates = htmlTemplate.New("")
 	ttemplates = textTemplate.New("")
+
+	cgis     chan *cgi
+	cacheMap = make(map[string]*cache)
 )
 
 //config represents ini file.
@@ -185,29 +187,21 @@ type config struct {
 
 //newConfig make a config instance from the ini files and returns it.
 func newConfig() *config {
-	var err error
+	files := []string{"file/saku.ini", "/usr/local/etc/saku/saku.ini", "/etc/saku/saku.ini"}
+	usr, err := user.Current()
+	if err == nil {
+		files = append(files, usr.HomeDir+"/.saku/saku.ini")
+	}
 	c := &config{}
 	c.i = ini.Empty()
-	for _, f := range []string{"file/saku.ini", "/usr/local/etc/saku/saku.ini", "/etc/saku/saku.ini"} {
+	for _, f := range files {
 		if IsFile(f) {
 			err = c.i.Append(f)
 			if err != nil {
-				log.Fatal("cannot load ini files")
+				log.Fatal("cannot load ini files", f, "ignored")
 			}
 		} else {
-			log.Println(f, "not found")
-		}
-	}
-	usr, err := user.Current()
-	if err == nil {
-		h := usr.HomeDir + "/.saku/saku.ini"
-		if IsFile(h) {
-			err = c.i.Append(h)
-			if err != nil {
-				log.Fatal("cannot load ini files")
-			}
-		} else {
-			log.Println(h, "not found")
+			log.Println(f, "not found, ignored.")
 		}
 	}
 	return c
@@ -259,18 +253,7 @@ func (c *config) getPathValue(section, key string, vdefault string) string {
 
 //Get Gou version for useragent and servername.
 func getVersion() string {
-	ver := "0.0.0"
-
-	versionFile := fileDir + "/version.txt"
-	f, err := os.Open(versionFile)
-	defer fclose(f)
-	if err == nil {
-		cont, err := ioutil.ReadAll(f)
-		if err == nil {
-			ver += "; git/" + string(cont)
-		}
-	}
-	return "shinGETsu/0.7 (Gou/" + ver + ")"
+	return "shinGETsu/0.7 (Gou/" + Version + ")"
 }
 
 //setupTemplate adds funcmap to template var and parse files.
@@ -317,12 +300,11 @@ func InitVariables() {
 
 	DefaultPort = setting.getIntValue("Network", "port", 8010)
 	maxConnection = setting.getIntValue("Network", "max_connection", 20)
-	docroot = setting.getPathValue("Path", "docroot", "./www")                        //path from cwd
-	logDir = setting.getPathValue("Path", "log_dir", "./log")                         //path from cwd
-	runDir = setting.getRelativePathValue("Path", "run_dir", "../run")                //path from docroot
-	fileDir = setting.getRelativePathValue("Path", "file_dir", "../file")             //path from docroot
-	cacheDir = setting.getRelativePathValue("Path", "cache_dir", "../cache")          //path from docroot
-	templateDir = setting.getRelativePathValue("Path", "template_dir", "../template") //path from docroot
+	docroot = setting.getPathValue("Path", "docroot", "./www")                            //path from cwd
+	runDir = setting.getRelativePathValue("Path", "run_dir", "../run")                    //path from docroot
+	fileDir = setting.getRelativePathValue("Path", "file_dir", "../file")                 //path from docroot
+	cacheDir = setting.getRelativePathValue("Path", "cache_dir", "../cache")              //path from docroot
+	templateDir = setting.getRelativePathValue("Path", "template_dir", "../gou_template") //path from docroot
 	spamList = setting.getRelativePathValue("Path", "spam_list", "../file/spam.txt")
 	initnodeList = setting.getRelativePathValue("Path", "initnode_list", "../file/initnode.txt")
 	nodeAllowFile = setting.getRelativePathValue("Path", "node_allow", "../file/node_allow.txt")
@@ -381,11 +363,8 @@ func InitVariables() {
 	suggestedTagTable = newSuggestedTagTable()
 	userTagList = newUserTagList()
 	lookupTable = newLookupTable()
-	searchList = newSearchList()
-	nodeList = newNodeList()
 	recentList = newRecentList()
 	updateList = newUpdateList()
-	queue = newUpdateQue()
 
 	var err error
 	reAdmin, err = regexp.Compile(reAdminStr)
@@ -417,6 +396,8 @@ func InitVariables() {
 			log.Fatal("save_removed is too big")
 		}
 	}
+
+	cgis = make(chan *cgi, maxConnection)
 
 	setupTemplate()
 }

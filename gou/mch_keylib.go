@@ -34,6 +34,7 @@ import (
 	"log"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 )
 
@@ -42,6 +43,8 @@ type DatakeyTable struct {
 	file            string
 	datakey2filekey map[int64]string
 	filekey2datkey  map[string]int64
+	mutex           sync.RWMutex
+	fmutex          sync.Mutex
 }
 
 //newDatakeyTable make DataKeyTable obj.
@@ -94,11 +97,15 @@ func (d *DatakeyTable) load() {
 func (d *DatakeyTable) save() {
 	str := make([]string, len(d.datakey2filekey))
 	i := 0
+	d.mutex.RLock()
 	for stamp, filekey := range d.datakey2filekey {
 		str[i] = fmt.Sprintf("%d<>%s", stamp, filekey)
 		i++
 	}
+	d.mutex.RUnlock()
+	d.fmutex.Lock()
 	err := writeSlice(d.file, str)
+	d.fmutex.Unlock()
 	if err != nil {
 		log.Println(err)
 	}
@@ -106,13 +113,17 @@ func (d *DatakeyTable) save() {
 
 //setEntry stores stamp/value.
 func (d *DatakeyTable) setEntry(stamp int64, filekey string) {
+	d.mutex.Lock()
+	defer d.mutex.Unlock()
 	d.datakey2filekey[stamp] = filekey
 	d.filekey2datkey[filekey] = stamp
 }
 
 //setFromCache adds cache.datfile/timestamp pair if not exists.
 func (d *DatakeyTable) setFromCache(ca *cache) {
+	d.mutex.RLock()
 	if _, exist := d.filekey2datkey[ca.Datfile]; exist {
+		d.mutex.RUnlock()
 		return
 	}
 	var firstStamp int64
@@ -132,19 +143,25 @@ func (d *DatakeyTable) setFromCache(ca *cache) {
 		}
 		firstStamp++
 	}
+	d.mutex.RUnlock()
 	d.setEntry(firstStamp, ca.Datfile)
 }
 
 //getDatKey returns stamp from filekey.
 //if not found, tries to read from cache.
 func (d *DatakeyTable) getDatkey(filekey string) (int64, error) {
+	d.mutex.RLock()
 	if v, exist := d.filekey2datkey[filekey]; exist {
+		d.mutex.RUnlock()
 		return v, nil
 	}
+	d.mutex.RUnlock()
 	c := newCache(filekey)
 	c.load()
 	d.setFromCache(c)
 	d.save()
+	d.mutex.RLock()
+	defer d.mutex.RUnlock()
 	if v, exist := d.filekey2datkey[filekey]; exist {
 		return v, nil
 	}
@@ -158,6 +175,8 @@ func (d *DatakeyTable) getFilekey(datkey string) (string, error) {
 		log.Println(err)
 		return "", err
 	}
+	d.mutex.RLock()
+	defer d.mutex.RUnlock()
 	if v, exist := d.datakey2filekey[nDatkey]; exist {
 		return v, nil
 	}

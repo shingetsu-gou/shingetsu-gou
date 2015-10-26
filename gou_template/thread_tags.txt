@@ -1,0 +1,14 @@
+{{/*
+ Copyright (c) 2005-2014 shinGETsu Project.
+ */}}
+{{define "thread_tags"}}
+{{$root:=.}}
+<p class="{{.Classname}}">
+{{ range $tag:=.Tags }}
+  <a href="{{$root.GatewayCGI}}/{{$root.Target}}?tag={{strEncode $tag}}" class="tag">{{$tag}}</a>
+{{ end }}
+{{ if and (eq .Classname "tags") .IsAdmin }}
+  <a href="{{.AdminCGI}}/edittag?file={{.Datfile}}" class="btn">{{.Message.edit_tag}}</a>
+{{ end }}
+</p>
+{{end}}

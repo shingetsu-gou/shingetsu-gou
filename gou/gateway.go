@@ -50,7 +50,7 @@ type message map[string]string
 //newMessage reads from the file excpet #comment and stores them with url unescaping value.
 func newMessage(file string) message {
 	m := make(map[string]string)
-	re := regexp.MustCompile("^\\s*#")
+	re := regexp.MustCompile(`^\s*#`)
 	err := eachLine(file, func(line string, i int) error {
 		var err error
 		if re.MatchString(line) {
@@ -190,47 +190,74 @@ func (l ListItem) Render(ca *cache, remove bool, target string, search bool) tem
 //cgi is a base class for all http handlers.
 type cgi struct {
 	m         message
-	host      string
-	isAdmin   bool
-	isFriend  bool
-	isVisitor bool
 	jc        *jsCache
 	req       *http.Request
 	wr        http.ResponseWriter
-	path      string
 	filter    string
 	tag       string
 	appliType string
 }
 
+func (c *cgi) host() string {
+	host := serverName
+	if host == "" {
+		host = c.req.Host
+	}
+	return host
+}
+
+func (c *cgi) isAdmin() bool {
+	return reAdmin.MatchString(c.req.RemoteAddr)
+}
+
+func (c *cgi) isFriend() bool {
+	return reFriend.MatchString(c.req.RemoteAddr)
+}
+
+func (c *cgi) isVisitor() bool {
+	return reVisitor.MatchString(c.req.RemoteAddr)
+}
+
+func (c *cgi) path() string {
+	p := strings.Split(c.req.URL.Path, "/")
+	//  /thread.cgi/hoe
+	// 0/         1/  2
+	var path string
+	if len(p) > 1 {
+		path = strings.Join(p[2:], "/")
+	}
+	return path
+}
+
 //newCGI reads messages file, and set params , returns cgi obj.
 func newCGI(w http.ResponseWriter, r *http.Request) *cgi {
-	c := &cgi{
-		jc: newJsCache(docroot),
-		wr: w,
+	var c *cgi
+	select {
+	case c = <-cgis:
+	default:
+		c = &cgi{}
 	}
+	c.jc = newJsCache(docroot)
+	c.wr = w
 	c.m = searchMessage(r.Header.Get("Accept-Language"))
-	c.isAdmin = reAdmin.MatchString(r.RemoteAddr)
-	c.isFriend = reFriend.MatchString(r.RemoteAddr)
-	c.isVisitor = reVisitor.MatchString(r.RemoteAddr)
 	c.req = r
 	err := r.ParseForm()
 	if err != nil {
 		log.Println(err)
 		return nil
 	}
-	p := strings.Split(r.URL.Path, "/")
-	//  /thread.cgi/hoe
-	// 0/         1/  2
-	if len(p) > 1 {
-		c.path = strings.Join(p[2:], "/")
-	}
-	c.host = serverName
-	if c.host == "" {
-		c.host = r.Host
-	}
-	log.Println("isAdmin", c.isAdmin, "isFriend", c.isFriend, "isVisitor", c.isVisitor)
 	return c
+}
+
+//close returns cgi instance to channel(free list).
+func (c *cgi) close() {
+	if c == nil {
+		return
+	}
+	select {
+	case cgis <- c:
+	default:
+	}
 }
 
 //extentions reads files with suffix in root dir and return them.
@@ -307,8 +334,8 @@ func (c *cgi) makeMenubar(id, rss string) *Menubar {
 		c.m,
 		id,
 		rss,
-		c.isAdmin,
-		c.isFriend,
+		c.isAdmin(),
+		c.isFriend(),
 	}
 	return g
 }
@@ -364,7 +391,7 @@ func (c *cgi) resAnchor(id, appli string, title string, absuri bool) string {
 	title = strEncode(title)
 	var prefix, innerlink string
 	if absuri {
-		prefix = "http://" + c.host
+		prefix = "http://" + c.host()
 	} else {
 		innerlink = " class=\"innerlink\""
 	}
@@ -376,15 +403,15 @@ func (c *cgi) htmlFormat(plain, appli string, title string, absuri bool) string 
 	buf := strings.Replace(plain, "<br>", "\n", -1)
 	buf = strings.Replace(buf, "\t", "        ", -1)
 	buf = escape(buf)
-	reg := regexp.MustCompile("https?://[^\\x00-\\x20\"'()<>\\[\\]\\x7F-\\xFF]{2,}")
-	buf = reg.ReplaceAllString(buf, "<a href=\"$0\">$0</a>")
+	reg := regexp.MustCompile(`https?://[^\x00-\x20"'\(\)<>\[\]\x7F-\xFF]{2,}`)
+	buf = reg.ReplaceAllString(buf, `<a href="$0">$0</a>`)
 	reg = regexp.MustCompile("&gt;&gt;[0-9a-f]{8}")
 	buf = reg.ReplaceAllStringFunc(buf, func(str string) string {
 		regg := regexp.MustCompile("(&gt;&gt;)([0-9a-f]{8})")
 		id := regg.ReplaceAllString(str, "$2")
 		return regg.ReplaceAllString(str, c.resAnchor(id, appli, title, absuri)+"$1$2</a>")
 	})
-	reg = regexp.MustCompile("\\[\\[([^<>]+?)\\]\\]")
+	reg = regexp.MustCompile(`\[\[([^<>]+?)\]\]`)
 	tmp := reg.ReplaceAllStringFunc(buf, func(str string) string {
 		bl := c.bracketLink(str[2:len(str)-2], appli, absuri)
 		return bl
@@ -397,7 +424,7 @@ func (c *cgi) htmlFormat(plain, appli string, title string, absuri bool) string 
 func (c *cgi) bracketLink(link, appli string, absuri bool) string {
 	var prefix string
 	if absuri {
-		prefix = "http://" + c.host
+		prefix = "http://" + c.host()
 	}
 	reg := regexp.MustCompile("^/(thread)/([^/]+)/([0-9a-f]{8})$")
 	if m := reg.FindStringSubmatch(link); m != nil {
@@ -436,7 +463,7 @@ func (c *cgi) removeFileForm(ca *cache, title string) {
 	}{
 		ca,
 		title,
-		c.isAdmin,
+		c.isAdmin(),
 		adminURL,
 		c.m,
 	}
@@ -478,53 +505,14 @@ func (c *cgi) print404(ca *cache, id string) {
 	c.footer(nil)
 }
 
-//lock creates a lockfile.
-//if success or existing lockfile is before timeout, returns true.
-func (c *cgi) lock() bool {
-	var lockfile string
-	if c.isAdmin {
-		lockfile = adminSearch
-	} else {
-		lockfile = searchLock
-	}
-	if !IsFile(lockfile) {
-		touch(lockfile)
-		return true
-	}
-	s, err := os.Stat(lockfile)
-	if err != nil {
-		log.Println(err)
-		return false
-	}
-	if s.ModTime().Add(searchTimeout).Before(time.Now()) {
-		touch(lockfile)
-		return true
-	}
-	return false
-}
-
-//unclock removes a lockfile.
-func (c *cgi) unlock() {
-	var lockfile string
-	if c.isAdmin {
-		lockfile = adminSearch
-	} else {
-		lockfile = searchLock
-	}
-	err := os.Remove(lockfile)
-	if err != nil {
-		log.Println(err)
-	}
-}
-
 //checkVisitor returns true if visitor is permitted.
 func (c *cgi) checkVisitor() bool {
-	return c.isAdmin || c.isFriend || c.isVisitor
+	return c.isAdmin() || c.isFriend() || c.isVisitor()
 }
 
 //hasAuth auth returns true if visitor is admin or friend.
 func (c *cgi) hasAuth() bool {
-	return c.isAdmin || c.isFriend
+	return c.isAdmin() || c.isFriend()
 }
 
 //printIndexList renders index_list.txt which renders threads in cachelist.
@@ -554,20 +542,22 @@ func (c *cgi) printIndexList(cl []*cache, target string, footer bool, searchNewF
 		adminURL,
 		c.m,
 		searchNewFile,
-		c.isAdmin,
-		c.isFriend,
+		c.isAdmin(),
+		c.isFriend(),
 		types,
 		GatewayLink{
 			Message: c.m,
 		},
 		ListItem{
-			IsAdmin: c.isAdmin,
+			IsAdmin: c.isAdmin(),
 			filter:  c.filter,
 			tag:     c.tag,
 			Message: c.m,
 		},
 	}
+	userTagList.mutex.RLock()
 	renderTemplate("index_list", s, c.wr)
+	userTagList.mutex.RUnlock()
 	if footer {
 		c.printNewElementForm()
 		c.footer(nil)
@@ -576,7 +566,7 @@ func (c *cgi) printIndexList(cl []*cache, target string, footer bool, searchNewF
 
 //printNewElementForm renders new_element_form.txt for posting new thread.
 func (c *cgi) printNewElementForm() {
-	if !c.isAdmin && !c.isFriend {
+	if !c.isAdmin() && !c.isFriend() {
 		return
 	}
 	s := struct {
@@ -590,7 +580,7 @@ func (c *cgi) printNewElementForm() {
 		gatewayURL,
 		c.m,
 		titleLimit,
-		c.isAdmin,
+		c.isAdmin(),
 	}
 	renderTemplate("new_element_form", s, c.wr)
 }

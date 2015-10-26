@@ -31,6 +31,7 @@ package gou
 import (
 	"encoding/csv"
 	"encoding/hex"
+	"errors"
 	"fmt"
 	"html"
 	"io/ioutil"
@@ -78,8 +79,9 @@ func printGatewayThread(w http.ResponseWriter, r *http.Request) {
 		printTitle(w, r)
 		return
 	}
-	g := newGatewayCGI(w, r)
-	if g == nil {
+	g, err := newGatewayCGI(w, r)
+	if err != nil {
+		log.Println(err)
 		return
 	}
 	g.print302(uri)
@@ -87,8 +89,10 @@ func printGatewayThread(w http.ResponseWriter, r *http.Request) {
 
 //printCSV renders csv of caches saved in disk.
 func printCSV(w http.ResponseWriter, r *http.Request) {
-	g := newGatewayCGI(w, r)
-	if g == nil {
+	g, err := newGatewayCGI(w, r)
+	defer g.close()
+	if err != nil {
+		log.Println(err)
 		return
 	}
 	cl := newCacheList()
@@ -97,8 +101,10 @@ func printCSV(w http.ResponseWriter, r *http.Request) {
 
 //printCSVChanges renders csv of caches which changes recently and are in disk(validstamp is newer).
 func printCSVChanges(w http.ResponseWriter, r *http.Request) {
-	g := newGatewayCGI(w, r)
-	if g == nil {
+	g, err := newGatewayCGI(w, r)
+	defer g.close()
+	if err != nil {
+		log.Println(err)
 		return
 	}
 	cl := newCacheList()
@@ -108,11 +114,13 @@ func printCSVChanges(w http.ResponseWriter, r *http.Request) {
 
 //printCSVRecent renders csv of caches which are written recently(are updated remotely).
 func printCSVRecent(w http.ResponseWriter, r *http.Request) {
-	g := newGatewayCGI(w, r)
-	if g == nil {
+	g, err := newGatewayCGI(w, r)
+	defer g.close()
+	if err != nil {
+		log.Println(err)
 		return
 	}
-	if !g.isFriend && !g.isAdmin {
+	if !g.isFriend() && !g.isAdmin() {
 		g.print403()
 		return
 	}
@@ -123,13 +131,16 @@ func printCSVRecent(w http.ResponseWriter, r *http.Request) {
 //printRecentRSS renders rss of caches which are written recently(are updated remotely).
 //including title,tags,last-modified.
 func printRecentRSS(w http.ResponseWriter, r *http.Request) {
-	g := newGatewayCGI(w, r)
-	if g == nil {
+	g, err := newGatewayCGI(w, r)
+	defer g.close()
+
+	if err != nil {
+		log.Println(err)
 		return
 	}
 	rsss := newRss("UTF-8", "", fmt.Sprintf("%s - %s", g.m["recent"], g.m["logo"]),
-		"http://"+g.host, "",
-		"http://"+g.host+gatewayURL+querySeparator+"recent_rss", g.m["description"], xsl)
+		"http://"+g.host(), "",
+		"http://"+g.host()+gatewayURL+querySeparator+"recent_rss", g.m["description"], xsl)
 	cl := recentList.makeRecentCachelist()
 	for _, ca := range cl.Caches {
 		title := escape(fileDecode(ca.Datfile))
@@ -190,12 +201,14 @@ func (g *gatewayCGI) appendRSS(rsss *RSS, ca *cache) {
 
 //printRSS reneders rss including newer records.
 func printRSS(w http.ResponseWriter, r *http.Request) {
-	g := newGatewayCGI(w, r)
-	if g == nil {
+	g, err := newGatewayCGI(w, r)
+	defer g.close()
+	if err != nil {
+		log.Println(err)
 		return
 	}
-	rsss := newRss("UTF-8", "", g.m["logo"], "http://"+g.host, "",
-		"http://"+g.host+gatewayURL+querySeparator+"rss", g.m["description"], xsl)
+	rsss := newRss("UTF-8", "", g.m["logo"], "http://"+g.host(), "",
+		"http://"+g.host()+gatewayURL+querySeparator+"rss", g.m["description"], xsl)
 	cl := newCacheList()
 	for _, ca := range cl.Caches {
 		g.appendRSS(rsss, ca)
@@ -209,14 +222,16 @@ func printRSS(w http.ResponseWriter, r *http.Request) {
 
 //printMergedJS renders merged js with stamp.
 func printMergedJS(w http.ResponseWriter, r *http.Request) {
-	g := newGatewayCGI(w, r)
-	if g == nil {
+	g, err := newGatewayCGI(w, r)
+	defer g.close()
+	if err != nil {
+		log.Println(err)
 		return
 	}
 
 	g.wr.Header().Set("Content-Type", "application/javascript; charset=UTF-8")
 	g.wr.Header().Set("Last-Modified", g.rfc822Time(g.jc.GetLatest()))
-	_, err := g.wr.Write([]byte(g.jc.getContent()))
+	_, err = g.wr.Write([]byte(g.jc.getContent()))
 	if err != nil {
 		log.Println(err)
 	}
@@ -224,8 +239,10 @@ func printMergedJS(w http.ResponseWriter, r *http.Request) {
 
 //printMotd renders motd.
 func printMotd(w http.ResponseWriter, r *http.Request) {
-	g := newGatewayCGI(w, r)
-	if g == nil {
+	g, err := newGatewayCGI(w, r)
+	defer g.close()
+	if err != nil {
+		log.Println(err)
 		return
 	}
 
@@ -243,8 +260,10 @@ func printMotd(w http.ResponseWriter, r *http.Request) {
 
 //printNew renders the page for making new thread.
 func printNew(w http.ResponseWriter, r *http.Request) {
-	g := newGatewayCGI(w, r)
-	if g == nil {
+	g, err := newGatewayCGI(w, r)
+	defer g.close()
+	if err != nil {
+		log.Println(err)
 		return
 	}
 
@@ -255,8 +274,10 @@ func printNew(w http.ResponseWriter, r *http.Request) {
 
 //printTitle renders list of newer thread in the disk for the top page
 func printTitle(w http.ResponseWriter, r *http.Request) {
-	g := newGatewayCGI(w, r)
-	if g == nil {
+	g, err := newGatewayCGI(w, r)
+	defer g.close()
+	if err != nil {
+		log.Println(err)
 		return
 	}
 	if r.FormValue("cmd") != "" {
@@ -293,8 +314,8 @@ func printTitle(w http.ResponseWriter, r *http.Request) {
 		g.mchURL(""),
 		g.mchCategories(),
 		g.m,
-		g.isAdmin,
-		g.isFriend,
+		g.isAdmin(),
+		g.isFriend(),
 		gatewayURL,
 		adminURL,
 		"thread",
@@ -302,21 +323,25 @@ func printTitle(w http.ResponseWriter, r *http.Request) {
 			Message: g.m,
 		},
 		ListItem{
-			IsAdmin: g.isAdmin,
+			IsAdmin: g.isAdmin(),
 			filter:  g.filter,
 			tag:     g.tag,
 			Message: g.m,
 		},
 	}
+	userTagList.mutex.RLock()
 	renderTemplate("top", s, g.wr)
+	userTagList.mutex.RUnlock()
 	g.printNewElementForm()
 	g.footer(nil)
 }
 
 //printGatewayIndex renders list of new threads in the disk.
 func printGatewayIndex(w http.ResponseWriter, r *http.Request) {
-	g := newGatewayCGI(w, r)
-	if g == nil {
+	g, err := newGatewayCGI(w, r)
+	defer g.close()
+	if err != nil {
+		log.Println(err)
 		return
 	}
 	g.printIndex(false)
@@ -324,8 +349,10 @@ func printGatewayIndex(w http.ResponseWriter, r *http.Request) {
 
 //printIndexChanges renders list of new threads in the disk sorted by velocity.
 func printIndexChanges(w http.ResponseWriter, r *http.Request) {
-	g := newGatewayCGI(w, r)
-	if g == nil {
+	g, err := newGatewayCGI(w, r)
+	defer g.close()
+	if err != nil {
+		log.Println(err)
 		return
 	}
 	g.printIndex(true)
@@ -333,8 +360,10 @@ func printIndexChanges(w http.ResponseWriter, r *http.Request) {
 
 //printRecent renders cache in recentlist.
 func printRecent(w http.ResponseWriter, r *http.Request) {
-	g := newGatewayCGI(w, r)
-	if g == nil {
+	g, err := newGatewayCGI(w, r)
+	defer g.close()
+	if err != nil {
+		log.Println(err)
 		return
 	}
 	title := g.m["recent"]
@@ -353,27 +382,25 @@ type gatewayCGI struct {
 }
 
 //newGatewayCGI returns gatewayCGI obj with filter.tag value in form.
-func newGatewayCGI(w http.ResponseWriter, r *http.Request) *gatewayCGI {
-	c := newCGI(w, r)
-	if c == nil {
-		return nil
+func newGatewayCGI(w http.ResponseWriter, r *http.Request) (gatewayCGI, error) {
+	a := gatewayCGI{newCGI(w, r)}
+	if a.cgi == nil {
+		return a, errors.New("cannot make cgi")
 	}
 	filter := r.FormValue("filter")
 	tag := r.FormValue("tag")
 
 	if filter != "" {
-		c.filter = strings.ToLower(filter)
+		a.filter = strings.ToLower(filter)
 	} else {
-		c.tag = strings.ToLower(tag)
+		a.tag = strings.ToLower(tag)
 	}
 
-	if !c.checkVisitor() {
-		c.print403()
-		return nil
+	if !a.checkVisitor() {
+		a.print403()
+		return a, errors.New("permission denied")
 	}
-	return &gatewayCGI{
-		c,
-	}
+	return a, nil
 }
 
 //makeOneRow makes one row of CSV depending on c.
@@ -388,8 +415,8 @@ func (g *gatewayCGI) makeOneRow(c string, ca *cache, p, title string) string {
 	case "path":
 		return p
 	case "uri":
-		if g.host != "" && p != "" {
-			return "http://" + g.host + p
+		if g.host() != "" && p != "" {
+			return "http://" + g.host() + p
 		}
 	case "type":
 		return ca.Typee
@@ -411,7 +438,7 @@ func (g *gatewayCGI) makeOneRow(c string, ca *cache, p, title string) string {
 //key is specified in url query.
 func (g *gatewayCGI) renderCSV(cl *cacheList) {
 	g.wr.Header().Set("Content-Type", "text/comma-separated-values;charset=UTF-8")
-	p := strings.Split(g.path, "/")
+	p := strings.Split(g.path(), "/")
 	if len(p) < 3 {
 		g.print404(nil, "")
 		return

@@ -30,121 +30,47 @@ package gou
 
 import (
 	"log"
-	"os"
-	"strconv"
 	"time"
 )
 
-//cron runs a cron job periditically.
+//cron runs cron, and update everything if it is after specified cycle.
 func cron() {
-	c := newClient()
+	lookupTable.initialize()
+	doSync()
+
 	for {
-		c.run()
-		time.Sleep(clientCycle)
-	}
-}
+		select {
+		case <-time.After(clientCycle):
+			lookupTable.rejoin()
 
-//client is for updating everything and saves cron status, i.e. save pinged/inited/synced times.
-type client struct {
-	utime     map[string]time.Time
-	timelimit time.Time
-}
+		case <-time.After(pingCycle):
+			lookupTable.pingAll()
+			lookupTable.initialize()
+			lookupTable.sync()
+			doSync()
+			log.Println("nodelist.pingall finished")
 
-//newClient read updated time from the file and creates client instance.
-func newClient() *client {
-	c := &client{utime: make(map[string]time.Time)}
-	if !IsFile(clientLog) {
-		return c
-	}
-	k := []string{"ping", "init", "sync"}
-	err := eachLine(clientLog, func(line string, i int) error {
-		var err error
-		t, err := strconv.ParseInt(line, 10, 64)
-		c.utime[k[i]] = time.Unix(t, 0)
-		return err
-	})
-	if err != nil {
-		log.Fatal(err)
-	}
-	return c
-}
+		case <-time.After(initCycle * time.Duration(lookupTable.listLen())):
+			lookupTable.initialize()
 
-//sync saves updated times.
-func (c *client) sync() {
-	f, err := os.Create(clientLog)
-	if err != nil {
-		log.Fatal(err)
-	}
-	defer fclose(f)
-	for _, v := range []string{"ping", "init", "sync"} {
-		_, err := f.WriteString(strconv.FormatInt(c.utime[v].Unix(), 10) + "\n")
-		if err != nil {
-			log.Println(err)
+		case <-time.After(syncCycle):
+			doSync()
 		}
 	}
-}
-
-//check updates updated time.
-func (c *client) check(key string) {
-	c.utime[key] = time.Now()
-	c.sync()
-}
-
-//run runs cron, and update everything if it is after specified cycle.
-func (c *client) run() {
-	log.Println("starting cron...")
-	t := time.Now()
-	c.timelimit = t.Add(clientTimeout)
-	if t.Sub(c.utime["ping"]) >= pingCycle {
-		c.check("ping")
-		nodeList.pingAll()
-		nodeList.sync()
-		log.Println("nodelist.pingall finished")
-
-		queue.run()
-		log.Println("updatequeue finished")
-	}
-	if nodeList.Len() == 0 {
-		c.doInit()
-		if nodeList.Len() != 0 {
-			c.doSync()
-		}
-	}
-
-	if t.Sub(c.utime["init"]) >= initCycle*time.Duration(nodeList.Len()) {
-		c.doInit()
-	} else {
-		if nodeList.Len() < defaultNodes {
-			nodeList.rejoin(searchList)
-			log.Println("nodelist.rejoin finished")
-		}
-	}
-	if t.Sub(c.utime["sync"]) >= syncCycle {
-		c.doSync()
-	}
-	log.Println("cron finished")
-}
-
-//doInit tries to find nodes from initNode and also add them to the search list.
-func (c *client) doInit() {
-	c.check("init")
-	nodeList.initialize()
-	nodeList.sync()
-	searchList.extend(nodeList.nodes)
-	searchList.sync()
-	log.Println("nodelist.init finished")
 }
 
 //doSync checks nodes in the nodelist are alive, reloads cachelist, removes old removed files,
 //reloads all tags from cachelist,reload srecent list from nodes in search list,
 //and reloads cache info from files in the disk.
-func (c *client) doSync() {
-	c.check("sync")
-	for _, n := range nodeList.nodes {
-		nodeList.join(n)
+func doSync() {
+	if lookupTable.listLen() == 0 {
+		return
 	}
-	nodeList.sync()
-	log.Println("nodelist.join finished")
+	lookupTable.rejoinList()
+	log.Println("lookupTable.join finished")
+
+	lookupTable.sync()
+	log.Println("lookupTable.join finished")
 
 	cl := newCacheList()
 	cl.cleanRecords()
@@ -159,6 +85,6 @@ func (c *client) doSync() {
 	recentList.getAll()
 	log.Println("recentList.getall finished")
 
-	cl.getall(c.timelimit)
+	cl.getall()
 	log.Println("cacheList.getall finished")
 }

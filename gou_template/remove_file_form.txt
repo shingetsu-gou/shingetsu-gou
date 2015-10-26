@@ -1,0 +1,21 @@
+{{/*
+ Copyright (c) 2005-2014 shinGETsu Project.
+ */}}
+{{define "remove_file_form"}}
+{{ if .IsAdmin }}
+  <form method="post" action="{{.AdminCGI}}/">
+  <p id="status">
+  <input type="submit" value="{{.Message.del_file}}" class="btn" />
+  <input type="hidden" name="cmd" value="fdel" />
+  <input type="hidden" name="file" value="{{.Cache.Datfile}}" />
+{{ else }}
+  <p id="status">
+{{ end }}
+{{ $mb:=toMB .Cache.Size}}
+{{printf "(%s/%d/%.1f%s)" .Title .Cache.Len $mb .Message.mb}}
+{{ if .IsAdmin }}
+  </p></form>
+{{ else }}
+  </p>
+{{ end }}
+{{end}}

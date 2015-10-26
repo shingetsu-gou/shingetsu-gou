@@ -68,7 +68,7 @@ func escapeSpace(msg string) string {
 //escape is like a html.escapestring, except &#xxxx and \n
 func escape(msg string) string {
 	msg = strings.Replace(msg, "&", "&amp;", -1)
-	reg := regexp.MustCompile("&amp;(#\\d+|#[Xx][0-9A-Fa-f]+|[A-Za-z0-9]+);")
+	reg := regexp.MustCompile(`&amp;(#\d+|#[Xx][0-9A-Fa-f]+|[A-Za-z0-9]+);`)
 	msg = string(reg.ReplaceAllString(msg, "&$1;"))
 	msg = strings.Replace(msg, "<", "&lt;", -1)
 	msg = strings.Replace(msg, ">", "&gt;", -1)
@@ -84,18 +84,6 @@ func strDecode(query string) string {
 		return ""
 	}
 	return str
-}
-
-//from spam.py
-
-//spamCheck checks whethere it is listed in spamlist
-func spamCheck(recstr string) bool {
-	if cachedRule == nil {
-		cachedRule = newRegexpList(spamList)
-	} else {
-		cachedRule.update()
-	}
-	return cachedRule.check(recstr)
 }
 
 //from attachutil.py
@@ -128,7 +116,7 @@ func saveTag(ca *cache, userTag string) {
 
 //getBoard returns decoded board name.
 func getBoard(url string) string {
-	reg := regexp.MustCompile("/2ch_([^/]+)/")
+	reg := regexp.MustCompile(`/2ch_([^/]+)/`)
 	m := reg.FindStringSubmatch(url)
 	if m == nil {
 		return ""

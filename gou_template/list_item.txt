@@ -1,0 +1,37 @@
+{{/*
+ Copyright (c) 2005-2014 shinGETsu Project.
+ */}}
+{{define "list_item"}}
+{{$root:=.}}
+<li>
+{{ if and .IsAdmin .Remove }}
+  <label style="display:inline-block">
+  <input type="checkbox" name="file" value="{{.Cache.Datfile}}" style="display:inline-block" />
+{{ end }}
+{{ if eq .Target "recent" }}
+  <span class="stamp" id="s{{.Cache.RecentStamp}}">{{localtime .Cache.RecentStamp}}</span>
+{{ else }}
+  <span class="stamp" id="s{{.Cache.ValidStamp}}">{{localtime .Cache.ValidStamp}}</span>
+{{ end }}
+{{ if and .IsAdmin .Remove }}
+  </label>
+{{ end }}
+
+<a href="{{index .Appli .Cache.Typee}}/{{strEncode .Title}}{{.StrOpts}}">{{.Title}}</a>
+({{.Cache.Len}}/{{toMB .Cache.Size|printf "%.1f"}}{{.Message.mb}})
+{{ if .Tags}}
+  <span class="tags">
+  {{ range $tag:=.Tags.Tags }}
+    <a href="{{$root.GatewayCGI}}/{{$root.Target}}?tag={{strEncode $tag.Tagstr}}" class="tag">{{$tag.Tagstr}}</a>
+  {{ end }}
+  </span>
+{{ end }}
+{{ if .Sugtags}}
+  <span class="sugtags">
+  {{ range $tag:=.Sugtags }}
+    <a href="{{$root.GatewayCGI}}/{{$root.Target}}?tag={{strEncode $tag.Tagstr}}" class="tag">{{$tag.Tagstr}}</a>
+  {{ end }}
+  </span>
+{{ end }}
+</li>
+{{end}}

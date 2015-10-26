@@ -78,13 +78,15 @@ func threadSetup(s *loggingServeMux) {
 
 //printThreadIndex adds records in multiform and redirect to its thread page.
 func printThreadIndex(w http.ResponseWriter, r *http.Request) {
-	if a := newThreadCGI(w, r); a != nil {
+	if a, err := newThreadCGI(w, r); err == nil {
+		defer a.close()
 		a.printThreadIndex()
 	}
 }
 
 func printAttach(w http.ResponseWriter, r *http.Request) {
-	if a := newThreadCGI(w, r); a != nil {
+	if a, err := newThreadCGI(w, r); err == nil {
+		defer a.close()
 		m := mux.Vars(r)
 		var stamp int64
 		if m["stamp"] != "" {
@@ -101,7 +103,8 @@ func printAttach(w http.ResponseWriter, r *http.Request) {
 
 //printThread renders whole thread list page.
 func printThread(w http.ResponseWriter, r *http.Request) {
-	if a := newThreadCGI(w, r); a != nil {
+	if a, err := newThreadCGI(w, r); err == nil {
+		defer a.close()
 		m := mux.Vars(r)
 		var page int
 		if m["page"] != "" {
@@ -121,17 +124,19 @@ type threadCGI struct {
 }
 
 //newThreadCGI returns threadCGI obj.
-func newThreadCGI(w http.ResponseWriter, r *http.Request) *threadCGI {
-	c := newCGI(w, r)
+func newThreadCGI(w http.ResponseWriter, r *http.Request) (threadCGI, error) {
+	t := threadCGI{newCGI(w, r)}
 
-	if c == nil || !c.checkVisitor() {
-		c.print403()
-		return nil
+	if t.cgi == nil {
+		t.print403()
+		return t, errors.New("error while parsing form")
 	}
-	c.appliType = "thread"
-	return &threadCGI{
-		c,
+	if !t.checkVisitor() {
+		t.print403()
+		return t, errors.New("visitor now allowed")
 	}
+	t.appliType = "thread"
+	return t, nil
 }
 
 //printThreadIndex adds records in multiform and redirect to its thread page.
@@ -152,7 +157,6 @@ func (t *threadCGI) printThreadIndex() {
 	}
 	datfile := t.req.FormValue("file")
 	title := strEncode(fileDecode(datfile))
-	log.Println(title, id)
 	t.print302(threadURL + querySeparator + title + "#r" + id)
 }
 
@@ -184,7 +188,7 @@ func (t *threadCGI) printPageNavi(path string, page int, ca *cache, id string) {
 	}
 	s := struct {
 		Page           int
-		Cache          *cache
+		CacheLen       int
 		Path           string
 		ID             string
 		First          int
@@ -194,7 +198,7 @@ func (t *threadCGI) printPageNavi(path string, page int, ca *cache, id string) {
 		Pages          []int
 	}{
 		page,
-		ca,
+		ca.Len(),
 		path,
 		id,
 		first,
@@ -209,7 +213,7 @@ func (t *threadCGI) printPageNavi(path string, page int, ca *cache, id string) {
 //printTag renders thread_tags.txt , part for displayng tags.
 func (t *threadCGI) printTag(ca *cache) {
 	s := struct {
-		Cache      *cache
+		Datfile    string
 		Tags       []string
 		Classname  string
 		Target     string
@@ -218,13 +222,13 @@ func (t *threadCGI) printTag(ca *cache) {
 		IsAdmin    bool
 		Message    message
 	}{
-		ca,
+		ca.Datfile,
 		ca.tags.getTagstrSlice(),
 		"tags",
 		"changes",
 		gatewayURL,
 		adminURL,
-		t.isAdmin,
+		t.isAdmin(),
 		t.m,
 	}
 	renderTemplate("thread_tags", s, t.wr)
@@ -237,9 +241,8 @@ func (t *threadCGI) printThreadHead(path, id string, page int, ca *cache, rss st
 	case t.checkGetCache():
 		if t.req.FormValue("search_new_file") != "" {
 			ca.setupDirectories()
-			t.unlock()
 		} else {
-			t.getCache(ca)
+			ca.search(nil)
 		}
 	default:
 		t.print404(nil, id)
@@ -267,7 +270,7 @@ func (t *threadCGI) printThreadTop(path, id string, nPage int, ca *cache) {
 	ids := ca.keys()
 	if ca.Len() > 0 && nPage == 0 && id == "" && len(ids) == 0 {
 		lastrec = ca.recs[ids[len(ids)-1]]
-		resAnchor = t.resAnchor(lastrec.ID[:8], threadURL, t.path, false)
+		resAnchor = t.resAnchor(lastrec.ID[:8], threadURL, t.path(), false)
 	}
 	s := struct {
 		Path      string
@@ -283,8 +286,8 @@ func (t *threadCGI) printThreadTop(path, id string, nPage int, ca *cache) {
 		path,
 		ca,
 		lastrec,
-		t.isFriend,
-		t.isAdmin,
+		t.isFriend(),
+		t.isAdmin(),
 		t.m,
 		threadURL,
 		adminURL,
@@ -340,7 +343,7 @@ func (t *threadCGI) printThread(path, id string, nPage int) {
 		return
 	}
 	tags := strings.Fields(strings.TrimSpace(t.req.FormValue("tag")))
-	if t.isAdmin && len(tags) > 0 {
+	if t.isAdmin() && len(tags) > 0 {
 		ca.tags.addString(tags)
 		ca.tags.sync()
 		userTagList.addString(tags)
@@ -374,7 +377,7 @@ func (t *threadCGI) printThread(path, id string, nPage int) {
 
 //printThreadAjax renders records in cache id for ajax.
 func (t *threadCGI) printThreadAjax(id string) {
-	filePath := fileEncode("thread", t.path)
+	filePath := fileEncode("thread", t.path())
 	ca := newCache(filePath)
 	if !ca.hasRecord() {
 		return
@@ -410,12 +413,12 @@ func (t *threadCGI) printRecord(ca *cache, rec *record) {
 		}
 	}
 	body := rec.GetBodyValue("body", "")
-	body = t.htmlFormat(body, threadURL, t.path, false)
+	body = t.htmlFormat(body, threadURL, t.path(), false)
 	removeID := rec.GetBodyValue("remove_id", "")
 	if len(removeID) > 8 {
 		removeID = removeID[:8]
 	}
-	resAnchor := t.resAnchor(removeID, threadURL, t.path, false)
+	resAnchor := t.resAnchor(removeID, threadURL, t.path(), false)
 
 	id8 := rec.ID
 	if len(id8) > 8 {
@@ -439,13 +442,13 @@ func (t *threadCGI) printRecord(ca *cache, rec *record) {
 		ca,
 		rec,
 		id8,
-		t.path,
+		t.path(),
 		attachSize,
 		suffix,
 		template.HTML(body),
 		threadURL,
 		thumbnailSize,
-		t.isAdmin,
+		t.isAdmin(),
 		removeID,
 		resAnchor,
 		t.m,
@@ -471,7 +474,7 @@ func (t *threadCGI) printPostForm(ca *cache) {
 		ca,
 		mimes,
 		recordLimit * 3 >> 2,
-		t.isAdmin,
+		t.isAdmin(),
 		t.m,
 		threadURL,
 		gatewayURL,
@@ -511,7 +514,7 @@ func (t *threadCGI) printAttach(datfile, id string, stamp int64, thumbnailSize, 
 	switch {
 	case ca.hasRecord():
 	case t.checkGetCache():
-		t.getCache(ca)
+		ca.search(nil)
 	default:
 		t.print404(ca, "")
 		return
@@ -609,7 +612,7 @@ func (t *threadCGI) doPost() string {
 		t.footer(nil)
 		return ""
 	}
-	if spamCheck(rec.recstr()) {
+	if cachedRule.check(rec.recstr()) {
 		t.header(t.m["spam"], "", nil, true)
 		t.footer(nil)
 		return ""
@@ -625,7 +628,7 @@ func (t *threadCGI) doPost() string {
 
 	if t.req.FormValue("dopost") != "" {
 		log.Println(rec, "is queued")
-		queue.append(rec, nil)
+		go updateNodes(rec, nil)
 	}
 
 	return rec.ID[:8]
@@ -677,11 +680,4 @@ func (t *threadCGI) parseAttached() (*attached, error) {
 		fpStrAttach.Filename,
 		coded,
 	}, nil
-}
-
-//getCache checks nodes in lookuptable has cache ca.
-func (t *threadCGI) getCache(ca *cache) bool {
-	result := ca.search(nil)
-	t.unlock()
-	return result
 }

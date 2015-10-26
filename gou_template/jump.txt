@@ -1,0 +1,10 @@
+{{/*
+ Copyright (c) 2005-2014 shinGETsu Project.
+ */}}
+{{define "jump"}}
+<p>Click and jump to <a href="{{html .Next}}">{{html .Next}}</a></p>
+<script type="text/javascript">//<![CDATA[
+    window.location.href = "{{js .Next}}";
+//]]></script>
+{{end}}
+

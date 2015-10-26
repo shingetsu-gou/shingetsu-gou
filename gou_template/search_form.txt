@@ -1,0 +1,9 @@
+{{/*
+ Copyright (c) 2005-2014 shinGETsu Project.
+ */}}
+{{define "search_form"}}
+<form method="get" action="{{.AdminCGI}}/search"><p>
+<input type="submit" value="{{.Message.search}}" />
+{{.Message.regexp}}:<input name="query" size="40" value="{{.Query}}" />
+</p></form>
+{{end}}

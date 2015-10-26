@@ -1,0 +1,25 @@
+{{/*
+ Copyright (c) 2005-2014 shinGETsu Project.
+ */}}
+{{define "delete_file"}}
+{{$root:=.}}
+<form method="post" action="{{.AdminCGI}}/">
+<div class="well form-horizontal"><div class="form-actions">
+  <input type="hidden" name="cmd" value="xfdel" />
+  <input type="hidden" name="sid" value="{{.Sid}}" />
+  <input type="submit" value="{{.Message.Remove}}" class="btn btn-danger" />
+  <a href="javascript:history.back();" class="btn">{{.Message.cancel}}</a>
+</div></div>
+
+{{ range $cache:=.Files }}
+  {{ if $cache.Exists }}
+    <h2><input type="checkbox" checked="checked" name="file" value="{{$cache.Datfile}}" />{{$root.Gettitle $cache}}</h2>
+    {{ range $rec:=$root.Getcontents $cache }}
+      <p>{{$rec}}</p>
+    {{ end }}
+  {{ else }}
+    <p>{{$cache.Datfile}}: {{$root.Message.no_file}}</p>
+  {{ end }}
+{{ end }}
+</form>
+{{end}}

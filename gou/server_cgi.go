@@ -29,6 +29,7 @@
 package gou
 
 import (
+	"errors"
 	"fmt"
 	"io/ioutil"
 	"log"
@@ -66,8 +67,8 @@ func doPing(w http.ResponseWriter, r *http.Request) {
 
 //doNode returns one of nodelist. if nodelist.len=0 returns one of initNode.
 func doNode(w http.ResponseWriter, r *http.Request) {
-	if nodeList.Len() > 0 {
-		fmt.Fprintln(w, nodeList.nodes[0].nodestr)
+	if lookupTable.listLen() > 0 {
+		fmt.Fprintln(w, lookupTable.getNodestrSliceInTable("")[0])
 	} else {
 		fmt.Fprintln(w, initNode.data[0])
 	}
@@ -76,8 +77,10 @@ func doNode(w http.ResponseWriter, r *http.Request) {
 //doJoin adds node specified in url to searchlist and nodelist.
 //if nodelist>#defaultnode removes and says bye one node in nodelist and returns welcome its ip:port.
 func doJoin(w http.ResponseWriter, r *http.Request) {
-	s := newServerCGI(w, r)
-	if s == nil {
+	s, err := newServerCGI(w, r)
+	defer s.close()
+	if err != nil {
+		log.Println(err)
 		return
 	}
 	n := s.makeNode("join")
@@ -90,27 +93,23 @@ func doJoin(w http.ResponseWriter, r *http.Request) {
 	if _, err := n.ping(); err != nil {
 		return
 	}
-	if nodeList.Len() < defaultNodes {
-		nodeList.append(n)
-		nodeList.sync()
-		searchList.append(n)
-		searchList.sync()
+	if lookupTable.listLen() < defaultNodes {
+		lookupTable.appendToList(n)
 		fmt.Fprintln(s.wr, "WELCOME")
 		return
 	}
-	searchList.append(n)
-	searchList.sync()
-	suggest := nodeList.nodes[0]
-	nodeList.removeNode(suggest)
-	nodeList.sync()
+	suggest := lookupTable.getFromList(0)
+	lookupTable.removeFromList(suggest)
 	suggest.bye()
 	fmt.Fprintf(s.wr, "WELCOME\n%s\n", suggest.nodestr)
 }
 
 //doBye  removes from nodelist and says bye to the node specified in url.
 func doBye(w http.ResponseWriter, r *http.Request) {
-	s := newServerCGI(w, r)
-	if s == nil {
+	s, err := newServerCGI(w, r)
+	defer s.close()
+	if err != nil {
+		log.Println(err)
 		return
 	}
 	n := s.makeNode("bye")
@@ -118,20 +117,20 @@ func doBye(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if nodeList.removeNode(n) {
-		nodeList.sync()
-	}
+	lookupTable.removeFromList(n)
 	fmt.Fprintln(s.wr, "BYEBYE")
 }
 
 //doHave checks existance of cache whose name is specified in url.
 func doHave(w http.ResponseWriter, r *http.Request) {
-	s := newServerCGI(w, r)
-	if s == nil {
+	s, err := newServerCGI(w, r)
+	defer s.close()
+	if err != nil {
+		log.Println(err)
 		return
 	}
 	reg := regexp.MustCompile("^have/([0-9A-Za-z_]+)$")
-	m := reg.FindStringSubmatch(s.path)
+	m := reg.FindStringSubmatch(s.path())
 	if m == nil {
 		fmt.Fprintln(w, "NO")
 		log.Println("illegal url")
@@ -148,13 +147,15 @@ func doHave(w http.ResponseWriter, r *http.Request) {
 //doUpdate adds remote node to searchlist and lookuptable with datfile specified in url.
 //if stamp is in range of defaultUpdateRange adds to updateque.
 func doUpdate(w http.ResponseWriter, r *http.Request) {
-	s := newServerCGI(w, r)
-	if s == nil {
+	s, err := newServerCGI(w, r)
+	defer s.close()
+	if err != nil {
+		log.Println(err)
 		log.Println("failed to create cgi struct")
 		return
 	}
-	reg := regexp.MustCompile("^update/(\\w+)/(\\d+)/(\\w+)/([^:]*):(\\d+)(.*)")
-	m := reg.FindStringSubmatch(s.path)
+	reg := regexp.MustCompile(`^update/(\w+)/(\d+)/(\w+)/([^:]*):(\d+)(.*)`)
+	m := reg.FindStringSubmatch(s.path())
 	if m == nil {
 		log.Println("illegal url")
 		return
@@ -176,10 +177,8 @@ func doUpdate(w http.ResponseWriter, r *http.Request) {
 		log.Println("detects spam")
 		return
 	}
-	searchList.append(n)
-	searchList.sync()
-	lookupTable.add(datfile, n)
-	lookupTable.sync(false)
+	lookupTable.appendToTable(datfile, n)
+	lookupTable.sync()
 	now := time.Now()
 	nstamp, err := strconv.ParseInt(stamp, 10, 64)
 	if err != nil {
@@ -192,19 +191,21 @@ func doUpdate(w http.ResponseWriter, r *http.Request) {
 	}
 	rec := newRecord(datfile, stamp+"_"+id)
 	if !updateList.hasInfo(rec) {
-		queue.append(rec, n)
+		go updateNodes(rec, n)
 	}
 	fmt.Fprintln(w, "OK")
 }
 
 //doRecent renders records whose timestamp is in range of one specified in url.
 func doRecent(w http.ResponseWriter, r *http.Request) {
-	s := newServerCGI(w, r)
-	if s == nil {
+	s, err := newServerCGI(w, r)
+	defer s.close()
+	if err != nil {
+		log.Println(err)
 		return
 	}
 	reg := regexp.MustCompile("^recent/?([-0-9A-Za-z/]*)$")
-	m := reg.FindStringSubmatch(s.path)
+	m := reg.FindStringSubmatch(s.path())
 	if m == nil {
 		log.Println("illegal url")
 		return
@@ -241,14 +242,16 @@ func doMotd(w http.ResponseWriter, r *http.Request) {
 //doGetHead renders records contents(get) or id+timestamp(head) who has id and
 // whose stamp is in range of one specified by url.
 func doGetHead(w http.ResponseWriter, r *http.Request) {
-	s := newServerCGI(w, r)
-	if s == nil {
+	s, err := newServerCGI(w, r)
+	defer s.close()
+	if err != nil {
+		log.Println(err)
 		return
 	}
 	reg := regexp.MustCompile("^(get|head)/([0-9A-Za-z_]+)/?([-0-9A-Za-z/]*)$")
-	m := reg.FindStringSubmatch(s.path)
+	m := reg.FindStringSubmatch(s.path())
 	if m == nil {
-		log.Println("illegal url", s.path)
+		log.Println("illegal url", s.path())
 		return
 	}
 	method, datfile, stamp := m[1], m[2], m[3]
@@ -276,16 +279,14 @@ type serverCGI struct {
 }
 
 //newServerCGI set content-type to text and  returns serverCGI obj.
-func newServerCGI(w http.ResponseWriter, r *http.Request) *serverCGI {
-	c := newCGI(w, r)
-	if c == nil {
-		return nil
+func newServerCGI(w http.ResponseWriter, r *http.Request) (serverCGI, error) {
+	c := serverCGI{newCGI(w, r)}
+	if c.cgi == nil {
+		return c, errors.New("cannot make CGI")
 	}
 	w.Header().Set("Content-Type", "text/plain")
 
-	return &serverCGI{
-		c,
-	}
+	return c, nil
 }
 
 //getRemoteHostname returns remoteaddr
@@ -314,8 +315,8 @@ func (s *serverCGI) getRemoteHostname(host string) string {
 
 //makeNode makes and returns node obj from /method/ip:port.
 func (s *serverCGI) makeNode(method string) *node {
-	reg := regexp.MustCompile("^" + method + "/([^:]*):(\\d+)(.*)")
-	m := reg.FindStringSubmatch(s.path)
+	reg := regexp.MustCompile("^" + method + `/([^:]*):(\d+)(.*)`)
+	m := reg.FindStringSubmatch(s.path())
 	if m == nil {
 		log.Println("illegal url")
 		return nil

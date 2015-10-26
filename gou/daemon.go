@@ -50,12 +50,16 @@ import (
 
 //SetLogger setups logger. whici outputs nothing, or file , or file and stdout
 func SetLogger(printLog, isSilent bool) {
+	setting := newConfig()
+	logDir = setting.getPathValue("Path", "log_dir", "./log") //path from cwd
+
 	l := &lumberjack.Logger{
 		Filename:   path.Join(logDir, "gou.log"),
 		MaxSize:    1, // megabytes
 		MaxBackups: 2,
 		MaxAge:     28, //days
 	}
+	fmt.Println(logDir)
 	switch {
 	case isSilent:
 		log.SetOutput(ioutil.Discard)

@@ -1,0 +1,19 @@
+{{/*
+ Copyright (c) 2005-2014 shinGETsu Project.
+ */}}
+{{define "status"}}
+{{$root:=.}}
+<table summary="{{.Message.status}}" class="solid">
+{{ range $k,$v:=.Status }}
+  <tr><td>{{index $root.Message $k}}</td><td>{{$v}}</td></tr>
+{{ end }}
+</table>
+{{ range $k,$v:=.NodeStatus }}
+  <h2>{{index $root.Message $k}}</h2>
+  <ul>
+  {{ range $node:=$v }}
+    <li>{{$node}}</li>
+  {{ end }}
+  </ul>
+{{ end }}
+{{end}}

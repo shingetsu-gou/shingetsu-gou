@@ -81,7 +81,8 @@ func (c *cacheList) load() {
 
 //getall reload all records in cache in cachelist from network,
 //and reset params.
-func (c *cacheList) getall(timelimit time.Time) {
+func (c *cacheList) getall() {
+	timelimit := time.Now().Add(clientTimeout)
 	shuffle(c)
 	for _, ca := range c.Caches {
 		now := time.Now()

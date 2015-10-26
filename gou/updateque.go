@@ -28,53 +28,25 @@
 
 package gou
 
-import (
-	"log"
-)
-
-//updateQue contains update records which will be informed to other nodes
-type updateQue struct {
-	queue map[*record][]*node
-	//	running bool
-}
-
-//newUpdateQue make updateQue object.
-func newUpdateQue() *updateQue {
-	u := &updateQue{
-		queue: make(map[*record][]*node),
-	}
-	return u
-}
-
-//append adds a record and origina n to be broadcasted.
-func (u *updateQue) append(rec *record, n *node) {
-	u.queue[rec] = append(u.queue[rec], n)
-}
+import "log"
 
 //run do doUpdateNode for each records using related nodes.
 //if success to doUpdateNode, add node to updatelist and recentlist and
 //removes the record from queue.
-func (u *updateQue) run() {
-	for rec, ns := range u.queue {
-		for i, n := range ns {
-			log.Println("updateging", rec)
-			if u.doUpdateNode(rec, n) {
-				delete(u.queue, rec)
-				updateList.append(rec)
-				updateList.sync()
-				recentList.append(rec)
-				recentList.sync()
-				break
-			}
-			u.queue[rec] = append(u.queue[rec][:i], u.queue[rec][i+1:]...)
-		}
+func updateNodes(rec *record, n *node) {
+	log.Println("updating", rec)
+	if doUpdateNode(rec, n) {
+		updateList.append(rec)
+		updateList.sync()
+		recentList.append(rec)
+		recentList.sync()
 	}
 }
 
 //doUpdateNode broadcast and get data for each new records.
 //if can get data (even if spam) return true, if fails to get, return false.
 //if no fail, broadcast updates to node in cache and added n to nodelist and searchlist.
-func (u *updateQue) doUpdateNode(rec *record, n *node) bool {
+func doUpdateNode(rec *record, n *node) bool {
 	if updateList.hasInfo(rec) {
 		return true
 	}
@@ -83,7 +55,7 @@ func (u *updateQue) doUpdateNode(rec *record, n *node) bool {
 	switch {
 	case !ca.Exists(), n == nil:
 		log.Println("no cache, only broadcast updates.")
-		nodeList.tellUpdate(ca, rec.Stamp, rec.ID, n)
+		lookupTable.tellUpdate(ca, rec.Stamp, rec.ID, n)
 		return true
 	case ca.Len() > 0:
 		log.Println("cache and records exists, get data from node n.")
@@ -100,15 +72,12 @@ func (u *updateQue) doUpdateNode(rec *record, n *node) bool {
 		log.Println("could not get")
 		return false
 	case errSpam:
-		log.Println("makrd spam")
+		log.Println("makred spam")
 		return true
 	default:
 		log.Println("telling update")
-		nodeList.tellUpdate(ca, rec.Stamp, rec.ID, nil)
-		nodeList.join(n)
-		nodeList.sync()
-		searchList.join(n)
-		searchList.sync()
+		lookupTable.tellUpdate(ca, rec.Stamp, rec.ID, nil)
+		lookupTable.join(n)
 		return true
 	}
 }

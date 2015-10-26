@@ -1,0 +1,88 @@
+{{/*
+ Copyright (c) 2005-2014 shinGETsu Project.
+ */}}
+{{define "post_form"}}
+{{$root:=.}}
+{{ if .IsAdmin }}
+  {{ if .Cache }}
+    <p><input type="submit" value="{{.Message.del_record}}" class="btn" /></p>
+  {{ end }}
+  </form>
+{{ end }}
+
+<form id="postarticle" name="postarticle" method="post" action="{{.ThreadCGI}}/"
+  enctype="multipart/form-data" class="well form-horizontal"><div>
+
+  <input type="hidden" name="cmd" value="post" />
+  <input type="hidden" name="file" value="{{.Cache.Datfile}}" />
+
+  <div class="form-group post-advanced">
+    <label class="control-label col-sm-2" for="name">{{.Message.name}}</label>
+    <div class="col-sm-10"><input name="name" value="" id="name" class="form-control" /></div>
+  </div>
+
+  <div class="form-group post-advanced">
+    <label class="control-label col-sm-2" for="mail">{{.Message.mail}}</label>
+    <div class="col-sm-10"><input name="mail" value="" id="mail" class="form-control" /></div>
+  </div>
+
+  {{ if .IsAdmin }}
+    <div class="form-group post-advanced">
+      <label class="control-label col-sm-2" for="passwd">{{.Message.signature}}</label>
+      <div class="col-sm-10"><input type="password" name="passwd" value="" id="passwd" class="form-control" /></div>
+    </div>
+  {{ end }}
+
+  <div class="form-group">
+    <label class="control-label col-sm-2" for="body">{{.Message.post_body}}</label>
+    <div class="col-sm-10">
+      <textarea rows="5" name="body" id="body" class="form-control"></textarea>
+      <div class="help-block"><a href="{{.GatewayCGI}}/motd" target="_blank">{{.Message.agreement}}</a></div>
+    </div>
+  </div>
+
+  <div class="form-group">
+    <label class="control-label col-sm-2" for="attach">{{.Message.attach}}</label>
+    <div class="col-sm-10">
+      <input type="file" name="attach" size="19" value="" id="attach" class="input-file" />
+      <div class="help-inline">{{.Message.limit}}: {{.Limit}}{{.Message.kb}}</div>
+    </div>
+  </div>
+
+  <div class="form-group post-advanced">
+    <label class="control-label col-sm-2" for="suffix">{{.Message.suffix}}</label>
+    <div class="col-sm-10">
+      <select name="suffix" size="1" id="suffix">
+        <option>AUTO</option>
+        {{ range $suffix:=.Suffixes }}
+          <option>{{$suffix}}</option>
+        {{ end }}
+      </select>
+    </div>
+  </div>
+
+  <div class="form-group post-advanced">
+    <label class="control-label col-sm-2" for="dopost">{{.Message.send}}</label>
+    <div class="col-sm-10"><label>
+      <input type="checkbox" id="dopost" name="dopost" value="dopost" checked="checked" />
+      <div class="help-inline">{{.Message.desc_send}}</div>
+    </label></div>
+  </div>
+
+  <div class="form-group post-advanced">
+    <label class="control-label col-sm-2" for="error">{{.Message.error}}</label>
+    <div class="col-sm-10"><label>
+      <input type="checkbox" id="error" name="error" value="error" checked="checked" />
+      <div class="help-inline">{{.Message.desc_error}}</div>
+    </label></div>
+  </div>
+
+  <div class="form-actions">
+    <button class="btn btn-primary">
+      <i class="glyphicon glyphicon-pencil"></i>
+      {{.Message.post}}
+    </button>
+  </div>
+
+</div></form>
+{{end}}

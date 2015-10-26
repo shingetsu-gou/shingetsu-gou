@@ -29,6 +29,7 @@
 package gou
 
 import (
+	"errors"
 	"fmt"
 	"html"
 	"io/ioutil"
@@ -57,8 +58,9 @@ func adminSetup(s *loggingServeMux) {
 //i.e. confirmagion page for deleting rec/file(rdel/fdel) and for deleting.
 //(xrdel/xfdel)
 func execCmd(w http.ResponseWriter, r *http.Request) {
-	a := newAdminCGI(w, r)
-	if a == nil {
+	a, err := newAdminCGI(w, r)
+	if err != nil {
+		log.Println(err)
 		return
 	}
 	cmd := a.req.FormValue("cmd")
@@ -76,13 +78,16 @@ func execCmd(w http.ResponseWriter, r *http.Request) {
 	case "xfdel":
 		a.doDeleteFile(rmFiles)
 	}
+	cgis <- a.cgi
 }
 
 //printSearch renders the page for searching if query=""
 //or do query if query!=""
 func printSearch(w http.ResponseWriter, r *http.Request) {
-	a := newAdminCGI(w, r)
-	if a == nil {
+	a, err := newAdminCGI(w, r)
+	defer a.close()
+	if err != nil {
+		log.Println(err)
 		return
 	}
 	query := a.req.FormValue("query")
@@ -100,8 +105,10 @@ func printSearch(w http.ResponseWriter, r *http.Request) {
 //#linknodes,#knownNodes,#files,#records,cacheSize,selfnode/linknodes/knownnodes
 // ip:port,
 func printStatus(w http.ResponseWriter, r *http.Request) {
-	a := newAdminCGI(w, r)
-	if a == nil {
+	a, err := newAdminCGI(w, r)
+	defer a.close()
+	if err != nil {
+		log.Println()
 		return
 	}
 	cl := newCacheList()
@@ -111,14 +118,13 @@ func printStatus(w http.ResponseWriter, r *http.Request) {
 		records += ca.Len()
 		size += ca.Size()
 	}
-	my := nodeList.myself()
+	my := lookupTable.myself()
 
 	var mem runtime.MemStats
 	runtime.ReadMemStats(&mem)
 
 	s := map[string]string{
-		"linked_nodes": strconv.Itoa(nodeList.Len()),
-		"known_nodes":  strconv.Itoa(searchList.Len()),
+		"linked_nodes": strconv.Itoa(lookupTable.nodeLen()),
 		"files":        strconv.Itoa(cl.Len()),
 		"records":      strconv.Itoa(records),
 		"cache_size":   fmt.Sprintf("%.1f%s", float64(size)/1024/1024, a.m["mb"]),
@@ -126,8 +132,7 @@ func printStatus(w http.ResponseWriter, r *http.Request) {
 		"alloc_mem":    fmt.Sprintf("%.1f%s", float64(mem.Alloc)/1024/1024, a.m["mb"]),
 	}
 	ns := map[string][]string{
-		"linked_nodes": nodeList.getNodestrSlice(),
-		"known_nodes":  searchList.getNodestrSlice(),
+		"linked_nodes": lookupTable.getNodestrSlice(),
 	}
 
 	d := struct {
@@ -146,8 +151,10 @@ func printStatus(w http.ResponseWriter, r *http.Request) {
 
 //printEdittag renders the page for editing tags in thread specified by form "file".
 func printEdittag(w http.ResponseWriter, r *http.Request) {
-	a := newAdminCGI(w, r)
-	if a == nil {
+	a, err := newAdminCGI(w, r)
+	defer a.close()
+	if err != nil {
+		log.Println(err)
 		return
 	}
 	datfile := a.req.FormValue("file")
@@ -175,14 +182,18 @@ func printEdittag(w http.ResponseWriter, r *http.Request) {
 		*userTagList,
 	}
 	a.header(fmt.Sprintf("%s: %s", a.m["edit_tag"], strTitle), "", nil, true)
+	userTagList.mutex.RLock()
 	renderTemplate("edit_tag", d, a.wr)
+	userTagList.mutex.RUnlock()
 	a.footer(nil)
 }
 
 //saveTagCGI saves edited tags of file and render this file with 302.
 func saveTagCGI(w http.ResponseWriter, r *http.Request) {
-	a := newAdminCGI(w, r)
-	if a == nil {
+	a, err := newAdminCGI(w, r)
+	defer a.close()
+	if err != nil {
+		log.Println(err)
 		return
 	}
 	datfile := a.req.FormValue("file")
@@ -197,8 +208,10 @@ func saveTagCGI(w http.ResponseWriter, r *http.Request) {
 	tl := strings.Fields(tags)
 	ca.tags.update(tl)
 	ca.tags.sync()
+	userTagList.mutex.Lock()
 	userTagList.addString(tl)
 	userTagList.sync()
+	userTagList.mutex.Unlock()
 	var next string
 	for _, t := range types {
 		title := strEncode(fileDecode(datfile))
@@ -218,15 +231,15 @@ type adminCGI struct {
 
 //newAdminCGI returns adminCGI obj if client is admin.
 //if not render 403.
-func newAdminCGI(w http.ResponseWriter, r *http.Request) *adminCGI {
-	c := newCGI(w, r)
-	if c == nil || !c.isAdmin {
-		c.print403()
-		return nil
+func newAdminCGI(w http.ResponseWriter, r *http.Request) (adminCGI, error) {
+	a := adminCGI{newCGI(w, r)}
+	if a.cgi == nil {
+		return a, errors.New("cannot make cgi")
 	}
-	return &adminCGI{
-		c,
+	if !a.isAdmin() {
+		a.print403()
 	}
+	return a, nil
 }
 
 //makeSid makes md5(rand) id and writes to sid file.
@@ -391,7 +404,7 @@ func (a *adminCGI) postDeleteMessage(ca *cache, rec *record) {
 	updateList.sync()
 	recentList.append(rec)
 	recentList.sync()
-	nodeList.tellUpdate(ca, stamp, id, nil)
+	go lookupTable.tellUpdate(ca, stamp, id, nil)
 }
 
 //printDeleteFile renders the page for confirmation of deleting file.

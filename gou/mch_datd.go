@@ -30,6 +30,7 @@ package gou
 
 import (
 	"bytes"
+	"errors"
 	"fmt"
 	"log"
 	"net/http"
@@ -61,8 +62,10 @@ func mchSetup(s *loggingServeMux) {
 
 //boardApp just calls boardApp(), only print title.
 func boardApp(w http.ResponseWriter, r *http.Request) {
-	a := newMchCGI(w, r)
-	if a == nil {
+	a ,err:= newMchCGI(w, r)
+	defer a.close()
+	if err != nil {
+		log.Println(err)
 		return
 	}
 	a.boardApp()
@@ -70,8 +73,10 @@ func boardApp(w http.ResponseWriter, r *http.Request) {
 
 //threadApp renders dat files(record data) in the thread.
 func threadApp(w http.ResponseWriter, r *http.Request) {
-	a := newMchCGI(w, r)
-	if a == nil {
+	a ,err:= newMchCGI(w, r)
+	defer a.close()
+	if err != nil {
+		log.Println(err)
 		return
 	}
 	m := mux.Vars(r)
@@ -84,8 +89,10 @@ func threadApp(w http.ResponseWriter, r *http.Request) {
 
 //subjectApp renders time-subject lines of the thread.
 func subjectApp(w http.ResponseWriter, r *http.Request) {
-	a := newMchCGI(w, r)
-	if a == nil {
+	a ,err:= newMchCGI(w, r)
+	defer a.close()
+	if err != nil {
+		log.Println(err)
 		return
 	}
 	m := mux.Vars(r)
@@ -94,8 +101,10 @@ func subjectApp(w http.ResponseWriter, r *http.Request) {
 
 //postCommentApp posts one record to the thread.
 func postCommentApp(w http.ResponseWriter, r *http.Request) {
-	a := newMchCGI(w, r)
-	if a == nil {
+	a ,err:= newMchCGI(w, r)
+	defer a.close()
+	if err != nil {
+		log.Println(err)
 		return
 	}
 	a.postCommentApp()
@@ -103,8 +112,10 @@ func postCommentApp(w http.ResponseWriter, r *http.Request) {
 
 //headApp just renders motd.
 func headApp(w http.ResponseWriter, r *http.Request) {
-	a := newMchCGI(w, r)
-	if a == nil {
+	a ,err:= newMchCGI(w, r)
+	defer a.close()
+	if err != nil {
+		log.Println(err)
 		return
 	}
 	a.headApp()
@@ -113,33 +124,20 @@ func headApp(w http.ResponseWriter, r *http.Request) {
 //mchCGI is a class for renderring pages of 2ch interface .
 type mchCGI struct {
 	*cgi
-	updateCounter map[string]int
 }
 
 //newMchCGI returns mchCGI obj if visitor  is allowed.
 //if not allowed print 403.
-func newMchCGI(w http.ResponseWriter, r *http.Request) *mchCGI {
-	c := newCGI(w, r)
-	if c == nil || !c.checkVisitor() {
+func newMchCGI(w http.ResponseWriter, r *http.Request) (mchCGI, error) {
+	c := mchCGI{newCGI(w, r)}
+	defer c.close()
+	if c.cgi == nil || !c.checkVisitor() {
 		w.WriteHeader(403)
 		fmt.Fprintf(w, "403 Forbidden")
-		return nil
+		return c, errors.New("403 forbidden")
 	}
 
-	m := &mchCGI{
-		cgi:           c,
-		updateCounter: make(map[string]int),
-	}
-	return m
-}
-
-//counterIsUpdate countup threadKey counter and returns true
-//for each 4 times.
-func (m *mchCGI) counterIsUpdate(threadKey string) bool {
-	updateCount := 4
-	m.updateCounter[threadKey]++
-	m.updateCounter[threadKey] %= updateCount
-	return m.updateCounter[threadKey] == 0
+	return c, nil
 }
 
 //serveContent serves str as content with name=name(only used suffix to determine
@@ -158,7 +156,7 @@ func (m *mchCGI) boardApp() {
 	}
 	message := searchMessage(l)
 	m.wr.Header().Set("Content-Type", "text/html; charset=Shift_JIS")
-	board := escape(getBoard(m.path))
+	board := escape(getBoard(m.path()))
 	text := ""
 	if board != "" {
 		text = fmt.Sprintf("%s - %s - %s", message["logo"], message["description"], board)
@@ -196,9 +194,7 @@ func (m *mchCGI) threadApp(board, datkey string) {
 		if data.Exists() || data.Len() == 0 {
 			data.search(nil)
 		} else {
-			if m.counterIsUpdate(key) {
-				data.search(nil) //can use goroutine
-			}
+			go data.search(nil)
 		}
 	}
 
@@ -248,6 +244,8 @@ func (m *mchCGI) makeSubjectCachelist(board string) []*cache {
 
 //hasTab adds tags in sugtag to cache and returns true if one of tags ==  board.
 func (m *mchCGI) hasTag(c *cache, board string) bool {
+	suggestedTagTable.mutex.RLock()
+	defer suggestedTagTable.mutex.RUnlock()
 	if tl := suggestedTagTable.get(c.Datfile, nil); tl != nil {
 		c.tags.Tags = append(c.tags.Tags, tl.Tags...)
 	}

@@ -145,7 +145,7 @@ func (r RSS) W3cdate(dat int64) string {
 func rssTextFormat(plain string) string {
 	buf := strings.Replace(plain, "<br>", " ", -1)
 	buf = strings.Replace(buf, "&", "&amp;", -1)
-	reg := regexp.MustCompile("&amp;(#\\d+|lt|gt|amp);")
+	reg := regexp.MustCompile(`&amp;(#\d+|lt|gt|amp);`)
 	buf = reg.ReplaceAllString(buf, "&$1;")
 	buf = strings.Replace(buf, "<", "&lt;", -1)
 	buf = strings.Replace(buf, ">", "&gt;", -1)

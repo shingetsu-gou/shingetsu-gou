@@ -133,7 +133,7 @@ func makeBracketLink(body, datHost, board string, table *resTable) string {
 		regexp.MustCompile("^(?P<title>[^/]+)/(?P<id>[0-9a-f]{8})$"),
 		regexp.MustCompile("^/(?P<type>[a-z]+)/(?P<title>[^/]+)/(?P<id>[0-9a-f]{8})$"),
 	}
-	reg := regexp.MustCompile("\\[\\[([^<>]+?)\\]\\]")
+	reg := regexp.MustCompile(`\[\[([^<>]+?)\]\]`)
 	return reg.ReplaceAllStringFunc(body, func(str string) string {
 		link := reg.FindStringSubmatch(str)[1]
 		result := make(map[string]string)

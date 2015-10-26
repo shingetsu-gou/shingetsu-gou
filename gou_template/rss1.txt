@@ -1,0 +1,47 @@
+{{define "rss1"}}<?xml version="1.0" encoding="{{.Encode}}"?>
+{{ if .XSL }}
+  <?xml-stylesheet href="{{.XSL}}" type="text/xsl"?>
+{{ end }}
+<rdf:RDF
+  xmlns="http://purl.org/rss/1.0/"
+  xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#"
+  xmlns:dc="http://purl.org/dc/elements/1.1/"
+  xmlns:content="http://purl.org/rss/1.0/modules/content/"
+  xml:lang="{{.Lang}}">
+<channel rdf:about="{{.URI}}">
+<title>{{html .Title}}</title>
+<link>{{.Link}}/</link>
+<description>{{html .Description}}</description>
+<items><rdf:Seq>
+{{ range $v:=.Feeds }}
+  <rdf:li rdf:resource="{{$v.Link}}"/>
+{{ end }}
+</rdf:Seq></items>
+</channel>
+
+{{$root:=.}}
+{{ range $k,$f:=.Feeds}}
+  <item rdf:about="{{html $f.Link}}">
+  <title>{{html $f.Title}}</title>
+  <link>{{html $f.Link}}</link>
+  <dc:date>{{html ($root.W3cdate $f.Date)}}</dc:date>
+  {{ if $f.Creator}}
+    <dc:creator>{{$f.Creator}}</dc:creator>
+  {{ end }}
+  {{ range $sub:=$f.Subject }}
+    <dc:subject>{{escape $sub}}</dc:subject>
+  {{ end }}
+  {{ if $f.Description}}
+    <description>{{$f.Description}}</description>
+  {{ end }}
+  {{ if $f.Content}}
+    <content:encoded><![CDATA[{{$f.Content}}]]></content:encoded>
+  {{ end }}
+  </item>
+{{ end }}
+</rdf:RDF>
+{{end}}
+
+{{/*
+ Copyright (c) 2005-2014 shinGETsu Project.
+ */}}

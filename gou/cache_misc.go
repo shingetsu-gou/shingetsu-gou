@@ -35,6 +35,7 @@ import (
 	"sort"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 )
 
@@ -76,6 +77,7 @@ type UpdateList struct {
 	updateFile  string
 	updateRange int64
 	infos       []*updateInfo
+	mutex       sync.RWMutex
 }
 
 //newUpdateList makes UpdateList obj.
@@ -197,18 +199,19 @@ func newRecentList() *RecentList {
 	return &RecentList{r}
 }
 
-//getAll retrieves recent records from nodes ins earchlist and stores them.
+//getAll retrieves recent records from nodes in searchlist and stores them.
 //tags are shuffled and truncated to tagsize and stored to sugtags in cache.
 //also source nodes are stored into lookuptable.
 //also tags which recentlist doen't have in sugtagtable are truncated
 func (r *RecentList) getAll() {
-	lookupTable.clear()
+	lt := newLookupTable()
 	var begin int64
 	if recentRange > 0 {
 		begin = time.Now().Unix() - recentRange
 	}
+	nodes := lookupTable.getAllNodes()
 	var res []string
-	for count, n := range searchList.nodes {
+	for count, n := range nodes {
 		var err error
 		res, err = n.talk("/recent/" + strconv.FormatInt(begin, 10) + "-")
 		if err != nil {
@@ -230,7 +233,7 @@ func (r *RecentList) getAll() {
 			if len(tags) > 0 {
 				ca.sugtags.addString(tags)
 				ca.sugtags.sync()
-				lookupTable.add(rec.datfile, n)
+				lt.appendToTable(rec.datfile, n)
 			}
 		}
 		if count >= searchDepth {
@@ -238,7 +241,8 @@ func (r *RecentList) getAll() {
 		}
 	}
 	r.sync()
-	lookupTable.sync(false)
+	lookupTable.nodes = lt.nodes
+	lookupTable.sync()
 	suggestedTagTable.prune(r)
 	suggestedTagTable.sync()
 }

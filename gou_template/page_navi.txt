@@ -1,0 +1,30 @@
+{{/*
+ Copyright (c) 2005-2014 shinGETsu Project.
+ */}}
+{{define "page_navi"}}
+{{$root:=.}}
+{{ if .CacheLen}}|{{ end }}
+{{ if or .Page .ID }}
+  <a href="{{.ThreadCGI}}/{{strEncode .Path}}">{{.Message.last_page}}</a>
+{{ end }}
+{{ if gt .Page 1}}
+  <a href="{{.ThreadCGI}}/{{strEncode .Path}}/p{{sub .Page 1}}">{{.Message.new_page}}</a>
+{{ end }}
+{{ if ge .First 1}}
+  {{ range $p:=.Pages }}
+    {{ if and ( eq $root.ID "") (eq $p $root.Page) }}
+      {{$p}}
+    {{else}}
+      {{ if and (not $root.ID)  (not $p)}}
+        <a href="{{$root.ThreadCGI}}/{{strEncode $root.Path}}">{{$p}}</a>
+      {{ else }}
+         <a href="{{$root.ThreadCGI}}/{{strEncode $root.Path}}/p{{$p}}">{{$p}}</a>
+      {{ end }}
+    {{ end }}
+  {{ end }}
+{{ end }}
+{{$ppp:=mul (add .Page +1) .ThreadPageSize}}
+{{ if and (not .ID) (lt $ppp .CacheLen )}}
+     <a href="{{.ThreadCGI}}/{{strEncode .Path}}/p{{add .Page 1}}">{{.Message.old_page}}</a>
+{{ end }}
+{{end}}

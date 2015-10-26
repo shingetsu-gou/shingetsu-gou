@@ -200,9 +200,6 @@ func (r *record) size() int64 {
 //remove moves the record file  to remove path
 //and removes all thumbnails ,attached files and body files.
 func (r *record) remove() error {
-	if !IsDir(r.rmPath()) {
-		return nil
-	}
 	err := moveFile(r.path(), r.rmPath())
 	if err != nil {
 		log.Println(err)
@@ -325,7 +322,7 @@ func (r *record) attachPath(suffix string, thumbnailSize string) string {
 	}
 	dir := filepath.Join(cacheDir, r.dathash(), "attach")
 	if suffix != "" {
-		reg := regexp.MustCompile("[^-_.A-Za-z0-9]")
+		reg := regexp.MustCompile(`[^-_.A-Za-z0-9]`)
 		reg.ReplaceAllString(suffix, "")
 		if suffix == "" {
 			suffix = "txt"
