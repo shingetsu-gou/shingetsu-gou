@@ -536,7 +536,7 @@ func (c *cgi) printIndexList(cl []*cache, target string, footer bool, searchNewF
 		target,
 		c.filter,
 		c.tag,
-		userTag.get(),
+		utag.get(),
 		cl,
 		gatewayURL,
 		adminURL,

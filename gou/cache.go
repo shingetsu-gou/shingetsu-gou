@@ -53,6 +53,7 @@ type cache struct {
 	stamp       int64    //last record stamp including spam
 	recs        map[string]*record
 	loaded      bool // loaded records
+	isDirty     bool
 	mutex       sync.RWMutex
 }
 
@@ -69,7 +70,7 @@ func (c *cache) addTags(vals []string) {
 	c.mutex.Lock()
 	defer c.mutex.Unlock()
 	c.tags.addString(vals)
-	userTag.setDirty()
+	utag.setDirty()
 }
 
 //setTags set user tag list from vals.
@@ -77,7 +78,7 @@ func (c *cache) setTags(vals []string) {
 	c.mutex.Lock()
 	defer c.mutex.Unlock()
 	c.tags = newTagslice(vals)
-	userTag.setDirty()
+	utag.setDirty()
 }
 
 //hasTagstr returns true if tag has tagstr.

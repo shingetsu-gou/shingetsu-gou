@@ -179,7 +179,7 @@ func printEdittag(w http.ResponseWriter, r *http.Request) {
 		datfile,
 		ca.tags.string(),
 		suggestedTagTable.get(ca.Datfile, nil),
-		userTag.get(),
+		utag.get(),
 	}
 	a.header(fmt.Sprintf("%s: %s", a.m["edit_tag"], strTitle), "", nil, true)
 	renderTemplate("edit_tag", d, a.wr)

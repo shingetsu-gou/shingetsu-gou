@@ -306,7 +306,7 @@ func printTitle(w http.ResponseWriter, r *http.Request) {
 	}{
 		outputCachelist,
 		"changes",
-		userTag.get(),
+		utag.get(),
 		g.mchURL(""),
 		g.mchCategories(),
 		g.m,
