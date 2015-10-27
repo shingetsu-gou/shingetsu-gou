@@ -118,7 +118,7 @@ func (c GatewayLink) Render(cginame, command string) template.HTML {
 type ListItem struct {
 	Cache      *cache
 	Title      string
-	Tags       *tagList
+	Tags       tagslice
 	Sugtags    []*tag
 	Target     string
 	Remove     bool
@@ -143,7 +143,7 @@ func (l *ListItem) checkCache(ca *cache, target string) (string, bool) {
 	if l.tag != "" {
 		switch {
 		case ca.tags.hasTagstr(strings.ToLower(l.tag)):
-		case target == "recent" && ca.sugtags.hasTagstr(strings.ToLower(l.tag)):
+		case target == "recent" && suggestedTagTable.hasTagstr(ca.Datfile, strings.ToLower(l.tag)):
 		default:
 			return "", false
 		}
@@ -166,10 +166,10 @@ func (l ListItem) Render(ca *cache, remove bool, target string, search bool) tem
 	var sugtags []*tag
 	if target == "recent" {
 		strTags := make([]string, ca.tags.Len())
-		for i, v := range ca.tags.Tags {
+		for i, v := range ca.tags {
 			strTags[i] = strings.ToLower(v.Tagstr)
 		}
-		for _, st := range ca.sugtags.Tags {
+		for _, st := range suggestedTagTable.get(ca.Datfile, nil) {
 			if !hasString(strTags, strings.ToLower(st.Tagstr)) {
 				sugtags = append(sugtags, st)
 			}
@@ -521,7 +521,7 @@ func (c *cgi) printIndexList(cl []*cache, target string, footer bool, searchNewF
 		Target        string
 		Filter        string
 		Tag           string
-		Taglist       *UserTagList
+		Taglist       tagslice
 		Cachelist     []*cache
 		GatewayCGI    string
 		AdminCGI      string
@@ -536,7 +536,7 @@ func (c *cgi) printIndexList(cl []*cache, target string, footer bool, searchNewF
 		target,
 		c.filter,
 		c.tag,
-		userTagList,
+		userTagList(),
 		cl,
 		gatewayURL,
 		adminURL,
@@ -555,9 +555,7 @@ func (c *cgi) printIndexList(cl []*cache, target string, footer bool, searchNewF
 			Message: c.m,
 		},
 	}
-	userTagList.mutex.RLock()
 	renderTemplate("index_list", s, c.wr)
-	userTagList.mutex.RUnlock()
 	if footer {
 		c.printNewElementForm()
 		c.footer(nil)

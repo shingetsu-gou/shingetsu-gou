@@ -171,20 +171,18 @@ func printEdittag(w http.ResponseWriter, r *http.Request) {
 		AdminCGI string
 		Datfile  string
 		Tags     string
-		Sugtags  suggestedTagList
-		Usertags UserTagList
+		Sugtags  tagslice
+		Usertags tagslice
 	}{
 		a.m,
 		adminURL,
 		datfile,
 		ca.tags.string(),
-		*ca.sugtags,
-		*userTagList,
+		suggestedTagTable.sugtaglist[ca.Datfile],
+		userTagList(),
 	}
 	a.header(fmt.Sprintf("%s: %s", a.m["edit_tag"], strTitle), "", nil, true)
-	userTagList.mutex.RLock()
 	renderTemplate("edit_tag", d, a.wr)
-	userTagList.mutex.RUnlock()
 	a.footer(nil)
 }
 
@@ -206,12 +204,8 @@ func saveTagCGI(w http.ResponseWriter, r *http.Request) {
 		a.print404(nil, "")
 	}
 	tl := strings.Fields(tags)
-	ca.tags.update(tl)
-	ca.tags.sync()
-	userTagList.mutex.Lock()
-	userTagList.addString(tl)
-	userTagList.sync()
-	userTagList.mutex.Unlock()
+	ca.setTags(tl)
+	ca.syncStatus()
 	var next string
 	for _, t := range types {
 		title := strEncode(fileDecode(datfile))

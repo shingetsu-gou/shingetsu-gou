@@ -108,10 +108,8 @@ func isValidImage(mimetype, path string) bool {
 
 //saveTag saves tags into cache and user tag list
 func saveTag(ca *cache, userTag string) {
-	ca.tags.update([]string{userTag})
-	ca.tags.sync()
-	userTagList.addString([]string{userTag})
-	userTagList.sync()
+	ca.setTags([]string{userTag})
+	ca.syncStatus()
 }
 
 //getBoard returns decoded board name.

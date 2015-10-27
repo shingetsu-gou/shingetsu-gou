@@ -79,9 +79,6 @@ func doSync() {
 	cl.removeRemoved()
 	log.Println("cachelist.removeRemoved finished")
 
-	userTagList.updateAll()
-	log.Println("userTagList.updateAll finished")
-
 	recentList.getAll()
 	log.Println("recentList.getall finished")
 

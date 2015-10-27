@@ -144,18 +144,14 @@ func printRecentRSS(w http.ResponseWriter, r *http.Request) {
 	cl := recentList.makeRecentCachelist()
 	for _, ca := range cl.Caches {
 		title := escape(fileDecode(ca.Datfile))
-		tags := make([]string, ca.tags.Len()+ca.sugtags.Len())
-		for i, t := range ca.tags.Tags {
-			tags[i] = t.Tagstr
-		}
-		for i, t := range ca.sugtags.Tags {
-			tags[i+ca.tags.Len()] = t.Tagstr
-		}
+		tags := suggestedTagTable.get(ca.Datfile, nil)
+		tags = append(tags, ca.tags...)
 		if _, exist := application[ca.Typee]; !exist {
 			continue
 		}
 		rsss.append(application[ca.Typee][1:]+querySeparator+strEncode(title),
-			title, "", "", html.EscapeString(title), tags, ca.RecentStamp, false)
+			title, "", "", html.EscapeString(title), tags.getTagstrSlice(),
+			ca.RecentStamp, false)
 	}
 	g.wr.Header().Set("Content-Type", "text/xml; charset=UTF-8")
 	if rsss.Len() != 0 {
@@ -296,7 +292,7 @@ func printTitle(w http.ResponseWriter, r *http.Request) {
 	s := struct {
 		Cachelist     []*cache
 		Target        string
-		Taglist       *UserTagList
+		Taglist       tagslice
 		MchURL        string
 		MchCategories []*mchCategory
 		Message       message
@@ -310,7 +306,7 @@ func printTitle(w http.ResponseWriter, r *http.Request) {
 	}{
 		outputCachelist,
 		"changes",
-		userTagList,
+		userTagList(),
 		g.mchURL(""),
 		g.mchCategories(),
 		g.m,
@@ -329,9 +325,7 @@ func printTitle(w http.ResponseWriter, r *http.Request) {
 			Message: g.m,
 		},
 	}
-	userTagList.mutex.RLock()
 	renderTemplate("top", s, g.wr)
-	userTagList.mutex.RUnlock()
 	g.printNewElementForm()
 	g.footer(nil)
 }
@@ -429,7 +423,7 @@ func (g *gatewayCGI) makeOneRow(c string, ca *cache, p, title string) string {
 	case "tag":
 		return ca.tags.string()
 	case "sugtag":
-		return ca.sugtags.string()
+		return suggestedTagTable.string(ca.Datfile)
 	}
 	return ""
 }

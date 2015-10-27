@@ -41,7 +41,6 @@ type NodeManager struct {
 	isDirty bool
 	nodes   map[string]nodeSlice //map[""] is nodelist
 	mutex   sync.RWMutex
-	fmutex  sync.Mutex
 }
 
 //newLookupTable read the file and returns LookupTable obj.
@@ -386,8 +385,8 @@ func (lt *NodeManager) stringMap() map[string][]string {
 func (lt *NodeManager) sync() {
 	if lt.isDirty {
 		m := lt.stringMap()
-		lt.fmutex.Lock()
-		defer lt.fmutex.Unlock()
+		fmutex.Lock()
+		defer fmutex.Unlock()
 		err := writeMap(lookup, m)
 		if err != nil {
 			log.Println(err)

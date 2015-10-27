@@ -39,6 +39,7 @@ import (
 	"path"
 	"regexp"
 	"strings"
+	"sync"
 	textTemplate "text/template"
 	"time"
 
@@ -167,7 +168,6 @@ var (
 	que          *updateQue
 
 	suggestedTagTable *SuggestedTagTable
-	userTagList       *UserTagList
 	nodeManager       *NodeManager
 	recentList        *RecentList
 
@@ -179,6 +179,8 @@ var (
 
 	cgis     chan *cgi
 	cacheMap = make(map[string]*cache)
+
+	fmutex sync.RWMutex
 )
 
 //config represents ini file.
@@ -362,7 +364,6 @@ func InitVariables() {
 	dataKeyTable = newDatakeyTable(runDir + "/datakey.txt")
 
 	suggestedTagTable = newSuggestedTagTable()
-	userTagList = newUserTagList()
 	nodeManager = newNodeManager()
 	recentList = newRecentList()
 	que = newUpdateQue()

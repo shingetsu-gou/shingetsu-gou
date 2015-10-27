@@ -235,21 +235,11 @@ func (m *mchCGI) makeSubjectCachelist(board string) []*cache {
 	}
 	var result2 []*cache
 	for _, c := range result {
-		if m.hasTag(c, board) {
+		if c.hasTag(board) {
 			result2 = append(result2, c)
 		}
 	}
 	return result2
-}
-
-//hasTab adds tags in sugtag to cache and returns true if one of tags ==  board.
-func (m *mchCGI) hasTag(c *cache, board string) bool {
-	suggestedTagTable.mutex.RLock()
-	defer suggestedTagTable.mutex.RUnlock()
-	if tl := suggestedTagTable.get(c.Datfile, nil); tl != nil {
-		c.tags.Tags = append(c.tags.Tags, tl.Tags...)
-	}
-	return hasString(c.tags.getTagstrSlice(), board)
 }
 
 //subjectApp makes list of records title from caches whose tag is same as one stripped from url.

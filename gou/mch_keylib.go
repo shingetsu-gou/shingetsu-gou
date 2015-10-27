@@ -44,7 +44,6 @@ type DatakeyTable struct {
 	datakey2filekey map[int64]string
 	filekey2datkey  map[string]int64
 	mutex           sync.RWMutex
-	fmutex          sync.Mutex
 }
 
 //newDatakeyTable make DataKeyTable obj.
@@ -103,9 +102,9 @@ func (d *DatakeyTable) save() {
 		i++
 	}
 	d.mutex.RUnlock()
-	d.fmutex.Lock()
+	fmutex.Lock()
 	err := writeSlice(d.file, str)
-	d.fmutex.Unlock()
+	fmutex.Unlock()
 	if err != nil {
 		log.Println(err)
 	}

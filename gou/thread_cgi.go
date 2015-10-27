@@ -344,10 +344,8 @@ func (t *threadCGI) printThread(path, id string, nPage int) {
 	}
 	tags := strings.Fields(strings.TrimSpace(t.req.FormValue("tag")))
 	if t.isAdmin() && len(tags) > 0 {
-		ca.tags.addString(tags)
-		ca.tags.sync()
-		userTagList.addString(tags)
-		userTagList.sync()
+		ca.addTags(tags)
+		ca.syncStatus()
 	}
 	t.printTag(ca)
 	t.printThreadTop(path, id, nPage, ca)

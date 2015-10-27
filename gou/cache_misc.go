@@ -128,7 +128,6 @@ type RecentList struct {
 	infos   recordHeads
 	isDirty bool
 	mutex   sync.RWMutex
-	fmutex  sync.RWMutex
 }
 
 //newRecentList load a file and create a RecentList obj.
@@ -140,8 +139,8 @@ func newRecentList() *RecentList {
 
 //loadFile reads from file and add records.
 func (r *RecentList) loadFile() {
-	r.fmutex.RLock()
-	defer r.fmutex.RUnlock()
+	fmutex.RLock()
+	defer fmutex.RUnlock()
 	err := eachLine(recent, func(line string, i int) error {
 		vr, err := newRecordHeadFromLine(line)
 		if err == nil {
@@ -235,9 +234,9 @@ func (r *RecentList) sync() {
 		}
 	}
 	r.mutex.Unlock()
-	r.fmutex.Lock()
+	fmutex.Lock()
 	err := writeSlice(recent, r.getRecstrSlice())
-	r.fmutex.Unlock()
+	fmutex.Unlock()
 	if err != nil {
 		log.Println(err)
 	}
@@ -268,15 +267,14 @@ func (r *RecentList) getAll() {
 				continue
 			}
 			r.append(rec)
-			ca := newCache(rec.datfile)
 			tags := strings.Fields(strings.TrimSpace(rec.GetBodyValue("tag", "")))
-			shuffle(sort.StringSlice(tags))
 			if len(tags) > tagSize {
+				shuffle(sort.StringSlice(tags))
 				tags = tags[:tagSize]
 			}
 			if len(tags) > 0 {
-				ca.sugtags.addString(tags)
-				ca.sugtags.sync()
+				suggestedTagTable.addString(rec.datfile, tags)
+				suggestedTagTable.sync()
 				nodeManager.appendToTable(rec.datfile, n)
 			}
 		}

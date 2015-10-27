@@ -47,11 +47,10 @@ type cache struct {
 	Datfile     string
 	velocity    int      // records count per unit time
 	Typee       string   //"thread"
-	tags        *tagList //made by the user
+	tags        tagslice //made by the user
 	ValidStamp  int64    //last record stamp excpet spam
 	RecentStamp int64    //when got by "/recent"
 	stamp       int64    //last record stamp including spam
-	sugtags     *suggestedTagList
 	recs        map[string]*record
 	loaded      bool // loaded records
 	mutex       sync.RWMutex
@@ -63,6 +62,35 @@ func (c *cache) saveRecord() int64 {
 		return 0
 	}
 	return saveRecord[c.Typee]
+}
+
+//addTags add user tag list from vals.
+func (c *cache) addTags(vals []string) {
+	c.mutex.Lock()
+	defer c.mutex.Unlock()
+	c.tags.addString(vals)
+}
+
+//setTags set user tag list from vals.
+func (c *cache) setTags(vals []string) {
+	c.mutex.Lock()
+	defer c.mutex.Unlock()
+	c.tags = newTagslice(vals)
+}
+
+//hasTagstr returns true if tag has tagstr.
+func (c *cache) hasTagstr(tagstr string) bool{
+	c.mutex.RLock()
+	defer c.mutex.RUnlock()
+	return c.tags.hasTagstr(tagstr)
+}
+
+//hasTab returns true if cache has tagstr=board tag in usertag or sugtag.
+func (c *cache) hasTag(board string) bool {
+	if suggestedTagTable.hasTagstr(c.Datfile, board) {
+		return true
+	}
+	return c.hasTagstr(board)
 }
 
 //saveSize returns # of records to be holded.
@@ -111,14 +139,7 @@ func newCache(datfile string) *cache {
 	c.RecentStamp = c.stamp
 	c.ValidStamp = c.loadStatus("validstamp")
 	c.velocity = int(c.loadStatus("velocity"))
-	c.tags = newTagList(path.Join(c.datpath(), "tag.txt"))
-	suggestedTagTable.mutex.RLock()
-	if v, exist := suggestedTagTable.sugtaglist[c.Datfile]; exist {
-		c.sugtags = v
-	} else {
-		c.sugtags = newSuggestedTagList(c.Datfile, nil)
-	}
-	defer suggestedTagTable.mutex.RUnlock()
+	c.tags = loadTagslice(path.Join(c.datpath(), "tag.txt"))
 	for _, t := range types {
 		if strings.HasPrefix(c.Datfile, t) {
 			c.Typee = t
@@ -253,12 +274,17 @@ func (c *cache) saveStatus(key string, val interface{}) {
 
 //syncStatus saves params to files.
 func (c *cache) syncStatus() {
+	fmutex.Lock()
+	defer fmutex.RUnlock()
+	c.mutex.RLock()
+	defer c.mutex.RLock()
 	c.saveStatus("stamp", c.stamp)
 	c.saveStatus("validstamp", c.ValidStamp)
 	c.saveStatus("velocity", c.velocity)
 	if !IsFile(c.datpath() + "/dat.stat") {
 		c.saveStatus("dat", c.Datfile)
 	}
+	c.tags.sync(path.Join(c.datpath(), "tag.txt"))
 }
 
 //setupDirectories make necessary dirs.
