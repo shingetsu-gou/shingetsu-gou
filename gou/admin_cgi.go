@@ -113,10 +113,11 @@ func printStatus(w http.ResponseWriter, r *http.Request) {
 	}
 	cl := newCacheList()
 	records := 0
-	size := 0
+	var size int64
 	for _, ca := range cl.Caches {
-		records += ca.Len()
-		size += ca.Size()
+		i := ca.readInfo()
+		records += i.len
+		size += i.size
 	}
 	my := nodeManager.myself()
 
@@ -205,14 +206,12 @@ func saveTagCGI(w http.ResponseWriter, r *http.Request) {
 	}
 	tl := strings.Fields(tags)
 	ca.setTags(tl)
-	ca.syncStatus()
+	ca.syncTag()
 	var next string
-	for _, t := range types {
-		title := strEncode(fileDecode(datfile))
-		if strings.HasPrefix(datfile, t+"_") {
-			next = application[t] + querySeparator + title
-			break
-		}
+	title := strEncode(fileDecode(datfile))
+	if strings.HasPrefix(datfile, "thread_") {
+		next = application["thread"] + querySeparator + title
+	} else {
 		next = rootPath
 	}
 	a.print302(next)
@@ -321,24 +320,19 @@ func (a *adminCGI) doDeleteRecord(rmFiles []string, records []string, dopost str
 	}
 	datfile := rmFiles[0]
 	next := rootPath
-	for _, t := range types {
-		title := strEncode(fileDecode(datfile))
-		if strings.HasPrefix(title, t+"_") {
-			next = application[t] + querySeparator + title
-			break
-		}
+	title := strEncode(fileDecode(datfile))
+	if strings.HasPrefix(title, "thread_") {
+		next = application["thread"] + querySeparator + title
 	}
 	ca := newCache(datfile)
 	for _, r := range records {
 		rec := newRecord(datfile, r)
 		if rec.remove() == nil && dopost != "" {
-			ca.syncStatus()
 			a.postDeleteMessage(ca, rec)
 			a.print302(next)
 			return
 		}
 	}
-	ca.syncStatus()
 	a.print302(next)
 }
 
@@ -353,10 +347,8 @@ type DelFile struct {
 //Gettitle returns title part if *_*.
 //returns ca.datfile if not.
 func (d *DelFile) Gettitle(ca *cache) string {
-	for _, t := range types {
-		if strings.HasPrefix(ca.Datfile, t+"_") {
-			return fileDecode(ca.Datfile)
-		}
+	if strings.HasPrefix(ca.Datfile, "thread_") {
+		return fileDecode(ca.Datfile)
 	}
 	return ca.Datfile
 }
@@ -365,7 +357,8 @@ func (d *DelFile) Gettitle(ca *cache) string {
 //len(recstrs) is <=2.
 func (d *DelFile) GetContents(ca *cache) []string {
 	contents := make([]string, 0, 2)
-	for _, rec := range ca.recs {
+	recs := ca.loadRecords()
+	for _, rec := range recs {
 		err := rec.load()
 		if err != nil {
 			log.Println(err)
@@ -392,8 +385,7 @@ func (a *adminCGI) postDeleteMessage(ca *cache, rec *record) {
 	body["remove_id"] = rec.ID
 	passwd := a.req.FormValue("passwd")
 	id := rec.build(stamp, body, passwd)
-	ca.addData(rec)
-	ca.syncStatus()
+	rec.sync()
 	recentList.append(rec)
 	recentList.sync()
 	go nodeManager.tellUpdate(ca, stamp, id, nil)
@@ -473,7 +465,7 @@ func (a *adminCGI) printSearchResult(query string) {
 			result = append(result, i)
 		}
 	}
-	sort.Sort(sort.Reverse(sortByStamp{result}))
+	sort.Sort(sort.Reverse(newSortByStamp(result)))
 	a.printIndexList(result, "", true, false)
 	a.footer(nil)
 }

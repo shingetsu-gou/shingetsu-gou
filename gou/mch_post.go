@@ -53,10 +53,10 @@ func (m *mchCGI) postComment(threadKey, name, mail, body, passwd, tag string) er
 	if cachedRule.check(rec.recstr()) {
 		return errSpam
 	}
-	c.addData(rec)
-	c.syncStatus()
+	rec.sync()
 	if tag != "" {
-		saveTag(c, tag)
+		c.setTags([]string{tag})
+		c.syncTag()
 	}
 	go que.updateNodes(rec, nil)
 	return nil

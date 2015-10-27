@@ -90,10 +90,8 @@ func (c *cacheList) getall() {
 			log.Println("client timeout")
 			return
 		}
-		ca.updateFromRecords()
-		ca.checkBody()
+		ca.search(nil)
 		ca.checkAttach()
-		ca.syncStatus()
 	}
 }
 
@@ -127,41 +125,59 @@ type sortByRecentStamp struct {
 
 //Less returns true if cache[i].recentStamp < cache[j].recentStamp.
 func (c sortByRecentStamp) Less(i, j int) bool {
-	return c.caches[i].RecentStamp < c.caches[j].RecentStamp
+	return c.caches[i].recentStamp() < c.caches[j].recentStamp()
 }
 
 //sortByStamp is for sorting by stamp.
 type sortByStamp struct {
 	caches
+	stamp []int64
+}
+
+func newSortByStamp(cs caches) sortByStamp {
+	s := sortByStamp{
+		caches: cs,
+		stamp:  make([]int64, cs.Len()),
+	}
+	for i, v := range cs {
+		s.stamp[i] = v.readInfo().stamp
+	}
+	return s
 }
 
 //Less returns true if cache[i].stamp < cache[j].stamp.
 func (c sortByStamp) Less(i, j int) bool {
-	return c.caches[i].stamp < c.caches[j].stamp
-}
-
-//sortByValidStamp is for sorting by validStamp.
-type sortByValidStamp struct {
-	caches
-}
-
-//Less returns true if cache[i].validStamp < cache[j].validStamp.
-func (c sortByValidStamp) Less(i, j int) bool {
-	return c.caches[i].ValidStamp < c.caches[j].ValidStamp
+	return c.stamp[i] < c.stamp[j]
 }
 
 //sortByVelocity is for sorting by velocity.
 type sortByVelocity struct {
 	caches
+	velocity []int
+	size     []int64
+}
+
+func newSortByVelocity(cs caches) sortByVelocity {
+	s := sortByVelocity{
+		caches:   cs,
+		velocity: make([]int, cs.Len()),
+		size:     make([]int64, cs.Len()),
+	}
+	for i, v := range cs {
+		f := v.readInfo()
+		s.velocity[i] = f.velocity
+		s.size[i] = f.size
+	}
+	return s
 }
 
 //Less returns true if cache[i].velocity < cache[j].velocity.
 //if velocity[i]==velocity[j],  returns true if cache[i].size< cache[j].size.
 func (c sortByVelocity) Less(i, j int) bool {
-	if c.caches[i].velocity != c.caches[j].velocity {
-		return c.caches[i].velocity < c.caches[j].velocity
+	if c.velocity[i] != c.velocity[j] {
+		return c.velocity[i] < c.velocity[j]
 	}
-	return c.caches[i].Len() < c.caches[j].Len()
+	return c.size[i] < c.size[j]
 }
 
 //search reloads records in caches in cachelist
@@ -169,7 +185,8 @@ func (c sortByVelocity) Less(i, j int) bool {
 func (c *cacheList) search(query *regexp.Regexp) caches {
 	var result []*cache
 	for _, ca := range c.Caches {
-		for _, rec := range ca.recs {
+		recs := ca.loadRecords()
+		for _, rec := range recs {
 			err := rec.load()
 			if err != nil {
 				log.Println(err)
@@ -186,7 +203,8 @@ func (c *cacheList) search(query *regexp.Regexp) caches {
 //cleanRecords remove old or duplicates records for each caches.
 func (c *cacheList) cleanRecords() {
 	for _, ca := range c.Caches {
-		ca.removeRecords(ca.saveRecord())
+		recs:=ca.loadRecords()
+		recs.removeRecords(saveRecord)
 	}
 }
 
@@ -200,7 +218,7 @@ func (c *cacheList) removeRemoved() {
 		err := eachFiles(r, func(f os.FileInfo) error {
 			rec := newRecord(ca.Datfile, f.Name())
 			if ca.saveRemoved() > 0 && rec.Stamp+ca.saveRemoved() < time.Now().Unix() &&
-				rec.Stamp < ca.stamp {
+				rec.Stamp < ca.readInfo().stamp {
 				err := os.Remove(path.Join(ca.datpath(), "removed", f.Name()))
 				if err != nil {
 					log.Println(err)

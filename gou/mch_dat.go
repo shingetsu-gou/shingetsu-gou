@@ -55,11 +55,11 @@ type resTable struct {
 func newResTable(ca *cache) *resTable {
 	r := &resTable{
 		make(map[string]int),
-		make([]string, ca.Len()+1),
+		make([]string, ca.readInfo().len+1),
 	}
-	ca.load()
-	for i, k := range ca.keys() {
-		rec := ca.get(k, nil)
+	recs := ca.loadRecords()
+	for i, k := range recs.keys() {
+		rec := recs.get(k, nil)
 		r.num2id[i+1] = rec.ID[:8]
 		r.id2num[rec.ID[:8]] = i + 1
 	}
@@ -68,11 +68,12 @@ func newResTable(ca *cache) *resTable {
 
 //makeDat makes dat lines of 2ch from cache.
 func makeDat(ca *cache, board, host string) []string {
-	dat := make([]string, len(ca.keys()))
+	recs := ca.loadRecords()
+	dat := make([]string, len(recs))
 	table := newResTable(ca)
 
-	for i, k := range ca.keys() {
-		rec := ca.get(k, nil)
+	i := 0
+	for _, rec := range recs {
 		err := rec.load()
 		if err != nil {
 			log.Println(err)
@@ -91,6 +92,7 @@ func makeDat(ca *cache, board, host string) []string {
 			comment += fileDecode(ca.Datfile)
 		}
 		dat[i] = comment
+		i++
 	}
 
 	return dat

@@ -106,12 +106,6 @@ func isValidImage(mimetype, path string) bool {
 
 //from mch/util.py
 
-//saveTag saves tags into cache and user tag list
-func saveTag(ca *cache, userTag string) {
-	ca.setTags([]string{userTag})
-	ca.syncStatus()
-}
-
 //getBoard returns decoded board name.
 func getBoard(url string) string {
 	reg := regexp.MustCompile(`/2ch_([^/]+)/`)

@@ -80,13 +80,10 @@ func (d *DatakeyTable) loadInternal() {
 func (d *DatakeyTable) load() {
 	d.loadInternal()
 	for _, c := range newCacheList().Caches {
-		c.load()
 		d.setFromCache(c)
 	}
 	for _, rec := range recentList.infos {
 		c := newCache(rec.datfile)
-		c.load()
-		c.RecentStamp = rec.Stamp
 		d.setFromCache(c)
 	}
 	d.save()
@@ -126,11 +123,11 @@ func (d *DatakeyTable) setFromCache(ca *cache) {
 		return
 	}
 	var firstStamp int64
-	if ca.Len() == 0 {
-		firstStamp = ca.RecentStamp
+	if !ca.hasRecord() {
+		firstStamp = ca.recentStamp()
 	} else {
-		if rec := ca.get(ca.keys()[0], nil); rec != nil {
-			firstStamp = rec.Stamp
+		if rec := ca.loadRecords(); len(rec) > 0 {
+			firstStamp = rec[rec.keys()[0]].Stamp
 		}
 	}
 	if firstStamp == 0 {
@@ -156,7 +153,6 @@ func (d *DatakeyTable) getDatkey(filekey string) (int64, error) {
 	}
 	d.mutex.RUnlock()
 	c := newCache(filekey)
-	c.load()
 	d.setFromCache(c)
 	d.save()
 	d.mutex.RLock()

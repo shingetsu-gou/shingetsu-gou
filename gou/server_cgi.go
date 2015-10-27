@@ -137,7 +137,7 @@ func doHave(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	ca := newCache(m[1])
-	if ca.Len() > 0 {
+	if ca.hasRecord() {
 		fmt.Fprintln(w, "YES")
 	} else {
 		fmt.Fprintln(w, "NO")
@@ -254,9 +254,9 @@ func doGetHead(w http.ResponseWriter, r *http.Request) {
 	}
 	method, datfile, stamp := m[1], m[2], m[3]
 	ca := newCache(datfile)
-	ca.load()
-	begin, end, id := s.parseStamp(stamp, ca.stamp)
-	for _, r := range ca.recs {
+	begin, end, id := s.parseStamp(stamp, ca.readInfo().stamp)
+	recs := ca.loadRecords()
+	for _, r := range recs {
 		if begin <= r.Stamp && r.Stamp <= end && (id == "" || strings.HasSuffix(r.Idstr(), id)) {
 			if method == "get" {
 				err := r.load()

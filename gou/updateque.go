@@ -84,7 +84,7 @@ func (u *updateQue) doUpdateNode(rec *record, n *node) bool {
 		log.Println("no cache, only broadcast updates.")
 		nodeManager.tellUpdate(ca, rec.Stamp, rec.ID, n)
 		return true
-	case ca.Len() > 0:
+	case ca.hasRecord():
 		log.Println("cache and records exists, get data from node n.")
 		err = ca.getData(rec.Stamp, rec.ID, n)
 	default:

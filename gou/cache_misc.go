@@ -157,6 +157,18 @@ func (r *RecentList) loadFile() {
 }
 
 //append add a infos generated from the record.
+func (r *RecentList) newest(datfile string) *RecordHead {
+	r.mutex.RLock()
+	defer r.mutex.RUnlock()
+	for _, v := range r.infos {
+		if v.datfile == datfile {
+			return v
+		}
+	}
+	return nil
+}
+
+//append add a infos generated from the record.
 func (r *RecentList) append(rec *record) {
 	loc := r.find(rec)
 	r.mutex.Lock()
@@ -298,7 +310,6 @@ func (r *RecentList) makeRecentCachelist() *cacheList {
 	for _, rec := range r.infos {
 		if !hasString(check, rec.datfile) {
 			ca := newCache(rec.datfile)
-			ca.RecentStamp = rec.Stamp
 			cl = append(cl, ca)
 			check = append(check, rec.datfile)
 		}

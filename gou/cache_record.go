@@ -31,15 +31,16 @@ package gou
 import (
 	"encoding/base64"
 	"errors"
-	"fmt"
 	"io/ioutil"
 	"log"
 	"os"
 	"path/filepath"
 	"regexp"
+	"sort"
 	"strconv"
 	"strings"
 	"sync"
+	"time"
 )
 
 //record represents one record.
@@ -76,6 +77,22 @@ func newRecord(datfile, idstr string) *record {
 		r.ID = buf[1]
 	}
 	return r
+}
+
+//makeRecords makes and returns record from recstr
+func makeRecord(line string) *record {
+	line = strings.TrimRight(line, "\r\n")
+	buf := strings.Split(line, "<>")
+	if len(buf) <= 2 || buf[0] == "" || buf[1] == "" || buf[2] == "" {
+		return nil
+	}
+	idstr := buf[0] + "_" + buf[1]
+	vr := newRecord(buf[2], idstr)
+	if err := vr.parse(line); err != nil {
+		log.Println(err)
+		return nil
+	}
+	return vr
 }
 
 //bodystr returns body part of one line in the record file.
@@ -220,7 +237,7 @@ func (r *record) load() error {
 	fmutex.RLock()
 	defer fmutex.RUnlock()
 
-	if r.size() <= 0 {
+	if !r.Exists() {
 		err := r.remove()
 		if err != nil {
 			log.Println(err)
@@ -483,34 +500,61 @@ func (r *record) meets(i string, stamp int64, id string, begin, end int64) bool 
 	return true
 }
 
-//getRecords gets the records which have id=head from n
-func getRecords(datfile string, n *node, head []string) []string {
-	var result []string
-	for _, h := range head {
-		rec := newRecord(datfile, strings.Replace(strings.TrimSpace(h), "<>", "_", -1))
-		if !IsFile(rec.path()) && !IsFile(rec.rmPath()) {
-			res, err := n.talk(fmt.Sprintf("/get/%s/%d/%s", datfile, rec.Stamp, rec.ID))
-			if err != nil {
-				log.Println(err)
-				return nil
-			}
-			result = append(result, strings.TrimSpace(res[0]))
-		}
+type recordMap map[string]*record
+
+//get returns records which hav key=i.
+//return def if not found.
+func (r recordMap) get(i string, def *record) *record {
+	if v, exist := r[i]; exist {
+		return v
 	}
-	return result
+	return def
 }
 
-func makeRecord(line string) *record {
-	line = strings.TrimRight(line, "\r\n")
-	buf := strings.Split(line, "<>")
-	if len(buf) <= 2 || buf[0] == "" || buf[1] == "" || buf[2] == "" {
-		return nil
+//keys returns key strings(ids) of records
+func (r recordMap) keys() []string {
+	ks := make([]string, len(r))
+	i := 0
+	for k := range r {
+		ks[i] = k
+		i++
 	}
-	idstr := buf[0] + "_" + buf[1]
-	vr := newRecord(buf[2], idstr)
-	if err := vr.parse(line); err != nil {
-		log.Println(err)
-		return nil
+	sort.Strings(ks)
+	return ks
+}
+
+//removeRecords remove old records while remaing #saveSize records.
+//and also removes duplicates recs.
+func (r recordMap) removeRecords(limit int64) {
+	fmutex.Lock()
+	defer fmutex.Unlock()
+	ids := r.keys()
+	if saveSize < len(ids) {
+		ids = ids[:len(ids)-saveSize]
+		if limit > 0 {
+			for _, re := range ids {
+				if r[re].Stamp+limit < time.Now().Unix() {
+					err := r[re].remove()
+					if err != nil {
+						log.Println(err)
+					}
+					delete(r, re)
+				}
+			}
+		}
 	}
-	return vr
+	once := make(map[string]struct{})
+	for k, rec := range r {
+		if IsFile(rec.path()) {
+			if _, exist := once[rec.ID]; exist {
+				err := rec.remove()
+				if err != nil {
+					log.Println(err)
+				}
+				delete(r, k)
+			} else {
+				once[rec.ID] = struct{}{}
+			}
+		}
+	}
 }

@@ -188,10 +188,10 @@ func (m *mchCGI) threadApp(board, datkey string) {
 		fmt.Fprintf(m.wr, "404 Not Found")
 	}
 	data := newCache(key)
-	data.load()
+	i := data.readInfo()
 
 	if m.checkGetCache() {
-		if data.Exists() || data.Len() == 0 {
+		if data.Exists() || i.len == 0 {
 			data.search(nil)
 		} else {
 			go data.search(nil)
@@ -204,7 +204,7 @@ func (m *mchCGI) threadApp(board, datkey string) {
 	}
 	thread := makeDat(data, board, m.req.Host)
 	str := strings.Join(thread, "\n")
-	m.serveContent("a.txt", time.Unix(data.stamp, 0), str)
+	m.serveContent("a.txt", time.Unix(i.stamp, 0), str)
 }
 
 //makeSubjectCachelist returns caches in all cache and in recentlist sorted by recent stamp.
@@ -219,15 +219,12 @@ func (m *mchCGI) makeSubjectCachelist(board string) []*cache {
 		if !hasString(seen, rec.datfile) {
 			seen = append(seen, rec.datfile)
 			c := newCache(rec.datfile)
-			c.RecentStamp = rec.Stamp
 			cl.append(c)
 		}
 	}
 	var result []*cache
 	for _, c := range cl.Caches {
-		if c.Typee == "thread" {
-			result = append(result, c)
-		}
+		result = append(result, c)
 	}
 	sort.Sort(sort.Reverse(sortByRecentStamp{result}))
 	if board == "" {
@@ -263,11 +260,12 @@ func (m *mchCGI) makeSubject(board string) ([]string, int64) {
 	cl := m.makeSubjectCachelist(board)
 	var lastStamp int64
 	for _, c := range cl {
-		if !loadFromNet && c.Len() == 0 {
+		i := c.readInfo()
+		if !loadFromNet && i.len == 0 {
 			continue
 		}
-		if lastStamp < c.stamp {
-			lastStamp = c.stamp
+		if lastStamp < i.stamp {
+			lastStamp = i.stamp
 		}
 		key, err := dataKeyTable.getDatkey(c.Datfile)
 		if err != nil {
@@ -280,7 +278,7 @@ func (m *mchCGI) makeSubject(board string) ([]string, int64) {
 		}
 		titleStr = strings.Trim(titleStr, "\r\n")
 		subjects = append(subjects, fmt.Sprintf("%d.dat<>%s (%d)",
-			key, titleStr, c.Len()))
+			key, titleStr, i.len))
 	}
 	return subjects, lastStamp
 }

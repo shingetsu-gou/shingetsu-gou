@@ -544,7 +544,7 @@ func (c *cgi) printIndexList(cl []*cache, target string, footer bool, searchNewF
 		searchNewFile,
 		c.isAdmin(),
 		c.isFriend(),
-		types,
+		[]string{"thread"},
 		GatewayLink{
 			Message: c.m,
 		},

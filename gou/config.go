@@ -38,7 +38,6 @@ import (
 	"os/user"
 	"path"
 	"regexp"
-	"strings"
 	"sync"
 	textTemplate "text/template"
 	"time"
@@ -82,13 +81,11 @@ const (
 )
 
 var (
-	types = []string{"thread"}
-
-	saveRecord  = make(map[string]int64)
-	savesize    = make(map[string]int) // It is not seconds, but number.
-	getRange    = make(map[string]int64)
-	syncRange   = make(map[string]int64)
-	saveRemoved = make(map[string]int64)
+	saveRecord  int64
+	saveSize    int // It is not seconds, but number.
+	getRange    int64
+	syncRange   int64
+	saveRemoved int64
 
 	//DefaultPort is listening port
 	DefaultPort   int
@@ -179,7 +176,7 @@ var (
 	ttemplates = textTemplate.New("")
 
 	cgis     chan *cgi
-	cacheMap = make(map[string]*cache)
+	cacheMap = make(map[string]*sync.Pool)
 
 	fmutex sync.RWMutex
 
@@ -385,25 +382,31 @@ func InitVariables() {
 	if err != nil {
 		log.Fatal("visitor regexp string is illegal", err)
 	}
-	for _, t := range types {
-		ctype := "Application " + strings.ToUpper(t)
-		saveRecord[t] = setting.getInt64Value(ctype, "save_record", 0)
-		savesize[t] = setting.getIntValue(ctype, "save_size", 1)
-		getRange[t] = setting.getInt64Value(ctype, "get_range", 31*24*60*60)
-		if getRange[t] > time.Now().Unix() {
-			log.Fatal("get_range is too big")
-		}
-		syncRange[t] = setting.getInt64Value(ctype, "sync_range", 10*24*60*60)
-		if syncRange[t] > time.Now().Unix() {
-			log.Fatal("sync_range is too big")
-		}
-		saveRemoved[t] = setting.getInt64Value(ctype, "save_removed", 50*24*60*60)
-		if saveRemoved[t] > time.Now().Unix() {
-			log.Fatal("save_removed is too big")
-		}
+	ctype := "Application thread"
+	saveRecord = setting.getInt64Value(ctype, "save_record", 0)
+	saveSize = setting.getIntValue(ctype, "save_size", 1)
+	getRange = setting.getInt64Value(ctype, "get_range", 31*24*60*60)
+	if getRange > time.Now().Unix() {
+		log.Fatal("get_range is too big")
+	}
+	syncRange = setting.getInt64Value(ctype, "sync_range", 10*24*60*60)
+	if syncRange > time.Now().Unix() {
+		log.Fatal("sync_range is too big")
+	}
+	saveRemoved = setting.getInt64Value(ctype, "save_removed", 50*24*60*60)
+	if saveRemoved > time.Now().Unix() {
+		log.Fatal("save_removed is too big")
 	}
 
 	cgis = make(chan *cgi, maxConnection)
+
+	if syncRange == 0 {
+		saveRecord = 0
+	}
+
+	if saveRemoved != 0 && saveRemoved <= syncRange {
+		syncRange = syncRange + 1
+	}
 
 	setupTemplate()
 }

@@ -108,7 +108,7 @@ func printCSVChanges(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	cl := newCacheList()
-	sort.Sort(sort.Reverse(sortByValidStamp{cl.Caches}))
+	sort.Sort(sort.Reverse(newSortByStamp(cl.Caches)))
 	g.renderCSV(cl)
 }
 
@@ -146,12 +146,9 @@ func printRecentRSS(w http.ResponseWriter, r *http.Request) {
 		title := escape(fileDecode(ca.Datfile))
 		tags := suggestedTagTable.get(ca.Datfile, nil)
 		tags = append(tags, ca.tags...)
-		if _, exist := application[ca.Typee]; !exist {
-			continue
-		}
-		rsss.append(application[ca.Typee][1:]+querySeparator+strEncode(title),
+		rsss.append(application["thread"][1:]+querySeparator+strEncode(title),
 			title, "", "", html.EscapeString(title), tags.getTagstrSlice(),
-			ca.RecentStamp, false)
+			ca.recentStamp(), false)
 	}
 	g.wr.Header().Set("Content-Type", "text/xml; charset=UTF-8")
 	if rsss.Len() != 0 {
@@ -163,13 +160,13 @@ func printRecentRSS(w http.ResponseWriter, r *http.Request) {
 //appendRSS appends cache ca to rss with contents,url to records,stamp,attached file.
 func (g *gatewayCGI) appendRSS(rsss *RSS, ca *cache) {
 	now := time.Now().Unix()
-	if ca.ValidStamp+rssRange < now {
+	if ca.readInfo().stamp+rssRange < now {
 		return
 	}
 	title := escape(fileDecode(ca.Datfile))
-	path := application[ca.Typee] + querySeparator + strEncode(title)
-	ca.load()
-	for _, r := range ca.recs {
+	path := application["thread"] + querySeparator + strEncode(title)
+	recs := ca.loadRecords()
+	for _, r := range recs {
 		if r.Stamp+rssRange < now {
 			continue
 		}
@@ -178,19 +175,17 @@ func (g *gatewayCGI) appendRSS(rsss *RSS, ca *cache) {
 			continue
 		}
 		desc := rssTextFormat(r.GetBodyValue("body", ""))
-		content := g.rssHTMLFormat(r.GetBodyValue("body", ""), application[ca.Typee], title)
+		content := g.rssHTMLFormat(r.GetBodyValue("body", ""), application["thread"], title)
 		if attach := r.GetBodyValue("attach", ""); attach != "" {
 			suffix := r.GetBodyValue("suffix", "")
 			if reg := regexp.MustCompile("^[0-9A-Za-z]+$"); !reg.MatchString(suffix) {
 				suffix = "txt"
 			}
 			content += fmt.Sprintf("\n    <p><a href=\"http://%s%s%s%s/%s/%d.%s\">%d.%s</a></p>",
-				g.host(), application[ca.Typee], querySeparator, ca.Datfile, r.ID, r.Stamp, suffix, r.Stamp, suffix)
+				g.host(), application["thread"], querySeparator, ca.Datfile, r.ID, r.Stamp, suffix, r.Stamp, suffix)
 		}
 		permpath := path[1:]
-		if ca.Typee == "thread" {
-			permpath = fmt.Sprintf("%s/%s", path[1:], r.ID[:8])
-		}
+		permpath = fmt.Sprintf("%s/%s", path[1:], r.ID[:8])
 		rsss.append(permpath, title, rssTextFormat(r.GetBodyValue("name", "")), desc, content, ca.tags.getTagstrSlice(), r.Stamp, false)
 	}
 }
@@ -281,10 +276,10 @@ func printTitle(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	cl := newCacheList()
-	sort.Sort(sort.Reverse(sortByValidStamp{cl.Caches}))
+	sort.Sort(sort.Reverse(newSortByStamp(cl.Caches)))
 	outputCachelist := make([]*cache, 0, cl.Len())
 	for _, ca := range cl.Caches {
-		if time.Now().Unix() <= ca.ValidStamp+topRecentRange {
+		if time.Now().Unix() <= ca.readInfo().stamp+topRecentRange {
 			outputCachelist = append(outputCachelist, ca)
 		}
 	}
@@ -399,13 +394,14 @@ func newGatewayCGI(w http.ResponseWriter, r *http.Request) (gatewayCGI, error) {
 
 //makeOneRow makes one row of CSV depending on c.
 func (g *gatewayCGI) makeOneRow(c string, ca *cache, p, title string) string {
+	i := ca.readInfo()
 	switch c {
 	case "file":
 		return ca.Datfile
 	case "stamp":
-		return strconv.FormatInt(ca.ValidStamp, 10)
+		return strconv.FormatInt(i.stamp, 10)
 	case "date":
-		return time.Unix(ca.ValidStamp, 0).String()
+		return time.Unix(i.stamp, 0).String()
 	case "path":
 		return p
 	case "uri":
@@ -413,13 +409,13 @@ func (g *gatewayCGI) makeOneRow(c string, ca *cache, p, title string) string {
 			return "http://" + g.host() + p
 		}
 	case "type":
-		return ca.Typee
+		return "thread"
 	case "title":
 		return title
 	case "records":
-		return strconv.Itoa(ca.Len())
+		return strconv.Itoa(i.len)
 	case "size":
-		return strconv.Itoa(ca.Size())
+		return strconv.FormatInt(i.size, 10)
 	case "tag":
 		return ca.tags.string()
 	case "sugtag":
@@ -441,11 +437,7 @@ func (g *gatewayCGI) renderCSV(cl *cacheList) {
 	cwr := csv.NewWriter(g.wr)
 	for _, ca := range cl.Caches {
 		title := fileDecode(ca.Datfile)
-		var t, p string
-		if hasString(types, ca.Typee) {
-			t = ca.Typee
-			p = application[t] + querySeparator + strEncode(title)
-		}
+		p := application["thread"] + querySeparator + strEncode(title)
 		row := make([]string, len(cols))
 		for i, c := range cols {
 			row[i] = g.makeOneRow(c, ca, p, title)
@@ -473,7 +465,7 @@ func (g *gatewayCGI) printIndex(doChange bool) {
 	g.printParagraph("desc_" + str)
 	cl := newCacheList()
 	if doChange {
-		sort.Sort(sort.Reverse(sortByVelocity{cl.Caches}))
+		sort.Sort(sort.Reverse(newSortByVelocity(cl.Caches)))
 	}
 	g.printIndexList(cl.Caches, str, true, false)
 }
@@ -493,7 +485,7 @@ func (g *gatewayCGI) jumpNewFile() {
 	case t == "":
 		g.header(g.m["null_type"], "", nil, true)
 		g.footer(nil)
-	case hasString(types, t):
+	case t == "thread":
 		tag := strEncode(g.req.FormValue("tag"))
 		search := strEncode(g.req.FormValue("search_new_file"))
 		g.print302(application[t] + querySeparator + strEncode(link) + "?tag=" + tag + "&search_new_file" + search)

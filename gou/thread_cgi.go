@@ -178,8 +178,9 @@ func (t *threadCGI) setCookie(ca *cache, access string) []*http.Cookie {
 
 //printPageNavi renders page_navi.txt, part for paging.
 func (t *threadCGI) printPageNavi(path string, page int, ca *cache, id string) {
-	first := ca.Len() / threadPageSize
-	if ca.Len()%threadPageSize == 0 {
+	len := ca.readInfo().len
+	first := len / threadPageSize
+	if len%threadPageSize == 0 {
 		first++
 	}
 	pages := make([]int, first+1)
@@ -198,7 +199,7 @@ func (t *threadCGI) printPageNavi(path string, page int, ca *cache, id string) {
 		Pages          []int
 	}{
 		page,
-		ca.Len(),
+		len,
 		path,
 		id,
 		first,
@@ -250,7 +251,7 @@ func (t *threadCGI) printThreadHead(path, id string, page int, ca *cache, rss st
 	}
 	var access string
 	var newcookie []*http.Cookie
-	if useCookie && ca.Len() > 0 && id == "" && page == 0 {
+	if useCookie && ca.hasRecord() && id == "" && page == 0 {
 		cookie, err := t.req.Cookie("access")
 		if err == nil {
 			access = cookie.Value
@@ -267,9 +268,10 @@ func (t *threadCGI) printThreadHead(path, id string, page int, ca *cache, rss st
 func (t *threadCGI) printThreadTop(path, id string, nPage int, ca *cache) {
 	var lastrec *record
 	var resAnchor string
-	ids := ca.keys()
-	if ca.Len() > 0 && nPage == 0 && id == "" && len(ids) == 0 {
-		lastrec = ca.recs[ids[len(ids)-1]]
+	recs := ca.loadRecords()
+	ids := recs.keys()
+	if ca.hasRecord() && nPage == 0 && id == "" && len(ids) > 0 {
+		lastrec = recs[ids[len(ids)-1]]
 		resAnchor = t.resAnchor(lastrec.ID[:8], threadURL, t.path(), false)
 	}
 	s := struct {
@@ -298,7 +300,8 @@ func (t *threadCGI) printThreadTop(path, id string, nPage int, ca *cache) {
 
 //printThreadBody renders body(records list) part of thread page with paging.
 func (t *threadCGI) printThreadBody(id string, nPage int, ca *cache) {
-	ids := ca.keys()
+	recs := ca.loadRecords()
+	ids := recs.keys()
 	fmt.Fprintln(t.wr, "</p>\n<dl id=\"records\">")
 	from := len(ids) - threadPageSize*(nPage+1)
 	to := len(ids) - threadPageSize*(nPage)
@@ -319,7 +322,7 @@ func (t *threadCGI) printThreadBody(id string, nPage int, ca *cache) {
 	}
 
 	for _, k := range inrange {
-		rec := ca.get(k, nil)
+		rec := recs.get(k, nil)
 		if (id == "" || rec.ID[:8] == id) && rec.load() == nil {
 			t.printRecord(ca, rec)
 		}
@@ -337,7 +340,6 @@ func (t *threadCGI) printThread(path, id string, nPage int) {
 	}
 	filePath := fileEncode("thread", path)
 	ca := newCache(filePath)
-	ca.load()
 	rss := gatewayURL + "/rss"
 	if t.printThreadHead(path, id, nPage, ca, rss) != nil {
 		return
@@ -345,7 +347,7 @@ func (t *threadCGI) printThread(path, id string, nPage int) {
 	tags := strings.Fields(strings.TrimSpace(t.req.FormValue("tag")))
 	if t.isAdmin() && len(tags) > 0 {
 		ca.addTags(tags)
-		ca.syncStatus()
+		ca.syncTag()
 	}
 	t.printTag(ca)
 	t.printThreadTop(path, id, nPage, ca)
@@ -363,7 +365,7 @@ func (t *threadCGI) printThread(path, id string, nPage int) {
 	}
 	renderTemplate("thread_bottom", ss, t.wr)
 
-	if ca.Len() > 0 {
+	if ca.hasRecord() {
 		t.printPageNavi(path, nPage, ca, id)
 		fmt.Fprintf(t.wr, "</p>")
 	}
@@ -381,7 +383,8 @@ func (t *threadCGI) printThreadAjax(id string) {
 		return
 	}
 	fmt.Fprintln(t.wr, "<dl>")
-	for _, rec := range ca.recs {
+	recs := ca.loadRecords()
+	for _, rec := range recs {
 		if id == "" || rec.ID[:8] == id && rec.load() == nil {
 			t.printRecord(ca, rec)
 		}
@@ -603,7 +606,7 @@ func (t *threadCGI) doPost() string {
 		return ""
 	}
 	proxyClient := t.req.Header.Get("X_FORWARDED_FOR")
-	log.Printf("post %s/%d_%s from %s/%s\n", ca.Datfile, ca.stamp, rec.ID, t.req.RemoteAddr, proxyClient)
+	log.Printf("post %s/%d_%s from %s/%s\n", ca.Datfile, ca.readInfo().stamp, rec.ID, t.req.RemoteAddr, proxyClient)
 
 	if len(rec.recstr()) > recordLimit<<10 {
 		t.header(t.m["big_file"], "", nil, true)
@@ -617,8 +620,7 @@ func (t *threadCGI) doPost() string {
 	}
 
 	if ca.Exists() {
-		ca.addData(rec)
-		ca.syncStatus()
+		rec.sync()
 	} else {
 		t.print404(nil, "")
 		return ""
