@@ -166,6 +166,7 @@ var (
 	nodeDeny     *regexpList
 	dataKeyTable *DatakeyTable
 	que          *updateQue
+	utag         *userTag
 
 	suggestedTagTable *SuggestedTagTable
 	nodeManager       *NodeManager
@@ -181,6 +182,8 @@ var (
 	cacheMap = make(map[string]*cache)
 
 	fmutex sync.RWMutex
+
+	usertagIsDirty bool
 )
 
 //config represents ini file.
@@ -367,6 +370,7 @@ func InitVariables() {
 	nodeManager = newNodeManager()
 	recentList = newRecentList()
 	que = newUpdateQue()
+	utag = &userTag{}
 
 	var err error
 	reAdmin, err = regexp.Compile(reAdminStr)

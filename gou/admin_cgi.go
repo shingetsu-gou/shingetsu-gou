@@ -178,8 +178,8 @@ func printEdittag(w http.ResponseWriter, r *http.Request) {
 		adminURL,
 		datfile,
 		ca.tags.string(),
-		suggestedTagTable.sugtaglist[ca.Datfile],
-		userTagList(),
+		suggestedTagTable.get(ca.Datfile, nil),
+		userTag.get(),
 	}
 	a.header(fmt.Sprintf("%s: %s", a.m["edit_tag"], strTitle), "", nil, true)
 	renderTemplate("edit_tag", d, a.wr)
@@ -276,7 +276,7 @@ type DeleteRecord struct {
 
 //Getbody retuns contents of rec.
 func (d DeleteRecord) Getbody(rec *record) string {
-	err := rec.loadBody()
+	err := rec.load()
 	if err != nil {
 		log.Println(err)
 	}
@@ -366,7 +366,7 @@ func (d *DelFile) Gettitle(ca *cache) string {
 func (d *DelFile) GetContents(ca *cache) []string {
 	contents := make([]string, 0, 2)
 	for _, rec := range ca.recs {
-		err := rec.loadBody()
+		err := rec.load()
 		if err != nil {
 			log.Println(err)
 		}

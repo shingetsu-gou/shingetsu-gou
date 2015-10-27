@@ -142,7 +142,7 @@ func (l *ListItem) checkCache(ca *cache, target string) (string, bool) {
 	}
 	if l.tag != "" {
 		switch {
-		case ca.tags.hasTagstr(strings.ToLower(l.tag)):
+		case ca.hasTagstr(strings.ToLower(l.tag)):
 		case target == "recent" && suggestedTagTable.hasTagstr(ca.Datfile, strings.ToLower(l.tag)):
 		default:
 			return "", false
@@ -536,7 +536,7 @@ func (c *cgi) printIndexList(cl []*cache, target string, footer bool, searchNewF
 		target,
 		c.filter,
 		c.tag,
-		userTagList(),
+		userTag.get(),
 		cl,
 		gatewayURL,
 		adminURL,

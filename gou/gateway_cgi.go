@@ -173,7 +173,7 @@ func (g *gatewayCGI) appendRSS(rsss *RSS, ca *cache) {
 		if r.Stamp+rssRange < now {
 			continue
 		}
-		if err := r.loadBody(); err != nil {
+		if err := r.load(); err != nil {
 			log.Println(err)
 			continue
 		}
@@ -306,7 +306,7 @@ func printTitle(w http.ResponseWriter, r *http.Request) {
 	}{
 		outputCachelist,
 		"changes",
-		userTagList(),
+		userTag.get(),
 		g.mchURL(""),
 		g.mchCategories(),
 		g.m,

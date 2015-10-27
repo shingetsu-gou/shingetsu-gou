@@ -320,7 +320,7 @@ func (t *threadCGI) printThreadBody(id string, nPage int, ca *cache) {
 
 	for _, k := range inrange {
 		rec := ca.get(k, nil)
-		if (id == "" || rec.ID[:8] == id) && rec.loadBody() == nil {
+		if (id == "" || rec.ID[:8] == id) && rec.load() == nil {
 			t.printRecord(ca, rec)
 		}
 	}
@@ -382,7 +382,7 @@ func (t *threadCGI) printThreadAjax(id string) {
 	}
 	fmt.Fprintln(t.wr, "<dl>")
 	for _, rec := range ca.recs {
-		if id == "" || rec.ID[:8] == id && rec.loadBody() == nil {
+		if id == "" || rec.ID[:8] == id && rec.load() == nil {
 			t.printRecord(ca, rec)
 		}
 	}

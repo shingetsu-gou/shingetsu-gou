@@ -69,6 +69,7 @@ func (c *cache) addTags(vals []string) {
 	c.mutex.Lock()
 	defer c.mutex.Unlock()
 	c.tags.addString(vals)
+	userTag.setDirty()
 }
 
 //setTags set user tag list from vals.
@@ -76,10 +77,11 @@ func (c *cache) setTags(vals []string) {
 	c.mutex.Lock()
 	defer c.mutex.Unlock()
 	c.tags = newTagslice(vals)
+	userTag.setDirty()
 }
 
 //hasTagstr returns true if tag has tagstr.
-func (c *cache) hasTagstr(tagstr string) bool{
+func (c *cache) hasTagstr(tagstr string) bool {
 	c.mutex.RLock()
 	defer c.mutex.RUnlock()
 	return c.tags.hasTagstr(tagstr)
@@ -357,12 +359,12 @@ func (c *cache) addData(rec *record) {
 	if c.ValidStamp < rec.Stamp {
 		c.ValidStamp = rec.Stamp
 	}
-	rec.sync(true)
+	rec.sync()
 }
 
 //updateStamp updates cache's stamp to rec if rec is newer.
 func (c *cache) updateStamp(rec *record) {
-	rec.sync(false)
+	rec.sync()
 	if c.stamp < rec.Stamp {
 		c.stamp = rec.Stamp
 	}
@@ -544,6 +546,6 @@ func (c *cache) updateFromRecords() {
 		if time.Now().Add(-7 * 24 * time.Hour).Before(time.Unix(rec.Stamp, 0)) {
 			c.velocity++
 		}
-		rec.sync(false)
+		rec.sync()
 	}
 }

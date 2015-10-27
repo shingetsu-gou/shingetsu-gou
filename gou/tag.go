@@ -260,9 +260,29 @@ func (s *SuggestedTagTable) prune(recentlist *RecentList) {
 	}
 }
 
-func userTagList() tagslice {
+//UserTagList represents tags saved by the user.
+type userTag struct {
+	mutex   sync.Mutex
+	isClean bool
+	tags    tagslice
+}
+
+//setDirty sets dirty flag.
+func (u *userTag) setDirty() {
+	u.mutex.Lock()
+	defer u.mutex.Unlock()
+	u.isClean = false
+}
+
+//get reads tags from the disk and retrusn tagslice.
+func (u *userTag) get() tagslice {
 	fmutex.RLock()
+	u.mutex.Lock()
+	defer u.mutex.Unlock()
 	defer fmutex.RUnlock()
+	if u.isClean {
+		return u.tags
+	}
 	var tags tagslice
 	err := eachFiles(cacheDir, func(i os.FileInfo) error {
 		fname := path.Join(cacheDir, i.Name(), "tag.txt")
@@ -278,5 +298,7 @@ func userTagList() tagslice {
 	if err != nil {
 		log.Fatal(err)
 	}
+	u.tags = tags
+	u.isClean = true
 	return tags
 }

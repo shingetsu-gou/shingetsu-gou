@@ -39,18 +39,21 @@ import (
 	"regexp"
 	"strconv"
 	"strings"
+	"sync"
 )
 
 //record represents one record.
 type record struct {
 	RecordHead
-	contents             map[string]string
-	keyOrder             []string
-	noNeedToLoadAttached bool
+	contents map[string]string
+	keyOrder []string
+	mutex    sync.RWMutex
 }
 
 //len returns size of contents
 func (r *record) len() int {
+	r.mutex.RLock()
+	defer r.mutex.RUnlock()
 	return len(r.contents)
 }
 
@@ -77,6 +80,9 @@ func newRecord(datfile, idstr string) *record {
 
 //bodystr returns body part of one line in the record file.
 func (r *record) bodystr() string {
+	r.mutex.RLock()
+	defer r.mutex.RUnlock()
+
 	rs := make([]string, len(r.contents))
 	for i, k := range r.keyOrder {
 		rs[i] = k + ":" + r.contents[k]
@@ -86,6 +92,9 @@ func (r *record) bodystr() string {
 
 //HasBodyValue returns true if key k exists
 func (r *record) HasBodyValue(k string) bool {
+	r.mutex.RLock()
+	defer r.mutex.RUnlock()
+
 	if _, exist := r.contents[k]; exist {
 		return true
 	}
@@ -95,6 +104,9 @@ func (r *record) HasBodyValue(k string) bool {
 //getBodyValue returns value of key k
 //return def if not exists.
 func (r *record) GetBodyValue(k string, def string) string {
+	r.mutex.RLock()
+	defer r.mutex.RUnlock()
+
 	if v, exist := r.contents[k]; exist {
 		return v
 	}
@@ -107,14 +119,6 @@ func (r *record) path() string {
 		return ""
 	}
 	return filepath.Join(cacheDir, r.dathash(), "record", r.Idstr())
-}
-
-//bodyPath returns path for body (record without attach field)
-func (r *record) bodyPath() string {
-	if r.Idstr() == "" || r.datfile == "" {
-		return ""
-	}
-	return filepath.Join(cacheDir, r.dathash(), "body", r.Idstr())
 }
 
 //rmPath returns path for removed marker
@@ -140,6 +144,9 @@ func (r *record) Exists() bool {
 
 //parse parses one line in record file and response of /recent/ and set params to record r.
 func (r *record) parse(recstr string) error {
+	r.mutex.Lock()
+	defer r.mutex.Unlock()
+
 	var err error
 	recstr = strings.TrimRight(recstr, "\r\n")
 	tmp := strings.Split(recstr, "<>")
@@ -170,14 +177,13 @@ func (r *record) parse(recstr string) error {
 		r.keyOrder = append(r.keyOrder, buf[0])
 		r.contents[buf[0]] = buf[1]
 	}
-	if r.contents["attach"] != "-1" {
-		r.noNeedToLoadAttached = true
-	}
 	return nil
 }
 
 //size returns real file size of record.
 func (r *record) size() int64 {
+	fmutex.RLock()
+	defer fmutex.RUnlock()
 	s, err := os.Stat(r.path())
 	if err != nil {
 		log.Println(err)
@@ -189,6 +195,8 @@ func (r *record) size() int64 {
 //remove moves the record file  to remove path
 //and removes all thumbnails ,attached files and body files.
 func (r *record) remove() error {
+	fmutex.Lock()
+	defer fmutex.Unlock()
 	err := moveFile(r.path(), r.rmPath())
 	if err != nil {
 		log.Println(err)
@@ -204,15 +212,14 @@ func (r *record) remove() error {
 	if err != nil {
 		log.Println(err)
 	}
-	err = os.Remove(r.bodyPath())
-	if err != nil {
-		log.Println(err)
-	}
 	return nil
 }
 
-//_load loads a record file and parses it.
-func (r *record) _load(filename string) error {
+//load loads a record file and parses it.
+func (r *record) load() error {
+	fmutex.RLock()
+	defer fmutex.RUnlock()
+
 	if r.size() <= 0 {
 		err := r.remove()
 		if err != nil {
@@ -220,7 +227,7 @@ func (r *record) _load(filename string) error {
 		}
 		return errors.New("file not found")
 	}
-	c, err := ioutil.ReadFile(filename)
+	c, err := ioutil.ReadFile(r.path())
 	if err != nil {
 		log.Println(err)
 		return err
@@ -228,27 +235,10 @@ func (r *record) _load(filename string) error {
 	return r.parse(string(c))
 }
 
-//load loads a record file if file is attached and parses it.
-func (r *record) load() error {
-	if r.noNeedToLoadAttached {
-		return nil
-	}
-	return r._load(r.path())
-}
-
-//loadBody loads a body file if not yet and parses it.
-func (r *record) loadBody() error {
-	if r.contents != nil {
-		return nil
-	}
-	if IsFile(r.bodyPath()) {
-		return r._load(r.bodyPath())
-	}
-	return r.load()
-}
-
 //build sets params in record from args and return id.
 func (r *record) build(stamp int64, body map[string]string, passwd string) string {
+	r.mutex.Lock()
+	defer r.mutex.Unlock()
 	r.contents = make(map[string]string)
 	r.keyOrder = make([]string, len(body))
 	r.Stamp = stamp
@@ -281,6 +271,8 @@ func (r *record) md5check() bool {
 
 //allthumnailPath finds and returns all thumbnails path in disk
 func (r *record) allthumbnailPath() []string {
+	fmutex.RLock()
+	defer fmutex.RUnlock()
 	if r.path() == "" {
 		log.Println("null file name")
 		return nil
@@ -295,6 +287,7 @@ func (r *record) allthumbnailPath() []string {
 		return nil
 	})
 	if err != nil {
+		log.Println(err)
 		return nil
 	}
 	return thumbnail
@@ -321,6 +314,8 @@ func (r *record) attachPath(suffix string, thumbnailSize string) string {
 		}
 		return filepath.Join(dir, r.Idstr()+"."+suffix)
 	}
+	fmutex.RLock()
+	defer fmutex.RUnlock()
 	var result string
 	err := eachFiles(dir, func(fi os.FileInfo) error {
 		dname := fi.Name()
@@ -363,11 +358,14 @@ func (r *record) makeThumbnail(suffix string, thumbnailSize string) {
 		log.Println(thumbnailSize, "is illegal format")
 		return
 	}
+	fmutex.Lock()
+	defer fmutex.Unlock()
 	makeThumbnail(attachPath, thumbnailPath, suffix, uint(x), uint(y))
 }
 
 //saveAttached decodes base64 v and saves to attached , make and save thumbnail
-func (r *record) saveAttached(v string, force bool) {
+func (r *record) saveAttached(v string) {
+	fmutex.Lock()
 	attach, err := base64.StdEncoding.DecodeString(v)
 	if err != nil {
 		log.Println("cannot decode attached file")
@@ -380,42 +378,37 @@ func (r *record) saveAttached(v string, force bool) {
 		log.Println(err)
 		return
 	}
-	if force || !IsFile(thumbnailPath) {
+	fmutex.Unlock()
+	if !IsFile(thumbnailPath) {
 		r.makeThumbnail("", "")
 	}
 }
 
 //sync saves recstr to the file. if attached file exists, saves it to attached path.
 //and save body part to body path. if signed, also saves body part.
-func (r *record) sync(force bool) {
+func (r *record) sync() {
+	fmutex.Lock()
+	defer fmutex.Unlock()
+
 	if IsFile(r.rmPath()) {
 		return
 	}
-	if force || !IsFile(r.path()) {
+	if !IsFile(r.path()) {
 		err := writeFile(r.path(), r.recstr()+"\n")
 		if err != nil {
 			log.Println(err)
 		}
 	}
-	body := r.bodyString() + "\n"
 	if v, exist := r.contents["attach"]; exist {
-		if err := writeFile(r.bodyPath(), body); err != nil {
-			log.Println(err)
-			return
-		}
-		r.saveAttached(v, force)
-	}
-	if _, exist := r.contents["sign"]; exist {
-		err := writeFile(r.bodyPath(), body)
-		if err != nil {
-			log.Println(err)
-			return
-		}
+		r.saveAttached(v)
 	}
 }
 
 //bodyString retuns bodystr not including attach field, and shorten pubkey.
 func (r *record) bodyString() string {
+	r.mutex.RLock()
+	defer r.mutex.RUnlock()
+
 	buf := []string{
 		strconv.FormatInt(r.Stamp, 10),
 		r.ID,
@@ -439,6 +432,9 @@ func (r *record) bodyString() string {
 
 //checkSign check signature in the record is valid.
 func (r *record) checkSign() bool {
+	r.mutex.RLock()
+	defer r.mutex.RUnlock()
+
 	for _, k := range []string{"pubkey", "sign", "target"} {
 		if _, exist := r.contents[k]; !exist {
 			return false
@@ -461,6 +457,9 @@ func (r *record) checkSign() bool {
 
 //meets checks the record meets condisions of args
 func (r *record) meets(i string, stamp int64, id string, begin, end int64) bool {
+	r.mutex.RLock()
+	defer r.mutex.RUnlock()
+
 	if r.parse(i) != nil {
 		log.Println("parse NG")
 		return false

@@ -64,11 +64,11 @@ func newNodeManager() *NodeManager {
 
 //appendToList add node n to nodelist if it is allowd and list doesn't have it.
 func (lt *NodeManager) getFromList(n int) *node {
+	lt.mutex.RLock()
+	defer lt.mutex.RUnlock()
 	if lt.listLen() == 0 {
 		return nil
 	}
-	lt.mutex.RLock()
-	defer lt.mutex.RUnlock()
 	return lt.nodes[""][0]
 }
 
@@ -116,8 +116,8 @@ func (lt *NodeManager) getAllNodes() nodeSlice {
 //getNodestr returns nodestr of all nodes.
 func (lt *NodeManager) getNodestrSliceInTable(datfile string) []string {
 	lt.mutex.RLock()
+	defer lt.mutex.RUnlock()
 	n := lt.nodes["datfile"]
-	lt.mutex.RUnlock()
 	return n.getNodestrSlice()
 }
 
@@ -180,16 +180,14 @@ func (lt *NodeManager) hasNode(n *node) bool {
 
 //findNode returns datfile of node n, or -1 if not exist.
 func (lt *NodeManager) findNode(n *node) []string {
-	var r []string
 	lt.mutex.RLock()
+	defer lt.mutex.RUnlock()
+	var r []string
 	for k := range lt.nodes {
-		lt.mutex.RUnlock()
 		if lt.hasNodeInTable(k, n) {
 			r = append(r, k)
 		}
-		lt.mutex.RLock()
 	}
-	lt.mutex.RUnlock()
 	return r
 }
 
@@ -240,13 +238,9 @@ func (lt *NodeManager) moreNodes() {
 	count := 0
 	all := lt.getAllNodes()
 	for lt.nodeLen() < defaultNodes {
-		lt.mutex.RLock()
 		nn := all[no]
-		lt.mutex.RUnlock()
 		newN := nn.getNode()
-		if newN != nil {
-			lt.join(newN)
-		}
+		lt.join(newN)
 		if count++; count > retry {
 			count = 0
 			if no++; no >= len(all) {
@@ -288,16 +282,12 @@ func (lt *NodeManager) myself() *node {
 	if dnsname != "" {
 		return makeNode(dnsname, serverURL, ExternalPort)
 	}
-	lt.mutex.RLock()
 	for _, n := range lt.getAllNodes() {
-		lt.mutex.RUnlock()
 		if host, err := n.ping(); err == nil {
 			return makeNode(host, serverURL, ExternalPort)
 		}
 		log.Println("myself failed at", n.nodestr)
-		lt.mutex.RLock()
 	}
-	lt.mutex.RUnlock()
 	log.Println("myself failed")
 	return nil
 }
@@ -306,6 +296,9 @@ func (lt *NodeManager) myself() *node {
 //if n returns another nodes, repeats it and return true..
 //removes fron nodelist if not welcomed and return false.
 func (lt *NodeManager) join(n *node) bool {
+	if n == nil {
+		return false
+	}
 	flag := false
 	if lt.hasNode(n) {
 		return false
@@ -342,9 +335,9 @@ func (lt *NodeManager) tellUpdate(c *cache, stamp int64, id string, node *node) 
 	}
 	msg := strings.Join([]string{"/update", c.Datfile, strconv.FormatInt(stamp, 10), id, tellstr}, "/")
 
-	lt.mutex.RLock()
+	lt.mutex.Lock()
 	ns := lt.nodes[c.Datfile].extend(lt.nodes[""])
-	lt.mutex.RUnlock()
+	lt.mutex.Unlock()
 
 	for _, n := range ns {
 		_, err := n.talk(msg)
@@ -439,7 +432,10 @@ func (lt *NodeManager) rejoin() {
 		if lt.listLen() >= defaultNodes {
 			return
 		}
-		if lt.nodes[""].has(n) {
+		lt.mutex.RLock()
+		has := lt.nodes[""].has(n)
+		lt.mutex.RUnlock()
+		if has {
 			continue
 		}
 		if _, err := n.ping(); err == nil || !lt.join(n) {

@@ -170,7 +170,7 @@ func (c *cacheList) search(query *regexp.Regexp) caches {
 	var result []*cache
 	for _, ca := range c.Caches {
 		for _, rec := range ca.recs {
-			err := rec.loadBody()
+			err := rec.load()
 			if err != nil {
 				log.Println(err)
 			}
