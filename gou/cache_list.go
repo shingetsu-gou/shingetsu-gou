@@ -90,7 +90,7 @@ func (c *cacheList) getall() {
 			log.Println("client timeout")
 			return
 		}
-		ca.search(nil)
+		ca.search()
 		ca.checkAttach()
 	}
 }
@@ -203,7 +203,7 @@ func (c *cacheList) search(query *regexp.Regexp) caches {
 //cleanRecords remove old or duplicates records for each caches.
 func (c *cacheList) cleanRecords() {
 	for _, ca := range c.Caches {
-		recs:=ca.loadRecords()
+		recs := ca.loadRecords()
 		recs.removeRecords(saveRecord)
 	}
 }

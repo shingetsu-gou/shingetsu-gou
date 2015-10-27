@@ -119,7 +119,6 @@ func printStatus(w http.ResponseWriter, r *http.Request) {
 		records += i.len
 		size += i.size
 	}
-	my := nodeManager.myself()
 
 	var mem runtime.MemStats
 	runtime.ReadMemStats(&mem)
@@ -129,7 +128,7 @@ func printStatus(w http.ResponseWriter, r *http.Request) {
 		"files":        strconv.Itoa(cl.Len()),
 		"records":      strconv.Itoa(records),
 		"cache_size":   fmt.Sprintf("%.1f%s", float64(size)/1024/1024, a.m["mb"]),
-		"self_node":    my.nodestr,
+		"self_node":    myself.nodestr,
 		"alloc_mem":    fmt.Sprintf("%.1f%s", float64(mem.Alloc)/1024/1024, a.m["mb"]),
 	}
 	ns := map[string][]string{
@@ -178,7 +177,7 @@ func printEdittag(w http.ResponseWriter, r *http.Request) {
 		a.m,
 		adminURL,
 		datfile,
-		ca.tags.string(),
+		ca.tagString(),
 		suggestedTagTable.get(ca.Datfile, nil),
 		utag.get(),
 	}

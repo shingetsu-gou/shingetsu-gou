@@ -71,6 +71,36 @@ func (c *cache) setTags(vals []string) {
 	utag.setDirty()
 }
 
+//lenTags returns # of set user tag.
+func (c *cache) lenTags() int {
+	c.mutex.Lock()
+	defer c.mutex.Unlock()
+	return c.tags.Len()
+}
+
+//tagString returns string of user tag.
+func (c *cache) tagString() string {
+	c.mutex.Lock()
+	defer c.mutex.Unlock()
+	return c.tags.string()
+}
+
+//tagstr returns string of user tag.
+func (c *cache) getTagstrSlice() []string {
+	c.mutex.Lock()
+	defer c.mutex.Unlock()
+	return c.tags.getTagstrSlice()
+}
+
+//getTags returns copy of usertags.
+func (c *cache) getTags() tagslice {
+	c.mutex.RLock()
+	defer c.mutex.RUnlock()
+	ts := make([]*tag, c.tags.Len())
+	copy(ts, c.tags)
+	return tagslice(ts)
+}
+
 //hasTagstr returns true if tag has tagstr.
 func (c *cache) hasTagstr(tagstr string) bool {
 	c.mutex.RLock()
@@ -116,11 +146,21 @@ func (c *cache) recentStamp() int64 {
 }
 
 //newCache read files to set params and returns cache obj.
+//it uses sync.pool to ensure that only one cache obj exists for one datfile.
+//and garbage collected when not used.
 func newCache(datfile string) *cache {
-	c := &cache{
-		Datfile: datfile,
+	p, exist := cacheMap[datfile]
+	if !exist {
+		p.New = func() interface{} {
+			c := &cache{
+				Datfile: datfile,
+			}
+			c.tags = loadTagslice(path.Join(c.datpath(), "tag.txt"))
+			return c
+		}
 	}
-	c.tags = loadTagslice(path.Join(c.datpath(), "tag.txt"))
+	c := p.Get().(*cache)
+	p.Put(c)
 	return c
 }
 
@@ -194,6 +234,8 @@ func (c *cache) hasRecord() bool {
 func (c *cache) syncTag() {
 	fmutex.Lock()
 	defer fmutex.Unlock()
+	c.mutex.RLock()
+	c.mutex.RUnlock()
 	c.tags.sync(path.Join(c.datpath(), "tag.txt"))
 }
 
@@ -333,15 +375,11 @@ func (c *cache) Exists() bool {
 
 //search checks  nodes in lookuptable have the cache.
 //if found adds to nodelist ,get records , and adds to nodes in cache.
-func (c *cache) search(myself *node) bool {
-	if myself == nil {
-		myself = nodeManager.myself()
-	}
-	n := nodeManager.search(c, myself, nodeManager.get(c.Datfile, nil))
+func (c *cache) search() bool {
+	n := nodeManager.search(c, nodeManager.get(c.Datfile, nil))
 	if n != nil {
 		c.getWithRange(n)
 		return true
 	}
 	return false
 }
-

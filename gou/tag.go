@@ -278,8 +278,8 @@ func (u *userTag) setDirty() {
 func (u *userTag) get() tagslice {
 	fmutex.RLock()
 	u.mutex.Lock()
-	defer u.mutex.Unlock()
 	defer fmutex.RUnlock()
+	defer u.mutex.Unlock()
 	if u.isClean {
 		return u.tags
 	}

@@ -192,9 +192,9 @@ func (m *mchCGI) threadApp(board, datkey string) {
 
 	if m.checkGetCache() {
 		if data.Exists() || i.len == 0 {
-			data.search(nil)
+			data.search()
 		} else {
-			go data.search(nil)
+			go data.search()
 		}
 	}
 

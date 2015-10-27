@@ -135,6 +135,11 @@ func (n *node) ping() (string, error) {
 	}
 	if res[0] == "PONG" && len(res) == 2 {
 		log.Println("ponged,i am", res[1])
+		if dnsname != "" {
+			myself = makeNode(dnsname, serverURL, ExternalPort)
+		} else {
+			myself = newNode(res[1])
+		}
 		return res[1], nil
 	}
 	log.Println("/ping", n.nodestr, "error")

@@ -217,8 +217,8 @@ func doRecent(w http.ResponseWriter, r *http.Request) {
 		}
 		ca := newCache(i.datfile)
 		cont := fmt.Sprintf("%d<>%s<>%s", i.Stamp, i.ID, i.datfile)
-		if ca.tags != nil && ca.tags.Len() > 0 {
-			cont += "<>tag:" + ca.tags.string()
+		if ca.lenTags() > 0 {
+			cont += "<>tag:" + ca.tagString()
 		}
 		_, err := fmt.Fprintf(w, "%s\n", cont)
 		if err != nil {

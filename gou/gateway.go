@@ -165,8 +165,8 @@ func (l ListItem) Render(ca *cache, remove bool, target string, search bool) tem
 	}
 	var sugtags []*tag
 	if target == "recent" {
-		strTags := make([]string, ca.tags.Len())
-		for i, v := range ca.tags {
+		strTags := make([]string, ca.lenTags())
+		for i, v := range ca.getTags() {
 			strTags[i] = strings.ToLower(v.Tagstr)
 		}
 		for _, st := range suggestedTagTable.get(ca.Datfile, nil) {
@@ -177,7 +177,7 @@ func (l ListItem) Render(ca *cache, remove bool, target string, search bool) tem
 	}
 	l.Cache = ca
 	l.Title = x
-	l.Tags = ca.tags
+	l.Tags = ca.getTags()
 	l.Sugtags = sugtags
 	l.Target = target
 	l.Remove = remove

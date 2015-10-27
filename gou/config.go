@@ -176,9 +176,11 @@ var (
 	ttemplates = textTemplate.New("")
 
 	cgis     chan *cgi
-	cacheMap = make(map[string]*sync.Pool)
+	cacheMap = make(map[string]sync.Pool)
 
 	fmutex sync.RWMutex
+
+	myself *node
 
 	usertagIsDirty bool
 )

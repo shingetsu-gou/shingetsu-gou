@@ -263,9 +263,8 @@ func (lt *NodeManager) initialize() {
 			break
 		}
 	}
-	my := lt.myself()
-	if my != nil {
-		lt.removeFromAllTable(my)
+	if myself != nil {
+		lt.removeFromAllTable(myself)
 	}
 	if lt.nodeLen() > 0 {
 		lt.moreNodes()
@@ -274,22 +273,6 @@ func (lt *NodeManager) initialize() {
 		log.Println("few linked nodes")
 	}
 	lt.sync()
-}
-
-//myself makes mynode info from dnsname.
-//if dnsname is empty ping to a node in nodelist and get info of myself.
-func (lt *NodeManager) myself() *node {
-	if dnsname != "" {
-		return makeNode(dnsname, serverURL, ExternalPort)
-	}
-	for _, n := range lt.getAllNodes() {
-		if host, err := n.ping(); err == nil {
-			return makeNode(host, serverURL, ExternalPort)
-		}
-		log.Println("myself failed at", n.nodestr)
-	}
-	log.Println("myself failed")
-	return nil
 }
 
 //join tells n to join and adds n to nodelist if welcomed.
@@ -329,7 +312,7 @@ func (lt *NodeManager) tellUpdate(c *cache, stamp int64, id string, node *node) 
 	case node != nil:
 		tellstr = node.toxstring()
 	case dnsname != "":
-		tellstr = lt.myself().toxstring()
+		tellstr = myself.toxstring()
 	default:
 		tellstr = ":" + strconv.Itoa(ExternalPort) + strings.Replace(serverURL, "/", "+", -1)
 	}
@@ -394,7 +377,7 @@ func (lt *NodeManager) sync() {
 //search checks one allowed nodes which selected randomly from nodes has the datfile record.
 //if not found,n is removed from lookuptable. also if not pingable  removes n from searchlist and cache c.
 //if found, n is added to lookuptable.
-func (lt *NodeManager) search(c *cache, myself *node, nodes []*node) *node {
+func (lt *NodeManager) search(c *cache, nodes []*node) *node {
 	lt.mutex.RLock()
 	ns := lt.nodes[c.Datfile].extend(nodes)
 	lt.mutex.RUnlock()

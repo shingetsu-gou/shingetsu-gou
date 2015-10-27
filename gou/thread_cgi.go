@@ -224,7 +224,7 @@ func (t *threadCGI) printTag(ca *cache) {
 		Message    message
 	}{
 		ca.Datfile,
-		ca.tags.getTagstrSlice(),
+		ca.getTagstrSlice(),
 		"tags",
 		"changes",
 		gatewayURL,
@@ -243,7 +243,7 @@ func (t *threadCGI) printThreadHead(path, id string, page int, ca *cache, rss st
 		if t.req.FormValue("search_new_file") != "" {
 			ca.setupDirectories()
 		} else {
-			ca.search(nil)
+			ca.search()
 		}
 	default:
 		t.print404(nil, id)
@@ -515,7 +515,7 @@ func (t *threadCGI) printAttach(datfile, id string, stamp int64, thumbnailSize, 
 	switch {
 	case ca.hasRecord():
 	case t.checkGetCache():
-		ca.search(nil)
+		ca.search()
 	default:
 		t.print404(ca, "")
 		return
