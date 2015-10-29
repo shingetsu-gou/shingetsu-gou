@@ -30,7 +30,6 @@ package gou
 
 import (
 	"fmt"
-	"io"
 	"io/ioutil"
 	"log"
 	"net"
@@ -44,36 +43,11 @@ import (
 	"golang.org/x/net/netutil"
 
 	"github.com/gorilla/handlers"
-
-	"gopkg.in/natefinch/lumberjack.v2"
 )
 
-//SetLogger setups logger. whici outputs nothing, or file , or file and stdout
-func SetLogger(printLog, isSilent bool) {
-	setting := newConfig()
-	logDir = setting.getPathValue("Path", "log_dir", "./log") //path from cwd
-
-	l := &lumberjack.Logger{
-		Filename:   path.Join(logDir, "gou.log"),
-		MaxSize:    1, // megabytes
-		MaxBackups: 2,
-		MaxAge:     28, //days
-	}
-	fmt.Println(logDir)
-	switch {
-	case isSilent:
-		log.SetOutput(ioutil.Discard)
-	case printLog:
-		m := io.MultiWriter(os.Stdout, l)
-		log.SetOutput(m)
-	default:
-		log.SetOutput(l)
-	}
-}
-
 //SetupDaemon setups document root and necessary dirs.
-func SetupDaemon() {
-	for _, j := range []string{runDir, cacheDir, logDir} {
+func SetupDaemon(cfg *Config) {
+	for _, j := range []string{cfg.RunDir, cfg.CacheDir, cfg.LogDir} {
 		if !IsDir(j) {
 			err := os.Mkdir(j, 0755)
 			if err != nil {
@@ -81,32 +55,33 @@ func SetupDaemon() {
 			}
 		}
 	}
+	NodeSetup(cfg.EnableNAT, cfg.DefaultPort, cfg.InitnodeList)
+	CGISetup(cfg.MaxConnection)
+	TemplateSetup(cfg.TemplateDir)
+	DatakeySetup(cfg.RunDir)
+	TagSetup(cfg.Sugtag(), cfg.CacheDir)
+	QueSetup()
+	RecentListSetup(cfg.Recent())
+	RecordSetup(cfg.SpamList)
 }
 
 //StartDaemon rm lock files, save pid, start cron job and a http server.
-func StartDaemon() {
-	for _, l := range []string{lock, searchLock, adminSearch} {
-		if IsFile(l) {
-			if err := os.Remove(l); err != nil {
-				log.Println(err)
-			}
-		}
-	}
+func StartDaemon(cfg *Config) {
 	p := os.Getpid()
-	err := ioutil.WriteFile(pid, []byte(strconv.Itoa(p)), 0666)
+	err := ioutil.WriteFile(cfg.PID(), []byte(strconv.Itoa(p)), 0666)
 	if err != nil {
 		log.Println(err)
 	}
-
-	listener, err := net.Listen("tcp", fmt.Sprintf("0.0.0.0:%d", DefaultPort))
+	h := fmt.Sprintf("0.0.0.0:%d", cfg.DefaultPort)
+	listener, err := net.Listen("tcp", h)
 	if err != nil {
 		log.Fatalln(err)
 	}
-	limitListener := netutil.LimitListener(listener, maxConnection)
+	limitListener := netutil.LimitListener(listener, cfg.MaxConnection)
 
 	sm := newLoggingServeMux()
 	s := &http.Server{
-		Addr:           "0.0.0.0:" + strconv.Itoa(DefaultPort),
+		Addr:           h,
 		Handler:        sm,
 		ReadTimeout:    60 * time.Second,
 		WriteTimeout:   60 * time.Second,
@@ -115,13 +90,13 @@ func StartDaemon() {
 
 	go cron()
 	sm.registerPprof()
-	sm.registCompressHandler("/", handleRoot)
-	adminSetup(sm)
+	sm.registCompressHandler("/", handleRoot(cfg.Docroot))
+	adminSetup(sm, cfg.AdminSid())
 	serverSetup(sm)
 	gatewaySetup(sm)
 	threadSetup(sm)
 
-	if enable2ch {
+	if cfg.Enable2ch {
 		fmt.Println("started 2ch interface...")
 		mchSetup(sm)
 	}
@@ -159,20 +134,22 @@ func (s *loggingServeMux) registCompressHandler(path string, fn func(w http.Resp
 	s.Handle(path, handlers.CompressHandler(http.HandlerFunc(fn)))
 }
 
-//handleRoot handles url not defined other handlers.
+//handleRoot return handler that handles url not defined other handlers.
 //if root, print titles of threads. if not, serve files on disk.
-func handleRoot(w http.ResponseWriter, r *http.Request) {
-	if r.URL.Path == "/" {
-		printTitle(w, r)
-		return
-	}
-	pathOnDisk := path.Join(docroot, r.URL.Path)
+func handleRoot(docroot string) func(http.ResponseWriter, *http.Request) {
+	return func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path == "/" {
+			printTitle(w, r)
+			return
+		}
+		pathOnDisk := path.Join(docroot, r.URL.Path)
 
-	if IsFile(pathOnDisk) {
-		http.ServeFile(w, r, pathOnDisk)
-		return
-	}
+		if IsFile(pathOnDisk) {
+			http.ServeFile(w, r, pathOnDisk)
+			return
+		}
 
-	log.Println("not found", r.URL.Path)
-	http.NotFound(w, r)
+		log.Println("not found", r.URL.Path)
+		http.NotFound(w, r)
+	}
 }

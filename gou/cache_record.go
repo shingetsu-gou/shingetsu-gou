@@ -29,8 +29,11 @@
 package gou
 
 import (
+	"crypto/md5"
 	"encoding/base64"
+	"encoding/binary"
 	"errors"
+	"fmt"
 	"io/ioutil"
 	"log"
 	"os"
@@ -43,8 +46,114 @@ import (
 	"time"
 )
 
+var cachedRule *regexpList
+
+func RecordSetup(spamlist string) {
+	cachedRule = newRegexpList(spamlist)
+}
+
+//RecordHead represents one line in updatelist/recentlist
+type RecordHead struct {
+	datfile string //cache file name
+	Stamp   int64  //unixtime
+	ID      string //md5(bodystr)
+}
+
+//newUpdateInfoFromLine parse one line in udpate/recent list and returns updateInfo obj.
+func newRecordHeadFromLine(line string) (*RecordHead, error) {
+	strs := strings.Split(strings.TrimRight(line, "\n\r"), "<>")
+	if len(strs) < 3 {
+		err := errors.New("illegal format")
+		log.Println(err)
+		return nil, err
+	}
+	u := &RecordHead{
+		ID:      strs[1],
+		datfile: strs[2],
+	}
+	var err error
+	u.Stamp, err = strconv.ParseInt(strs[0], 10, 64)
+	if err != nil {
+		log.Println(err)
+		return nil, err
+	}
+	return u, nil
+}
+
+//equals returns true if u=v
+func (u *RecordHead) equals(rec *RecordHead) bool {
+	return u.datfile == rec.datfile && u.ID == rec.ID && u.Stamp == rec.Stamp
+}
+
+//hash returns md5 of RecordHead.
+func (u *RecordHead) hash() [16]byte {
+	m := md5.New()
+	m.Write([]byte(u.datfile))
+	binary.Write(m, binary.LittleEndian, u.Stamp)
+	m.Write([]byte(u.ID))
+	var r [16]byte
+	m.Sum(r[:])
+	return r
+}
+
+//recstr returns one line of update/recentlist file.
+func (u *RecordHead) recstr() string {
+	return fmt.Sprintf("%d<>%s<>%s", u.Stamp, u.ID, u.datfile)
+}
+
+//Idstr returns real file name of the record file.
+func (u *RecordHead) Idstr() string {
+	return fmt.Sprintf("%d_%s", u.Stamp, u.ID)
+}
+
+type recordHeads []*RecordHead
+
+//Less returns true if stamp of infos[i] < [j]
+func (r recordHeads) Less(i, j int) bool {
+	return r[i].Stamp < r[j].Stamp
+}
+
+//Swap swaps infos order.
+func (r recordHeads) Swap(i, j int) {
+	r[i], r[j] = r[j], r[i]
+}
+
+//Len returns size of infos
+func (r recordHeads) Len() int {
+	return len(r)
+}
+
+//has returns true if recordHeads has rec.
+func (r recordHeads) has(rec *RecordHead) bool {
+	for _, v := range r {
+		if v.equals(rec) {
+			return true
+		}
+	}
+	return false
+}
+
+type recordConfig struct {
+	spamList             string
+	defaultThumbnailSize string
+	cacheDir             string
+	saveSize             int
+	fmutex               *sync.RWMutex
+}
+
+func newRecordConfig(cfg *Config) *recordConfig {
+	return &recordConfig{
+		spamList:             cfg.SpamList,
+		defaultThumbnailSize: cfg.DefaultThumbnailSize,
+		cacheDir:             cfg.CacheDir,
+		saveSize:             cfg.SaveSize,
+		fmutex:               &cfg.Fmutex,
+	}
+}
+
 //record represents one record.
 type record struct {
+	*recordConfig
 	RecordHead
 	contents map[string]string
 	keyOrder []string
@@ -135,7 +244,7 @@ func (r *record) path() string {
 	if r.Idstr() == "" || r.datfile == "" {
 		return ""
 	}
-	return filepath.Join(cacheDir, r.dathash(), "record", r.Idstr())
+	return filepath.Join(r.cacheDir, r.dathash(), "record", r.Idstr())
 }
 
 //rmPath returns path for removed marker
@@ -143,7 +252,7 @@ func (r *record) rmPath() string {
 	if r.Idstr() == "" || r.datfile == "" {
 		return ""
 	}
-	return filepath.Join(cacheDir, r.dathash(), "removed", r.Idstr())
+	return filepath.Join(r.cacheDir, r.dathash(), "removed", r.Idstr())
 }
 
 //dathash returns the same string as datfile if encoding=asis
@@ -199,8 +308,8 @@ func (r *record) parse(recstr string) error {
 
 //size returns real file size of record.
 func (r *record) size() int64 {
-	fmutex.RLock()
-	defer fmutex.RUnlock()
+	r.fmutex.RLock()
+	defer r.fmutex.RUnlock()
 	s, err := os.Stat(r.path())
 	if err != nil {
 		log.Println(err)
@@ -212,8 +321,8 @@ func (r *record) size() int64 {
 //remove moves the record file  to remove path
 //and removes all thumbnails ,attached files and body files.
 func (r *record) remove() error {
-	fmutex.Lock()
-	defer fmutex.Unlock()
+	r.fmutex.Lock()
+	defer r.fmutex.Unlock()
 	err := moveFile(r.path(), r.rmPath())
 	if err != nil {
 		log.Println(err)
@@ -234,8 +343,8 @@ func (r *record) remove() error {
 
 //load loads a record file and parses it.
 func (r *record) load() error {
-	fmutex.RLock()
-	defer fmutex.RUnlock()
+	r.fmutex.RLock()
+	defer r.fmutex.RUnlock()
 
 	if !r.Exists() {
 		err := r.remove()
@@ -288,13 +397,13 @@ func (r *record) md5check() bool {
 
 //allthumnailPath finds and returns all thumbnails path in disk
 func (r *record) allthumbnailPath() []string {
-	fmutex.RLock()
-	defer fmutex.RUnlock()
+	r.fmutex.RLock()
+	defer r.fmutex.RUnlock()
 	if r.path() == "" {
 		log.Println("null file name")
 		return nil
 	}
-	dir := filepath.Join(cacheDir, r.dathash(), "attach")
+	dir := filepath.Join(r.cacheDir, r.dathash(), "attach")
 	var thumbnail []string
 	err := eachFiles(dir, func(fi os.FileInfo) error {
 		dname := fi.Name()
@@ -319,7 +428,7 @@ func (r *record) attachPath(suffix string, thumbnailSize string) string {
 		log.Println("null file name")
 		return ""
 	}
-	dir := filepath.Join(cacheDir, r.dathash(), "attach")
+	dir := filepath.Join(r.cacheDir, r.dathash(), "attach")
 	if suffix != "" {
 		reg := regexp.MustCompile(`[^-_.A-Za-z0-9]`)
 		reg.ReplaceAllString(suffix, "")
@@ -331,8 +440,8 @@ func (r *record) attachPath(suffix string, thumbnailSize string) string {
 		}
 		return filepath.Join(dir, r.Idstr()+"."+suffix)
 	}
-	fmutex.RLock()
-	defer fmutex.RUnlock()
+	r.fmutex.RLock()
+	defer r.fmutex.RUnlock()
 	var result string
 	err := eachFiles(dir, func(fi os.FileInfo) error {
 		dname := fi.Name()
@@ -350,7 +459,7 @@ func (r *record) attachPath(suffix string, thumbnailSize string) string {
 //makeThumbnail fixes suffix,thumbnailSize and calls makeThumbnailInternal.
 func (r *record) makeThumbnail(suffix string, thumbnailSize string) {
 	if thumbnailSize == "" {
-		thumbnailSize = defaultThumbnailSize
+		thumbnailSize = r.defaultThumbnailSize
 	}
 	if thumbnailSize == "" {
 		return
@@ -375,27 +484,27 @@ func (r *record) makeThumbnail(suffix string, thumbnailSize string) {
 		log.Println(thumbnailSize, "is illegal format")
 		return
 	}
-	fmutex.Lock()
-	defer fmutex.Unlock()
+	r.fmutex.Lock()
+	defer r.fmutex.Unlock()
 	makeThumbnail(attachPath, thumbnailPath, suffix, uint(x), uint(y))
 }
 
 //saveAttached decodes base64 v and saves to attached , make and save thumbnail
 func (r *record) saveAttached(v string) {
-	fmutex.Lock()
+	r.fmutex.Lock()
 	attach, err := base64.StdEncoding.DecodeString(v)
 	if err != nil {
 		log.Println("cannot decode attached file")
 		return
 	}
 	attachPath := r.attachPath(r.GetBodyValue("suffix", "txt"), "")
-	thumbnailPath := r.attachPath(r.GetBodyValue("suffix", "jpg"), defaultThumbnailSize)
+	thumbnailPath := r.attachPath(r.GetBodyValue("suffix", "jpg"), r.defaultThumbnailSize)
 
 	if err = writeFile(attachPath, string(attach)); err != nil {
 		log.Println(err)
 		return
 	}
-	fmutex.Unlock()
+	r.fmutex.Unlock()
 	if !IsFile(thumbnailPath) {
 		r.makeThumbnail("", "")
 	}
@@ -404,8 +513,8 @@ func (r *record) saveAttached(v string) {
 //sync saves recstr to the file. if attached file exists, saves it to attached path.
 //and save body part to body path. if signed, also saves body part.
 func (r *record) sync() {
-	fmutex.Lock()
-	defer fmutex.Unlock()
+	r.fmutex.Lock()
+	defer r.fmutex.Unlock()
 
 	if IsFile(r.rmPath()) {
 		return
@@ -500,6 +609,11 @@ func (r *record) meets(i string, stamp int64, id string, begin, end int64) bool 
 	return true
 }
 
+//isSpam returns true if recstr is listed in spam.txt
+func (r *record) isSpam() bool {
+	return cachedRule.check(r.recstr())
+}
+
 type recordMap map[string]*record
 
 //get returns records which hav key=i.
@@ -525,9 +639,7 @@ func (r recordMap) keys() []string {
 
 //removeRecords remove old records while remaing #saveSize records.
 //and also removes duplicates recs.
-func (r recordMap) removeRecords(limit int64) {
-	fmutex.Lock()
-	defer fmutex.Unlock()
+func (r recordMap) removeRecords(limit int64,saveSize int) {
 	ids := r.keys()
 	if saveSize < len(ids) {
 		ids = ids[:len(ids)-saveSize]

@@ -45,13 +45,21 @@ import (
 	"time"
 )
 
+//AdminURL is the url to admin.cgi
+const AdminURL = "/admin.cgi"
+
+var (
+	adminSID string
+)
+
 //adminSetups registers handlers for admin.cgi
-func adminSetup(s *loggingServeMux) {
-	s.registCompressHandler("/admin.cgi/status", printStatus)
-	s.registCompressHandler("/admin.cgi/edittag", printEdittag)
-	s.registCompressHandler("/admin.cgi/savetag", saveTagCGI)
-	s.registCompressHandler("/admin.cgi/search", printSearch)
-	s.registCompressHandler("/admin.cgi/", execCmd)
+func adminSetup(s *loggingServeMux, _adminSID string) {
+	adminSID = _adminSID
+	s.registCompressHandler(AdminURL+"/status", printStatus)
+	s.registCompressHandler(AdminURL+"/edittag", printEdittag)
+	s.registCompressHandler(AdminURL+"/savetag", saveTagCGI)
+	s.registCompressHandler(AdminURL+"/search", printSearch)
+	s.registCompressHandler(AdminURL+"/", execCmd)
 }
 
 //execCmd execute command specified cmd form.
@@ -175,7 +183,7 @@ func printEdittag(w http.ResponseWriter, r *http.Request) {
 		Usertags tagslice
 	}{
 		a.m,
-		adminURL,
+		AdminURL,
 		datfile,
 		ca.tagString(),
 		suggestedTagTable.get(ca.Datfile, nil),
@@ -209,9 +217,9 @@ func saveTagCGI(w http.ResponseWriter, r *http.Request) {
 	var next string
 	title := strEncode(fileDecode(datfile))
 	if strings.HasPrefix(datfile, "thread_") {
-		next = application["thread"] + querySeparator + title
+		next = ThreadURL + "/" + title
 	} else {
-		next = rootPath
+		next = "/"
 	}
 	a.print302(next)
 }
@@ -241,7 +249,7 @@ func (a *adminCGI) makeSid() string {
 		r += strconv.Itoa(rand.Int())
 	}
 	sid := md5digest(r)
-	err := ioutil.WriteFile(adminSid, []byte(sid+"\n"), 0755)
+	err := ioutil.WriteFile(adminSID, []byte(sid+"\n"), 0755)
 	if err != nil {
 		log.Println(err)
 	}
@@ -251,13 +259,13 @@ func (a *adminCGI) makeSid() string {
 //checkSid returns true if form value of "sid" == saved sid.
 func (a *adminCGI) checkSid() bool {
 	sid := a.req.FormValue("sid")
-	bsaved, err := ioutil.ReadFile(adminSid)
+	bsaved, err := ioutil.ReadFile(adminSID)
 	if err != nil {
 		log.Println(err)
 		return false
 	}
 	saved := strings.TrimRight(string(bsaved), "\r\n")
-	if err := os.Remove(adminSid); err != nil {
+	if err := os.Remove(adminSID); err != nil {
 		log.Println(err)
 	}
 	return sid == saved
@@ -296,7 +304,7 @@ func (a *adminCGI) printDeleteRecord(rmFiles []string, records []string) {
 	}
 	d := DeleteRecord{
 		a.m,
-		adminURL,
+		AdminURL,
 		datfile,
 		recs,
 		sid,
@@ -318,10 +326,10 @@ func (a *adminCGI) doDeleteRecord(rmFiles []string, records []string, dopost str
 		return
 	}
 	datfile := rmFiles[0]
-	next := rootPath
+	next := "/"
 	title := strEncode(fileDecode(datfile))
 	if strings.HasPrefix(title, "thread_") {
-		next = application["thread"] + querySeparator + title
+		next = ThreadURL + "/" + title
 	}
 	ca := newCache(datfile)
 	for _, r := range records {
@@ -402,7 +410,7 @@ func (a *adminCGI) printDeleteFile(files []string) {
 	}
 	d := DelFile{
 		a.m,
-		adminURL,
+		AdminURL,
 		cas,
 		sid,
 	}
@@ -424,7 +432,7 @@ func (a *adminCGI) doDeleteFile(files []string) {
 		ca := newCache(c)
 		ca.remove()
 	}
-	a.print302(gatewayURL + querySeparator + "changes")
+	a.print302(GatewayURL + "/" + "changes")
 }
 
 //printSearchForm renders search_form.txt
@@ -435,7 +443,7 @@ func (a *adminCGI) printSearchForm(query string) {
 		Message  message
 	}{
 		query,
-		adminURL,
+		AdminURL,
 		a.m,
 	}
 	renderTemplate("search_form", d, a.wr)

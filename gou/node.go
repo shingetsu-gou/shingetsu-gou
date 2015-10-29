@@ -39,13 +39,18 @@ import (
 	"time"
 )
 
+var (
+	myself       *node
+	externalPort int
+)
+
 //urlopen retrievs html data from url
 func urlopen(url string, timeout time.Duration) ([]string, error) {
 	req, err := http.NewRequest("GET", url, nil)
 	if err != nil {
 		log.Fatal(err)
 	}
-	req.Header.Set("User-Agent", version)
+	req.Header.Set("User-Agent", getVersion())
 
 	client := &http.Client{
 		Timeout: timeout,
@@ -64,8 +69,23 @@ func urlopen(url string, timeout time.Duration) ([]string, error) {
 	return lines, err
 }
 
+type nodeConfig struct {
+	serverName string
+	nodeAllow  *regexpList
+	nodeDeny   *regexpList
+}
+
+func newNodeConfig(cfg *Config) *nodeConfig {
+	return &nodeConfig{
+		serverName: cfg.ServerName,
+		nodeAllow:  newRegexpList(cfg.NodeAllowFile),
+		nodeDeny:   newRegexpList(cfg.NodeDenyFile),
+	}
+}
+
 //node represents node info.
 type node struct {
+	*nodeConfig
 	nodestr string
 }
 
@@ -107,6 +127,10 @@ func (n *node) toxstring() string {
 
 //talk talks with n with the message and returns data.
 func (n *node) talk(message string) ([]string, error) {
+	const defaultTimeout = 20 * time.Second // Seconds; Timeout for TCP
+
+	const getTimeout = 2 * time.Minute // Seconds; Timeout for /get
+
 	if !strings.HasPrefix(message, "/") {
 		message = "/" + message
 	}
@@ -135,8 +159,8 @@ func (n *node) ping() (string, error) {
 	}
 	if res[0] == "PONG" && len(res) == 2 {
 		log.Println("ponged,i am", res[1])
-		if dnsname != "" {
-			myself = makeNode(dnsname, serverURL, ExternalPort)
+		if n.serverName != "" {
+			myself = makeNode(n.serverName, ServerURL, externalPort)
 		} else {
 			myself = newNode(res[1])
 		}
@@ -148,7 +172,7 @@ func (n *node) ping() (string, error) {
 
 //isAllow returns fase if n is not allowed and denied.
 func (n *node) isAllowed() bool {
-	if !nodeAllow.check(n.nodestr) && nodeDeny.check(n.nodestr) {
+	if !n.nodeAllow.check(n.nodestr) && n.nodeDeny.check(n.nodestr) {
 		return false
 	}
 	return true
@@ -160,9 +184,9 @@ func (n *node) join() (bool, *node) {
 		log.Println(n.nodestr, "is not allowd")
 		return false, nil
 	}
-	path := strings.Replace(serverURL, "/", "+", -1)
-	port := strconv.Itoa(ExternalPort)
-	res, err := n.talk("/join/" + dnsname + ":" + port + path)
+	path := strings.Replace(ServerURL, "/", "+", -1)
+	port := strconv.Itoa(externalPort)
+	res, err := n.talk("/join/" + n.serverName + ":" + port + path)
 	if err != nil {
 		return false, nil
 	}
@@ -188,9 +212,9 @@ func (n *node) getNode() *node {
 
 //bye says goodbye to n and returns true if success.
 func (n *node) bye() bool {
-	path := strings.Replace(serverURL, "/", "+", -1)
-	port := strconv.Itoa(ExternalPort)
-	res, err := n.talk("/bye/" + dnsname + ":" + port + path)
+	path := strings.Replace(ServerURL, "/", "+", -1)
+	port := strconv.Itoa(externalPort)
+	res, err := n.talk("/bye/" + n.serverName + ":" + port + path)
 	if err != nil {
 		log.Println("/bye", n.nodestr, "error")
 		return false

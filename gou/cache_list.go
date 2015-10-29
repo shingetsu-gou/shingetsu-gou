@@ -33,12 +33,32 @@ import (
 	"os"
 	"path"
 	"regexp"
+	"sync"
 	"time"
 )
 
+type cacheListConfig struct {
+	saveSize    int
+	saveRemoved int64
+	cacheDir    string
+	saveRecord  int64
+	fmutex      *sync.RWMutex
+}
+
+func newCacheListConfig(cfg *Config) *cacheListConfig {
+	return &cacheListConfig{
+		saveSize:    cfg.SaveSize,
+		saveRemoved: cfg.SaveRemoved,
+		cacheDir:    cfg.CacheDir,
+		saveRecord:  cfg.SaveRecord,
+		fmutex:      &cfg.Fmutex,
+	}
+}
+
 //cacheList is slice of *cache
 type cacheList struct {
-	Caches []*cache
+	*cacheListConfig
+	Caches caches
 }
 
 //newCacheList loads all caches in disk and returns cachelist obj.
@@ -68,7 +88,7 @@ func (c *cacheList) load() {
 	if c.Caches != nil {
 		c.Caches = c.Caches[:0]
 	}
-	err := eachFiles(cacheDir, func(f os.FileInfo) error {
+	err := eachFiles(c.cacheDir, func(f os.FileInfo) error {
 		cc := newCache(f.Name())
 		c.Caches = append(c.Caches, cc)
 		return nil
@@ -82,6 +102,8 @@ func (c *cacheList) load() {
 //getall reload all records in cache in cachelist from network,
 //and reset params.
 func (c *cacheList) getall() {
+	const clientTimeout = 30 * time.Minute // Seconds; client_timeout < sync_cycle
+
 	timelimit := time.Now().Add(clientTimeout)
 	shuffle(c)
 	for _, ca := range c.Caches {
@@ -202,9 +224,11 @@ func (c *cacheList) search(query *regexp.Regexp) caches {
 
 //cleanRecords remove old or duplicates records for each caches.
 func (c *cacheList) cleanRecords() {
+	c.fmutex.Lock()
+	defer c.fmutex.Unlock()
 	for _, ca := range c.Caches {
 		recs := ca.loadRecords()
-		recs.removeRecords(saveRecord)
+		recs.removeRecords(c.saveRecord, c.saveSize)
 	}
 }
 
@@ -217,7 +241,7 @@ func (c *cacheList) removeRemoved() {
 		}
 		err := eachFiles(r, func(f os.FileInfo) error {
 			rec := newRecord(ca.Datfile, f.Name())
-			if ca.saveRemoved() > 0 && rec.Stamp+ca.saveRemoved() < time.Now().Unix() &&
+			if c.saveRemoved > 0 && rec.Stamp+c.saveRemoved < time.Now().Unix() &&
 				rec.Stamp < ca.readInfo().stamp {
 				err := os.Remove(path.Join(ca.datpath(), "removed", f.Name()))
 				if err != nil {

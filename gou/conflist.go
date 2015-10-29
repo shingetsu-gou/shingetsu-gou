@@ -33,6 +33,7 @@ import (
 	"os"
 	"regexp"
 	"strings"
+	"sync"
 	"time"
 )
 
@@ -42,6 +43,7 @@ type confList struct {
 	mtime *time.Time
 	path  string
 	data  []string
+	mutex sync.RWMutex
 }
 
 //newConfList makes a confList instance from path.
@@ -56,6 +58,8 @@ func newConfList(path string, defaultList []string) *confList {
 
 //update read the file if newer, and stores all lines in the file.
 func (r *confList) update() {
+	r.mutex.Lock()
+	defer r.mutex.Unlock()
 	if r.path == "" {
 		return
 	}
@@ -100,6 +104,8 @@ func newRegexpList(path string) *regexpList {
 //check checks whethere target matches one of all regexps or not.
 func (r *regexpList) check(target string) bool {
 	r.update()
+	r.mutex.RLock()
+	defer r.mutex.RUnlock()
 	for _, r := range r.regs {
 		if r.MatchString(target) {
 			return true
@@ -111,6 +117,8 @@ func (r *regexpList) check(target string) bool {
 //update read the file and regexp.comples each lines in the file if file is newer.
 func (r *regexpList) update() {
 	r.confList.update()
+	r.mutex.Lock()
+	defer r.mutex.Unlock()
 	r.regs = r.regs[:0]
 	for i, line := range r.confList.data {
 		re, err := regexp.Compile(line)
@@ -120,10 +128,4 @@ func (r *regexpList) update() {
 			r.regs = append(r.regs, re)
 		}
 	}
-}
-
-//add adds regexp list.
-func (r *regexpList) add(regstr string) {
-	reg := regexp.MustCompile(regstr)
-	r.regs = append(r.regs, reg)
 }

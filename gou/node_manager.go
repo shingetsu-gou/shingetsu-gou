@@ -34,13 +34,67 @@ import (
 	"strconv"
 	"strings"
 	"sync"
+	"time"
+
+	"github.com/shingetsu-gou/go-nat"
 )
+
+var (
+	initNode    *confList
+	nodeManager *NodeManager
+)
+
+const (
+	defaultNodes = 5 // Nodes keeping in node list
+	shareNodes   = 5 // Nodes having the file
+)
+
+//NodeSetup setups node relates variables and get external port by upnp if enabled.
+func NodeSetup(enableNat bool, defaultPort int, initnodeList string) {
+	externalPort = defaultPort
+	if !enableNat {
+		return
+	}
+
+	n, err := nat.NewNetStatus()
+	if err != nil {
+		log.Println(err)
+	} else {
+		m, err := n.LoopPortMapping("tcp", defaultPort, "shingetsu-gou", 10*time.Minute)
+		if err != nil {
+			log.Println(err)
+		} else {
+			externalPort = m.ExternalPort
+		}
+	}
+
+	defaultInitNode := []string{
+		"node.shingetsu.info:8000/server.cgi",
+		"pushare.zenno.info:8000/server.cgi",
+	}
+	initNode = newConfList(initnodeList, defaultInitNode)
+	nodeManager = newNodeManager()
+}
+
+type nodeManagerConfig struct {
+	serverName string
+	lookup     string
+}
+
+func newNodeManagerConfig(cfg *Config) *nodeManagerConfig {
+	return &nodeManagerConfig{
+		serverName: cfg.ServerName,
+		lookup:     cfg.Lookup(),
+	}
+}
 
 //NodeManager represents map datfile to it's source node list.
 type NodeManager struct {
+	*nodeManagerConfig
 	isDirty bool
 	nodes   map[string]nodeSlice //map[""] is nodelist
 	mutex   sync.RWMutex
+	fmutex  *sync.RWMutex
 }
 
 //newLookupTable read the file and returns LookupTable obj.
@@ -48,7 +102,7 @@ func newNodeManager() *NodeManager {
 	r := &NodeManager{
 		nodes: make(map[string]nodeSlice),
 	}
-	err := eachKeyValueLine(lookup, func(key string, value []string, i int) error {
+	err := eachKeyValueLine(r.lookup, func(key string, value []string, i int) error {
 		var nl nodeSlice
 		for _, v := range value {
 			nl = append(nl, newNode(v))
@@ -168,6 +222,25 @@ func (lt *NodeManager) appendToList(n *node) {
 	lt.appendToTable("", n)
 }
 
+//replaceNodeInList removes one node and say bye to the node and add n in nodelist.
+//if len(node)>defaultnode
+func (lt *NodeManager) replaceNodeInList(n *node) *node {
+	lt.mutex.RLock()
+	l := len(lt.nodes[""])
+	lt.mutex.RUnlock()
+	if !n.isAllowed() || lt.hasNodeInTable("", n) {
+		return nil
+	}
+	var old *node
+	if l > defaultNodes {
+		old := lt.getFromList(0)
+		lt.removeFromList(old)
+		old.bye()
+	}
+	lt.appendToList(n)
+	return old
+}
+
 //extendToList adds node slice to nodelist.
 func (lt *NodeManager) extendToList(ns []*node) {
 	lt.extendToTable("", ns)
@@ -234,6 +307,8 @@ func (lt *NodeManager) removeFromAllTable(n *node) bool {
 
 //moreNodes gets another node info from each nodes in nodelist.
 func (lt *NodeManager) moreNodes() {
+	const retry = 5 // Times; Common setting
+
 	no := 0
 	count := 0
 	all := lt.getAllNodes()
@@ -253,6 +328,7 @@ func (lt *NodeManager) moreNodes() {
 //initialize pings one of initNode except myself and added it if success,
 //and get another node info from each nodes in nodelist.
 func (lt *NodeManager) initialize() {
+
 	if lt.listLen() > defaultNodes {
 		return
 	}
@@ -279,6 +355,8 @@ func (lt *NodeManager) initialize() {
 //if n returns another nodes, repeats it and return true..
 //removes fron nodelist if not welcomed and return false.
 func (lt *NodeManager) join(n *node) bool {
+	const retryJoin = 2 // Times; Join network
+
 	if n == nil {
 		return false
 	}
@@ -311,10 +389,10 @@ func (lt *NodeManager) tellUpdate(c *cache, stamp int64, id string, node *node) 
 	switch {
 	case node != nil:
 		tellstr = node.toxstring()
-	case dnsname != "":
+	case lt.serverName != "":
 		tellstr = myself.toxstring()
 	default:
-		tellstr = ":" + strconv.Itoa(ExternalPort) + strings.Replace(serverURL, "/", "+", -1)
+		tellstr = ":" + strconv.Itoa(externalPort) + strings.Replace(ServerURL, "/", "+", -1)
 	}
 	msg := strings.Join([]string{"/update", c.Datfile, strconv.FormatInt(stamp, 10), id, tellstr}, "/")
 
@@ -361,9 +439,9 @@ func (lt *NodeManager) stringMap() map[string][]string {
 func (lt *NodeManager) sync() {
 	if lt.isDirty {
 		m := lt.stringMap()
-		fmutex.Lock()
-		defer fmutex.Unlock()
-		err := writeMap(lookup, m)
+		lt.fmutex.Lock()
+		defer lt.fmutex.Unlock()
+		err := writeMap(lt.lookup, m)
 		if err != nil {
 			log.Println(err)
 		} else {
@@ -378,11 +456,13 @@ func (lt *NodeManager) sync() {
 //if not found,n is removed from lookuptable. also if not pingable  removes n from searchlist and cache c.
 //if found, n is added to lookuptable.
 func (lt *NodeManager) search(c *cache, nodes []*node) *node {
+	const searchDepth = 30 // Search node size
+
 	lt.mutex.RLock()
 	ns := lt.nodes[c.Datfile].extend(nodes)
 	lt.mutex.RUnlock()
-	if ns.Len() < shareNodes {
-		ns = ns.extend(lt.random(ns, shareNodes-ns.Len()))
+	if ns.Len() < searchDepth {
+		ns = ns.extend(lt.random(ns, searchDepth-ns.Len()))
 	}
 	count := 0
 	for _, n := range ns {

@@ -87,7 +87,7 @@ func eachKeyValueLine(path string, handler func(key string, value []string, num 
 	err := eachLine(path, func(line string, i int) error {
 		kv := strings.Split(line, "<>")
 		if len(kv) != 2 {
-			log.Fatal("illegal line in", lookup)
+			log.Fatal("illegal line in", path)
 		}
 		vs := strings.Split(kv[1], " ")
 		err := handler(kv[0], vs, i)
@@ -149,20 +149,6 @@ func writeMap(path string, ary map[string][]string) error {
 		}
 	}
 	return nil
-}
-
-//renderTemplate executes template and write to wr.
-func renderTemplate(file string, st interface{}, wr io.Writer) {
-	if err := htemplates.ExecuteTemplate(wr, file, st); err != nil {
-		log.Println(err)
-	}
-}
-
-//executeTemplate executes template and returns it as string.
-func executeTemplate(file string, st interface{}) string {
-	var doc bytes.Buffer
-	renderTemplate(file, st, &doc)
-	return doc.String()
 }
 
 //eachFiles iterates each dirs in dir and calls handler,not recirsively.

@@ -38,6 +38,16 @@ import (
 	"sync"
 )
 
+var (
+	utag              *userTag
+	suggestedTagTable *SuggestedTagTable
+)
+
+func TagSetup(sugtag, cacheDir string) {
+	utag = newUserTag(sugtag)
+	suggestedTagTable = newSuggestedTagTable(cacheDir)
+}
+
 //tag represents one tag.
 type tag struct {
 	Tagstr string
@@ -153,16 +163,31 @@ func (t tagslice) sync(path string) {
 	}
 }
 
+type suggestedTagTableConfig struct {
+	tagSize int
+	fmutex  *sync.RWMutex
+}
+
+func newSuggestedTagTableConfig(cfg *Config) *suggestedTagTableConfig {
+	return &suggestedTagTableConfig{
+		tagSize: cfg.TagSize,
+		fmutex:  &cfg.Fmutex,
+	}
+}
+
 //SuggestedTagTable represents tags associated with datfile retrieved from network.
 type SuggestedTagTable struct {
+	*suggestedTagTableConfig
 	sugtaglist map[string]tagslice
 	mutex      sync.RWMutex
+	sugtag     string
 }
 
 //newSuggestedTagTable make SuggestedTagTable obj and read info from the file.
-func newSuggestedTagTable() *SuggestedTagTable {
+func newSuggestedTagTable(sugtag string) *SuggestedTagTable {
 	s := &SuggestedTagTable{
 		sugtaglist: make(map[string]tagslice),
+		sugtag:     sugtag,
 	}
 	if !IsFile(sugtag) {
 		return s
@@ -187,9 +212,9 @@ func (s *SuggestedTagTable) sync() {
 		s := v.getTagstrSlice()
 		m[k] = s
 	}
-	fmutex.Lock()
-	err := writeMap(sugtag, m)
-	fmutex.Unlock()
+	s.fmutex.Lock()
+	err := writeMap(s.sugtag, m)
+	s.fmutex.Unlock()
 	if err != nil {
 		log.Println(err)
 	}
@@ -252,7 +277,7 @@ func (s *SuggestedTagTable) prune(recentlist *RecentList) {
 			tmp = append(tmp[:l], tmp[l+1:]...)
 		}
 		if v, exist := s.sugtaglist[r.datfile]; exist {
-			v.prune(tagSize)
+			v.prune(s.tagSize)
 		}
 	}
 	for _, datfile := range tmp {
@@ -260,11 +285,31 @@ func (s *SuggestedTagTable) prune(recentlist *RecentList) {
 	}
 }
 
+type userTagConfig struct {
+	cacheDir string
+	fmutex   *sync.RWMutex
+}
+
+func newUserTagodeConfig(cfg *Config) *userTagConfig {
+	return &userTagConfig{
+		cacheDir: cfg.CacheDir,
+		fmutex:   &cfg.Fmutex,
+	}
+}
+
 //UserTagList represents tags saved by the user.
 type userTag struct {
-	mutex   sync.Mutex
-	isClean bool
-	tags    tagslice
+	*userTagConfig
+	mutex    sync.Mutex
+	isClean  bool
+	tags     tagslice
+	cacheDir string
+}
+
+func newUserTag(cacheDir string) *userTag {
+	return &userTag{
+		cacheDir: cacheDir,
+	}
 }
 
 //setDirty sets dirty flag.
@@ -276,16 +321,16 @@ func (u *userTag) setDirty() {
 
 //get reads tags from the disk and retrusn tagslice.
 func (u *userTag) get() tagslice {
-	fmutex.RLock()
+	u.fmutex.RLock()
+	defer u.fmutex.RUnlock()
 	u.mutex.Lock()
-	defer fmutex.RUnlock()
 	defer u.mutex.Unlock()
 	if u.isClean {
 		return u.tags
 	}
 	var tags tagslice
-	err := eachFiles(cacheDir, func(i os.FileInfo) error {
-		fname := path.Join(cacheDir, i.Name(), "tag.txt")
+	err := eachFiles(u.cacheDir, func(i os.FileInfo) error {
+		fname := path.Join(u.cacheDir, i.Name(), "tag.txt")
 		if i.IsDir() && IsFile(fname) {
 			t, err := ioutil.ReadFile(fname)
 			if err != nil {

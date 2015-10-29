@@ -44,6 +44,8 @@ import (
 	"golang.org/x/text/language"
 )
 
+//const searchTimeout = 10 * time.Minute // used for timeout of lockfile,for now not used
+
 //message hold string map.
 type message map[string]string
 
@@ -72,7 +74,9 @@ func newMessage(file string) message {
 
 //searchMessage parse Accept-Language header ,selects most-weighted(biggest q)
 //language ,reads the associated message file, and creates and returns message obj.
-func searchMessage(acceptLanguage string) message {
+func searchMessage(acceptLanguage, filedir string) message {
+	const defaultLanguage = "en" // Language code (see RFC3066)
+
 	var lang []string
 	if acceptLanguage != "" {
 		tags, _, err := language.ParseAcceptLanguage(acceptLanguage)
@@ -88,7 +92,7 @@ func searchMessage(acceptLanguage string) message {
 	for _, l := range lang {
 		slang := strings.Split(l, "-")[0]
 		for _, j := range []string{l, slang} {
-			file := path.Join(fileDir, "message-"+j+".txt")
+			file := path.Join(filedir, "message-"+j+".txt")
 			if IsFile(file) {
 				return newMessage(file)
 			}
@@ -125,7 +129,7 @@ type ListItem struct {
 	IsAdmin    bool
 	StrOpts    string
 	GatewayCGI string
-	Appli      map[string]string
+	ThreadURL  string
 	Message    message
 	filter     string
 	tag        string
@@ -182,24 +186,44 @@ func (l ListItem) Render(ca *cache, remove bool, target string, search bool) tem
 	l.Target = target
 	l.Remove = remove
 	l.StrOpts = strOpts
-	l.GatewayCGI = gatewayURL
-	l.Appli = application
+	l.GatewayCGI = GatewayURL
+	l.ThreadURL = ThreadURL
 	return template.HTML(executeTemplate("list_item", l))
+}
+
+type cgiConfig struct {
+	serverName   string
+	reAdminStr   string
+	reFriendStr  string
+	reVisitorStr string
+	docroot      string
+	fileDir      string
+}
+
+func newCGIConfig(cfg *Config) *cgiConfig {
+	return &cgiConfig{
+		serverName:   cfg.ServerName,
+		reAdminStr:   cfg.ReAdminStr,
+		reFriendStr:  cfg.ReFriendStr,
+		reVisitorStr: cfg.ReVisitorStr,
+		docroot:      cfg.Docroot,
+		fileDir:      cfg.FileDir,
+	}
 }
 
 //cgi is a base class for all http handlers.
 type cgi struct {
-	m         message
-	jc        *jsCache
-	req       *http.Request
-	wr        http.ResponseWriter
-	filter    string
-	tag       string
-	appliType string
+	*cgiConfig
+	m      message
+	jc     *jsCache
+	req    *http.Request
+	wr     http.ResponseWriter
+	filter string
+	tag    string
 }
 
 func (c *cgi) host() string {
-	host := serverName
+	host := c.serverName
 	if host == "" {
 		host = c.req.Host
 	}
@@ -207,15 +231,27 @@ func (c *cgi) host() string {
 }
 
 func (c *cgi) isAdmin() bool {
-	return reAdmin.MatchString(c.req.RemoteAddr)
+	m, err := regexp.MatchString(c.reAdminStr, c.req.RemoteAddr)
+	if err != nil {
+		log.Fatal(err)
+	}
+	return m
 }
 
 func (c *cgi) isFriend() bool {
-	return reFriend.MatchString(c.req.RemoteAddr)
+	m, err := regexp.MatchString(c.reFriendStr, c.req.RemoteAddr)
+	if err != nil {
+		log.Fatal(err)
+	}
+	return m
 }
 
 func (c *cgi) isVisitor() bool {
-	return reVisitor.MatchString(c.req.RemoteAddr)
+	m, err := regexp.MatchString(c.reVisitorStr, c.req.RemoteAddr)
+	if err != nil {
+		log.Fatal(err)
+	}
+	return m
 }
 
 func (c *cgi) path() string {
@@ -229,6 +265,13 @@ func (c *cgi) path() string {
 	return path
 }
 
+var cgis chan *cgi
+
+//CGISetup setups cgi cache.
+func CGISetup(maxConnection int) {
+	cgis = make(chan *cgi, maxConnection)
+}
+
 //newCGI reads messages file, and set params , returns cgi obj.
 func newCGI(w http.ResponseWriter, r *http.Request) *cgi {
 	var c *cgi
@@ -237,9 +280,9 @@ func newCGI(w http.ResponseWriter, r *http.Request) *cgi {
 	default:
 		c = &cgi{}
 	}
-	c.jc = newJsCache(docroot)
+	c.jc = newJsCache(c.docroot)
 	c.wr = w
-	c.m = searchMessage(r.Header.Get("Accept-Language"))
+	c.m = searchMessage(r.Header.Get("Accept-Language"), c.fileDir)
 	c.req = r
 	err := r.ParseForm()
 	if err != nil {
@@ -265,7 +308,7 @@ func (c *cgi) close() {
 func (c *cgi) extension(suffix string, useMerged bool) []string {
 	var filename []string
 	var merged string
-	err := eachFiles(docroot, func(f os.FileInfo) error {
+	err := eachFiles(c.docroot, func(f os.FileInfo) error {
 		i := f.Name()
 		if strings.HasSuffix(i, "."+suffix) && (!strings.HasPrefix(i, ".") || strings.HasPrefix(i, "_")) {
 			filename = append(filename, i)
@@ -330,7 +373,7 @@ func (c *cgi) makeMenubar(id, rss string) *Menubar {
 		GatewayLink{
 			Message: c.m,
 		},
-		gatewayURL,
+		GatewayURL,
 		c.m,
 		id,
 		rss,
@@ -343,7 +386,7 @@ func (c *cgi) makeMenubar(id, rss string) *Menubar {
 //header renders header.txt with cookie.
 func (c *cgi) header(title, rss string, cookie []*http.Cookie, denyRobot bool) {
 	if rss == "" {
-		rss = gatewayURL + "/rss"
+		rss = GatewayURL + "/rss"
 	}
 	var js []string
 	if c.req.FormValue("__debug_js") != "" {
@@ -366,7 +409,7 @@ func (c *cgi) header(title, rss string, cookie []*http.Cookie, denyRobot bool) {
 		AppliType  string
 	}{
 		c.m,
-		rootPath,
+		"/",
 		title,
 		rss,
 		c.jc,
@@ -375,8 +418,8 @@ func (c *cgi) header(title, rss string, cookie []*http.Cookie, denyRobot bool) {
 		c.makeMenubar("top", rss),
 		denyRobot,
 		time.Now().Unix(),
-		threadURL,
-		c.appliType,
+		ThreadURL,
+		"thread",
 	}
 	if cookie != nil {
 		for _, co := range cookie {
@@ -395,7 +438,7 @@ func (c *cgi) resAnchor(id, appli string, title string, absuri bool) string {
 	} else {
 		innerlink = " class=\"innerlink\""
 	}
-	return fmt.Sprintf("<a href=\"%s%s%s%s/%s\"%s>", prefix, appli, querySeparator, title, id, innerlink)
+	return fmt.Sprintf("<a href=\"%s%s%s%s/%s\"%s>", prefix, appli, "/", title, id, innerlink)
 }
 
 //htmlFormat converts plain text to html , including converting link string to <a href="link">.
@@ -428,25 +471,25 @@ func (c *cgi) bracketLink(link, appli string, absuri bool) string {
 	}
 	reg := regexp.MustCompile("^/(thread)/([^/]+)/([0-9a-f]{8})$")
 	if m := reg.FindStringSubmatch(link); m != nil {
-		url := prefix + threadURL + querySeparator + strEncode(m[2]) + "/" + m[3]
+		url := prefix + ThreadURL + "/" + strEncode(m[2]) + "/" + m[3]
 		return "<a href=\"" + url + "\" class=\"reclink\">[[" + link + "]]</a>"
 	}
 
 	reg = regexp.MustCompile("^/(thread)/([^/]+)$")
 	if m := reg.FindStringSubmatch(link); m != nil {
-		uri := prefix + application[m[1]] + querySeparator + strEncode(m[2])
+		uri := prefix + ThreadURL + "/" + strEncode(m[2])
 		return "<a href=\"" + uri + "\">[[" + link + "]]</a>"
 	}
 
 	reg = regexp.MustCompile("^([^/]+)/([0-9a-f]{8})$")
 	if m := reg.FindStringSubmatch(link); m != nil {
-		uri := prefix + appli + querySeparator + strEncode(m[1]) + "/" + m[2]
+		uri := prefix + appli + "/" + strEncode(m[1]) + "/" + m[2]
 		return "<a href=\"" + uri + "\" class=\"reclink\">[[" + link + "]]</a>"
 	}
 
 	reg = regexp.MustCompile("^([^/]+)$")
 	if m := reg.FindStringSubmatch(link); m != nil {
-		uri := prefix + appli + querySeparator + strEncode(m[1])
+		uri := prefix + appli + "/" + strEncode(m[1])
 		return "<a href=\"" + uri + "\">[[" + link + "]]</a>"
 	}
 	return "[[" + link + "]]"
@@ -464,7 +507,7 @@ func (c *cgi) removeFileForm(ca *cache, title string) {
 		ca,
 		title,
 		c.isAdmin(),
-		adminURL,
+		AdminURL,
 		c.m,
 	}
 	renderTemplate("remove_file_form", s, c.wr)
@@ -538,8 +581,8 @@ func (c *cgi) printIndexList(cl []*cache, target string, footer bool, searchNewF
 		c.tag,
 		utag.get(),
 		cl,
-		gatewayURL,
-		adminURL,
+		GatewayURL,
+		AdminURL,
 		c.m,
 		searchNewFile,
 		c.isAdmin(),
@@ -564,6 +607,8 @@ func (c *cgi) printIndexList(cl []*cache, target string, footer bool, searchNewF
 
 //printNewElementForm renders new_element_form.txt for posting new thread.
 func (c *cgi) printNewElementForm() {
+	const titleLimit = 30 //Charactors
+
 	if !c.isAdmin() && !c.isFriend() {
 		return
 	}
@@ -575,7 +620,7 @@ func (c *cgi) printNewElementForm() {
 		IsAdmin    bool
 	}{
 		"",
-		gatewayURL,
+		GatewayURL,
 		c.m,
 		titleLimit,
 		c.isAdmin(),
@@ -586,6 +631,10 @@ func (c *cgi) printNewElementForm() {
 //checkGetCache return true
 //if visitor is firend or admin and user-agent is not robot.
 func (c *cgi) checkGetCache() bool {
+	const (
+		robot = "Google|bot|Yahoo|archiver|Wget|Crawler|Yeti|Baidu"
+	)
+
 	if !c.hasAuth() {
 		return false
 	}

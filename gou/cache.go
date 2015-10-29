@@ -29,6 +29,7 @@
 package gou
 
 import (
+	"errors"
 	"fmt"
 	"io/ioutil"
 	"log"
@@ -40,6 +41,32 @@ import (
 	"time"
 )
 
+var cacheMap map[string]sync.Pool
+
+type cacheConfig struct {
+	saveRemoved int64
+	syncRange   int64
+	cacheDir    string
+	recordLimit int
+	getRange    int64
+	errSpam     error
+	errGet      error
+	cacheMap    map[string]sync.Pool
+}
+
+func newCacheConfig(cfg *Config) *cacheConfig {
+	return &cacheConfig{
+		saveRemoved: cfg.SaveRemoved,
+		syncRange:   cfg.SyncRange,
+		cacheDir:    cfg.CacheDir,
+		recordLimit: cfg.RecordLimit,
+		getRange:    cfg.GetRange,
+		errSpam:     errors.New("this is spam"),
+		errGet:      errors.New("cannot get data"),
+		cacheMap:    make(map[string]sync.Pool),
+	}
+}
+
 //cacheInfo represents size/len/velocity of cache.
 type cacheInfo struct {
 	size     int64 //size of total records
@@ -50,9 +77,11 @@ type cacheInfo struct {
 
 //cache represents cache of one file.
 type cache struct {
+	*cacheConfig
 	Datfile string
 	tags    tagslice //made by the user
 	mutex   sync.RWMutex
+	fmutex  *sync.RWMutex
 }
 
 //addTags add user tag list from vals.
@@ -116,16 +145,6 @@ func (c *cache) hasTag(board string) bool {
 	return c.hasTagstr(board)
 }
 
-//saveRemoved returns default time range removed mark is alive in disk.
-func (c *cache) saveRemoved() int64 {
-	c.mutex.RLock()
-	defer c.mutex.RUnlock()
-	if saveRemoved != 0 && saveRemoved <= syncRange {
-		return syncRange + 1
-	}
-	return saveRemoved
-}
-
 //dathash returns datfile itself is type=asis.
 func (c *cache) dathash() string {
 	return fileHash(c.Datfile)
@@ -133,7 +152,7 @@ func (c *cache) dathash() string {
 
 //datpath returns real file path of this cache.
 func (c *cache) datpath() string {
-	return path.Join(cacheDir, c.dathash())
+	return path.Join(c.cacheDir, c.dathash())
 }
 
 //recentStamp  returns time of getting by /recent.
@@ -166,8 +185,8 @@ func newCache(datfile string) *cache {
 
 //readInfo reads cache info from disk and returns #,velocity, and total size.
 func (c *cache) readInfo() *cacheInfo {
-	fmutex.RLock()
-	defer fmutex.RUnlock()
+	c.fmutex.RLock()
+	defer c.fmutex.RUnlock()
 	d := path.Join(c.datpath(), "record")
 	if !IsDir(d) {
 		return nil
@@ -197,8 +216,8 @@ func (c *cache) readInfo() *cacheInfo {
 
 //load loads and returns records from files on the disk .
 func (c *cache) loadRecords() recordMap {
-	fmutex.RLock()
-	defer fmutex.RUnlock()
+	c.fmutex.RLock()
+	defer c.fmutex.RUnlock()
 	r := path.Join(c.datpath(), "record")
 	if !IsDir(r) {
 		return nil
@@ -219,8 +238,8 @@ func (c *cache) loadRecords() recordMap {
 
 //hasRecord return true if  cache has more than one records or removed records.
 func (c *cache) hasRecord() bool {
-	fmutex.RLock()
-	defer fmutex.RUnlock()
+	c.fmutex.RLock()
+	defer c.fmutex.RUnlock()
 	f, err := ioutil.ReadDir(path.Join(c.datpath(), "record"))
 	if err != nil {
 		return false
@@ -232,8 +251,8 @@ func (c *cache) hasRecord() bool {
 
 //syncStatus saves params to files.
 func (c *cache) syncTag() {
-	fmutex.Lock()
-	defer fmutex.Unlock()
+	c.fmutex.Lock()
+	defer c.fmutex.Unlock()
 	c.mutex.RLock()
 	c.mutex.RUnlock()
 	c.tags.sync(path.Join(c.datpath(), "tag.txt"))
@@ -241,8 +260,8 @@ func (c *cache) syncTag() {
 
 //setupDirectories make necessary dirs.
 func (c *cache) setupDirectories() {
-	fmutex.Lock()
-	defer fmutex.Unlock()
+	c.fmutex.Lock()
+	defer c.fmutex.Unlock()
 	for _, d := range []string{"", "/attach", "/body", "/record", "/removed"} {
 		di := path.Join(c.datpath(), d)
 		if !IsDir(di) {
@@ -265,8 +284,8 @@ func (c *cache) checkData(res []string, stamp int64, id string, begin, end int64
 		r := newRecord(c.Datfile, "")
 		if er := r.parse(i); er == nil && r.meets(i, stamp, id, begin, end) {
 			count++
-			if len(i) > recordLimit*1024 || cachedRule.check(i) {
-				err = errSpam
+			if len(i) > c.recordLimit*1024 || r.isSpam() {
+				err = c.errSpam
 				log.Printf("warning:%s/%s:too large or spam record", c.Datfile, r.Idstr())
 				r.sync()
 				errr := r.remove()
@@ -281,7 +300,7 @@ func (c *cache) checkData(res []string, stamp int64, id string, begin, end int64
 		}
 	}
 	if count == 0 {
-		return 0, errGet
+		return 0, c.errGet
 	}
 	return count, err
 }
@@ -292,7 +311,7 @@ func (c *cache) getData(stamp int64, id string, n *node) error {
 	res, err := n.talk(fmt.Sprintf("/get/%s/%d/%s", c.Datfile, stamp, id))
 	if err != nil {
 		log.Println(err)
-		return errGet
+		return c.errGet
 	}
 	count, err := c.checkData(res, stamp, id, -1, -1)
 	if count == 0 {
@@ -308,13 +327,13 @@ func (c *cache) getWithRange(n *node) bool {
 	now := time.Now().Unix()
 
 	begin := c.readInfo().stamp
-	begin2 := now - syncRange
+	begin2 := now - c.syncRange
 	if begin2 < begin {
 		begin = begin2
 	}
 
 	if !c.hasRecord() {
-		begin = now - getRange
+		begin = now - c.getRange
 	}
 
 	res, err := n.talk(fmt.Sprintf("/get/%s/%d-", c.Datfile, begin))
@@ -331,9 +350,9 @@ func (c *cache) getWithRange(n *node) bool {
 //checkAttach checks files attach dir and if corresponding records
 //don't exist in record dir, removes the attached file.
 func (c *cache) checkAttach() {
-	fmutex.Lock()
-	defer fmutex.Unlock()
-	dir := path.Join(cacheDir, c.dathash(), "attach")
+	c.fmutex.Lock()
+	defer c.fmutex.Unlock()
+	dir := path.Join(c.cacheDir, c.dathash(), "attach")
 	err := eachFiles(dir, func(d os.FileInfo) error {
 		idstr := d.Name()
 		if i := strings.IndexRune(idstr, '.'); i > 0 {
@@ -358,8 +377,8 @@ func (c *cache) checkAttach() {
 
 //remove removes all files and dirs of cache.
 func (c *cache) remove() {
-	fmutex.Lock()
-	defer fmutex.Unlock()
+	c.fmutex.Lock()
+	defer c.fmutex.Unlock()
 	err := os.RemoveAll(c.datpath())
 	if err != nil {
 		log.Println(err)
@@ -368,8 +387,8 @@ func (c *cache) remove() {
 
 //exists return true is datapath exists.
 func (c *cache) Exists() bool {
-	fmutex.RLock()
-	defer fmutex.RUnlock()
+	c.fmutex.RLock()
+	defer c.fmutex.RUnlock()
 	return IsDir(c.datpath())
 }
 

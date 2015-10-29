@@ -30,7 +30,6 @@ package gou
 
 import (
 	"io"
-	"log"
 	"regexp"
 	"sort"
 	"strings"
@@ -130,9 +129,7 @@ func (r *RSS) makeRSS1(wr io.Writer) {
 		c.Content = strings.Replace(c.content, "]]", "&#93;&#93;>", -1)
 	}
 	sort.Sort(sort.Reverse(r))
-	if err := ttemplates.ExecuteTemplate(wr, "rss1", *r); err != nil {
-		log.Println(err)
-	}
+	renderRSSTemplate("rss1", *r, wr)
 }
 
 //W3cdate returns RSS formated date string.

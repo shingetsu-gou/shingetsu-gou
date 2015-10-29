@@ -31,59 +31,40 @@ package main
 import (
 	"flag"
 	"fmt"
+	"io"
 	"io/ioutil"
 	"log"
 	"os"
 	"path"
-	"time"
+	"path/filepath"
+	"strings"
 
-	"github.com/shinGETsu-gou/shingetsu-gou/gou"
-	"github.com/shingetsu-gou/go-nat"
+	"gopkg.in/natefinch/lumberjack.v2"
+
+	"github.com/shingetsu-gou/shingetsu-gou/gou"
 )
 
-//init initialize all variables and logger by arguments
 func init() {
 	log.SetFlags(log.Ldate | log.Ltime | log.Lshortfile)
-
-	var printLog, isSilent bool
-	flag.BoolVar(&printLog, "verbose", false, "print logs")
-	flag.BoolVar(&printLog, "v", false, "print logs")
-	flag.BoolVar(&isSilent, "silent", false, "suppress logs")
-	flag.Parse()
-
-	gou.SetLogger(printLog, isSilent)
-	expandAssets()
-	gou.InitVariables()
-}
-
-func main() {
-	fmt.Println("starting Gou...")
-	if gou.EnableNAT {
-		n, err := nat.NewNetStatus()
-		if err != nil {
-			log.Println(err)
-		} else {
-			m, err := n.LoopPortMapping("tcp", gou.DefaultPort, "shingetsu-gou", 10*time.Minute)
-			if err != nil {
-				log.Println(err)
-			} else {
-				gou.ExternalPort = m.ExternalPort
-			}
-		}
-	}
-
-	gou.SetupDaemon()
-	gou.StartDaemon()
+	log.SetOutput(os.Stdout)
 }
 
 //expandAssets expands all files in a Assets if not exist in disk.
-func expandAssets() {
+func expandAssets(fileDir, templateDir, docroot string) {
+	dname := map[string]string{
+		"file":         fileDir,
+		"gou_template": templateDir,
+		"www":          docroot,
+	}
+
 	for _, fname := range AssetNames() {
-		if gou.IsFile(fname) {
+		dir := filepath.SplitList(fname)[0]
+		fnameDisk := strings.Replace(fname, dir, dname[dir], 1)
+		if gou.IsFile(fnameDisk) {
 			continue
 		}
-		log.Println("expanding", fname)
-		path, _ := path.Split(fname)
+		log.Println("expanding", fnameDisk)
+		path, _ := path.Split(fnameDisk)
 		if !gou.IsDir(path) {
 			err := os.MkdirAll(path, 0755)
 			if err != nil {
@@ -94,9 +75,46 @@ func expandAssets() {
 		if err != nil {
 			log.Fatal(err)
 		}
-		err = ioutil.WriteFile(fname, c, 0644)
+		err = ioutil.WriteFile(fnameDisk, c, 0644)
 		if err != nil {
 			log.Fatal(err)
 		}
 	}
+}
+
+//setLogger setups logger. whici outputs nothing, or file , or file and stdout
+func setLogger(printLog, isSilent bool, logDir string) {
+	l := &lumberjack.Logger{
+		Filename:   path.Join(logDir, "gou.log"),
+		MaxSize:    1, // megabytes
+		MaxBackups: 2,
+		MaxAge:     28, //days
+	}
+	fmt.Println(logDir)
+	switch {
+	case isSilent:
+		log.SetOutput(ioutil.Discard)
+	case printLog:
+		m := io.MultiWriter(os.Stdout, l)
+		log.SetOutput(m)
+	default:
+		log.SetOutput(l)
+	}
+}
+
+func main() {
+	log.Println("starting Gou...")
+
+	cfg := gou.NewConfig()
+	var printLog, isSilent bool
+	flag.BoolVar(&printLog, "verbose", false, "print logs")
+	flag.BoolVar(&printLog, "v", false, "print logs")
+	flag.BoolVar(&isSilent, "silent", false, "suppress logs")
+	flag.Parse()
+	setLogger(printLog, isSilent, cfg.LogDir)
+
+	expandAssets(cfg.FileDir, cfg.TemplateDir, cfg.Docroot)
+
+	gou.SetupDaemon(cfg)
+	gou.StartDaemon(cfg)
 }

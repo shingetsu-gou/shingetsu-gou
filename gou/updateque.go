@@ -29,10 +29,19 @@
 package gou
 
 import (
+	"errors"
 	"log"
 	"sync"
 	"time"
 )
+
+var (
+	que *updateQue
+)
+
+func QueSetup() {
+	que = newUpdateQue()
+}
 
 type updateQue struct {
 	mutex   sync.Mutex
@@ -58,6 +67,8 @@ func (u *updateQue) updateNodes(rec *record, n *node) {
 
 //deleteOldUpdated removes old updated records from updated map.
 func (u *updateQue) deleteOldUpdated() {
+	const oldUpdated = time.Hour
+
 	for k, v := range u.updated {
 		if v.After(time.Now().Add(oldUpdated)) {
 			delete(u.updated, k)
@@ -69,6 +80,8 @@ func (u *updateQue) deleteOldUpdated() {
 //if can get data (even if spam) return true, if fails to get, return false.
 //if no fail, broadcast updates to node in cache and added n to nodelist and searchlist.
 func (u *updateQue) doUpdateNode(rec *record, n *node) bool {
+	errGet := errors.New("cannot get data")
+
 	u.mutex.Lock()
 	if _, exist := u.updated[rec.hash()]; exist {
 		return true
@@ -98,7 +111,7 @@ func (u *updateQue) doUpdateNode(rec *record, n *node) bool {
 	case errGet:
 		log.Println("could not get")
 		return false
-	case errSpam:
+	case ca.errSpam:
 		log.Println("makred spam")
 		return true
 	default:

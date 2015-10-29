@@ -29,6 +29,7 @@
 package gou
 
 import (
+	"errors"
 	"fmt"
 	"html"
 	"log"
@@ -36,6 +37,10 @@ import (
 	"strconv"
 	"strings"
 	"time"
+)
+
+var (
+	errSpamM  = errors.New("this is spam")
 )
 
 //postComment creates a record from args and adds it to cache.
@@ -50,8 +55,8 @@ func (m *mchCGI) postComment(threadKey, name, mail, body, passwd, tag string) er
 	c := newCache(threadKey)
 	rec := newRecord(c.Datfile, "")
 	rec.build(stamp, recbody, passwd)
-	if cachedRule.check(rec.recstr()) {
-		return errSpam
+	if rec.isSpam() {
+		return errSpamM
 	}
 	rec.sync()
 	if tag != "" {
@@ -166,7 +171,7 @@ func (m *mchCGI) postCommentApp() {
 		m.errorResp("自ノード以外で署名機能は使えません", info)
 	}
 	err := m.postComment(key, name, info["mail"], body, passwd, tag)
-	if err == errSpam {
+	if err == errSpamM {
 		m.errorResp("スパムとみなされました", info)
 	}
 	m.wr.Header().Set("Content-Type", "text/html; charset=Shift_JIS")

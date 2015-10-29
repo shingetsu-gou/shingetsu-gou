@@ -57,7 +57,12 @@ Or you can download executable binaries from [here](https://github.com/shingetsu
 3. Gou can try to open port by uPnP and NAT-PMP. You can enable this function by setting enable_nat:true in [Gateway]  in saku.ini, which is false by default, but is true in attached saku.ini in binary.
 4. URL for 2ch interface /2ch_hoehoe/subject.txt in saku is /2ch/hoehoe/subject.txt in Gou.
 5. files in template directory are not compatible with Gou and Saku. The default template directory name in Gou is "gou_template/".
-6. count.txt and size.txt in cache directories are not used in Gou.
+6. files below are not used in Gou.
+	* in cache directory
+		* count.stat, dat.stat, size.stat, stamp.stat, validstamp,stat,velocity.stat
+	* in run directory
+		* client.txt, node.txt, search.txt,tag.txt,update.txt
+7. dnsname is set to server_name in config .
 
 # Note
 

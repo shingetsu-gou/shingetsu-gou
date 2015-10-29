@@ -121,15 +121,30 @@ func headApp(w http.ResponseWriter, r *http.Request) {
 	a.headApp()
 }
 
+type mchConfig struct {
+	motd    string
+	filedir string
+}
+
+func newMchConfig(cfg *Config) *mchConfig {
+	return &mchConfig{
+		motd:    cfg.Motd(),
+		filedir: cfg.FileDir,
+	}
+}
+
 //mchCGI is a class for renderring pages of 2ch interface .
 type mchCGI struct {
+	*mchConfig
 	*cgi
 }
 
 //newMchCGI returns mchCGI obj if visitor  is allowed.
 //if not allowed print 403.
 func newMchCGI(w http.ResponseWriter, r *http.Request) (mchCGI, error) {
-	c := mchCGI{newCGI(w, r)}
+	c := mchCGI{
+		cgi: newCGI(w, r),
+	}
 	defer c.close()
 	if c.cgi == nil || !c.checkVisitor() {
 		w.WriteHeader(403)
@@ -154,7 +169,7 @@ func (m *mchCGI) boardApp() {
 	if l == "" {
 		l = "ja"
 	}
-	message := searchMessage(l)
+	message := searchMessage(l, m.filedir)
 	m.wr.Header().Set("Content-Type", "text/html; charset=Shift_JIS")
 	board := escape(getBoard(m.path()))
 	text := ""
@@ -287,7 +302,7 @@ func (m *mchCGI) makeSubject(board string) ([]string, int64) {
 func (m *mchCGI) headApp() {
 	m.wr.Header().Set("Content-Type", "text/plain; charset=Shift_JIS")
 	var body string
-	err := eachLine(motd, func(line string, i int) error {
+	err := eachLine(m.motd, func(line string, i int) error {
 		line = strings.TrimSpace(line)
 		body += line + "<br>\n"
 		return nil

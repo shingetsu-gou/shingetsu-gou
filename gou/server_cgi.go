@@ -41,18 +41,21 @@ import (
 	"time"
 )
 
+//ServerURL is the url to server.cgi
+const ServerURL = "/server.cgi"
+
 //serverSetup setups handlers for server.cgi
 func serverSetup(s *loggingServeMux) {
-	s.registCompressHandler("/server.cgi/ping", doPing)
-	s.registCompressHandler("/server.cgi/node", doNode)
-	s.registCompressHandler("/server.cgi/join/", doJoin)
-	s.registCompressHandler("/server.cgi/bye/", doBye)
-	s.registCompressHandler("/server.cgi/have/", doHave)
-	s.registCompressHandler("/server.cgi/get/", doGetHead)
-	s.registCompressHandler("/server.cgi/head/", doGetHead)
-	s.registCompressHandler("/server.cgi/update/", doUpdate)
-	s.registCompressHandler("/server.cgi/recent/", doRecent)
-	s.registCompressHandler("/server.cgi/", doMotd)
+	s.registCompressHandler(ServerURL+"/ping", doPing)
+	s.registCompressHandler(ServerURL+"/node", doNode)
+	s.registCompressHandler(ServerURL+"/join/", doJoin)
+	s.registCompressHandler(ServerURL+"/bye/", doBye)
+	s.registCompressHandler(ServerURL+"/have/", doHave)
+	s.registCompressHandler(ServerURL+"/get/", doGetHead)
+	s.registCompressHandler(ServerURL+"/head/", doGetHead)
+	s.registCompressHandler(ServerURL+"/update/", doUpdate)
+	s.registCompressHandler(ServerURL+"/recent/", doRecent)
+	s.registCompressHandler(ServerURL+"/", doMotd)
 }
 
 //doPing just resopnse PONG with remote addr.
@@ -93,14 +96,11 @@ func doJoin(w http.ResponseWriter, r *http.Request) {
 	if _, err := n.ping(); err != nil {
 		return
 	}
-	if nodeManager.listLen() < defaultNodes {
-		nodeManager.appendToList(n)
+	suggest := nodeManager.replaceNodeInList(n)
+	if suggest == nil {
 		fmt.Fprintln(s.wr, "WELCOME")
 		return
 	}
-	suggest := nodeManager.getFromList(0)
-	nodeManager.removeFromList(suggest)
-	suggest.bye()
 	fmt.Fprintf(s.wr, "WELCOME\n%s\n", suggest.nodestr)
 }
 
@@ -179,14 +179,13 @@ func doUpdate(w http.ResponseWriter, r *http.Request) {
 	}
 	nodeManager.appendToTable(datfile, n)
 	nodeManager.sync()
-	now := time.Now()
 	nstamp, err := strconv.ParseInt(stamp, 10, 64)
 	if err != nil {
 		log.Println(err)
 		return
 	}
 
-	if nstamp < now.Add(-defaultUpdateRange).Unix() || nstamp > now.Add(defaultUpdateRange).Unix() {
+	if !isInUpdateRange(nstamp) {
 		return
 	}
 	rec := newRecord(datfile, stamp+"_"+id)
@@ -209,7 +208,7 @@ func doRecent(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	stamp := m[1]
-	last := time.Now().Unix() + recentRange
+	last := time.Now().Unix() + s.recentRange
 	begin, end, _ := s.parseStamp(stamp, last)
 	for _, i := range recentList.infos {
 		if begin > i.Stamp || i.Stamp > end {
@@ -229,7 +228,13 @@ func doRecent(w http.ResponseWriter, r *http.Request) {
 
 //doMotd simply renders motd file.
 func doMotd(w http.ResponseWriter, r *http.Request) {
-	f, err := ioutil.ReadFile(motd)
+	s, err := newServerCGI(w, r)
+	defer s.close()
+	if err != nil {
+		log.Println(err)
+		return
+	}
+	f, err := ioutil.ReadFile(s.motd)
 	if err != nil {
 		log.Println(err)
 		return
@@ -271,14 +276,29 @@ func doGetHead(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
+type serverConfig struct {
+	recentRange int64
+	motd        string
+}
+
+func newServerConfig(cfg *Config) *serverConfig {
+	return &serverConfig{
+		recentRange: cfg.RecentRange,
+		motd:        cfg.Motd(),
+	}
+}
+
 //serverCGI is for server.cgi handler.
 type serverCGI struct {
+	*serverConfig
 	*cgi
 }
 
 //newServerCGI set content-type to text and  returns serverCGI obj.
 func newServerCGI(w http.ResponseWriter, r *http.Request) (serverCGI, error) {
-	c := serverCGI{newCGI(w, r)}
+	c := serverCGI{
+		cgi: newCGI(w, r),
+	}
 	if c.cgi == nil {
 		return c, errors.New("cannot make CGI")
 	}

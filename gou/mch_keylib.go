@@ -38,12 +38,20 @@ import (
 	"time"
 )
 
+var dataKeyTable *DatakeyTable
+
+//DatakeySetup setups datakeyTable var.
+func DatakeySetup(runDir string) {
+	dataKeyTable = newDatakeyTable(runDir + "/datakey.txt")
+}
+
 //DatakeyTable stores cache stamp and cache datfile name pair.
 type DatakeyTable struct {
 	file            string
 	datakey2filekey map[int64]string
 	filekey2datkey  map[string]int64
 	mutex           sync.RWMutex
+	fmutex          *sync.RWMutex
 }
 
 //newDatakeyTable make DataKeyTable obj.
@@ -99,9 +107,9 @@ func (d *DatakeyTable) save() {
 		i++
 	}
 	d.mutex.RUnlock()
-	fmutex.Lock()
+	d.fmutex.Lock()
 	err := writeSlice(d.file, str)
-	fmutex.Unlock()
+	d.fmutex.Unlock()
 	if err != nil {
 		log.Println(err)
 	}
