@@ -141,9 +141,10 @@ type mchCGI struct {
 
 //newMchCGI returns mchCGI obj if visitor  is allowed.
 //if not allowed print 403.
-func newMchCGI(w http.ResponseWriter, r *http.Request) (mchCGI, error) {
+func newMchCGI(w http.ResponseWriter, r *http.Request, cfg *mchConfig) (mchCGI, error) {
 	c := mchCGI{
-		cgi: newCGI(w, r),
+		mchConfig: cfg,
+		cgi:       newCGI(w, r),
 	}
 	defer c.close()
 	if c.cgi == nil || !c.checkVisitor() {

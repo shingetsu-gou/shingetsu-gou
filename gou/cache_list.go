@@ -62,8 +62,10 @@ type cacheList struct {
 }
 
 //newCacheList loads all caches in disk and returns cachelist obj.
-func newCacheList() *cacheList {
-	c := &cacheList{}
+func newCacheList(cfg *cacheListConfig) *cacheList {
+	c := &cacheList{
+		cacheListConfig: cfg,
+	}
 	c.load()
 	return c
 }

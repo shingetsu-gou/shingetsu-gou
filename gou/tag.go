@@ -38,16 +38,6 @@ import (
 	"sync"
 )
 
-var (
-	utag              *userTag
-	suggestedTagTable *SuggestedTagTable
-)
-
-func TagSetup(sugtag, cacheDir string) {
-	utag = newUserTag(sugtag)
-	suggestedTagTable = newSuggestedTagTable(cacheDir)
-}
-
 //tag represents one tag.
 type tag struct {
 	Tagstr string
@@ -165,12 +155,14 @@ func (t tagslice) sync(path string) {
 
 type suggestedTagTableConfig struct {
 	tagSize int
+	sugtag  string
 	fmutex  *sync.RWMutex
 }
 
 func newSuggestedTagTableConfig(cfg *Config) *suggestedTagTableConfig {
 	return &suggestedTagTableConfig{
 		tagSize: cfg.TagSize,
+		sugtag:  cfg.Sugtag(),
 		fmutex:  &cfg.Fmutex,
 	}
 }
@@ -180,14 +172,13 @@ type SuggestedTagTable struct {
 	*suggestedTagTableConfig
 	sugtaglist map[string]tagslice
 	mutex      sync.RWMutex
-	sugtag     string
 }
 
 //newSuggestedTagTable make SuggestedTagTable obj and read info from the file.
-func newSuggestedTagTable(sugtag string) *SuggestedTagTable {
+func newSuggestedTagTable(c *suggestedTagTableConfig) *SuggestedTagTable {
 	s := &SuggestedTagTable{
-		sugtaglist: make(map[string]tagslice),
-		sugtag:     sugtag,
+		suggestedTagTableConfig: c,
+		sugtaglist:              make(map[string]tagslice),
 	}
 	if !IsFile(sugtag) {
 		return s
@@ -300,15 +291,15 @@ func newUserTagodeConfig(cfg *Config) *userTagConfig {
 //UserTagList represents tags saved by the user.
 type userTag struct {
 	*userTagConfig
-	mutex    sync.Mutex
-	isClean  bool
-	tags     tagslice
-	cacheDir string
+	mutex   sync.Mutex
+	isClean bool
+	tags    tagslice
 }
 
-func newUserTag(cacheDir string) *userTag {
+func newUserTag(c *userTagConfig) *userTag {
 	return &userTag{
-		cacheDir: cacheDir,
+		userTagConfig: c,
+		cacheDir:      cacheDir,
 	}
 }
 

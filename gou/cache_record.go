@@ -46,12 +46,6 @@ import (
 	"time"
 )
 
-var cachedRule *regexpList
-
-func RecordSetup(spamlist string) {
-	cachedRule = newRegexpList(spamlist)
-}
-
 //RecordHead represents one line in updatelist/recentlist
 type RecordHead struct {
 	datfile string //cache file name
@@ -138,7 +132,9 @@ type recordConfig struct {
 	defaultThumbnailSize string
 	cacheDir             string
 	saveSize             int
+	spamlist             string
 	fmutex               *sync.RWMutex
+	cachedRule           *regexpList
 }
 
 func newRecordConfig(cfg *Config) *recordConfig {
@@ -147,7 +143,9 @@ func newRecordConfig(cfg *Config) *recordConfig {
 		defaultThumbnailSize: cfg.DefaultThumbnailSize,
 		cacheDir:             cfg.CacheDir,
 		saveSize:             cfg.SaveSize,
+		smaplist:             cfg.SpamList,
 		fmutex:               &cfg.Fmutex,
+		cachedRule:           newRegexpList(cfg.SpamList),
 	}
 }
 
@@ -169,10 +167,12 @@ func (r *record) len() int {
 
 //newRecord parse idstr unixtime+"_"+md5(bodystr)), set stamp and id, and return record obj.
 //if parse failes returns nil.
-func newRecord(datfile, idstr string) *record {
+func newRecord(datfile, idstr string, c *recordConfig) *record {
 	var err error
-	r := &record{}
-	r.datfile = datfile
+	r := &record{
+		datfile:      datfile,
+		recordConfig: c,
+	}
 	if idstr != "" {
 		buf := strings.Split(idstr, "_")
 		if len(buf) != 2 {
@@ -639,7 +639,7 @@ func (r recordMap) keys() []string {
 
 //removeRecords remove old records while remaing #saveSize records.
 //and also removes duplicates recs.
-func (r recordMap) removeRecords(limit int64,saveSize int) {
+func (r recordMap) removeRecords(limit int64, saveSize int) {
 	ids := r.keys()
 	if saveSize < len(ids) {
 		ids = ids[:len(ids)-saveSize]

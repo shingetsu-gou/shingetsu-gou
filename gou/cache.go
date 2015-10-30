@@ -41,7 +41,11 @@ import (
 	"time"
 )
 
-var cacheMap map[string]sync.Pool
+var (
+	cacheMap = make(map[string]sync.Pool)
+	errSpam  = errors.New("this is spam")
+	errGet   = errors.New("cannot get data")
+)
 
 type cacheConfig struct {
 	saveRemoved int64
@@ -49,9 +53,7 @@ type cacheConfig struct {
 	cacheDir    string
 	recordLimit int
 	getRange    int64
-	errSpam     error
-	errGet      error
-	cacheMap    map[string]sync.Pool
+	fmutex      *sync.RWMutex
 }
 
 func newCacheConfig(cfg *Config) *cacheConfig {
@@ -61,9 +63,7 @@ func newCacheConfig(cfg *Config) *cacheConfig {
 		cacheDir:    cfg.CacheDir,
 		recordLimit: cfg.RecordLimit,
 		getRange:    cfg.GetRange,
-		errSpam:     errors.New("this is spam"),
-		errGet:      errors.New("cannot get data"),
-		cacheMap:    make(map[string]sync.Pool),
+		fmutex:      &cfg.Fmutex,
 	}
 }
 
@@ -81,7 +81,6 @@ type cache struct {
 	Datfile string
 	tags    tagslice //made by the user
 	mutex   sync.RWMutex
-	fmutex  *sync.RWMutex
 }
 
 //addTags add user tag list from vals.
@@ -167,12 +166,13 @@ func (c *cache) recentStamp() int64 {
 //newCache read files to set params and returns cache obj.
 //it uses sync.pool to ensure that only one cache obj exists for one datfile.
 //and garbage collected when not used.
-func newCache(datfile string) *cache {
+func newCache(datfile string, conf *cacheConfig) *cache {
 	p, exist := cacheMap[datfile]
 	if !exist {
 		p.New = func() interface{} {
 			c := &cache{
-				Datfile: datfile,
+				Datfile:     datfile,
+				cacheConfig: conf,
 			}
 			c.tags = loadTagslice(path.Join(c.datpath(), "tag.txt"))
 			return c
@@ -285,7 +285,7 @@ func (c *cache) checkData(res []string, stamp int64, id string, begin, end int64
 		if er := r.parse(i); er == nil && r.meets(i, stamp, id, begin, end) {
 			count++
 			if len(i) > c.recordLimit*1024 || r.isSpam() {
-				err = c.errSpam
+				err = errSpam
 				log.Printf("warning:%s/%s:too large or spam record", c.Datfile, r.Idstr())
 				r.sync()
 				errr := r.remove()
@@ -300,7 +300,7 @@ func (c *cache) checkData(res []string, stamp int64, id string, begin, end int64
 		}
 	}
 	if count == 0 {
-		return 0, c.errGet
+		return 0, errGet
 	}
 	return count, err
 }
@@ -311,7 +311,7 @@ func (c *cache) getData(stamp int64, id string, n *node) error {
 	res, err := n.talk(fmt.Sprintf("/get/%s/%d/%s", c.Datfile, stamp, id))
 	if err != nil {
 		log.Println(err)
-		return c.errGet
+		return errGet
 	}
 	count, err := c.checkData(res, stamp, id, -1, -1)
 	if count == 0 {

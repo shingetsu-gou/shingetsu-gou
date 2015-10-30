@@ -38,13 +38,6 @@ import (
 	"time"
 )
 
-var dataKeyTable *DatakeyTable
-
-//DatakeySetup setups datakeyTable var.
-func DatakeySetup(runDir string) {
-	dataKeyTable = newDatakeyTable(runDir + "/datakey.txt")
-}
-
 //DatakeyTable stores cache stamp and cache datfile name pair.
 type DatakeyTable struct {
 	file            string
@@ -55,11 +48,13 @@ type DatakeyTable struct {
 }
 
 //newDatakeyTable make DataKeyTable obj.
-func newDatakeyTable(file string) *DatakeyTable {
-	d := &DatakeyTable{}
-	d.file = file
-	d.datakey2filekey = make(map[int64]string)
-	d.filekey2datkey = make(map[string]int64)
+func newDatakeyTable(file string, fmutex *sync.RWMutex) *DatakeyTable {
+	d := &DatakeyTable{
+		file:            file,
+		datakey2filekey: make(map[int64]string),
+		filekey2datkey:  make(map[string]int64),
+		fmutex:          fmutex,
+	}
 	return d
 }
 

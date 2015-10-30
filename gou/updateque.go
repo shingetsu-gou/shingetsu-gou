@@ -35,14 +35,6 @@ import (
 	"time"
 )
 
-var (
-	que *updateQue
-)
-
-func QueSetup() {
-	que = newUpdateQue()
-}
-
 type updateQue struct {
 	mutex   sync.Mutex
 	updated map[[16]byte]time.Time
@@ -111,7 +103,7 @@ func (u *updateQue) doUpdateNode(rec *record, n *node) bool {
 	case errGet:
 		log.Println("could not get")
 		return false
-	case ca.errSpam:
+	case errSpam:
 		log.Println("makred spam")
 		return true
 	default:

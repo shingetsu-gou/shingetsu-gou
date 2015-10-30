@@ -124,7 +124,7 @@ type Config struct {
 	ThreadPageSize       int
 	DefaultThumbnailSize string
 	Enable2ch            bool
-	EnableNAT            bool //EnableNAT is enable if you want to use nat.
+	EnableNAT            bool //EnableNAT is enabled if you want to use nat.
 	ForceThumbnail       bool
 
 	Fmutex sync.RWMutex //Fmutex is rwmutex for syncing the disk
@@ -238,4 +238,9 @@ func (c *Config) Lookup() string {
 //Sugtag returns path to sugtag.txt
 func (c *Config) Sugtag() string {
 	return c.RunDir + "/sugtag.txt"
+}
+
+//Datakey returns path to datakey.txt
+func (c *Config) Datakey() string {
+	return c.RunDir + "/datakey.txt"
 }

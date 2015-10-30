@@ -40,8 +40,7 @@ import (
 )
 
 var (
-	myself       *node
-	externalPort int
+	myself *node
 )
 
 //urlopen retrievs html data from url
@@ -90,7 +89,7 @@ type node struct {
 }
 
 //newNode checks nodestr format and returns node obj.
-func newNode(nodestr string) *node {
+func newNode(nodestr string, c *nodeConfig) *node {
 	nodestr = strings.TrimSpace(nodestr)
 	if nodestr == "" {
 		log.Printf("nodestr is empty")
@@ -100,7 +99,9 @@ func newNode(nodestr string) *node {
 		log.Println("bad format", err)
 		return nil
 	}
-	n := &node{}
+	n := &node{
+		nodeConfig: c,
+	}
 	n.nodestr = strings.Replace(nodestr, "+", "/", -1)
 	return n
 }

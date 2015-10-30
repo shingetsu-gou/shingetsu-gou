@@ -114,7 +114,5 @@ func main() {
 	setLogger(printLog, isSilent, cfg.LogDir)
 
 	expandAssets(cfg.FileDir, cfg.TemplateDir, cfg.Docroot)
-
-	gou.SetupDaemon(cfg)
 	gou.StartDaemon(cfg)
 }

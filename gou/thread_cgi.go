@@ -144,9 +144,10 @@ type threadCGI struct {
 }
 
 //newThreadCGI returns threadCGI obj.
-func newThreadCGI(w http.ResponseWriter, r *http.Request) (threadCGI, error) {
+func newThreadCGI(w http.ResponseWriter, r *http.Request, c *threadCGIConfig) (threadCGI, error) {
 	t := threadCGI{
-		cgi: newCGI(w, r),
+		threadCGIConfig: c,
+		cgi:             newCGI(w, r),
 	}
 
 	if t.cgi == nil {

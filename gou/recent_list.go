@@ -39,12 +39,6 @@ import (
 
 const defaultUpdateRange = 24 * time.Hour // Seconds
 
-var recentList *RecentList
-
-func RecentListSetup(recent string) {
-	recentList = newRecentList(recent)
-}
-
 //isInUpdateRange returns true if stamp is in updateRange.
 func isInUpdateRange(nstamp int64) bool {
 	now := time.Now()
@@ -57,12 +51,16 @@ func isInUpdateRange(nstamp int64) bool {
 type recentListConfig struct {
 	recentRange int64
 	tagSize     int
+	recent      string
+	fmutex      *sync.RWMutex
 }
 
 func newRecentListConfig(cfg *Config) *recentListConfig {
 	return &recentListConfig{
 		recentRange: cfg.RecentRange,
 		tagSize:     cfg.TagSize,
+		recent:      cfg.Recent(),
+		fmutex:      &cfg.Fmutex,
 	}
 }
 
@@ -72,15 +70,13 @@ type RecentList struct {
 	*recentListConfig
 	infos   recordHeads
 	isDirty bool
-	recent  string
 	mutex   sync.RWMutex
-	fmutex  *sync.RWMutex
 }
 
 //newRecentList load a file and create a RecentList obj.
-func newRecentList(recent string) *RecentList {
+func newRecentList(c *recentListConfig) *RecentList {
 	r := &RecentList{
-		recent: recent,
+		recentListConfig: c,
 	}
 	r.loadFile()
 	return r

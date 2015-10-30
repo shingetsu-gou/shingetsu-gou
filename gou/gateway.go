@@ -192,22 +192,24 @@ func (l ListItem) Render(ca *cache, remove bool, target string, search bool) tem
 }
 
 type cgiConfig struct {
-	serverName   string
-	reAdminStr   string
-	reFriendStr  string
-	reVisitorStr string
-	docroot      string
-	fileDir      string
+	serverName    string
+	reAdminStr    string
+	reFriendStr   string
+	reVisitorStr  string
+	docroot       string
+	fileDir       string
+	maxConnection int
 }
 
 func newCGIConfig(cfg *Config) *cgiConfig {
 	return &cgiConfig{
-		serverName:   cfg.ServerName,
-		reAdminStr:   cfg.ReAdminStr,
-		reFriendStr:  cfg.ReFriendStr,
-		reVisitorStr: cfg.ReVisitorStr,
-		docroot:      cfg.Docroot,
-		fileDir:      cfg.FileDir,
+		serverName:    cfg.ServerName,
+		reAdminStr:    cfg.ReAdminStr,
+		reFriendStr:   cfg.ReFriendStr,
+		reVisitorStr:  cfg.ReVisitorStr,
+		docroot:       cfg.Docroot,
+		fileDir:       cfg.FileDir,
+		maxConnection: cfg.MaxConnection,
 	}
 }
 
@@ -267,18 +269,18 @@ func (c *cgi) path() string {
 
 var cgis chan *cgi
 
-//CGISetup setups cgi cache.
-func CGISetup(maxConnection int) {
-	cgis = make(chan *cgi, maxConnection)
-}
-
 //newCGI reads messages file, and set params , returns cgi obj.
-func newCGI(w http.ResponseWriter, r *http.Request) *cgi {
+func newCGI(w http.ResponseWriter, r *http.Request, cfg *cgiConfig) *cgi {
+	if cgis == nil {
+		cgis = make(chan *cgi, cfg.maxConnection)
+	}
 	var c *cgi
 	select {
 	case c = <-cgis:
 	default:
-		c = &cgi{}
+		c = &cgi{
+			cgiConfig: cfg,
+		}
 	}
 	c.jc = newJsCache(c.docroot)
 	c.wr = w

@@ -39,68 +39,52 @@ import (
 	"github.com/shingetsu-gou/go-nat"
 )
 
-var (
-	initNode    *confList
-	nodeManager *NodeManager
-)
-
 const (
 	defaultNodes = 5 // Nodes keeping in node list
 	shareNodes   = 5 // Nodes having the file
 )
 
-//NodeSetup setups node relates variables and get external port by upnp if enabled.
-func NodeSetup(enableNat bool, defaultPort int, initnodeList string) {
-	externalPort = defaultPort
-	if !enableNat {
-		return
-	}
+type nodeManagerConfig struct {
+	serverName  string
+	lookup      string
+	defaultPort int
+	fmutex      *sync.RWMutex
+	enableNAT   bool
+	initNode    *confList
+}
 
-	n, err := nat.NewNetStatus()
-	if err != nil {
-		log.Println(err)
-	} else {
-		m, err := n.LoopPortMapping("tcp", defaultPort, "shingetsu-gou", 10*time.Minute)
-		if err != nil {
-			log.Println(err)
-		} else {
-			externalPort = m.ExternalPort
-		}
-	}
-
+func newNodeManagerConfig(cfg *Config) *nodeManagerConfig {
 	defaultInitNode := []string{
 		"node.shingetsu.info:8000/server.cgi",
 		"pushare.zenno.info:8000/server.cgi",
 	}
-	initNode = newConfList(initnodeList, defaultInitNode)
-	nodeManager = newNodeManager()
-}
 
-type nodeManagerConfig struct {
-	serverName string
-	lookup     string
-}
-
-func newNodeManagerConfig(cfg *Config) *nodeManagerConfig {
 	return &nodeManagerConfig{
-		serverName: cfg.ServerName,
-		lookup:     cfg.Lookup(),
+		serverName:  cfg.ServerName,
+		lookup:      cfg.Lookup(),
+		defaultPort: cfg.DefaultPort,
+		fmutex:      &cfg.Fmutex,
+		enableNAT:   &cfg.EnableNAT,
+		initNode:    newConfList(cfg.initnodeList, defaultInitNode),
 	}
 }
 
 //NodeManager represents map datfile to it's source node list.
 type NodeManager struct {
 	*nodeManagerConfig
-	isDirty bool
-	nodes   map[string]nodeSlice //map[""] is nodelist
-	mutex   sync.RWMutex
-	fmutex  *sync.RWMutex
+	isDirty      bool
+	nodes        map[string]nodeSlice //map[""] is nodelist
+	initNode     *confList
+	externalPort int
+	mutex        sync.RWMutex
 }
 
 //newLookupTable read the file and returns LookupTable obj.
-func newNodeManager() *NodeManager {
+func newNodeManager(c *nodeManagerConfig) *NodeManager {
 	r := &NodeManager{
-		nodes: make(map[string]nodeSlice),
+		nodeManagerConfig: c,
+		nodes:             make(map[string]nodeSlice),
+		externalPort:      defaultPort,
 	}
 	err := eachKeyValueLine(r.lookup, func(key string, value []string, i int) error {
 		var nl nodeSlice
@@ -113,7 +97,25 @@ func newNodeManager() *NodeManager {
 	if err != nil {
 		log.Println(err)
 	}
+	if r.enableNAT {
+		r.setUPnP()
+	}
 	return r
+}
+
+//setUPnP setups node relates variables and get external port by upnp if enabled.
+func (n *NodeManager) setUPnP() {
+	n, err := nat.NewNetStatus()
+	if err != nil {
+		log.Println(err)
+	} else {
+		m, err := n.LoopPortMapping("tcp", defaultPort, "shingetsu-gou", 10*time.Minute)
+		if err != nil {
+			log.Println(err)
+		} else {
+			n.externalPort = m.ExternalPort
+		}
+	}
 }
 
 //appendToList add node n to nodelist if it is allowd and list doesn't have it.

@@ -295,9 +295,10 @@ type serverCGI struct {
 }
 
 //newServerCGI set content-type to text and  returns serverCGI obj.
-func newServerCGI(w http.ResponseWriter, r *http.Request) (serverCGI, error) {
+func newServerCGI(w http.ResponseWriter, r *http.Request, cfg *serverConfig) (serverCGI, error) {
 	c := serverCGI{
-		cgi: newCGI(w, r),
+		serverConfig: cfg,
+		cgi:          newCGI(w, r),
 	}
 	if c.cgi == nil {
 		return c, errors.New("cannot make CGI")

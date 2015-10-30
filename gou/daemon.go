@@ -45,8 +45,21 @@ import (
 	"github.com/gorilla/handlers"
 )
 
+func startCGIs(cfg *Config) {
+	adminSetup(sm)
+	serverSetup(sm)
+	gatewaySetup(sm)
+	threadSetup(sm)
+
+	if cfg.Enable2ch {
+		fmt.Println("started 2ch interface...")
+		mchSetup(sm)
+	}
+}
+
 //SetupDaemon setups document root and necessary dirs.
-func SetupDaemon(cfg *Config) {
+//,rm lock files, save pid, start cron job and a http server.
+func StartDaemon(cfg *Config) {
 	for _, j := range []string{cfg.RunDir, cfg.CacheDir, cfg.LogDir} {
 		if !IsDir(j) {
 			err := os.Mkdir(j, 0755)
@@ -55,18 +68,7 @@ func SetupDaemon(cfg *Config) {
 			}
 		}
 	}
-	NodeSetup(cfg.EnableNAT, cfg.DefaultPort, cfg.InitnodeList)
-	CGISetup(cfg.MaxConnection)
-	TemplateSetup(cfg.TemplateDir)
-	DatakeySetup(cfg.RunDir)
-	TagSetup(cfg.Sugtag(), cfg.CacheDir)
-	QueSetup()
-	RecentListSetup(cfg.Recent())
-	RecordSetup(cfg.SpamList)
-}
 
-//StartDaemon rm lock files, save pid, start cron job and a http server.
-func StartDaemon(cfg *Config) {
 	p := os.Getpid()
 	err := ioutil.WriteFile(cfg.PID(), []byte(strconv.Itoa(p)), 0666)
 	if err != nil {
@@ -91,15 +93,7 @@ func StartDaemon(cfg *Config) {
 	go cron()
 	sm.registerPprof()
 	sm.registCompressHandler("/", handleRoot(cfg.Docroot))
-	adminSetup(sm, cfg.AdminSid())
-	serverSetup(sm)
-	gatewaySetup(sm)
-	threadSetup(sm)
-
-	if cfg.Enable2ch {
-		fmt.Println("started 2ch interface...")
-		mchSetup(sm)
-	}
+	startCGIs(cfg)
 	fmt.Println("started daemon and http server...")
 	log.Fatal(s.Serve(limitListener))
 }

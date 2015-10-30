@@ -396,9 +396,10 @@ type gatewayCGI struct {
 }
 
 //newGatewayCGI returns gatewayCGI obj with filter.tag value in form.
-func newGatewayCGI(w http.ResponseWriter, r *http.Request) (gatewayCGI, error) {
+func newGatewayCGI(w http.ResponseWriter, r *http.Request, c *gatewayConfig) (gatewayCGI, error) {
 	a := gatewayCGI{
-		cgi: newCGI(w, r),
+		gatewayConfig: c,
+		cgi:           newCGI(w, r),
 	}
 	if a.cgi == nil {
 		return a, errors.New("cannot make cgi")
