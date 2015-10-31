@@ -153,31 +153,17 @@ func (t tagslice) sync(path string) {
 	}
 }
 
-type suggestedTagTableConfig struct {
-	tagSize int
-	sugtag  string
-	fmutex  *sync.RWMutex
-}
-
-func newSuggestedTagTableConfig(cfg *Config) *suggestedTagTableConfig {
-	return &suggestedTagTableConfig{
-		tagSize: cfg.TagSize,
-		sugtag:  cfg.Sugtag(),
-		fmutex:  &cfg.Fmutex,
-	}
-}
-
 //SuggestedTagTable represents tags associated with datfile retrieved from network.
 type SuggestedTagTable struct {
-	*suggestedTagTableConfig
+	*Config
 	sugtaglist map[string]tagslice
 	mutex      sync.RWMutex
 }
 
 //newSuggestedTagTable make SuggestedTagTable obj and read info from the file.
-func newSuggestedTagTable(c *suggestedTagTableConfig) *SuggestedTagTable {
+func newSuggestedTagTable(cfg *Config) *SuggestedTagTable {
 	s := &SuggestedTagTable{
-		suggestedTagTableConfig: c,
+		Config: cfg,
 		sugtaglist:              make(map[string]tagslice),
 	}
 	if !IsFile(sugtag) {
@@ -276,42 +262,30 @@ func (s *SuggestedTagTable) prune(recentlist *RecentList) {
 	}
 }
 
-type userTagConfig struct {
-	cacheDir string
-	fmutex   *sync.RWMutex
-}
-
-func newUserTagodeConfig(cfg *Config) *userTagConfig {
-	return &userTagConfig{
-		cacheDir: cfg.CacheDir,
-		fmutex:   &cfg.Fmutex,
-	}
-}
-
 //UserTagList represents tags saved by the user.
-type userTag struct {
-	*userTagConfig
+type UserTag struct {
+	*Config
 	mutex   sync.Mutex
 	isClean bool
 	tags    tagslice
 }
 
-func newUserTag(c *userTagConfig) *userTag {
-	return &userTag{
-		userTagConfig: c,
+func newUserTag(cfg *Config) *UserTag {
+	return &UserTag{
+		Config: cfg,
 		cacheDir:      cacheDir,
 	}
 }
 
 //setDirty sets dirty flag.
-func (u *userTag) setDirty() {
+func (u *UserTag) setDirty() {
 	u.mutex.Lock()
 	defer u.mutex.Unlock()
 	u.isClean = false
 }
 
 //get reads tags from the disk and retrusn tagslice.
-func (u *userTag) get() tagslice {
+func (u *UserTag) get() tagslice {
 	u.fmutex.RLock()
 	defer u.fmutex.RUnlock()
 	u.mutex.Lock()

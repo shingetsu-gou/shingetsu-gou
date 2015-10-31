@@ -32,6 +32,7 @@ import (
 	"errors"
 	"fmt"
 	"log"
+	"regexp"
 	"strconv"
 	"strings"
 	"sync"
@@ -40,27 +41,27 @@ import (
 
 //DatakeyTable stores cache stamp and cache datfile name pair.
 type DatakeyTable struct {
-	file            string
+	*Config
+	*Global
 	datakey2filekey map[int64]string
 	filekey2datkey  map[string]int64
 	mutex           sync.RWMutex
-	fmutex          *sync.RWMutex
 }
 
 //newDatakeyTable make DataKeyTable obj.
-func newDatakeyTable(file string, fmutex *sync.RWMutex) *DatakeyTable {
+func newDatakeyTable(cfg *Config, gl *Global) *DatakeyTable {
 	d := &DatakeyTable{
-		file:            file,
+		Config:          cfg,
+		Global:          gl,
 		datakey2filekey: make(map[int64]string),
 		filekey2datkey:  make(map[string]int64),
-		fmutex:          fmutex,
 	}
 	return d
 }
 
 //loadInternal loads stamp/value from the file .
 func (d *DatakeyTable) loadInternal() {
-	err := eachLine(d.file, func(line string, i int) error {
+	err := eachLine(d.Datakey(), func(line string, i int) error {
 		if line == "" {
 			return nil
 		}
@@ -82,11 +83,11 @@ func (d *DatakeyTable) loadInternal() {
 //and saves to file.
 func (d *DatakeyTable) load() {
 	d.loadInternal()
-	for _, c := range newCacheList().Caches {
+	for _, c := range newCacheList(d.Config, d.Global).Caches {
 		d.setFromCache(c)
 	}
-	for _, rec := range recentList.infos {
-		c := newCache(rec.datfile)
+	for _, rec := range d.RecentList.infos {
+		c := newCache(rec.datfile, d.Config, d.Global)
 		d.setFromCache(c)
 	}
 	d.save()
@@ -102,9 +103,9 @@ func (d *DatakeyTable) save() {
 		i++
 	}
 	d.mutex.RUnlock()
-	d.fmutex.Lock()
-	err := writeSlice(d.file, str)
-	d.fmutex.Unlock()
+	d.Fmutex.Lock()
+	err := writeSlice(d.Datakey(), str)
+	d.Fmutex.Unlock()
 	if err != nil {
 		log.Println(err)
 	}
@@ -155,7 +156,7 @@ func (d *DatakeyTable) getDatkey(filekey string) (int64, error) {
 		return v, nil
 	}
 	d.mutex.RUnlock()
-	c := newCache(filekey)
+	c := newCache(filekey, d.Config, d.Global)
 	d.setFromCache(c)
 	d.save()
 	d.mutex.RLock()
@@ -179,4 +180,89 @@ func (d *DatakeyTable) getFilekey(datkey string) (string, error) {
 		return v, nil
 	}
 	return "", fmt.Errorf("%s not found", datkey)
+}
+
+//makeBracketLink add links to [[hoe]] .
+func (d *DatakeyTable) makeBracketLink(body, datHost, board string, table *resTable) string {
+	regs := []*regexp.Regexp{
+		regexp.MustCompile("^(?P<title>[^/]+)$"),
+		regexp.MustCompile("^/(?P<type>[a-z]+)/(?P<title>[^/]+)$"),
+		regexp.MustCompile("^(?P<title>[^/]+)/(?P<id>[0-9a-f]{8})$"),
+		regexp.MustCompile("^/(?P<type>[a-z]+)/(?P<title>[^/]+)/(?P<id>[0-9a-f]{8})$"),
+	}
+	reg := regexp.MustCompile(`\[\[([^<>]+?)\]\]`)
+	return reg.ReplaceAllStringFunc(body, func(str string) string {
+		link := reg.FindStringSubmatch(str)[1]
+		result := make(map[string]string)
+		for _, r := range regs {
+			if match := r.FindStringSubmatch(link); match != nil {
+				for i, name := range r.SubexpNames() {
+					result[name] = match[i]
+				}
+				break
+			}
+		}
+		if result["title"] == "" {
+			return result["body"]
+		}
+		if result["type"] == "" {
+			result["type"] = "thread"
+		}
+		file := fileEncode(result["type"], result["title"])
+		datkey, err := d.getDatkey(file)
+		if err != nil {
+			log.Println(err)
+			return body
+		}
+		if result["id"] == "" {
+			url := fmt.Sprintf("http://%s/test/read.cgi/%s/%d/", datHost, board, datkey)
+			return fmt.Sprintf("[[%s(%s)]]", result["title"], url)
+		}
+		ca := newCache(file, d.Config, d.Global)
+		table = newResTable(ca)
+		no := table.id2num[result["id"]]
+		url := fmt.Sprintf("http://%s/test/read.cgi/%s/%d/%d", datHost, board, datkey, no)
+		return fmt.Sprintf("[[%s(&gt;&gt;%d %s)]]", result["title"], no, url)
+	})
+}
+
+//makeBody makes a dat line after stamp.
+func (d *DatakeyTable) makeBody(rec *record, host, board string, table *resTable) string {
+	body := rec.GetBodyValue("body", "")
+	body += makeAttachLink(rec, host)
+	body = makeRSSAnchor(body, table)
+	body = d.makeBracketLink(body, host, board, table)
+	return body
+}
+
+//makeDat makes dat lines of 2ch from cache.
+func (d *DatakeyTable) makeDat(ca *cache, board, host string) []string {
+	recs := ca.loadRecords()
+	dat := make([]string, len(recs))
+	table := newResTable(ca)
+
+	i := 0
+	for _, rec := range recs {
+		err := rec.load()
+		if err != nil {
+			log.Println(err)
+			continue
+		}
+		name := rec.GetBodyValue("name", "")
+		if name == "" {
+			name = "名無しさん"
+		}
+		if rec.GetBodyValue("pubkey", "") != "" {
+			name += "◆" + rec.GetBodyValue("pubkey", "")[:10]
+		}
+		comment := fmt.Sprintf("%s<>%s<>%s<>%s<>",
+			name, rec.GetBodyValue("main", ""), datestr2ch(rec.Stamp), d.makeBody(rec, host, board, table))
+		if i == 0 {
+			comment += fileDecode(ca.Datfile)
+		}
+		dat[i] = comment
+		i++
+	}
+
+	return dat
 }

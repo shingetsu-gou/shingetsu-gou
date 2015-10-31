@@ -44,52 +44,37 @@ const (
 	shareNodes   = 5 // Nodes having the file
 )
 
-type nodeManagerConfig struct {
-	serverName  string
-	lookup      string
-	defaultPort int
-	fmutex      *sync.RWMutex
-	enableNAT   bool
-	initNode    *confList
+//NodeManager represents map datfile to it's source node list.
+type NodeManager struct {
+	*Config
+	isDirty      bool
+	nodes        map[string]nodeSlice //map[""] is nodelist
+	InitNode     *confList
+	externalPort int
+	myself       *node
+	mutex        sync.RWMutex
+	nodeAllow    *regexpList
+	nodeDeny     *regexpList
 }
 
-func newNodeManagerConfig(cfg *Config) *nodeManagerConfig {
+//newLookupTable read the file and returns LookupTable obj.
+func newNodeManager(cfg *Config) *NodeManager {
 	defaultInitNode := []string{
 		"node.shingetsu.info:8000/server.cgi",
 		"pushare.zenno.info:8000/server.cgi",
 	}
-
-	return &nodeManagerConfig{
-		serverName:  cfg.ServerName,
-		lookup:      cfg.Lookup(),
-		defaultPort: cfg.DefaultPort,
-		fmutex:      &cfg.Fmutex,
-		enableNAT:   &cfg.EnableNAT,
-		initNode:    newConfList(cfg.initnodeList, defaultInitNode),
-	}
-}
-
-//NodeManager represents map datfile to it's source node list.
-type NodeManager struct {
-	*nodeManagerConfig
-	isDirty      bool
-	nodes        map[string]nodeSlice //map[""] is nodelist
-	initNode     *confList
-	externalPort int
-	mutex        sync.RWMutex
-}
-
-//newLookupTable read the file and returns LookupTable obj.
-func newNodeManager(c *nodeManagerConfig) *NodeManager {
 	r := &NodeManager{
-		nodeManagerConfig: c,
-		nodes:             make(map[string]nodeSlice),
-		externalPort:      defaultPort,
+		Config:       cfg,
+		nodes:        make(map[string]nodeSlice),
+		InitNode:     newConfList(cfg.InitnodeList, defaultInitNode),
+		externalPort: cfg.DefaultPort,
+		nodeAllow:    newRegexpList(cfg.NodeAllowFile),
+		nodeDeny:     newRegexpList(cfg.NodeDenyFile),
 	}
-	err := eachKeyValueLine(r.lookup, func(key string, value []string, i int) error {
+	err := eachKeyValueLine(cfg.Lookup(), func(key string, value []string, i int) error {
 		var nl nodeSlice
 		for _, v := range value {
-			nl = append(nl, newNode(v))
+			nl = append(nl, newNode(v,cfg))
 		}
 		r.nodes[key] = nl
 		return nil
@@ -101,6 +86,17 @@ func newNodeManager(c *nodeManagerConfig) *NodeManager {
 		r.setUPnP()
 	}
 	return r
+}
+
+func (n *NodeManager) setMyself(m string) {
+	n.myself = newNode(m)
+}
+
+func (n *NodeManager) getMyself() *node {
+	if n.ServerName != "" {
+		return makeNode(n.ServerName, ServerURL, n.externalPort)
+	}
+	return myself
 }
 
 //setUPnP setups node relates variables and get external port by upnp if enabled.

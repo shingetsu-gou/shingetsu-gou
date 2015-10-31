@@ -56,98 +56,86 @@ import (
 const ThreadURL = "/thread.cgi"
 
 //threadSetup setups handlers for thread.cgi
-func threadSetup(s *loggingServeMux) {
+func threadSetup(s *loggingServeMux, cfg *Config,gl *Global) {
 	rtr := mux.NewRouter()
 
-	registToRouter(rtr, ThreadURL+"/", printThreadIndex)
+	registToRouter(rtr, ThreadURL+"/", printThreadIndex(cfg,gl))
 
 	reg := ThreadURL + "/{datfile:thread_[0-9A-F]+}/{id:[0-9a-f]{32}}/s{stamp:\\d+}.{thumbnailSize:\\d+x\\d+}.{suffix:.*}"
-	registToRouter(rtr, reg, printAttach)
+	registToRouter(rtr, reg, printAttach(cfg,gl))
 
 	reg = ThreadURL + "/{datfile:thread_[0-9A-F]+}/{id:[0-9a-f]{32}}/{stamp:\\d+}.{suffix:.*}"
-	registToRouter(rtr, reg, printAttach)
+	registToRouter(rtr, reg, printAttach(cfg,gl))
 
 	reg = ThreadURL + "/{path:[^/]+}{end:/?$}"
-	registToRouter(rtr, reg, printThread)
+	registToRouter(rtr, reg, printThread(cfg,gl))
 
 	reg = ThreadURL + "/{path:[^/]+}/{id:[0-9a-f]{8}}{end:$}"
-	registToRouter(rtr, reg, printThread)
+	registToRouter(rtr, reg, printThread(cfg,gl))
 
 	reg = ThreadURL + "/{path:[^/]+}/p{page:[0-9]+}{end:$}"
-	registToRouter(rtr, reg, printThread)
+	registToRouter(rtr, reg, printThread(cfg,gl))
 
 	s.Handle(ThreadURL+"/", handlers.CompressHandler(rtr))
 }
 
 //printThreadIndex adds records in multiform and redirect to its thread page.
-func printThreadIndex(w http.ResponseWriter, r *http.Request) {
-	if a, err := newThreadCGI(w, r); err == nil {
-		defer a.close()
-		a.printThreadIndex()
+func printThreadIndex(cfg *Config) func(w http.ResponseWriter, r *http.Request) {
+	return func(w http.ResponseWriter, r *http.Request) {
+		if a, err := newThreadCGI(w, r, cfg); err == nil {
+			defer a.close()
+			a.printThreadIndex()
+		}
 	}
 }
 
-func printAttach(w http.ResponseWriter, r *http.Request) {
-	if a, err := newThreadCGI(w, r); err == nil {
-		defer a.close()
-		m := mux.Vars(r)
-		var stamp int64
-		if m["stamp"] != "" {
-			var err error
-			stamp, err = strconv.ParseInt(m["stamp"], 10, 64)
-			if err != nil {
-				log.Println(err)
-				return
+func printAttach(cfg *Config) func(w http.ResponseWriter, r *http.Request) {
+	return func(w http.ResponseWriter, r *http.Request) {
+		if a, err := newThreadCGI(w, r, cfg); err == nil {
+			defer a.close()
+			m := mux.Vars(r)
+			var stamp int64
+			if m["stamp"] != "" {
+				var err error
+				stamp, err = strconv.ParseInt(m["stamp"], 10, 64)
+				if err != nil {
+					log.Println(err)
+					return
+				}
 			}
+			a.printAttach(m["datfile"], m["id"], stamp, m["thumbnailSize"], m["suffix"])
 		}
-		a.printAttach(m["datfile"], m["id"], stamp, m["thumbnailSize"], m["suffix"])
 	}
 }
 
 //printThread renders whole thread list page.
-func printThread(w http.ResponseWriter, r *http.Request) {
-	if a, err := newThreadCGI(w, r); err == nil {
-		defer a.close()
-		m := mux.Vars(r)
-		var page int
-		if m["page"] != "" {
-			var err error
-			page, err = strconv.Atoi(m["page"])
-			if err != nil {
-				return
+func printThread(cfg *Config) func(w http.ResponseWriter, r *http.Request) {
+	return func(w http.ResponseWriter, r *http.Request) {
+		if a, err := newThreadCGI(w, r, cfg); err == nil {
+			defer a.close()
+			m := mux.Vars(r)
+			var page int
+			if m["page"] != "" {
+				var err error
+				page, err = strconv.Atoi(m["page"])
+				if err != nil {
+					return
+				}
 			}
+			a.printThread(m["path"], m["id"], page)
 		}
-		a.printThread(m["path"], m["id"], page)
-	}
-}
-
-type threadCGIConfig struct {
-	threadPageSize       int
-	defaultThumbnailSize string
-	recordLimit          int
-	forceThumbnail       bool
-}
-
-func newThreadCGIConfig(cfg *Config) *threadCGIConfig {
-	return &threadCGIConfig{
-		threadPageSize:       cfg.ThreadPageSize,
-		defaultThumbnailSize: cfg.DefaultThumbnailSize,
-		recordLimit:          cfg.RecordLimit,
-		forceThumbnail:       cfg.ForceThumbnail,
 	}
 }
 
 //threadCGI is for thread.cgi.
 type threadCGI struct {
-	*threadCGIConfig
 	*cgi
 }
 
 //newThreadCGI returns threadCGI obj.
-func newThreadCGI(w http.ResponseWriter, r *http.Request, c *threadCGIConfig) (threadCGI, error) {
+func newThreadCGI(w http.ResponseWriter, r *http.Request, cfg *Config) (threadCGI, error) {
 	t := threadCGI{
-		threadCGIConfig: c,
-		cgi:             newCGI(w, r),
+		cgi: newCGI(w, r, cfg),
 	}
 
 	if t.cgi == nil {

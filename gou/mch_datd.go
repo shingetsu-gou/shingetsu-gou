@@ -43,108 +43,106 @@ import (
 )
 
 //mchSetup setups handlers for 2ch interface.
-func mchSetup(s *loggingServeMux) {
+func mchSetup(s *loggingServeMux, cfg *Config, gl *Global) {
 	log.Println("start 2ch interface")
-	dataKeyTable.load()
+	datakeyTable := newDatakeyTable(cfg, gl)
+	datakeyTable.load()
 	rtr := mux.NewRouter()
 
-	registToRouter(rtr, "/2ch/", boardApp)
-	registToRouter(rtr, "/2ch/dat/{datkey:[^\\.]+}.dat", threadApp)
-	registToRouter(rtr, "/2ch/{board:[^/]+}/subject.txt", subjectApp)
-	registToRouter(rtr, "/2ch/subject.txt", subjectApp)
-	registToRouter(rtr, "/2ch/{board:[^/]+}/head.txt", headApp)
-	registToRouter(rtr, "/2ch/head.txt", headApp)
+	registToRouter(rtr, "/2ch/", boardApp(cfg, gl, datakeyTable))
+	registToRouter(rtr, "/2ch/dat/{datkey:[^\\.]+}.dat", threadApp(cfg, gl, datakeyTable))
+	registToRouter(rtr, "/2ch/{board:[^/]+}/subject.txt", subjectApp(cfg, gl, datakeyTable))
+	registToRouter(rtr, "/2ch/subject.txt", subjectApp(cfg, gl, datakeyTable))
+	registToRouter(rtr, "/2ch/{board:[^/]+}/head.txt", headApp(cfg, gl, datakeyTable))
+	registToRouter(rtr, "/2ch/head.txt", headApp(cfg, gl, datakeyTable))
 	s.Handle("/2ch/", handlers.CompressHandler(rtr))
 
-	s.registCompressHandler("/test/bbs.cgi", postCommentApp)
-
+	s.registCompressHandler("/test/bbs.cgi", postCommentApp(cfg, gl, datakeyTable))
 }
 
 //boardApp just calls boardApp(), only print title.
-func boardApp(w http.ResponseWriter, r *http.Request) {
-	a, err := newMchCGI(w, r)
-	defer a.close()
-	if err != nil {
-		log.Println(err)
-		return
+func boardApp(cfg *Config, gl *Global, d *DatakeyTable) func(w http.ResponseWriter, r *http.Request) {
+	return func(w http.ResponseWriter, r *http.Request) {
+		a, err := newMchCGI(w, r, cfg, gl, d)
+		defer a.close()
+		if err != nil {
+			log.Println(err)
+			return
+		}
+		a.boardApp()
 	}
-	a.boardApp()
 }
 
 //threadApp renders dat files(record data) in the thread.
-func threadApp(w http.ResponseWriter, r *http.Request) {
-	a, err := newMchCGI(w, r)
-	defer a.close()
-	if err != nil {
-		log.Println(err)
-		return
+func threadApp(cfg *Config, gl *Global, d *DatakeyTable) func(w http.ResponseWriter, r *http.Request) {
+	return func(w http.ResponseWriter, r *http.Request) {
+		a, err := newMchCGI(w, r, cfg, gl, d)
+		defer a.close()
+		if err != nil {
+			log.Println(err)
+			return
+		}
+		m := mux.Vars(r)
+		board := m["board"]
+		if board == "" {
+			board = "2ch"
+		}
+		a.threadApp(board, m["datkey"])
 	}
-	m := mux.Vars(r)
-	board := m["board"]
-	if board == "" {
-		board = "2ch"
-	}
-	a.threadApp(board, m["datkey"])
 }
 
 //subjectApp renders time-subject lines of the thread.
-func subjectApp(w http.ResponseWriter, r *http.Request) {
-	a, err := newMchCGI(w, r)
-	defer a.close()
-	if err != nil {
-		log.Println(err)
-		return
+func subjectApp(cfg *Config, gl *Global, d *DatakeyTable) func(w http.ResponseWriter, r *http.Request) {
+	return func(w http.ResponseWriter, r *http.Request) {
+		a, err := newMchCGI(w, r, cfg, gl, d)
+		defer a.close()
+		if err != nil {
+			log.Println(err)
+			return
+		}
+		m := mux.Vars(r)
+		a.subjectApp(m["board"])
 	}
-	m := mux.Vars(r)
-	a.subjectApp(m["board"])
 }
 
 //postCommentApp posts one record to the thread.
-func postCommentApp(w http.ResponseWriter, r *http.Request) {
-	a, err := newMchCGI(w, r)
-	defer a.close()
-	if err != nil {
-		log.Println(err)
-		return
+func postCommentApp(cfg *Config, gl *Global, d *DatakeyTable) func(w http.ResponseWriter, r *http.Request) {
+	return func(w http.ResponseWriter, r *http.Request) {
+		a, err := newMchCGI(w, r, cfg, gl, d)
+		defer a.close()
+		if err != nil {
+			log.Println(err)
+			return
+		}
+		a.postCommentApp()
 	}
-	a.postCommentApp()
 }
 
 //headApp just renders motd.
-func headApp(w http.ResponseWriter, r *http.Request) {
-	a, err := newMchCGI(w, r)
-	defer a.close()
-	if err != nil {
-		log.Println(err)
-		return
-	}
-	a.headApp()
-}
-
-type mchConfig struct {
-	motd    string
-	filedir string
-}
-
-func newMchConfig(cfg *Config) *mchConfig {
-	return &mchConfig{
-		motd:    cfg.Motd(),
-		filedir: cfg.FileDir,
+func headApp(cfg *Config, gl *Global, d *DatakeyTable) func(w http.ResponseWriter, r *http.Request) {
+	return func(w http.ResponseWriter, r *http.Request) {
+		a, err := newMchCGI(w, r, cfg, gl, d)
+		defer a.close()
+		if err != nil {
+			log.Println(err)
+			return
+		}
+		a.headApp()
 	}
 }
 
 //mchCGI is a class for renderring pages of 2ch interface .
 type mchCGI struct {
-	*mchConfig
 	*cgi
+	datakeyTable *DatakeyTable
 }
 
 //newMchCGI returns mchCGI obj if visitor  is allowed.
 //if not allowed print 403.
-func newMchCGI(w http.ResponseWriter, r *http.Request, cfg *mchConfig) (mchCGI, error) {
+func newMchCGI(w http.ResponseWriter, r *http.Request, cfg *Config, gl *Global, d *DatakeyTable) (mchCGI, error) {
 	c := mchCGI{
-		mchConfig: cfg,
-		cgi:       newCGI(w, r),
+		cgi:          newCGI(w, r, cfg, gl),
+		datakeyTable: d,
 	}
 	defer c.close()
 	if c.cgi == nil || !c.checkVisitor() {
@@ -170,7 +168,7 @@ func (m *mchCGI) boardApp() {
 	if l == "" {
 		l = "ja"
 	}
-	message := searchMessage(l, m.filedir)
+	message := searchMessage(l, m.FileDir)
 	m.wr.Header().Set("Content-Type", "text/html; charset=Shift_JIS")
 	board := escape(getBoard(m.path()))
 	text := ""
@@ -198,12 +196,12 @@ func (m *mchCGI) boardApp() {
 //reloads cache fron network.
 func (m *mchCGI) threadApp(board, datkey string) {
 	m.wr.Header().Set("Content-Type", "text/plain; charset=Shift_JIS")
-	key, err := dataKeyTable.getFilekey(datkey)
+	key, err := m.datakeyTable.getFilekey(datkey)
 	if err != nil {
 		m.wr.WriteHeader(404)
 		fmt.Fprintf(m.wr, "404 Not Found")
 	}
-	data := newCache(key)
+	data := newCache(key, m.Config, m.Global)
 	i := data.readInfo()
 
 	if m.checkGetCache() {
@@ -218,7 +216,7 @@ func (m *mchCGI) threadApp(board, datkey string) {
 		m.wr.WriteHeader(404)
 		fmt.Fprintf(m.wr, "404 Not Found")
 	}
-	thread := makeDat(data, board, m.req.Host)
+	thread := m.datakeyTable.makeDat(data, board, m.req.Host)
 	str := strings.Join(thread, "\n")
 	m.serveContent("a.txt", time.Unix(i.stamp, 0), str)
 }
@@ -226,15 +224,15 @@ func (m *mchCGI) threadApp(board, datkey string) {
 //makeSubjectCachelist returns caches in all cache and in recentlist sorted by recent stamp.
 //if board is specified,  returns caches whose tagstr=board.
 func (m *mchCGI) makeSubjectCachelist(board string) []*cache {
-	cl := newCacheList()
+	cl := newCacheList(m.Config, m.Global)
 	seen := make([]string, cl.Len())
 	for i, c := range cl.Caches {
 		seen[i] = c.Datfile
 	}
-	for _, rec := range recentList.infos {
+	for _, rec := range m.RecentList.infos {
 		if !hasString(seen, rec.datfile) {
 			seen = append(seen, rec.datfile)
-			c := newCache(rec.datfile)
+			c := newCache(rec.datfile, m.Config, m.Global)
 			cl.append(c)
 		}
 	}
@@ -283,7 +281,7 @@ func (m *mchCGI) makeSubject(board string) ([]string, int64) {
 		if lastStamp < i.stamp {
 			lastStamp = i.stamp
 		}
-		key, err := dataKeyTable.getDatkey(c.Datfile)
+		key, err := m.datakeyTable.getDatkey(c.Datfile)
 		if err != nil {
 			log.Println(err)
 			continue
@@ -303,7 +301,7 @@ func (m *mchCGI) makeSubject(board string) ([]string, int64) {
 func (m *mchCGI) headApp() {
 	m.wr.Header().Set("Content-Type", "text/plain; charset=Shift_JIS")
 	var body string
-	err := eachLine(m.motd, func(line string, i int) error {
+	err := eachLine(m.Motd(), func(line string, i int) error {
 		line = strings.TrimSpace(line)
 		body += line + "<br>\n"
 		return nil

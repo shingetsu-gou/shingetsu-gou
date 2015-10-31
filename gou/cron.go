@@ -34,7 +34,7 @@ import (
 )
 
 //cron runs cron, and update everything if it is after specified cycle.
-func cron() {
+func cron(gl *Global, cfg *Config) {
 	const (
 		clientCycle = 5 * time.Minute  // Seconds; Access client.cgi
 		pingCycle   = 5 * time.Minute  // Seconds; Check nodes
@@ -42,26 +42,26 @@ func cron() {
 		initCycle   = 20 * time.Minute // Seconds; Check initial node
 	)
 
-	nodeManager.initialize()
-	doSync()
+	gl.NodeManager.initialize()
+	doSync(gl, cfg)
 
 	for {
 		select {
 		case <-time.After(clientCycle):
-			nodeManager.rejoin()
+			gl.NodeManager.rejoin()
 
 		case <-time.After(pingCycle):
-			nodeManager.pingAll()
-			nodeManager.initialize()
-			nodeManager.sync()
-			doSync()
+			gl.NodeManager.pingAll()
+			gl.NodeManager.initialize()
+			gl.NodeManager.sync()
+			doSync(gl, cfg)
 			log.Println("nodelist.pingall finished")
 
-		case <-time.After(initCycle * time.Duration(nodeManager.listLen())):
-			nodeManager.initialize()
+		case <-time.After(initCycle * time.Duration(gl.NodeManager.listLen())):
+			gl.NodeManager.initialize()
 
 		case <-time.After(syncCycle):
-			doSync()
+			doSync(gl, cfg)
 		}
 	}
 }
@@ -69,24 +69,24 @@ func cron() {
 //doSync checks nodes in the nodelist are alive, reloads cachelist, removes old removed files,
 //reloads all tags from cachelist,reload srecent list from nodes in search list,
 //and reloads cache info from files in the disk.
-func doSync() {
-	if nodeManager.listLen() == 0 {
+func doSync(gl *Global, cfg *Config) {
+	if gl.NodeManager.listLen() == 0 {
 		return
 	}
-	nodeManager.rejoinList()
+	gl.NodeManager.rejoinList()
 	log.Println("lookupTable.join finished")
 
-	nodeManager.sync()
+	gl.NodeManager.sync()
 	log.Println("lookupTable.join finished")
 
-	cl := newCacheList()
+	cl := newCacheList(cfg, gl)
 	cl.cleanRecords()
 	log.Println("cachelist.cleanRecords finished")
 
 	cl.removeRemoved()
 	log.Println("cachelist.removeRemoved finished")
 
-	recentList.getAll()
+	gl.RecentList.getAll()
 	log.Println("recentList.getall finished")
 
 	cl.getall()

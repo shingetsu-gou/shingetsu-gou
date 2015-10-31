@@ -30,7 +30,6 @@ package gou
 
 import (
 	"fmt"
-	"log"
 	"regexp"
 	"strconv"
 	"time"
@@ -66,47 +65,6 @@ func newResTable(ca *cache) *resTable {
 	return r
 }
 
-//makeDat makes dat lines of 2ch from cache.
-func makeDat(ca *cache, board, host string) []string {
-	recs := ca.loadRecords()
-	dat := make([]string, len(recs))
-	table := newResTable(ca)
-
-	i := 0
-	for _, rec := range recs {
-		err := rec.load()
-		if err != nil {
-			log.Println(err)
-			continue
-		}
-		name := rec.GetBodyValue("name", "")
-		if name == "" {
-			name = "名無しさん"
-		}
-		if rec.GetBodyValue("pubkey", "") != "" {
-			name += "◆" + rec.GetBodyValue("pubkey", "")[:10]
-		}
-		comment := fmt.Sprintf("%s<>%s<>%s<>%s<>",
-			name, rec.GetBodyValue("main", ""), datestr2ch(rec.Stamp), makeBody(rec, host, board, table))
-		if i == 0 {
-			comment += fileDecode(ca.Datfile)
-		}
-		dat[i] = comment
-		i++
-	}
-
-	return dat
-}
-
-//makeBody makes a dat line after stamp.
-func makeBody(rec *record, host, board string, table *resTable) string {
-	body := rec.GetBodyValue("body", "")
-	body += makeAttachLink(rec, host)
-	body = makeRSSAnchor(body, table)
-	body = makeBracketLink(body, host, board, table)
-	return body
-}
-
 //makeAttachLink makes and returns attached file link.
 func makeAttachLink(rec *record, sakuHost string) string {
 	if rec.GetBodyValue("attach", "") == "" {
@@ -124,49 +82,5 @@ func makeRSSAnchor(body string, table *resTable) string {
 		id := reg.FindStringSubmatch(str)[1]
 		no := table.id2num[id]
 		return "&gt;&gt;" + strconv.Itoa(no)
-	})
-}
-
-//makeBracketLink add links to [[hoe]] .
-func makeBracketLink(body, datHost, board string, table *resTable) string {
-	regs := []*regexp.Regexp{
-		regexp.MustCompile("^(?P<title>[^/]+)$"),
-		regexp.MustCompile("^/(?P<type>[a-z]+)/(?P<title>[^/]+)$"),
-		regexp.MustCompile("^(?P<title>[^/]+)/(?P<id>[0-9a-f]{8})$"),
-		regexp.MustCompile("^/(?P<type>[a-z]+)/(?P<title>[^/]+)/(?P<id>[0-9a-f]{8})$"),
-	}
-	reg := regexp.MustCompile(`\[\[([^<>]+?)\]\]`)
-	return reg.ReplaceAllStringFunc(body, func(str string) string {
-		link := reg.FindStringSubmatch(str)[1]
-		result := make(map[string]string)
-		for _, r := range regs {
-			if match := r.FindStringSubmatch(link); match != nil {
-				for i, name := range r.SubexpNames() {
-					result[name] = match[i]
-				}
-				break
-			}
-		}
-		if result["title"] == "" {
-			return result["body"]
-		}
-		if result["type"] == "" {
-			result["type"] = "thread"
-		}
-		file := fileEncode(result["type"], result["title"])
-		datkey, err := dataKeyTable.getDatkey(file)
-		if err != nil {
-			log.Println(err)
-			return body
-		}
-		if result["id"] == "" {
-			url := fmt.Sprintf("http://%s/test/read.cgi/%s/%d/", datHost, board, datkey)
-			return fmt.Sprintf("[[%s(%s)]]", result["title"], url)
-		}
-		ca := newCache(file)
-		table = newResTable(ca)
-		no := table.id2num[result["id"]]
-		url := fmt.Sprintf("http://%s/test/read.cgi/%s/%d/%d", datHost, board, datkey, no)
-		return fmt.Sprintf("[[%s(&gt;&gt;%d %s)]]", result["title"], no, url)
 	})
 }

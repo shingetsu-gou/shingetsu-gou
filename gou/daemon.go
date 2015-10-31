@@ -45,16 +45,15 @@ import (
 	"github.com/gorilla/handlers"
 )
 
-func startCGIs(cfg *Config) {
-	adminSetup(sm)
-	serverSetup(sm)
-	gatewaySetup(sm)
-	threadSetup(sm)
-
-	if cfg.Enable2ch {
-		fmt.Println("started 2ch interface...")
-		mchSetup(sm)
-	}
+type Global struct {
+	NodeManager       *NodeManager
+	Htemplate         *Htemplate
+	Ttemplate         *Ttemplate
+	UserTag           *UserTag
+	SuggestedTagTable *SuggestedTagTable
+	RecentList        *RecentList
+	CachedRule        *regexpList
+	UpdateQue         *updateQue
 }
 
 //SetupDaemon setups document root and necessary dirs.
@@ -74,13 +73,13 @@ func StartDaemon(cfg *Config) {
 	if err != nil {
 		log.Println(err)
 	}
+
 	h := fmt.Sprintf("0.0.0.0:%d", cfg.DefaultPort)
 	listener, err := net.Listen("tcp", h)
 	if err != nil {
 		log.Fatalln(err)
 	}
 	limitListener := netutil.LimitListener(listener, cfg.MaxConnection)
-
 	sm := newLoggingServeMux()
 	s := &http.Server{
 		Addr:           h,
@@ -90,10 +89,29 @@ func StartDaemon(cfg *Config) {
 		MaxHeaderBytes: 1 << 20,
 	}
 
-	go cron()
+	global := &Global{
+		NodeManager:       newNodeManager(cfg),
+		Htemplate:         newHtemplate(cfg.TemplateDir),
+		Ttemplate:         newTtemplate(cfg.TemplateDir),
+		UserTag:           newUserTag(cfg),
+		SuggestedTagTable: newSuggestedTagTable(cfg),
+		RecentList:        newRecentList(cfg),
+		CachedRule:        newRegexpList(cfg.SpamList),
+		UpdateQue:         newUpdateQue(),
+	}
+
+	adminSetup(sm, cfg, global)
+	serverSetup(sm, cfg, global)
+	gatewaySetup(sm, cfg, global)
+	threadSetup(sm, cfg, global)
+
+	if cfg.Enable2ch {
+		fmt.Println("started 2ch interface...")
+		mchSetup(sm, cfg, global)
+	}
+	go cron(global, cfg)
 	sm.registerPprof()
-	sm.registCompressHandler("/", handleRoot(cfg.Docroot))
-	startCGIs(cfg)
+	sm.registCompressHandler("/", handleRoot(cfg, global))
 	fmt.Println("started daemon and http server...")
 	log.Fatal(s.Serve(limitListener))
 }
@@ -130,13 +148,13 @@ func (s *loggingServeMux) registCompressHandler(path string, fn func(w http.Resp
 
 //handleRoot return handler that handles url not defined other handlers.
 //if root, print titles of threads. if not, serve files on disk.
-func handleRoot(docroot string) func(http.ResponseWriter, *http.Request) {
+func handleRoot(cfg *Config, gl *Global) func(http.ResponseWriter, *http.Request) {
 	return func(w http.ResponseWriter, r *http.Request) {
 		if r.URL.Path == "/" {
-			printTitle(w, r)
+			printTitle(cfg, gl)(w, r)
 			return
 		}
-		pathOnDisk := path.Join(docroot, r.URL.Path)
+		pathOnDisk := path.Join(cfg.Docroot, r.URL.Path)
 
 		if IsFile(pathOnDisk) {
 			http.ServeFile(w, r, pathOnDisk)

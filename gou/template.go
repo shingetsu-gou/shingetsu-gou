@@ -62,11 +62,11 @@ type Ttemplate struct {
 }
 
 //newTtemplate adds funcmap to template var and parse files.
-func newTtemplate() *Ttemplate {
+func newTtemplate(templateDir string) *Ttemplate {
 	t := &Ttemplate{textTemplate.New("")}
 	templateFiles := templateDir + "/rss1.txt"
 	t.Funcs(textTemplate.FuncMap(funcMap))
-	_, err = t.ParseFiles(templateFiles)
+	_, err = t.ParseFiles(cfg.TemplateFiles)
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -78,7 +78,7 @@ type Htemplate struct {
 }
 
 //newHtemplate adds funcmap to template var and parse files.
-func newHtemplate() *Ttemplate {
+func newHtemplate(templateDir string) *Htemplate {
 	t := &Htemplate{htmlTemplate.New("")}
 	templateFiles := templateDir + "/*.txt"
 	if !IsDir(templateDir) {

@@ -107,6 +107,7 @@ type GatewayLink struct {
 	CGIname     string
 	Command     string
 	Description string
+	htemplate   *Htemplate
 }
 
 //Render renders "gateway_link.txt" and returns its resutl string which is not escaped in template.
@@ -115,24 +116,26 @@ func (c GatewayLink) Render(cginame, command string) template.HTML {
 	c.CGIname = cginame
 	c.Command = command
 	c.Description = c.Message["desc_"+command]
-	return template.HTML(executeTemplate("gateway_link", c))
+	return template.HTML(c.htemplate.executeTemplate("gateway_link", c))
 }
 
 //ListItem is for list_item.txt
 type ListItem struct {
-	Cache      *cache
-	Title      string
-	Tags       tagslice
-	Sugtags    []*tag
-	Target     string
-	Remove     bool
-	IsAdmin    bool
-	StrOpts    string
-	GatewayCGI string
-	ThreadURL  string
-	Message    message
-	filter     string
-	tag        string
+	Cache             *cache
+	Title             string
+	Tags              tagslice
+	Sugtags           []*tag
+	Target            string
+	Remove            bool
+	IsAdmin           bool
+	StrOpts           string
+	GatewayCGI        string
+	ThreadURL         string
+	Message           message
+	filter            string
+	tag               string
+	suggestedTagTable *SuggestedTagTable
+	htemplate         *Htemplate
 }
 
 //checkCache checks cache ca has specified tag and datfile doesn't contains filterd string.
@@ -147,7 +150,7 @@ func (l *ListItem) checkCache(ca *cache, target string) (string, bool) {
 	if l.tag != "" {
 		switch {
 		case ca.hasTagstr(strings.ToLower(l.tag)):
-		case target == "recent" && suggestedTagTable.hasTagstr(ca.Datfile, strings.ToLower(l.tag)):
+		case target == "recent" && l.suggestedTagTable.hasTagstr(ca.Datfile, strings.ToLower(l.tag)):
 		default:
 			return "", false
 		}
@@ -173,7 +176,7 @@ func (l ListItem) Render(ca *cache, remove bool, target string, search bool) tem
 		for i, v := range ca.getTags() {
 			strTags[i] = strings.ToLower(v.Tagstr)
 		}
-		for _, st := range suggestedTagTable.get(ca.Datfile, nil) {
+		for _, st := range l.suggestedTagTable.get(ca.Datfile, nil) {
 			if !hasString(strTags, strings.ToLower(st.Tagstr)) {
 				sugtags = append(sugtags, st)
 			}
@@ -188,34 +191,13 @@ func (l ListItem) Render(ca *cache, remove bool, target string, search bool) tem
 	l.StrOpts = strOpts
 	l.GatewayCGI = GatewayURL
 	l.ThreadURL = ThreadURL
-	return template.HTML(executeTemplate("list_item", l))
-}
-
-type cgiConfig struct {
-	serverName    string
-	reAdminStr    string
-	reFriendStr   string
-	reVisitorStr  string
-	docroot       string
-	fileDir       string
-	maxConnection int
-}
-
-func newCGIConfig(cfg *Config) *cgiConfig {
-	return &cgiConfig{
-		serverName:    cfg.ServerName,
-		reAdminStr:    cfg.ReAdminStr,
-		reFriendStr:   cfg.ReFriendStr,
-		reVisitorStr:  cfg.ReVisitorStr,
-		docroot:       cfg.Docroot,
-		fileDir:       cfg.FileDir,
-		maxConnection: cfg.MaxConnection,
-	}
+	return template.HTML(l.htemplate.executeTemplate("list_item", l))
 }
 
 //cgi is a base class for all http handlers.
 type cgi struct {
-	*cgiConfig
+	*Config
+	*Global
 	m      message
 	jc     *jsCache
 	req    *http.Request
@@ -225,7 +207,7 @@ type cgi struct {
 }
 
 func (c *cgi) host() string {
-	host := c.serverName
+	host := c.ServerName
 	if host == "" {
 		host = c.req.Host
 	}
@@ -233,7 +215,7 @@ func (c *cgi) host() string {
 }
 
 func (c *cgi) isAdmin() bool {
-	m, err := regexp.MatchString(c.reAdminStr, c.req.RemoteAddr)
+	m, err := regexp.MatchString(c.ReAdminStr, c.req.RemoteAddr)
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -241,7 +223,7 @@ func (c *cgi) isAdmin() bool {
 }
 
 func (c *cgi) isFriend() bool {
-	m, err := regexp.MatchString(c.reFriendStr, c.req.RemoteAddr)
+	m, err := regexp.MatchString(c.ReFriendStr, c.req.RemoteAddr)
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -249,7 +231,7 @@ func (c *cgi) isFriend() bool {
 }
 
 func (c *cgi) isVisitor() bool {
-	m, err := regexp.MatchString(c.reVisitorStr, c.req.RemoteAddr)
+	m, err := regexp.MatchString(c.ReVisitorStr, c.req.RemoteAddr)
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -270,21 +252,22 @@ func (c *cgi) path() string {
 var cgis chan *cgi
 
 //newCGI reads messages file, and set params , returns cgi obj.
-func newCGI(w http.ResponseWriter, r *http.Request, cfg *cgiConfig) *cgi {
+func newCGI(w http.ResponseWriter, r *http.Request, cfg *Config, gl *Global) *cgi {
 	if cgis == nil {
-		cgis = make(chan *cgi, cfg.maxConnection)
+		cgis = make(chan *cgi, cfg.MaxConnection)
 	}
 	var c *cgi
 	select {
 	case c = <-cgis:
 	default:
 		c = &cgi{
-			cgiConfig: cfg,
+			Global: gl,
+			Config: cfg,
 		}
 	}
-	c.jc = newJsCache(c.docroot)
+	c.jc = newJsCache(c.Docroot)
 	c.wr = w
-	c.m = searchMessage(r.Header.Get("Accept-Language"), c.fileDir)
+	c.m = searchMessage(r.Header.Get("Accept-Language"), c.FileDir)
 	c.req = r
 	err := r.ParseForm()
 	if err != nil {
@@ -310,7 +293,7 @@ func (c *cgi) close() {
 func (c *cgi) extension(suffix string, useMerged bool) []string {
 	var filename []string
 	var merged string
-	err := eachFiles(c.docroot, func(f os.FileInfo) error {
+	err := eachFiles(c.Docroot, func(f os.FileInfo) error {
 		i := f.Name()
 		if strings.HasSuffix(i, "."+suffix) && (!strings.HasPrefix(i, ".") || strings.HasPrefix(i, "_")) {
 			filename = append(filename, i)
@@ -339,7 +322,7 @@ func (c *cgi) footer(menubar *Menubar) {
 	}{
 		menubar,
 	}
-	renderTemplate("footer", g, c.wr)
+	c.Htemplate.renderTemplate("footer", g, c.wr)
 }
 
 //rfc822Time convers stamp to "2006-01-02 15:04:05"
@@ -355,7 +338,7 @@ func (c *cgi) printParagraph(contentsKey string) {
 	}{
 		Contents: template.HTML(c.m[contentsKey]),
 	}
-	renderTemplate("paragraph", g, c.wr)
+	c.Htemplate.renderTemplate("paragraph", g, c.wr)
 }
 
 //Menubar is var set for menubar.txt
@@ -373,7 +356,8 @@ type Menubar struct {
 func (c *cgi) makeMenubar(id, rss string) *Menubar {
 	g := &Menubar{
 		GatewayLink{
-			Message: c.m,
+			Message:   c.m,
+			htemplate: c.Htemplate,
 		},
 		GatewayURL,
 		c.m,
@@ -428,7 +412,7 @@ func (c *cgi) header(title, rss string, cookie []*http.Cookie, denyRobot bool) {
 			http.SetCookie(c.wr, co)
 		}
 	}
-	renderTemplate("header", h, c.wr)
+	c.Htemplate.renderTemplate("header", h, c.wr)
 }
 
 //resAnchor retuns a href  string with url.
@@ -512,7 +496,7 @@ func (c *cgi) removeFileForm(ca *cache, title string) {
 		AdminURL,
 		c.m,
 	}
-	renderTemplate("remove_file_form", s, c.wr)
+	c.Htemplate.renderTemplate("remove_file_form", s, c.wr)
 }
 
 //printJump render jump (redirect)page.
@@ -522,7 +506,7 @@ func (c *cgi) printJump(next string) {
 	}{
 		template.HTML(next),
 	}
-	renderTemplate("jump", s, c.wr)
+	c.Htemplate.renderTemplate("jump", s, c.wr)
 }
 
 //print302 renders jump page(meaning found and redirect)
@@ -581,7 +565,7 @@ func (c *cgi) printIndexList(cl []*cache, target string, footer bool, searchNewF
 		target,
 		c.filter,
 		c.tag,
-		utag.get(),
+		c.UserTag.get(),
 		cl,
 		GatewayURL,
 		AdminURL,
@@ -591,16 +575,19 @@ func (c *cgi) printIndexList(cl []*cache, target string, footer bool, searchNewF
 		c.isFriend(),
 		[]string{"thread"},
 		GatewayLink{
-			Message: c.m,
+			htemplate: c.Htemplate,
+			Message:   c.m,
 		},
 		ListItem{
-			IsAdmin: c.isAdmin(),
-			filter:  c.filter,
-			tag:     c.tag,
-			Message: c.m,
+			htemplate:         c.Htemplate,
+			suggestedTagTable: c.SuggestedTagTable,
+			IsAdmin:           c.isAdmin(),
+			filter:            c.filter,
+			tag:               c.tag,
+			Message:           c.m,
 		},
 	}
-	renderTemplate("index_list", s, c.wr)
+	c.Htemplate.renderTemplate("index_list", s, c.wr)
 	if footer {
 		c.printNewElementForm()
 		c.footer(nil)
@@ -627,7 +614,7 @@ func (c *cgi) printNewElementForm() {
 		titleLimit,
 		c.isAdmin(),
 	}
-	renderTemplate("new_element_form", s, c.wr)
+	c.Htemplate.renderTemplate("new_element_form", s, c.wr)
 }
 
 //checkGetCache return true

@@ -48,35 +48,19 @@ func isInUpdateRange(nstamp int64) bool {
 	return false
 }
 
-type recentListConfig struct {
-	recentRange int64
-	tagSize     int
-	recent      string
-	fmutex      *sync.RWMutex
-}
-
-func newRecentListConfig(cfg *Config) *recentListConfig {
-	return &recentListConfig{
-		recentRange: cfg.RecentRange,
-		tagSize:     cfg.TagSize,
-		recent:      cfg.Recent(),
-		fmutex:      &cfg.Fmutex,
-	}
-}
-
 //RecentList represents records list udpated by remote host and
 //gotten by /gateway.cgi/recent
 type RecentList struct {
-	*recentListConfig
+	*Config
 	infos   recordHeads
 	isDirty bool
 	mutex   sync.RWMutex
 }
 
 //newRecentList load a file and create a RecentList obj.
-func newRecentList(c *recentListConfig) *RecentList {
+func newRecentList(cfg *Config) *RecentList {
 	r := &RecentList{
-		recentListConfig: c,
+		Config: cfg,
 	}
 	r.loadFile()
 	return r
@@ -247,14 +231,14 @@ func (r *RecentList) getAll() {
 
 //makeRecentCachelist returns sorted cachelist copied from recentlist.
 //which doens't contain duplicate caches.
-func (r *RecentList) makeRecentCachelist() caches {
+func (r *RecentList) makeRecentCachelist(cfg *Config, gl *Global) caches {
 	r.mutex.RLock()
 	defer r.mutex.RUnlock()
 	var cl caches
 	var check []string
 	for _, rec := range r.infos {
 		if !hasString(check, rec.datfile) {
-			ca := newCache(rec.datfile)
+			ca := newCache(rec.datfile, cfg, gl)
 			cl = append(cl, ca)
 			check = append(check, rec.datfile)
 		}
