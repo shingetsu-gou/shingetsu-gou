@@ -39,29 +39,33 @@ import (
 	"time"
 )
 
+type DatakeyTableConfig struct {
+	datakey    string
+	recentList *RecentList
+	fmutex     *sync.RWMutex
+}
+
 //DatakeyTable stores cache stamp and cache datfile name pair.
 type DatakeyTable struct {
-	*Config
-	*Global
+	*DatakeyTableConfig
 	datakey2filekey map[int64]string
 	filekey2datkey  map[string]int64
 	mutex           sync.RWMutex
 }
 
 //newDatakeyTable make DataKeyTable obj.
-func newDatakeyTable(cfg *Config, gl *Global) *DatakeyTable {
+func newDatakeyTable(cfg *DatakeyTableConfig) *DatakeyTable {
 	d := &DatakeyTable{
-		Config:          cfg,
-		Global:          gl,
-		datakey2filekey: make(map[int64]string),
-		filekey2datkey:  make(map[string]int64),
+		DatakeyTableConfig: cfg,
+		datakey2filekey:    make(map[int64]string),
+		filekey2datkey:     make(map[string]int64),
 	}
 	return d
 }
 
 //loadInternal loads stamp/value from the file .
 func (d *DatakeyTable) loadInternal() {
-	err := eachLine(d.Datakey(), func(line string, i int) error {
+	err := eachLine(d.datakey, func(line string, i int) error {
 		if line == "" {
 			return nil
 		}
@@ -83,11 +87,11 @@ func (d *DatakeyTable) loadInternal() {
 //and saves to file.
 func (d *DatakeyTable) load() {
 	d.loadInternal()
-	for _, c := range newCacheList(d.Config, d.Global).Caches {
+	for _, c := range NewCacheList().Caches {
 		d.setFromCache(c)
 	}
-	for _, rec := range d.RecentList.infos {
-		c := newCache(rec.datfile, d.Config, d.Global)
+	for _, rec := range d.recentList.infos {
+		c := NewCache(rec.datfile)
 		d.setFromCache(c)
 	}
 	d.save()
@@ -103,9 +107,9 @@ func (d *DatakeyTable) save() {
 		i++
 	}
 	d.mutex.RUnlock()
-	d.Fmutex.Lock()
-	err := writeSlice(d.Datakey(), str)
-	d.Fmutex.Unlock()
+	d.fmutex.Lock()
+	err := writeSlice(d.datakey, str)
+	d.fmutex.Unlock()
 	if err != nil {
 		log.Println(err)
 	}
@@ -156,7 +160,7 @@ func (d *DatakeyTable) getDatkey(filekey string) (int64, error) {
 		return v, nil
 	}
 	d.mutex.RUnlock()
-	c := newCache(filekey, d.Config, d.Global)
+	c := NewCache(filekey)
 	d.setFromCache(c)
 	d.save()
 	d.mutex.RLock()
@@ -218,7 +222,7 @@ func (d *DatakeyTable) makeBracketLink(body, datHost, board string, table *resTa
 			url := fmt.Sprintf("http://%s/test/read.cgi/%s/%d/", datHost, board, datkey)
 			return fmt.Sprintf("[[%s(%s)]]", result["title"], url)
 		}
-		ca := newCache(file, d.Config, d.Global)
+		ca := NewCache(file)
 		table = newResTable(ca)
 		no := table.id2num[result["id"]]
 		url := fmt.Sprintf("http://%s/test/read.cgi/%s/%d/%d", datHost, board, datkey, no)

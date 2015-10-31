@@ -34,7 +34,7 @@ import (
 )
 
 //cron runs cron, and update everything if it is after specified cycle.
-func cron(gl *Global, cfg *Config) {
+func cron(nodeManager *NodeManager, recentList *RecentList) {
 	const (
 		clientCycle = 5 * time.Minute  // Seconds; Access client.cgi
 		pingCycle   = 5 * time.Minute  // Seconds; Check nodes
@@ -42,26 +42,26 @@ func cron(gl *Global, cfg *Config) {
 		initCycle   = 20 * time.Minute // Seconds; Check initial node
 	)
 
-	gl.NodeManager.initialize()
-	doSync(gl, cfg)
+	nodeManager.initialize()
+	doSync(nodeManager, recentList)
 
 	for {
 		select {
 		case <-time.After(clientCycle):
-			gl.NodeManager.rejoin()
+			nodeManager.rejoin()
 
 		case <-time.After(pingCycle):
-			gl.NodeManager.pingAll()
-			gl.NodeManager.initialize()
-			gl.NodeManager.sync()
-			doSync(gl, cfg)
+			nodeManager.pingAll()
+			nodeManager.initialize()
+			nodeManager.sync()
+			doSync(nodeManager, recentList)
 			log.Println("nodelist.pingall finished")
 
-		case <-time.After(initCycle * time.Duration(gl.NodeManager.listLen())):
-			gl.NodeManager.initialize()
+		case <-time.After(initCycle * time.Duration(nodeManager.listLen())):
+			nodeManager.initialize()
 
 		case <-time.After(syncCycle):
-			doSync(gl, cfg)
+			doSync(nodeManager, recentList)
 		}
 	}
 }
@@ -69,24 +69,24 @@ func cron(gl *Global, cfg *Config) {
 //doSync checks nodes in the nodelist are alive, reloads cachelist, removes old removed files,
 //reloads all tags from cachelist,reload srecent list from nodes in search list,
 //and reloads cache info from files in the disk.
-func doSync(gl *Global, cfg *Config) {
-	if gl.NodeManager.listLen() == 0 {
+func doSync(nodeManager *NodeManager, recentList *RecentList) {
+	if nodeManager.listLen() == 0 {
 		return
 	}
-	gl.NodeManager.rejoinList()
+	nodeManager.rejoinList()
 	log.Println("lookupTable.join finished")
 
-	gl.NodeManager.sync()
+	nodeManager.sync()
 	log.Println("lookupTable.join finished")
 
-	cl := newCacheList(cfg, gl)
+	cl := NewCacheList()
 	cl.cleanRecords()
 	log.Println("cachelist.cleanRecords finished")
 
 	cl.removeRemoved()
 	log.Println("cachelist.removeRemoved finished")
 
-	gl.RecentList.getAll()
+	recentList.getAll()
 	log.Println("recentList.getall finished")
 
 	cl.getall()

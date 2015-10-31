@@ -44,37 +44,38 @@ const (
 	shareNodes   = 5 // Nodes having the file
 )
 
+type NodeManagerConfig struct {
+	serverName  string
+	lookup      string
+	defaultPort int
+	enableNAT   bool
+	fmutex      *sync.RWMutex
+	nodeAllow   *regexpList
+	nodeDeny    *regexpList
+	myself      *node
+	initNode    *confList
+}
+
 //NodeManager represents map datfile to it's source node list.
 type NodeManager struct {
-	*Config
+	*NodeManagerConfig
 	isDirty      bool
 	nodes        map[string]nodeSlice //map[""] is nodelist
-	InitNode     *confList
 	externalPort int
-	myself       *node
 	mutex        sync.RWMutex
-	nodeAllow    *regexpList
-	nodeDeny     *regexpList
 }
 
 //newLookupTable read the file and returns LookupTable obj.
-func newNodeManager(cfg *Config) *NodeManager {
-	defaultInitNode := []string{
-		"node.shingetsu.info:8000/server.cgi",
-		"pushare.zenno.info:8000/server.cgi",
-	}
+func NewNodeManager(cfg *NodeManagerConfig) *NodeManager {
 	r := &NodeManager{
-		Config:       cfg,
-		nodes:        make(map[string]nodeSlice),
-		InitNode:     newConfList(cfg.InitnodeList, defaultInitNode),
-		externalPort: cfg.DefaultPort,
-		nodeAllow:    newRegexpList(cfg.NodeAllowFile),
-		nodeDeny:     newRegexpList(cfg.NodeDenyFile),
+		NodeManagerConfig: cfg,
+		nodes:             make(map[string]nodeSlice),
+		externalPort:      cfg.defaultPort,
 	}
-	err := eachKeyValueLine(cfg.Lookup(), func(key string, value []string, i int) error {
+	err := eachKeyValueLine(cfg.lookup, func(key string, value []string, i int) error {
 		var nl nodeSlice
 		for _, v := range value {
-			nl = append(nl, newNode(v,cfg))
+			nl = append(nl, NewNode(v))
 		}
 		r.nodes[key] = nl
 		return nil
@@ -89,23 +90,23 @@ func newNodeManager(cfg *Config) *NodeManager {
 }
 
 func (n *NodeManager) setMyself(m string) {
-	n.myself = newNode(m)
+	n.myself = NewNode(m)
 }
 
 func (n *NodeManager) getMyself() *node {
-	if n.ServerName != "" {
-		return makeNode(n.ServerName, ServerURL, n.externalPort)
+	if n.serverName != "" {
+		return makeNode(n.serverName, ServerURL, n.externalPort)
 	}
 	return myself
 }
 
 //setUPnP setups node relates variables and get external port by upnp if enabled.
 func (n *NodeManager) setUPnP() {
-	n, err := nat.NewNetStatus()
+	nt, err := nat.NewNetStatus()
 	if err != nil {
 		log.Println(err)
 	} else {
-		m, err := n.LoopPortMapping("tcp", defaultPort, "shingetsu-gou", 10*time.Minute)
+		m, err := nt.LoopPortMapping("tcp", n.defaultPort, "shingetsu-gou", 10*time.Minute)
 		if err != nil {
 			log.Println(err)
 		} else {
@@ -330,8 +331,8 @@ func (lt *NodeManager) initialize() {
 	if lt.listLen() > defaultNodes {
 		return
 	}
-	for _, i := range initNode.data {
-		inode := newNode(i)
+	for _, i := range lt.initNode.data {
+		inode := NewNode(i)
 		if _, err := inode.ping(); err == nil {
 			lt.join(inode)
 			break
@@ -390,7 +391,7 @@ func (lt *NodeManager) tellUpdate(c *cache, stamp int64, id string, node *node) 
 	case lt.serverName != "":
 		tellstr = myself.toxstring()
 	default:
-		tellstr = ":" + strconv.Itoa(externalPort) + strings.Replace(ServerURL, "/", "+", -1)
+		tellstr = ":" + strconv.Itoa(lt.externalPort) + strings.Replace(ServerURL, "/", "+", -1)
 	}
 	msg := strings.Join([]string{"/update", c.Datfile, strconv.FormatInt(stamp, 10), id, tellstr}, "/")
 

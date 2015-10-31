@@ -153,23 +153,29 @@ func (t tagslice) sync(path string) {
 	}
 }
 
+type SuggestedTagTableConfig struct {
+	tagSize int
+	sugtag  string
+	fmutex  *sync.RWMutex
+}
+
 //SuggestedTagTable represents tags associated with datfile retrieved from network.
 type SuggestedTagTable struct {
-	*Config
+	*SuggestedTagTableConfig
 	sugtaglist map[string]tagslice
 	mutex      sync.RWMutex
 }
 
 //newSuggestedTagTable make SuggestedTagTable obj and read info from the file.
-func newSuggestedTagTable(cfg *Config) *SuggestedTagTable {
+func newSuggestedTagTable(cfg *SuggestedTagTableConfig) *SuggestedTagTable {
 	s := &SuggestedTagTable{
-		Config: cfg,
+		SuggestedTagTableConfig: cfg,
 		sugtaglist:              make(map[string]tagslice),
 	}
-	if !IsFile(sugtag) {
+	if !IsFile(cfg.sugtag) {
 		return s
 	}
-	err := eachKeyValueLine(sugtag, func(k string, vs []string, i int) error {
+	err := eachKeyValueLine(cfg.sugtag, func(k string, vs []string, i int) error {
 		s.sugtaglist[k] = newTagslice(vs)
 		return nil
 	})
@@ -262,18 +268,22 @@ func (s *SuggestedTagTable) prune(recentlist *RecentList) {
 	}
 }
 
+type UserTagConfig struct {
+	cacheDir string
+	fmutex   *sync.RWMutex
+}
+
 //UserTagList represents tags saved by the user.
 type UserTag struct {
-	*Config
+	*UserTagConfig
 	mutex   sync.Mutex
 	isClean bool
 	tags    tagslice
 }
 
-func newUserTag(cfg *Config) *UserTag {
+func newUserTag(cfg *UserTagConfig) *UserTag {
 	return &UserTag{
-		Config: cfg,
-		cacheDir:      cacheDir,
+		UserTagConfig: cfg,
 	}
 }
 

@@ -38,6 +38,7 @@ import (
 	"os"
 	"path"
 	"strconv"
+	"sync"
 	"time"
 
 	"golang.org/x/net/netutil"
@@ -45,18 +46,154 @@ import (
 	"github.com/gorilla/handlers"
 )
 
-type Global struct {
-	NodeManager       *NodeManager
-	Htemplate         *Htemplate
-	Ttemplate         *Ttemplate
-	UserTag           *UserTag
-	SuggestedTagTable *SuggestedTagTable
-	RecentList        *RecentList
-	CachedRule        *regexpList
-	UpdateQue         *updateQue
+func initPackages(cfg *Config) {
+	defaultInitNode := []string{
+		"node.shingetsu.info:8000/server.cgi",
+		"pushare.zenno.info:8000/server.cgi",
+	}
+	fmutex := &sync.RWMutex{}
+	var myself *node
+	htemplate := newHtemplate(cfg.TemplateDir)
+	ttemplate := newTtemplate(cfg.TemplateDir)
+	cachedRule := newRegexpList(cfg.SpamList)
+	nodeAllow := newRegexpList(cfg.NodeAllowFile)
+	nodeDeny := newRegexpList(cfg.NodeDenyFile)
+	initNode := newConfList(cfg.InitnodeList, defaultInitNode)
+
+	nodeManager := NewNodeManager(&NodeManagerConfig{
+		serverName:  cfg.ServerName,
+		lookup:      cfg.Lookup(),
+		defaultPort: cfg.DefaultPort,
+		enableNAT:   cfg.EnableNAT,
+		fmutex:      fmutex,
+		nodeAllow:   nodeAllow,
+		nodeDeny:    nodeDeny,
+		myself:      myself,
+		initNode:    initNode,
+	})
+	userTag := newUserTag(&UserTagConfig{
+		cacheDir: cfg.CacheDir,
+		fmutex:   fmutex,
+	})
+	suggestedTagTable := newSuggestedTagTable(&SuggestedTagTableConfig{
+		tagSize: cfg.TagSize,
+		sugtag:  cfg.Sugtag(),
+		fmutex:  fmutex,
+	})
+	recentList := newRecentList(&RecentListConfig{
+		recentRange:       cfg.RecentRange,
+		tagSize:           cfg.TagSize,
+		recent:            cfg.Recent(),
+		fmutex:            fmutex,
+		nodeManager:       nodeManager,
+		suggestedTagTable: suggestedTagTable,
+	})
+	updateQue := newUpdateQue(&UpdateQueConfig{
+		recentList:  recentList,
+		nodeManager: nodeManager,
+	})
+	datakeyTable := newDatakeyTable(&DatakeyTableConfig{
+		datakey:    cfg.Datakey(),
+		recentList: recentList,
+		fmutex:     fmutex,
+	})
+	datakeyTable.load()
+
+	newAdminCGI = func(w http.ResponseWriter, r *http.Request) (adminCGI, error) {
+		return _newAdminCGI(w, r, &AdminCGIConfig{
+			adminSID:          cfg.AdminSid(),
+			nodeManager:       nodeManager,
+			htemplate:         htemplate,
+			userTag:           userTag,
+			suggestedTagTable: suggestedTagTable,
+			recentList:        recentList,
+		})
+	}
+
+	NewCacheList = func() *cacheList {
+		return _newCacheList(&CacheListConfig{
+			saveSize:    cfg.SaveSize,
+			saveRemoved: cfg.SaveRemoved,
+			cacheDir:    cfg.CacheDir,
+			saveRecord:  cfg.SaveRecord,
+			fmutex:      fmutex,
+		})
+	}
+
+	NewRecord = func(datfile, idstr string) *record {
+		return _newRecord(datfile, idstr, &RecordConfig{
+			defaultThumbnailSize: cfg.DefaultThumbnailSize,
+			cacheDir:             cfg.CacheDir,
+			fmutex:               fmutex,
+			cachedRule:           cachedRule,
+		})
+	}
+
+	NewCGI = func(w http.ResponseWriter, r *http.Request) *cgi {
+		return _newCGI(w, r, &CGIConfig{
+			fileDir:           cfg.FileDir,
+			docroot:           cfg.Docroot,
+			maxConnection:     cfg.MaxConnection,
+			serverName:        cfg.ServerName,
+			reAdminStr:        cfg.ReAdminStr,
+			reFriendStr:       cfg.ReFriendStr,
+			reVisitorStr:      cfg.ReVisitorStr,
+			htemplate:         htemplate,
+			userTag:           userTag,
+			suggestedTagTable: suggestedTagTable,
+		})
+	}
+	NewGatewayCGI = func(w http.ResponseWriter, r *http.Request) (gatewayCGI, error) {
+		return _newGatewayCGI(w, r, &GatewayConfig{
+			rssRange:       cfg.RSSRange,
+			motd:           cfg.Motd(),
+			topRecentRange: cfg.TopRecentRange,
+			runDir:         cfg.RunDir,
+			serverName:     cfg.ServerName,
+			enable2ch:      cfg.Enable2ch,
+			recentList:     recentList,
+			ttemplate:      ttemplate,
+		})
+	}
+	newMchCGI = func(w http.ResponseWriter, r *http.Request) (mchCGI, error) {
+		return _newMchCGI(w, r, &MchConfig{
+			motd:         cfg.Motd(),
+			filedir:      cfg.FileDir,
+			recentList:   recentList,
+			datakeyTable: datakeyTable,
+			updateQue:    updateQue,
+		})
+	}
+	NewNode = func(nodestr string) *node {
+		return _NewNode(nodestr, &NodeConfig{
+			nodeAllow: nodeAllow,
+			nodeDeny:  nodeDeny,
+			myself:    myself,
+		})
+	}
+	NewServerCGI = func(w http.ResponseWriter, r *http.Request) (serverCGI, error) {
+		return newServerCGI(w, r, &ServerConfig{
+			recentRange: cfg.RecentRange,
+			nodeManager: nodeManager,
+			initNode:    initNode,
+			updateQue:   updateQue,
+			recentList:  recentList,
+		})
+	}
+	NewThreadCGI = func(w http.ResponseWriter, r *http.Request) (threadCGI, error) {
+		return newThreadCGI(w, r, &ThreadCGIConfig{
+			threadPageSize:       cfg.ThreadPageSize,
+			defaultThumbnailSize: cfg.DefaultThumbnailSize,
+			recordLimit:          cfg.RecordLimit,
+			forceThumbnail:       cfg.ForceThumbnail,
+			htemplate:            htemplate,
+			updateQue:            updateQue,
+		})
+	}
+	go cron(nodeManager, recentList)
 }
 
-//SetupDaemon setups document root and necessary dirs.
+//StartDaemon setups document root and necessary dirs.
 //,rm lock files, save pid, start cron job and a http server.
 func StartDaemon(cfg *Config) {
 	for _, j := range []string{cfg.RunDir, cfg.CacheDir, cfg.LogDir} {
@@ -88,30 +225,18 @@ func StartDaemon(cfg *Config) {
 		WriteTimeout:   60 * time.Second,
 		MaxHeaderBytes: 1 << 20,
 	}
-
-	global := &Global{
-		NodeManager:       newNodeManager(cfg),
-		Htemplate:         newHtemplate(cfg.TemplateDir),
-		Ttemplate:         newTtemplate(cfg.TemplateDir),
-		UserTag:           newUserTag(cfg),
-		SuggestedTagTable: newSuggestedTagTable(cfg),
-		RecentList:        newRecentList(cfg),
-		CachedRule:        newRegexpList(cfg.SpamList),
-		UpdateQue:         newUpdateQue(),
-	}
-
-	adminSetup(sm, cfg, global)
-	serverSetup(sm, cfg, global)
-	gatewaySetup(sm, cfg, global)
-	threadSetup(sm, cfg, global)
+	initPackages(cfg)
+	adminSetup(sm)
+	serverSetup(sm)
+	gatewaySetup(sm)
+	threadSetup(sm)
 
 	if cfg.Enable2ch {
 		fmt.Println("started 2ch interface...")
-		mchSetup(sm, cfg, global)
+		mchSetup(sm)
 	}
-	go cron(global, cfg)
 	sm.registerPprof()
-	sm.registCompressHandler("/", handleRoot(cfg, global))
+	sm.registCompressHandler("/", handleRoot(cfg.Docroot))
 	fmt.Println("started daemon and http server...")
 	log.Fatal(s.Serve(limitListener))
 }
@@ -148,13 +273,13 @@ func (s *loggingServeMux) registCompressHandler(path string, fn func(w http.Resp
 
 //handleRoot return handler that handles url not defined other handlers.
 //if root, print titles of threads. if not, serve files on disk.
-func handleRoot(cfg *Config, gl *Global) func(http.ResponseWriter, *http.Request) {
+func handleRoot(docroot string) func(http.ResponseWriter, *http.Request) {
 	return func(w http.ResponseWriter, r *http.Request) {
 		if r.URL.Path == "/" {
-			printTitle(cfg, gl)(w, r)
+			printTitle(w, r)
 			return
 		}
-		pathOnDisk := path.Join(cfg.Docroot, r.URL.Path)
+		pathOnDisk := path.Join(docroot, r.URL.Path)
 
 		if IsFile(pathOnDisk) {
 			http.ServeFile(w, r, pathOnDisk)

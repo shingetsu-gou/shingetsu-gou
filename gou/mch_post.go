@@ -52,8 +52,8 @@ func (m *mchCGI) postComment(threadKey, name, mail, body, passwd, tag string) er
 	recbody["name"] = html.EscapeString(name)
 	recbody["mail"] = html.EscapeString(mail)
 
-	c := newCache(threadKey, m.Config, m.Global)
-	rec := newRecord(c.Datfile, "", m.Config)
+	c := NewCache(threadKey)
+	rec := NewRecord(c.Datfile, "")
 	rec.build(stamp, recbody, passwd)
 	if rec.isSpam() {
 		return errSpamM
@@ -63,7 +63,7 @@ func (m *mchCGI) postComment(threadKey, name, mail, body, passwd, tag string) er
 		c.setTags([]string{tag})
 		c.syncTag()
 	}
-	go m.UpdateQue.updateNodes(rec, nil)
+	go m.updateQue.updateNodes(rec, nil)
 	return nil
 }
 
@@ -71,7 +71,7 @@ func (m *mchCGI) postComment(threadKey, name, mail, body, passwd, tag string) er
 func (m *mchCGI) errorResp(msg string, info map[string]string) {
 	m.wr.Header().Set("Content-Type", "text/html; charset=Shift_JIS")
 	info["message"] = msg
-	m.Htemplate.renderTemplate("2ch_error", info, m.wr)
+	m.htemplate.renderTemplate("2ch_error", info, m.wr)
 }
 
 //getCP932 returns form value of key with cp932 code.
@@ -111,7 +111,7 @@ func (m *mchCGI) checkInfo(info map[string]string) string {
 	case info["body"] == "":
 		m.errorResp("本文がありません.", info)
 		return ""
-	case newCache(key, m.Config, m.Global).Exists(), m.hasAuth():
+	case NewCache(key).Exists(), m.hasAuth():
 	case info["subject"] != "":
 		m.errorResp("掲示版を作る権限がありません", info)
 		return ""
@@ -149,7 +149,7 @@ func (m *mchCGI) postCommentApp() {
 	if ma := reg.FindStringSubmatch(referer); ma != nil && m.hasAuth() {
 		tag = fileDecode("dummy_" + ma[1])
 	}
-	table := newResTable(newCache(key, m.Config, m.Global))
+	table := newResTable(NewCache(key))
 	reg = regexp.MustCompile(">>([1-9][0-9]*)")
 	body := reg.ReplaceAllStringFunc(info["body"], func(str string) string {
 		noStr := reg.FindStringSubmatch(str)[1]

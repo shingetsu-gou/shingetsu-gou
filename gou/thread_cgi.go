@@ -56,86 +56,93 @@ import (
 const ThreadURL = "/thread.cgi"
 
 //threadSetup setups handlers for thread.cgi
-func threadSetup(s *loggingServeMux, cfg *Config,gl *Global) {
+func threadSetup(s *loggingServeMux) {
 	rtr := mux.NewRouter()
 
-	registToRouter(rtr, ThreadURL+"/", printThreadIndex(cfg,gl))
+	registToRouter(rtr, ThreadURL+"/", printThreadIndex)
 
 	reg := ThreadURL + "/{datfile:thread_[0-9A-F]+}/{id:[0-9a-f]{32}}/s{stamp:\\d+}.{thumbnailSize:\\d+x\\d+}.{suffix:.*}"
-	registToRouter(rtr, reg, printAttach(cfg,gl))
+	registToRouter(rtr, reg, printAttach)
 
 	reg = ThreadURL + "/{datfile:thread_[0-9A-F]+}/{id:[0-9a-f]{32}}/{stamp:\\d+}.{suffix:.*}"
-	registToRouter(rtr, reg, printAttach(cfg,gl))
+	registToRouter(rtr, reg, printAttach)
 
 	reg = ThreadURL + "/{path:[^/]+}{end:/?$}"
-	registToRouter(rtr, reg, printThread(cfg,gl))
+	registToRouter(rtr, reg, printThread)
 
 	reg = ThreadURL + "/{path:[^/]+}/{id:[0-9a-f]{8}}{end:$}"
-	registToRouter(rtr, reg, printThread(cfg,gl))
+	registToRouter(rtr, reg, printThread)
 
 	reg = ThreadURL + "/{path:[^/]+}/p{page:[0-9]+}{end:$}"
-	registToRouter(rtr, reg, printThread(cfg,gl))
+	registToRouter(rtr, reg, printThread)
 
 	s.Handle(ThreadURL+"/", handlers.CompressHandler(rtr))
 }
 
 //printThreadIndex adds records in multiform and redirect to its thread page.
-func printThreadIndex(cfg *Config) func(w http.ResponseWriter, r *http.Request) {
-	return func(w http.ResponseWriter, r *http.Request) {
-		if a, err := newThreadCGI(w, r, cfg); err == nil {
-			defer a.close()
-			a.printThreadIndex()
-		}
+func printThreadIndex(w http.ResponseWriter, r *http.Request) {
+	if a, err := NewThreadCGI(w, r); err == nil {
+		defer a.close()
+		a.printThreadIndex()
 	}
 }
 
-func printAttach(cfg *Config) func(w http.ResponseWriter, r *http.Request) {
-	return func(w http.ResponseWriter, r *http.Request) {
-		if a, err := newThreadCGI(w, r, cfg); err == nil {
-			defer a.close()
-			m := mux.Vars(r)
-			var stamp int64
-			if m["stamp"] != "" {
-				var err error
-				stamp, err = strconv.ParseInt(m["stamp"], 10, 64)
-				if err != nil {
-					log.Println(err)
-					return
-				}
+func printAttach(w http.ResponseWriter, r *http.Request) {
+	if a, err := NewThreadCGI(w, r); err == nil {
+		defer a.close()
+		m := mux.Vars(r)
+		var stamp int64
+		if m["stamp"] != "" {
+			var err error
+			stamp, err = strconv.ParseInt(m["stamp"], 10, 64)
+			if err != nil {
+				log.Println(err)
+				return
 			}
-			a.printAttach(m["datfile"], m["id"], stamp, m["thumbnailSize"], m["suffix"])
 		}
+		a.printAttach(m["datfile"], m["id"], stamp, m["thumbnailSize"], m["suffix"])
 	}
 }
 
 //printThread renders whole thread list page.
-func printThread(cfg *Config) func(w http.ResponseWriter, r *http.Request) {
-	return func(w http.ResponseWriter, r *http.Request) {
-		if a, err := newThreadCGI(w, r, cfg); err == nil {
-			defer a.close()
-			m := mux.Vars(r)
-			var page int
-			if m["page"] != "" {
-				var err error
-				page, err = strconv.Atoi(m["page"])
-				if err != nil {
-					return
-				}
+func printThread(w http.ResponseWriter, r *http.Request) {
+	if a, err := NewThreadCGI(w, r); err == nil {
+		defer a.close()
+		m := mux.Vars(r)
+		var page int
+		if m["page"] != "" {
+			var err error
+			page, err = strconv.Atoi(m["page"])
+			if err != nil {
+				return
 			}
-			a.printThread(m["path"], m["id"], page)
 		}
+		a.printThread(m["path"], m["id"], page)
 	}
+}
+
+var NewThreadCGI func(http.ResponseWriter, *http.Request) (threadCGI, error)
+
+type ThreadCGIConfig struct {
+	threadPageSize       int
+	defaultThumbnailSize string
+	recordLimit          int
+	forceThumbnail       bool
+	htemplate            *Htemplate
+	updateQue            *updateQue
 }
 
 //threadCGI is for thread.cgi.
 type threadCGI struct {
+	*ThreadCGIConfig
 	*cgi
 }
 
 //newThreadCGI returns threadCGI obj.
-func newThreadCGI(w http.ResponseWriter, r *http.Request, cfg *Config) (threadCGI, error) {
+func newThreadCGI(w http.ResponseWriter, r *http.Request, cfg *ThreadCGIConfig) (threadCGI, error) {
 	t := threadCGI{
-		cgi: newCGI(w, r, cfg),
+		ThreadCGIConfig: cfg,
+		cgi:             NewCGI(w, r),
 	}
 
 	if t.cgi == nil {
@@ -222,7 +229,7 @@ func (t *threadCGI) printPageNavi(path string, page int, ca *cache, id string) {
 		t.threadPageSize,
 		pages,
 	}
-	renderTemplate("page_navi", s, t.wr)
+	t.htemplate.renderTemplate("page_navi", s, t.wr)
 }
 
 //printTag renders thread_tags.txt , part for displayng tags.
@@ -246,7 +253,7 @@ func (t *threadCGI) printTag(ca *cache) {
 		t.isAdmin(),
 		t.m,
 	}
-	renderTemplate("thread_tags", s, t.wr)
+	t.htemplate.renderTemplate("thread_tags", s, t.wr)
 }
 
 //printThreadHead renders head part of thread page with cookie.
@@ -309,7 +316,7 @@ func (t *threadCGI) printThreadTop(path, id string, nPage int, ca *cache) {
 		AdminURL,
 		resAnchor,
 	}
-	renderTemplate("thread_top", s, t.wr)
+	t.htemplate.renderTemplate("thread_top", s, t.wr)
 }
 
 //printThreadBody renders body(records list) part of thread page with paging.
@@ -353,7 +360,7 @@ func (t *threadCGI) printThread(path, id string, nPage int) {
 		return
 	}
 	filePath := fileEncode("thread", path)
-	ca := newCache(filePath)
+	ca := NewCache(filePath)
 	rss := GatewayURL + "/rss"
 	if t.printThreadHead(path, id, nPage, ca, rss) != nil {
 		return
@@ -377,7 +384,7 @@ func (t *threadCGI) printThread(path, id string, nPage int) {
 		ca,
 		t.m,
 	}
-	renderTemplate("thread_bottom", ss, t.wr)
+	t.htemplate.renderTemplate("thread_bottom", ss, t.wr)
 
 	if ca.hasRecord() {
 		t.printPageNavi(path, nPage, ca, id)
@@ -392,7 +399,7 @@ func (t *threadCGI) printThread(path, id string, nPage int) {
 //printThreadAjax renders records in cache id for ajax.
 func (t *threadCGI) printThreadAjax(id string) {
 	filePath := fileEncode("thread", t.path())
-	ca := newCache(filePath)
+	ca := NewCache(filePath)
 	if !ca.hasRecord() {
 		return
 	}
@@ -468,7 +475,7 @@ func (t *threadCGI) printRecord(ca *cache, rec *record) {
 		resAnchor,
 		t.m,
 	}
-	renderTemplate("record", s, t.wr)
+	t.htemplate.renderTemplate("record", s, t.wr)
 }
 
 //printPostForm renders post_form.txt,page for posting attached file.
@@ -494,7 +501,7 @@ func (t *threadCGI) printPostForm(ca *cache) {
 		ThreadURL,
 		GatewayURL,
 	}
-	renderTemplate("post_form", s, t.wr)
+	t.htemplate.renderTemplate("post_form", s, t.wr)
 }
 
 //renderAttach render the content of attach file with content-type=typ.
@@ -525,7 +532,7 @@ func (t *threadCGI) renderAttach(attachFile, suffix string, stamp int64, ca *cac
 
 //printAttach renders the content of attach file and makes thumnail if needed and possible.
 func (t *threadCGI) printAttach(datfile, id string, stamp int64, thumbnailSize, suffix string) {
-	ca := newCache(datfile)
+	ca := NewCache(datfile)
 	switch {
 	case ca.hasRecord():
 	case t.checkGetCache():
@@ -534,7 +541,7 @@ func (t *threadCGI) printAttach(datfile, id string, stamp int64, thumbnailSize, 
 		t.print404(ca, "")
 		return
 	}
-	rec := newRecord(ca.Datfile, fmt.Sprintf("%d_%s", stamp, id))
+	rec := NewRecord(ca.Datfile, fmt.Sprintf("%d_%s", stamp, id))
 	if !rec.Exists() {
 		t.print404(ca, "")
 		return
@@ -602,7 +609,7 @@ func (t *threadCGI) makeRecord(at *attached, suffix string, ca *cache) *record {
 	if t.req.FormValue("error") != "" {
 		stamp = t.errorTime()
 	}
-	rec := newRecord(ca.Datfile, "")
+	rec := NewRecord(ca.Datfile, "")
 	passwd := t.req.FormValue("passwd")
 	rec.build(stamp, body, passwd)
 	return rec
@@ -616,7 +623,7 @@ func (t *threadCGI) doPost() string {
 		log.Println(attachedErr)
 	}
 	suffix := t.guessSuffix(attached)
-	ca := newCache(t.req.FormValue("file"))
+	ca := NewCache(t.req.FormValue("file"))
 	rec := t.makeRecord(attached, suffix, ca)
 	if rec == nil {
 		return ""
@@ -644,7 +651,7 @@ func (t *threadCGI) doPost() string {
 
 	if t.req.FormValue("dopost") != "" {
 		log.Println(rec, "is queued")
-		go que.updateNodes(rec, nil)
+		go t.updateQue.updateNodes(rec, nil)
 	}
 
 	return rec.ID[:8]

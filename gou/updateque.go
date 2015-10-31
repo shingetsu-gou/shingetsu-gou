@@ -35,14 +35,21 @@ import (
 	"time"
 )
 
+type UpdateQueConfig struct {
+	recentList  *RecentList
+	nodeManager *NodeManager
+}
+
 type updateQue struct {
+	*UpdateQueConfig
 	mutex   sync.Mutex
 	updated map[[16]byte]time.Time
 }
 
-func newUpdateQue() *updateQue {
+func newUpdateQue(cfg *UpdateQueConfig) *updateQue {
 	return &updateQue{
-		updated: make(map[[16]byte]time.Time),
+		UpdateQueConfig: cfg,
+		updated:         make(map[[16]byte]time.Time),
 	}
 }
 
@@ -52,8 +59,8 @@ func newUpdateQue() *updateQue {
 func (u *updateQue) updateNodes(rec *record, n *node) {
 	log.Println("updating", rec)
 	if u.doUpdateNode(rec, n) {
-		recentList.append(rec)
-		recentList.sync()
+		u.recentList.append(rec)
+		u.recentList.sync()
 	}
 }
 
@@ -82,12 +89,12 @@ func (u *updateQue) doUpdateNode(rec *record, n *node) bool {
 	u.updated[rec.hash()] = time.Now()
 	u.mutex.Unlock()
 
-	ca := newCache(rec.datfile)
+	ca := NewCache(rec.datfile)
 	var err error
 	switch {
 	case !ca.Exists(), n == nil:
 		log.Println("no cache, only broadcast updates.")
-		nodeManager.tellUpdate(ca, rec.Stamp, rec.ID, n)
+		u.nodeManager.tellUpdate(ca, rec.Stamp, rec.ID, n)
 		return true
 	case ca.hasRecord():
 		log.Println("cache and records exists, get data from node n.")
@@ -108,8 +115,8 @@ func (u *updateQue) doUpdateNode(rec *record, n *node) bool {
 		return true
 	default:
 		log.Println("telling update")
-		nodeManager.tellUpdate(ca, rec.Stamp, rec.ID, nil)
-		nodeManager.join(n)
+		u.nodeManager.tellUpdate(ca, rec.Stamp, rec.ID, nil)
+		u.nodeManager.join(n)
 		return true
 	}
 }

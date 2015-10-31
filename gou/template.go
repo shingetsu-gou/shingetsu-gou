@@ -66,7 +66,7 @@ func newTtemplate(templateDir string) *Ttemplate {
 	t := &Ttemplate{textTemplate.New("")}
 	templateFiles := templateDir + "/rss1.txt"
 	t.Funcs(textTemplate.FuncMap(funcMap))
-	_, err = t.ParseFiles(cfg.TemplateFiles)
+	_, err := t.ParseFiles(templateFiles)
 	if err != nil {
 		log.Fatal(err)
 	}

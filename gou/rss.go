@@ -59,6 +59,7 @@ type RSS struct {
 	parent      string
 	URI         string
 	XSL         string
+	template    *Ttemplate
 }
 
 //Swap swaps feed[i] and feed[j]
@@ -77,7 +78,7 @@ func (r *RSS) Len() int {
 }
 
 //newRSS makes RSS object.
-func newRss(encode, lang, title, parent, link, uri, description, xsl string) *RSS {
+func newRss(template *Ttemplate, encode, lang, title, parent, link, uri, description, xsl string) *RSS {
 	if encode == "" {
 		encode = "utf-8"
 	}
@@ -103,6 +104,7 @@ func newRss(encode, lang, title, parent, link, uri, description, xsl string) *RS
 	if uri == "" {
 		r.URI = parent + "rss.xml"
 	}
+
 	return r
 }
 
@@ -129,7 +131,7 @@ func (r *RSS) makeRSS1(wr io.Writer) {
 		c.Content = strings.Replace(c.content, "]]", "&#93;&#93;>", -1)
 	}
 	sort.Sort(sort.Reverse(r))
-	renderRSSTemplate("rss1", *r, wr)
+	r.template.renderTemplate("rss1", *r, wr)
 }
 
 //W3cdate returns RSS formated date string.

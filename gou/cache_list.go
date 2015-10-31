@@ -33,74 +33,11 @@ import (
 	"os"
 	"path"
 	"regexp"
+	"sync"
 	"time"
 )
 
-//cacheList is slice of *cache
-type cacheList struct {
-	*Config
-	*Global
-	Caches caches
-}
-
-//newCacheList loads all caches in disk and returns cachelist obj.
-func newCacheList(cfg *Config, gl *Global) *cacheList {
-	c := &cacheList{
-		Config: cfg,
-		Global: gl,
-	}
-	c.load()
-	return c
-}
-
-//append adds cache cc to list.
-func (c *cacheList) append(cc *cache) {
-	c.Caches = append(c.Caches, cc)
-}
-
-//Len returns # of caches
-func (c *cacheList) Len() int {
-	return len(c.Caches)
-}
-
-//Swap swaps cache order.
-func (c *cacheList) Swap(i, j int) {
-	c.Caches[i], c.Caches[j] = c.Caches[j], c.Caches[i]
-}
-
-//locad loads all caches in disk
-func (c *cacheList) load() {
-	if c.Caches != nil {
-		c.Caches = c.Caches[:0]
-	}
-	err := eachFiles(c.CacheDir, func(f os.FileInfo) error {
-		cc := newCache(f.Name(), c.Config, c.Global)
-		c.Caches = append(c.Caches, cc)
-		return nil
-	})
-	//only implements "asis"
-	if err != nil {
-		log.Println(err)
-	}
-}
-
-//getall reload all records in cache in cachelist from network,
-//and reset params.
-func (c *cacheList) getall() {
-	const clientTimeout = 30 * time.Minute // Seconds; client_timeout < sync_cycle
-
-	timelimit := time.Now().Add(clientTimeout)
-	shuffle(c)
-	for _, ca := range c.Caches {
-		now := time.Now()
-		if now.After(timelimit) {
-			log.Println("client timeout")
-			return
-		}
-		ca.search()
-		ca.checkAttach()
-	}
-}
+var NewCacheList func() *cacheList
 
 //caches is a slice of *cache
 type caches []*cache
@@ -187,6 +124,78 @@ func (c sortByVelocity) Less(i, j int) bool {
 	return c.size[i] < c.size[j]
 }
 
+type CacheListConfig struct {
+	saveSize    int
+	saveRemoved int64
+	cacheDir    string
+	saveRecord  int64
+	fmutex      *sync.RWMutex
+}
+
+//cacheList is slice of *cache
+type cacheList struct {
+	Caches caches
+	*CacheListConfig
+}
+
+//newCacheList loads all caches in disk and returns cachelist obj.
+func _newCacheList(cfg *CacheListConfig) *cacheList {
+	c := &cacheList{
+		CacheListConfig: cfg,
+	}
+	c.load()
+	return c
+}
+
+//append adds cache cc to list.
+func (c *cacheList) append(cc *cache) {
+	c.Caches = append(c.Caches, cc)
+}
+
+//Len returns # of caches
+func (c *cacheList) Len() int {
+	return len(c.Caches)
+}
+
+//Swap swaps cache order.
+func (c *cacheList) Swap(i, j int) {
+	c.Caches[i], c.Caches[j] = c.Caches[j], c.Caches[i]
+}
+
+//locad loads all caches in disk
+func (c *cacheList) load() {
+	if c.Caches != nil {
+		c.Caches = c.Caches[:0]
+	}
+	err := eachFiles(c.cacheDir, func(f os.FileInfo) error {
+		cc := NewCache(f.Name())
+		c.Caches = append(c.Caches, cc)
+		return nil
+	})
+	//only implements "asis"
+	if err != nil {
+		log.Println(err)
+	}
+}
+
+//getall reload all records in cache in cachelist from network,
+//and reset params.
+func (c *cacheList) getall() {
+	const clientTimeout = 30 * time.Minute // Seconds; client_timeout < sync_cycle
+
+	timelimit := time.Now().Add(clientTimeout)
+	shuffle(c)
+	for _, ca := range c.Caches {
+		now := time.Now()
+		if now.After(timelimit) {
+			log.Println("client timeout")
+			return
+		}
+		ca.search()
+		ca.checkAttach()
+	}
+}
+
 //search reloads records in caches in cachelist
 //and returns slice of cache which matches query.
 func (c *cacheList) search(query *regexp.Regexp) caches {
@@ -209,11 +218,11 @@ func (c *cacheList) search(query *regexp.Regexp) caches {
 
 //cleanRecords remove old or duplicates records for each caches.
 func (c *cacheList) cleanRecords() {
-	c.Fmutex.Lock()
-	defer c.Fmutex.Unlock()
+	c.fmutex.Lock()
+	defer c.fmutex.Unlock()
 	for _, ca := range c.Caches {
 		recs := ca.loadRecords()
-		recs.removeRecords(c.SaveRecord, c.SaveSize)
+		recs.removeRecords(c.saveRecord, c.saveSize)
 	}
 }
 
@@ -225,8 +234,8 @@ func (c *cacheList) removeRemoved() {
 			continue
 		}
 		err := eachFiles(r, func(f os.FileInfo) error {
-			rec := newRecord(ca.Datfile, f.Name(),c.Config)
-			if c.SaveRemoved > 0 && rec.Stamp+c.SaveRemoved < time.Now().Unix() &&
+			rec := NewRecord(ca.Datfile, f.Name())
+			if c.saveRemoved > 0 && rec.Stamp+c.saveRemoved < time.Now().Unix() &&
 				rec.Stamp < ca.readInfo().stamp {
 				err := os.Remove(path.Join(ca.datpath(), "removed", f.Name()))
 				if err != nil {

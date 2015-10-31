@@ -68,15 +68,22 @@ func urlopen(url string, timeout time.Duration) ([]string, error) {
 	return lines, err
 }
 
+var NewNode func(string) *node
+
+type NodeConfig struct {
+	nodeAllow *regexpList
+	nodeDeny  *regexpList
+	myself    *node
+}
+
 //node represents node info.
 type node struct {
-	*Config
-	*Global
+	*NodeConfig
 	nodestr string
 }
 
-//newNode checks nodestr format and returns node obj.
-func newNode(nodestr string, cfg *Config, gl *Global) *node {
+//NewNode checks nodestr format and returns node obj.
+func _NewNode(nodestr string, cfg *NodeConfig) *node {
 	nodestr = strings.TrimSpace(nodestr)
 	if nodestr == "" {
 		log.Printf("nodestr is empty")
@@ -87,10 +94,9 @@ func newNode(nodestr string, cfg *Config, gl *Global) *node {
 		return nil
 	}
 	n := &node{
-		Config: cfg,
-		Global: gl,
+		NodeConfig: cfg,
+		nodestr:    strings.Replace(nodestr, "+", "/", -1),
 	}
-	n.nodestr = strings.Replace(nodestr, "+", "/", -1)
 	return n
 }
 
@@ -148,7 +154,7 @@ func (n *node) ping() (string, error) {
 	}
 	if res[0] == "PONG" && len(res) == 2 {
 		log.Println("ponged,i am", res[1])
-		n.NodeManager.setMyself(res[1])
+		n.myself = NewNode(res[1])
 		return res[1], nil
 	}
 	log.Println("/ping", n.nodestr, "error")
@@ -157,7 +163,7 @@ func (n *node) ping() (string, error) {
 
 //isAllow returns fase if n is not allowed and denied.
 func (n *node) isAllowed() bool {
-	if !n.NodeManager.nodeAllow.check(n.nodestr) && n.NodeManager.nodeDeny.check(n.nodestr) {
+	if !n.nodeAllow.check(n.nodestr) && n.nodeDeny.check(n.nodestr) {
 		return false
 	}
 	return true
@@ -170,7 +176,7 @@ func (n *node) join() (bool, *node) {
 		return false, nil
 	}
 	path := strings.Replace(ServerURL, "/", "+", -1)
-	res, err := n.talk("/join/" + n.NodeManager.getMyself().nodestr + path)
+	res, err := n.talk("/join/" + n.myself.nodestr + path)
 	if err != nil {
 		return false, nil
 	}
@@ -181,7 +187,7 @@ func (n *node) join() (bool, *node) {
 	case 1:
 		return res[0] == "WELCOME", nil
 	}
-	return (res[0] == "WELCOME"), newNode(res[1], n.Config, n.Global)
+	return (res[0] == "WELCOME"), NewNode(res[1])
 }
 
 //getNode request n to pass me another node info and returns another node.
@@ -191,13 +197,13 @@ func (n *node) getNode() *node {
 		log.Println("/node", n.nodestr, "error")
 		return nil
 	}
-	return newNode(res[0], n.Config, n.Global)
+	return NewNode(res[0])
 }
 
 //bye says goodbye to n and returns true if success.
 func (n *node) bye() bool {
 	path := strings.Replace(ServerURL, "/", "+", -1)
-	res, err := n.talk("/bye/" + n.NodeManager.getMyself().nodestr + path)
+	res, err := n.talk("/bye/" + n.myself.nodestr + path)
 	if err != nil {
 		log.Println("/bye", n.nodestr, "error")
 		return false

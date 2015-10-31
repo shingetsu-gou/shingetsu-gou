@@ -48,19 +48,28 @@ func isInUpdateRange(nstamp int64) bool {
 	return false
 }
 
+type RecentListConfig struct {
+	recentRange       int64
+	tagSize           int
+	recent            string
+	fmutex            *sync.RWMutex
+	nodeManager       *NodeManager
+	suggestedTagTable *SuggestedTagTable
+}
+
 //RecentList represents records list udpated by remote host and
 //gotten by /gateway.cgi/recent
 type RecentList struct {
-	*Config
+	*RecentListConfig
 	infos   recordHeads
 	isDirty bool
 	mutex   sync.RWMutex
 }
 
 //newRecentList load a file and create a RecentList obj.
-func newRecentList(cfg *Config) *RecentList {
+func newRecentList(cfg *RecentListConfig) *RecentList {
 	r := &RecentList{
-		Config: cfg,
+		RecentListConfig: cfg,
 	}
 	r.loadFile()
 	return r
@@ -195,13 +204,13 @@ func (r *RecentList) getAll() {
 	if r.recentRange > 0 {
 		begin = time.Now().Unix() - r.recentRange
 	}
-	nodes := nodeManager.random(nil, searchNodes)
+	nodes := r.nodeManager.random(nil, searchNodes)
 	var res []string
 	for _, n := range nodes {
 		var err error
 		res, err = n.talk("/recent/" + strconv.FormatInt(begin, 10) + "-")
 		if err != nil {
-			nodeManager.removeFromAllTable(n)
+			r.nodeManager.removeFromAllTable(n)
 			log.Println(err)
 			continue
 		}
@@ -217,28 +226,28 @@ func (r *RecentList) getAll() {
 				tags = tags[:r.tagSize]
 			}
 			if len(tags) > 0 {
-				suggestedTagTable.addString(rec.datfile, tags)
-				suggestedTagTable.sync()
-				nodeManager.appendToTable(rec.datfile, n)
+				r.suggestedTagTable.addString(rec.datfile, tags)
+				r.suggestedTagTable.sync()
+				r.nodeManager.appendToTable(rec.datfile, n)
 			}
 		}
 	}
 	r.sync()
-	nodeManager.sync()
-	suggestedTagTable.prune(r)
-	suggestedTagTable.sync()
+	r.nodeManager.sync()
+	r.suggestedTagTable.prune(r)
+	r.suggestedTagTable.sync()
 }
 
 //makeRecentCachelist returns sorted cachelist copied from recentlist.
 //which doens't contain duplicate caches.
-func (r *RecentList) makeRecentCachelist(cfg *Config, gl *Global) caches {
+func (r *RecentList) makeRecentCachelist() caches {
 	r.mutex.RLock()
 	defer r.mutex.RUnlock()
 	var cl caches
 	var check []string
 	for _, rec := range r.infos {
 		if !hasString(check, rec.datfile) {
-			ca := newCache(rec.datfile, cfg, gl)
+			ca := NewCache(rec.datfile)
 			cl = append(cl, ca)
 			check = append(check, rec.datfile)
 		}
