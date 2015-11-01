@@ -7,7 +7,7 @@
 {{ else }}
   <aside class="navbar-collapse">
 {{ end }}
-<ul class="nav navbar-nav">
+<ul class="nav nav-pills navbar-nav">
   <li><a href="{{.GatewayCGI}}">{{.Message.top}}</a></li>
     <li>{{.GatewayLink.Render .GatewayCGI "changes"}}</li>
     <li>{{.GatewayLink.Render .GatewayCGI "index"}}</li>
