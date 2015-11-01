@@ -26,7 +26,7 @@
  * POSSIBILITY OF SUCH DAMAGE.
  */
 
-package gou
+package cgi
 
 import (
 	"io/ioutil"
@@ -36,6 +36,8 @@ import (
 	"sort"
 	"strings"
 	"time"
+
+	"github.com/shingetsu-gou/shingetsu-gou/util"
 )
 
 //finfo contains file info,including mtime and content.
@@ -91,7 +93,7 @@ func (j *jsCache) update() {
 	for k := range j.files {
 		j.files[k].exist = false
 	}
-	err := eachFiles(j.path, func(f os.FileInfo) error {
+	err := util.EachFiles(j.path, func(f os.FileInfo) error {
 		var err error
 		name := f.Name()
 		if !strings.HasSuffix(name, ".js") || strings.HasPrefix(name, ".") || strings.HasPrefix(name, "_") {

@@ -26,7 +26,7 @@
  * POSSIBILITY OF SUCH DAMAGE.
  */
 
-package gou
+package util
 
 import (
 	"log"
@@ -39,7 +39,7 @@ import (
 
 //confList represents regexp list.
 //    One regexp per one line.
-type confList struct {
+type ConfList struct {
 	mtime *time.Time
 	path  string
 	data  []string
@@ -47,8 +47,8 @@ type confList struct {
 }
 
 //newConfList makes a confList instance from path.
-func newConfList(path string, defaultList []string) *confList {
-	r := &confList{path: path}
+func NewConfList(path string, defaultList []string) *ConfList {
+	r := &ConfList{path: path}
 	r.update()
 	if len(r.data) == 0 {
 		r.data = defaultList
@@ -56,8 +56,16 @@ func newConfList(path string, defaultList []string) *confList {
 	return r
 }
 
+func (r *ConfList) GetData() []string {
+	r.mutex.RLock()
+	defer r.mutex.RUnlock()
+	d := make([]string, len(r.data))
+	copy(d, r.data)
+	return d
+}
+
 //update read the file if newer, and stores all lines in the file.
-func (r *confList) update() {
+func (r *ConfList) update() {
 	r.mutex.Lock()
 	defer r.mutex.Unlock()
 	if r.path == "" {
@@ -74,7 +82,7 @@ func (r *confList) update() {
 	}
 	r.mtime = &mtime
 	r.data = r.data[:0]
-	err = eachLine(r.path, func(line string, i int) error {
+	err = EachLine(r.path, func(line string, i int) error {
 		if line != "" && !strings.HasPrefix(line, "#") {
 			r.data = append(r.data, line)
 		}
@@ -87,22 +95,22 @@ func (r *confList) update() {
 
 //regexpList represents RegExp list.
 //    One regexp per one line.
-type regexpList struct {
-	*confList
+type RegexpList struct {
+	*ConfList
 	regs []*regexp.Regexp
 }
 
 //newRegExpList make a regexpList and regexp.comples each lines in the file.
-func newRegexpList(path string) *regexpList {
-	c := newConfList(path, []string{})
-	r := &regexpList{}
-	r.confList = c
+func NewRegexpList(path string) *RegexpList {
+	c := NewConfList(path, []string{})
+	r := &RegexpList{}
+	r.ConfList = c
 	r.update()
 	return r
 }
 
 //check checks whethere target matches one of all regexps or not.
-func (r *regexpList) check(target string) bool {
+func (r *RegexpList) Check(target string) bool {
 	r.update()
 	r.mutex.RLock()
 	defer r.mutex.RUnlock()
@@ -115,12 +123,12 @@ func (r *regexpList) check(target string) bool {
 }
 
 //update read the file and regexp.comples each lines in the file if file is newer.
-func (r *regexpList) update() {
-	r.confList.update()
+func (r *RegexpList) update() {
+	r.ConfList.update()
 	r.mutex.Lock()
 	defer r.mutex.Unlock()
 	r.regs = r.regs[:0]
-	for i, line := range r.confList.data {
+	for i, line := range r.ConfList.data {
 		re, err := regexp.Compile(line)
 		if err != nil {
 			log.Println("cannot compile regexp", line, "line", i)

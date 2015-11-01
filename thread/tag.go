@@ -26,7 +26,7 @@
  * POSSIBILITY OF SUCH DAMAGE.
  */
 
-package gou
+package thread
 
 import (
 	"io/ioutil"
@@ -36,48 +36,50 @@ import (
 	"sort"
 	"strings"
 	"sync"
+
+	"github.com/shingetsu-gou/shingetsu-gou/util"
 )
 
 //tag represents one tag.
-type tag struct {
+type Tag struct {
 	Tagstr string
 	weight int
 }
 
-type tagslice []*tag
+type Tagslice []*Tag
 
 //Len returns size of tags.
-func (t tagslice) Len() int {
+func (t Tagslice) Len() int {
 	return len(t)
 }
 
 //Swap swaps tag order.
-func (t tagslice) Swap(i, j int) {
+func (t Tagslice) Swap(i, j int) {
 	t[i], t[j] = t[j], t[i]
 }
 
 //Less is true if weight[i]< weigt[j]
-func (t tagslice) Less(i, j int) bool {
+func (t Tagslice) Less(i, j int) bool {
 	return t[i].weight < t[j].weight
 }
 
 //newTagslice create suggestedTagList obj and adds tags tagstr=value.
-func newTagslice(values []string) tagslice {
-	s := make([]*tag, len(values))
+func newTagslice(values []string) Tagslice {
+	s := make([]*Tag, len(values))
 	for i, v := range values {
-		s[i] = &tag{v, 0}
+		s[i] = &Tag{v, 0}
 	}
 	return s
 }
 
-//loadTagSlice load a file and returns tagslice.
-func loadTagslice(path string) tagslice {
-	var t tagslice
-	if !IsFile(path) {
+//loadTagSlice load a file and returns Tagslice.
+func loadTagslice(path string) Tagslice {
+	var t Tagslice
+	if !util.IsFile(path) {
 		return t
 	}
-	err := eachLine(path, func(line string, i int) error {
-		t = append(t, &tag{line, 0})
+	err := util.EachLine(path, func(line string, i int) error {
+		t = append(t, &Tag{line, 0})
 		return nil
 	})
 	if err != nil {
@@ -87,7 +89,7 @@ func loadTagslice(path string) tagslice {
 }
 
 //getTagstrSlice returns tagstr slice of tags.
-func (t tagslice) getTagstrSlice() []string {
+func (t Tagslice) GetTagstrSlice() []string {
 	result := make([]string, t.Len())
 	for i, v := range t {
 		result[i] = v.Tagstr
@@ -96,12 +98,12 @@ func (t tagslice) getTagstrSlice() []string {
 }
 
 //string concatenates and returns tagstr of tags.
-func (t tagslice) string() string {
-	return strings.Join(t.getTagstrSlice(), " ")
+func (t Tagslice) string() string {
+	return strings.Join(t.GetTagstrSlice(), " ")
 }
 
 //prune truncates non-weighted tagList to size=size.
-func (t tagslice) prune(size int) tagslice {
+func (t Tagslice) prune(size int) Tagslice {
 	sort.Sort(sort.Reverse(t))
 	if t.Len() > size {
 		t = t[:size]
@@ -110,15 +112,15 @@ func (t tagslice) prune(size int) tagslice {
 }
 
 //checkAppend append tagstr=val tag if tagList doesn't have its tag.
-func (t tagslice) checkAppend(val string) {
-	if strings.ContainsAny(val, "<>&") || hasString(t.getTagstrSlice(), val) {
+func (t Tagslice) checkAppend(val string) {
+	if strings.ContainsAny(val, "<>&") || util.HasString(t.GetTagstrSlice(), val) {
 		return
 	}
-	t = append(t, &tag{val, 1})
+	t = append(t, &Tag{val, 1})
 }
 
 //hasTagstr return true if one of tags has tagstr
-func (t tagslice) hasTagstr(tagstr string) bool {
+func (t Tagslice) HasTagstr(tagstr string) bool {
 	for _, v := range t {
 		if v.Tagstr == tagstr {
 			return true
@@ -128,16 +130,16 @@ func (t tagslice) hasTagstr(tagstr string) bool {
 }
 
 //addString add tagstr=vals tag
-func (t tagslice) addString(vals []string) {
+func (t Tagslice) addString(vals []string) {
 	for _, val := range vals {
 		t.checkAppend(val)
 	}
 }
 
 //add adds vals tags.
-func (t tagslice) add(vals []*tag) {
+func (t Tagslice) add(vals []*Tag) {
 	for _, val := range vals {
-		if i := findString(t.getTagstrSlice(), val.Tagstr); i >= 0 {
+		if i := util.FindString(t.GetTagstrSlice(), val.Tagstr); i >= 0 {
 			t[i].weight++
 		} else {
 			t.checkAppend(val.Tagstr)
@@ -146,37 +148,37 @@ func (t tagslice) add(vals []*tag) {
 }
 
 //sync saves tagstr of tags to path.
-func (t tagslice) sync(path string) {
-	err := writeSlice(path, t.getTagstrSlice())
+func (t Tagslice) sync(path string) {
+	err := util.WriteSlice(path, t.GetTagstrSlice())
 	if err != nil {
 		log.Println(err)
 	}
 }
 
 type SuggestedTagTableConfig struct {
-	tagSize int
-	sugtag  string
-	fmutex  *sync.RWMutex
+	TagSize int
+	Sugtag  string
+	Fmutex  *sync.RWMutex
 }
 
 //SuggestedTagTable represents tags associated with datfile retrieved from network.
 type SuggestedTagTable struct {
 	*SuggestedTagTableConfig
-	sugtaglist map[string]tagslice
+	Sugtaglist map[string]Tagslice
 	mutex      sync.RWMutex
 }
 
 //newSuggestedTagTable make SuggestedTagTable obj and read info from the file.
-func newSuggestedTagTable(cfg *SuggestedTagTableConfig) *SuggestedTagTable {
+func NewSuggestedTagTable(cfg *SuggestedTagTableConfig) *SuggestedTagTable {
 	s := &SuggestedTagTable{
 		SuggestedTagTableConfig: cfg,
-		sugtaglist:              make(map[string]tagslice),
+		Sugtaglist:              make(map[string]Tagslice),
 	}
-	if !IsFile(cfg.sugtag) {
+	if !util.IsFile(cfg.Sugtag) {
 		return s
 	}
-	err := eachKeyValueLine(cfg.sugtag, func(k string, vs []string, i int) error {
-		s.sugtaglist[k] = newTagslice(vs)
+	err := util.EachKeyValueLine(cfg.Sugtag, func(k string, vs []string, i int) error {
+		s.Sugtaglist[k] = newTagslice(vs)
 		return nil
 	})
 	if err != nil {
@@ -185,43 +187,43 @@ func newSuggestedTagTable(cfg *SuggestedTagTableConfig) *SuggestedTagTable {
 	return s
 }
 
-//sync saves sugtaglists.
+//sync saves Sugtaglists.
 func (s *SuggestedTagTable) sync() {
 	log.Println("syncing..")
 	m := make(map[string][]string)
 	s.mutex.RLock()
 	defer s.mutex.RUnlock()
-	for k, v := range s.sugtaglist {
-		s := v.getTagstrSlice()
+	for k, v := range s.Sugtaglist {
+		s := v.GetTagstrSlice()
 		m[k] = s
 	}
-	s.fmutex.Lock()
-	err := writeMap(s.sugtag, m)
-	s.fmutex.Unlock()
+	s.Fmutex.Lock()
+	err := util.WriteMap(s.Sugtag, m)
+	s.Fmutex.Unlock()
 	if err != nil {
 		log.Println(err)
 	}
 }
 
 //get returns copy of suggestedTagList associated with datfile or returns def if not exists.
-func (s *SuggestedTagTable) get(datfile string, def tagslice) tagslice {
+func (s *SuggestedTagTable) Get(datfile string, def Tagslice) Tagslice {
 	s.mutex.RLock()
 	defer s.mutex.RUnlock()
-	if v, exist := s.sugtaglist[datfile]; exist {
-		tags := make([]*tag, v.Len())
+	if v, exist := s.Sugtaglist[datfile]; exist {
+		tags := make([]*Tag, v.Len())
 		copy(tags, v)
-		return tagslice(tags)
+		return Tagslice(tags)
 	}
 	return def
 }
 
-//keys return datfile names of sugtaglist.
+//keys return datfile names of Sugtaglist.
 func (s *SuggestedTagTable) keys() []string {
 	s.mutex.RLock()
 	defer s.mutex.RUnlock()
-	ary := make([]string, len(s.sugtaglist))
+	ary := make([]string, len(s.Sugtaglist))
 	i := 0
-	for k := range s.sugtaglist {
+	for k := range s.Sugtaglist {
 		ary[i] = k
 		i++
 	}
@@ -232,45 +234,45 @@ func (s *SuggestedTagTable) keys() []string {
 func (s *SuggestedTagTable) addString(datfile string, vals []string) {
 	s.mutex.Lock()
 	defer s.mutex.Unlock()
-	s.sugtaglist[datfile].addString(vals)
+	s.Sugtaglist[datfile].addString(vals)
 }
 
 //hasTagstr return true if one of tags has tagstr
-func (s *SuggestedTagTable) hasTagstr(datfile string, tagstr string) bool {
+func (s *SuggestedTagTable) HasTagstr(datfile string, tagstr string) bool {
 	s.mutex.RLock()
 	defer s.mutex.RUnlock()
-	return s.sugtaglist[datfile].hasTagstr(tagstr)
+	return s.Sugtaglist[datfile].HasTagstr(tagstr)
 }
 
 //string return tagstr string.
-func (s *SuggestedTagTable) string(datfile string) string {
+func (s *SuggestedTagTable) String(datfile string) string {
 	s.mutex.RLock()
 	defer s.mutex.RUnlock()
-	return s.sugtaglist[datfile].string()
+	return s.Sugtaglist[datfile].string()
 }
 
-//prune removes sugtaglists which are not listed in recentlist,
+//prune removes Sugtaglists which are not listed in recentlist,
 //or truncates its size to tagsize if listed.
 func (s *SuggestedTagTable) prune(recentlist *RecentList) {
 	s.mutex.Lock()
 	defer s.mutex.Unlock()
 	tmp := s.keys()
 	for _, r := range recentlist.infos {
-		if l := findString(tmp, r.datfile); l != -1 {
+		if l := util.FindString(tmp, r.Datfile); l != -1 {
 			tmp = append(tmp[:l], tmp[l+1:]...)
 		}
-		if v, exist := s.sugtaglist[r.datfile]; exist {
-			v.prune(s.tagSize)
+		if v, exist := s.Sugtaglist[r.Datfile]; exist {
+			v.prune(s.TagSize)
 		}
 	}
 	for _, datfile := range tmp {
-		delete(s.sugtaglist, datfile)
+		delete(s.Sugtaglist, datfile)
 	}
 }
 
 type UserTagConfig struct {
-	cacheDir string
-	fmutex   *sync.RWMutex
+	CacheDir string
+	Fmutex   *sync.RWMutex
 }
 
 //UserTagList represents tags saved by the user.
@@ -278,10 +280,10 @@ type UserTag struct {
 	*UserTagConfig
 	mutex   sync.Mutex
 	isClean bool
-	tags    tagslice
+	tags    Tagslice
 }
 
-func newUserTag(cfg *UserTagConfig) *UserTag {
+func NewUserTag(cfg *UserTagConfig) *UserTag {
 	return &UserTag{
 		UserTagConfig: cfg,
 	}
@@ -294,19 +296,19 @@ func (u *UserTag) setDirty() {
 	u.isClean = false
 }
 
-//get reads tags from the disk and retrusn tagslice.
-func (u *UserTag) get() tagslice {
-	u.fmutex.RLock()
-	defer u.fmutex.RUnlock()
+//get reads tags from the disk and retrusn Tagslice.
+func (u *UserTag) Get() Tagslice {
+	u.Fmutex.RLock()
+	defer u.Fmutex.RUnlock()
 	u.mutex.Lock()
 	defer u.mutex.Unlock()
 	if u.isClean {
 		return u.tags
 	}
-	var tags tagslice
-	err := eachFiles(u.cacheDir, func(i os.FileInfo) error {
-		fname := path.Join(u.cacheDir, i.Name(), "tag.txt")
-		if i.IsDir() && IsFile(fname) {
+	var tags Tagslice
+	err := util.EachFiles(u.CacheDir, func(i os.FileInfo) error {
+		fname := path.Join(u.CacheDir, i.Name(), "tag.txt")
+		if i.IsDir() && util.IsFile(fname) {
 			t, err := ioutil.ReadFile(fname)
 			if err != nil {
 				return err

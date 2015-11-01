@@ -26,7 +26,7 @@
  * POSSIBILITY OF SUCH DAMAGE.
  */
 
-package gou
+package cgi
 
 import (
 	"errors"
@@ -43,27 +43,31 @@ import (
 	"strconv"
 	"strings"
 	"time"
+
+	"github.com/shingetsu-gou/shingetsu-gou/node"
+	"github.com/shingetsu-gou/shingetsu-gou/thread"
+	"github.com/shingetsu-gou/shingetsu-gou/util"
 )
 
-var newAdminCGI func(w http.ResponseWriter, r *http.Request) (adminCGI, error)
+var AdminCfg *AdminCGIConfig
 
 //AdminURL is the url to admin.cgi
 const AdminURL = "/admin.cgi"
 
 //adminSetups registers handlers for admin.cgi
-func adminSetup(s *loggingServeMux) {
-	s.registCompressHandler(AdminURL+"/status", printStatus)
-	s.registCompressHandler(AdminURL+"/edittag", printEdittag)
-	s.registCompressHandler(AdminURL+"/savetag", saveTagCGI)
-	s.registCompressHandler(AdminURL+"/search", printSearch)
-	s.registCompressHandler(AdminURL+"/", execCmd)
+func AdminSetup(s *loggingServeMux) {
+	s.RegistCompressHandler(AdminURL+"/status", printStatus)
+	s.RegistCompressHandler(AdminURL+"/edittag", printEdittag)
+	s.RegistCompressHandler(AdminURL+"/savetag", saveTagCGI)
+	s.RegistCompressHandler(AdminURL+"/search", printSearch)
+	s.RegistCompressHandler(AdminURL+"/", execCmd)
 }
 
 //execCmd execute command specified cmd form.
 //i.e. confirmagion page for deleting rec/file(rdel/fdel) and for deleting.
 //(xrdel/xfdel)
 func execCmd(w http.ResponseWriter, r *http.Request) {
-	a, err := newAdminCGI(w, r)
+	a, err := NewAdminCGI(w, r)
 	if err != nil {
 		log.Println(err)
 		return
@@ -89,7 +93,7 @@ func execCmd(w http.ResponseWriter, r *http.Request) {
 //printSearch renders the page for searching if query=""
 //or do query if query!=""
 func printSearch(w http.ResponseWriter, r *http.Request) {
-	a, err := newAdminCGI(w, r)
+	a, err := NewAdminCGI(w, r)
 	defer a.close()
 	if err != nil {
 		log.Println(err)
@@ -110,34 +114,34 @@ func printSearch(w http.ResponseWriter, r *http.Request) {
 //#linknodes,#knownNodes,#files,#records,cacheSize,selfnode/linknodes/knownnodes
 // ip:port,
 func printStatus(w http.ResponseWriter, r *http.Request) {
-	a, err := newAdminCGI(w, r)
+	a, err := NewAdminCGI(w, r)
 	defer a.close()
 	if err != nil {
 		log.Println()
 		return
 	}
-	cl := NewCacheList()
+	cl := thread.NewCacheList()
 	records := 0
 	var size int64
 	for _, ca := range cl.Caches {
-		i := ca.readInfo()
-		records += i.len
-		size += i.size
+		i := ca.ReadInfo()
+		records += i.Len
+		size += i.Size
 	}
 
 	var mem runtime.MemStats
 	runtime.ReadMemStats(&mem)
 
 	s := map[string]string{
-		"linked_nodes": strconv.Itoa(a.nodeManager.nodeLen()),
+		"linked_nodes": strconv.Itoa(a.NodeManager.NodeLen()),
 		"files":        strconv.Itoa(cl.Len()),
 		"records":      strconv.Itoa(records),
 		"cache_size":   fmt.Sprintf("%.1f%s", float64(size)/1024/1024, a.m["mb"]),
-		"self_node":    myself.nodestr,
+		"self_node":    a.NodeManager.GetMyself().Nodestr,
 		"alloc_mem":    fmt.Sprintf("%.1f%s", float64(mem.Alloc)/1024/1024, a.m["mb"]),
 	}
 	ns := map[string][]string{
-		"linked_nodes": a.nodeManager.getNodestrSlice(),
+		"linked_nodes": a.NodeManager.GetNodestrSlice(),
 	}
 
 	d := struct {
@@ -150,21 +154,21 @@ func printStatus(w http.ResponseWriter, r *http.Request) {
 		a.m,
 	}
 	a.header(a.m["status"], "", nil, true)
-	a.htemplate.renderTemplate("status", d, a.wr)
+	a.Htemplate.RenderTemplate("status", d, a.wr)
 	a.footer(nil)
 }
 
 //printEdittag renders the page for editing tags in thread specified by form "file".
 func printEdittag(w http.ResponseWriter, r *http.Request) {
-	a, err := newAdminCGI(w, r)
+	a, err := NewAdminCGI(w, r)
 	defer a.close()
 	if err != nil {
 		log.Println(err)
 		return
 	}
 	datfile := a.req.FormValue("file")
-	strTitle := fileDecode(datfile)
-	ca := NewCache(datfile)
+	strTitle := util.FileDecode(datfile)
+	ca := thread.NewCache(datfile)
 	datfile = html.EscapeString(datfile)
 
 	if !ca.Exists() {
@@ -176,24 +180,24 @@ func printEdittag(w http.ResponseWriter, r *http.Request) {
 		AdminCGI string
 		Datfile  string
 		Tags     string
-		Sugtags  tagslice
-		Usertags tagslice
+		Sugtags  thread.Tagslice
+		Usertags thread.Tagslice
 	}{
 		a.m,
 		AdminURL,
 		datfile,
-		ca.tagString(),
-		a.suggestedTagTable.get(ca.Datfile, nil),
-		a.userTag.get(),
+		ca.TagString(),
+		a.SuggestedTagTable.Get(ca.Datfile, nil),
+		a.UserTag.Get(),
 	}
 	a.header(fmt.Sprintf("%s: %s", a.m["edit_tag"], strTitle), "", nil, true)
-	a.htemplate.renderTemplate("edit_tag", d, a.wr)
+	a.Htemplate.RenderTemplate("edit_tag", d, a.wr)
 	a.footer(nil)
 }
 
 //saveTagCGI saves edited tags of file and render this file with 302.
 func saveTagCGI(w http.ResponseWriter, r *http.Request) {
-	a, err := newAdminCGI(w, r)
+	a, err := NewAdminCGI(w, r)
 	defer a.close()
 	if err != nil {
 		log.Println(err)
@@ -204,15 +208,15 @@ func saveTagCGI(w http.ResponseWriter, r *http.Request) {
 	if datfile == "" {
 		return
 	}
-	ca := NewCache(datfile)
+	ca := thread.NewCache(datfile)
 	if !ca.Exists() {
 		a.print404(nil, "")
 	}
 	tl := strings.Fields(tags)
-	ca.setTags(tl)
-	ca.syncTag()
+	ca.SetTags(tl)
+	ca.SyncTag()
 	var next string
-	title := strEncode(fileDecode(datfile))
+	title := util.StrEncode(util.FileDecode(datfile))
 	if strings.HasPrefix(datfile, "thread_") {
 		next = ThreadURL + "/" + title
 	} else {
@@ -222,12 +226,12 @@ func saveTagCGI(w http.ResponseWriter, r *http.Request) {
 }
 
 type AdminCGIConfig struct {
-	adminSID          string
-	nodeManager       *NodeManager
-	htemplate         *Htemplate
-	userTag           *UserTag
-	suggestedTagTable *SuggestedTagTable
-	recentList        *RecentList
+	AdminSID          string
+	NodeManager       *node.NodeManager
+	Htemplate         *util.Htemplate
+	UserTag           *thread.UserTag
+	SuggestedTagTable *thread.SuggestedTagTable
+	RecentList        *thread.RecentList
 }
 
 //adminCGI is for admin.cgi handler.
@@ -238,9 +242,9 @@ type adminCGI struct {
 
 //newAdminCGI returns adminCGI obj if client is admin.
 //if not render 403.
-func _newAdminCGI(w http.ResponseWriter, r *http.Request, cfg *AdminCGIConfig) (adminCGI, error) {
+func NewAdminCGI(w http.ResponseWriter, r *http.Request) (adminCGI, error) {
 	a := adminCGI{
-		AdminCGIConfig: cfg,
+		AdminCGIConfig: AdminCfg,
 		cgi:            NewCGI(w, r),
 	}
 	if a.cgi == nil {
@@ -258,8 +262,8 @@ func (a *adminCGI) makeSid() string {
 	for i := 0; i < 4; i++ {
 		r += strconv.Itoa(rand.Int())
 	}
-	sid := md5digest(r)
-	err := ioutil.WriteFile(a.adminSID, []byte(sid+"\n"), 0755)
+	sid := util.MD5digest(r)
+	err := ioutil.WriteFile(a.AdminSID, []byte(sid+"\n"), 0755)
 	if err != nil {
 		log.Println(err)
 	}
@@ -269,13 +273,13 @@ func (a *adminCGI) makeSid() string {
 //checkSid returns true if form value of "sid" == saved sid.
 func (a *adminCGI) checkSid() bool {
 	sid := a.req.FormValue("sid")
-	bsaved, err := ioutil.ReadFile(a.adminSID)
+	bsaved, err := ioutil.ReadFile(a.AdminSID)
 	if err != nil {
 		log.Println(err)
 		return false
 	}
 	saved := strings.TrimRight(string(bsaved), "\r\n")
-	if err := os.Remove(a.adminSID); err != nil {
+	if err := os.Remove(a.AdminSID); err != nil {
 		log.Println(err)
 	}
 	return sid == saved
@@ -286,17 +290,17 @@ type DeleteRecord struct {
 	Message  message
 	AdminCGI string
 	Datfile  string
-	Records  []*record
+	Records  []*thread.Record
 	Sid      string
 }
 
 //Getbody retuns contents of rec.
-func (d DeleteRecord) Getbody(rec *record) string {
-	err := rec.load()
+func (d DeleteRecord) Getbody(rec *thread.Record) string {
+	err := rec.Load()
 	if err != nil {
 		log.Println(err)
 	}
-	return rec.recstr()
+	return rec.Recstr()
 }
 
 //printDeleteRecord renders comfirmation page for deleting a record.
@@ -308,9 +312,9 @@ func (a *adminCGI) printDeleteRecord(rmFiles []string, records []string) {
 	}
 	datfile := rmFiles[0]
 	sid := a.makeSid()
-	recs := make([]*record, len(records))
+	recs := make([]*thread.Record, len(records))
 	for i, v := range records {
-		recs[i] = NewRecord(datfile, v)
+		recs[i] = thread.NewRecord(datfile, v)
 	}
 	d := DeleteRecord{
 		a.m,
@@ -320,7 +324,7 @@ func (a *adminCGI) printDeleteRecord(rmFiles []string, records []string) {
 		sid,
 	}
 	a.header(a.m["del_record"], "", nil, true)
-	a.htemplate.renderTemplate("delete_record", d, a.wr)
+	a.Htemplate.RenderTemplate("delete_record", d, a.wr)
 	a.footer(nil)
 }
 
@@ -337,14 +341,14 @@ func (a *adminCGI) doDeleteRecord(rmFiles []string, records []string, dopost str
 	}
 	datfile := rmFiles[0]
 	next := "/"
-	title := strEncode(fileDecode(datfile))
+	title := util.StrEncode(util.FileDecode(datfile))
 	if strings.HasPrefix(title, "thread_") {
 		next = ThreadURL + "/" + title
 	}
-	ca := NewCache(datfile)
+	ca := thread.NewCache(datfile)
 	for _, r := range records {
-		rec := NewRecord(datfile, r)
-		if rec.remove() == nil && dopost != "" {
+		rec := thread.NewRecord(datfile, r)
+		if rec.Remove() == nil && dopost != "" {
 			a.postDeleteMessage(ca, rec)
 			a.print302(next)
 			return
@@ -357,30 +361,30 @@ func (a *adminCGI) doDeleteRecord(rmFiles []string, records []string, dopost str
 type DelFile struct {
 	Message  message
 	adminCGI string
-	Files    []*cache
+	Files    []*thread.Cache
 	Sid      string
 }
 
 //Gettitle returns title part if *_*.
 //returns ca.datfile if not.
-func (d *DelFile) Gettitle(ca *cache) string {
+func (d *DelFile) Gettitle(ca *thread.Cache) string {
 	if strings.HasPrefix(ca.Datfile, "thread_") {
-		return fileDecode(ca.Datfile)
+		return util.FileDecode(ca.Datfile)
 	}
 	return ca.Datfile
 }
 
 //GetContents returns recstrs of cache.
 //len(recstrs) is <=2.
-func (d *DelFile) GetContents(ca *cache) []string {
+func (d *DelFile) GetContents(ca *thread.Cache) []string {
 	contents := make([]string, 0, 2)
-	recs := ca.loadRecords()
+	recs := ca.LoadRecords()
 	for _, rec := range recs {
-		err := rec.load()
+		err := rec.Load()
 		if err != nil {
 			log.Println(err)
 		}
-		contents = append(contents, escape(rec.recstr()))
+		contents = append(contents, util.Escape(rec.Recstr()))
 		if len(contents) > 2 {
 			return contents
 		}
@@ -390,22 +394,22 @@ func (d *DelFile) GetContents(ca *cache) []string {
 
 //postDeleteMessage tells others deletion of a record.
 //and adds to updateList and recentlist.
-func (a *adminCGI) postDeleteMessage(ca *cache, rec *record) {
+func (a *adminCGI) postDeleteMessage(ca *thread.Cache, rec *thread.Record) {
 	stamp := time.Now().Unix()
 	body := make(map[string]string)
 	for _, key := range []string{"name", "body"} {
 		if v := a.req.FormValue(key); v != "" {
-			body[key] = escape(v)
+			body[key] = util.Escape(v)
 		}
 	}
 	body["remove_stamp"] = strconv.FormatInt(rec.Stamp, 10)
 	body["remove_id"] = rec.ID
 	passwd := a.req.FormValue("passwd")
-	id := rec.build(stamp, body, passwd)
-	rec.sync()
-	a.recentList.append(rec)
-	a.recentList.sync()
-	go a.nodeManager.tellUpdate(ca, stamp, id, nil)
+	id := rec.Build(stamp, body, passwd)
+	rec.Sync()
+	a.RecentList.Append(rec)
+	a.RecentList.Sync()
+	go a.NodeManager.TellUpdate(ca.Datfile, stamp, id, nil)
 }
 
 //printDeleteFile renders the page for confirmation of deleting file.
@@ -414,9 +418,9 @@ func (a *adminCGI) printDeleteFile(files []string) {
 		a.print404(nil, "")
 	}
 	sid := a.makeSid()
-	cas := make([]*cache, len(files))
+	cas := make([]*thread.Cache, len(files))
 	for i, v := range files {
-		cas[i] = NewCache(v)
+		cas[i] = thread.NewCache(v)
 	}
 	d := DelFile{
 		a.m,
@@ -425,7 +429,7 @@ func (a *adminCGI) printDeleteFile(files []string) {
 		sid,
 	}
 	a.header(a.m["del_file"], "", nil, true)
-	a.htemplate.renderTemplate("delete_file", d, a.wr)
+	a.Htemplate.RenderTemplate("delete_file", d, a.wr)
 	a.footer(nil)
 }
 
@@ -439,8 +443,8 @@ func (a *adminCGI) doDeleteFile(files []string) {
 	}
 
 	for _, c := range files {
-		ca := NewCache(c)
-		ca.remove()
+		ca := thread.NewCache(c)
+		ca.Remove()
 	}
 	a.print302(GatewayURL + "/" + "changes")
 }
@@ -456,7 +460,7 @@ func (a *adminCGI) printSearchForm(query string) {
 		AdminURL,
 		a.m,
 	}
-	a.htemplate.renderTemplate("search_form", d, a.wr)
+	a.Htemplate.RenderTemplate("search_form", d, a.wr)
 }
 
 //printSearchResult renders cachelist that its datfile matches query.
@@ -472,17 +476,17 @@ func (a *adminCGI) printSearchResult(query string) {
 		a.footer(nil)
 		return
 	}
-	cl := NewCacheList()
-	result := cl.search(reg)
+	cl := thread.NewCacheList()
+	result := cl.Search(reg)
 	for _, i := range cl.Caches {
-		if result.has(i) {
+		if result.Has(i) {
 			continue
 		}
-		if reg.MatchString(fileDecode(i.Datfile)) {
+		if reg.MatchString(util.FileDecode(i.Datfile)) {
 			result = append(result, i)
 		}
 	}
-	sort.Sort(sort.Reverse(newSortByStamp(result)))
+	sort.Sort(sort.Reverse(thread.NewSortByStamp(result)))
 	a.printIndexList(result, "", true, false)
 	a.footer(nil)
 }

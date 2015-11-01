@@ -26,28 +26,30 @@
  * POSSIBILITY OF SUCH DAMAGE.
  */
 
-package gou
+package thread
 
 import (
 	"errors"
 	"log"
 	"sync"
 	"time"
+
+	"github.com/shingetsu-gou/shingetsu-gou/node"
 )
 
 type UpdateQueConfig struct {
-	recentList  *RecentList
-	nodeManager *NodeManager
+	RecentList  *RecentList
+	NodeManager *node.NodeManager
 }
 
-type updateQue struct {
+type UpdateQue struct {
 	*UpdateQueConfig
 	mutex   sync.Mutex
 	updated map[[16]byte]time.Time
 }
 
-func newUpdateQue(cfg *UpdateQueConfig) *updateQue {
-	return &updateQue{
+func NewUpdateQue(cfg *UpdateQueConfig) *UpdateQue {
+	return &UpdateQue{
 		UpdateQueConfig: cfg,
 		updated:         make(map[[16]byte]time.Time),
 	}
@@ -56,16 +58,16 @@ func newUpdateQue(cfg *UpdateQueConfig) *updateQue {
 //run do doUpdateNode for each records using related nodes.
 //if success to doUpdateNode, add node to updatelist and recentlist and
 //removes the record from queue.
-func (u *updateQue) updateNodes(rec *record, n *node) {
+func (u *UpdateQue) UpdateNodes(rec *Record, n *node.Node) {
 	log.Println("updating", rec)
 	if u.doUpdateNode(rec, n) {
-		u.recentList.append(rec)
-		u.recentList.sync()
+		u.RecentList.Append(rec)
+		u.RecentList.Sync()
 	}
 }
 
 //deleteOldUpdated removes old updated records from updated map.
-func (u *updateQue) deleteOldUpdated() {
+func (u *UpdateQue) deleteOldUpdated() {
 	const oldUpdated = time.Hour
 
 	for k, v := range u.updated {
@@ -78,7 +80,7 @@ func (u *updateQue) deleteOldUpdated() {
 //doUpdateNode broadcast and get data for each new records.
 //if can get data (even if spam) return true, if fails to get, return false.
 //if no fail, broadcast updates to node in cache and added n to nodelist and searchlist.
-func (u *updateQue) doUpdateNode(rec *record, n *node) bool {
+func (u *UpdateQue) doUpdateNode(rec *Record, n *node.Node) bool {
 	errGet := errors.New("cannot get data")
 
 	u.mutex.Lock()
@@ -89,16 +91,16 @@ func (u *updateQue) doUpdateNode(rec *record, n *node) bool {
 	u.updated[rec.hash()] = time.Now()
 	u.mutex.Unlock()
 
-	ca := NewCache(rec.datfile)
+	ca := NewCache(rec.Datfile)
 	var err error
 	switch {
 	case !ca.Exists(), n == nil:
 		log.Println("no cache, only broadcast updates.")
-		u.nodeManager.tellUpdate(ca, rec.Stamp, rec.ID, n)
+		u.NodeManager.TellUpdate(ca.Datfile, rec.Stamp, rec.ID, n)
 		return true
-	case ca.hasRecord():
+	case ca.HasRecord():
 		log.Println("cache and records exists, get data from node n.")
-		err = ca.getData(rec.Stamp, rec.ID, n)
+		err = ca.GetData(rec.Stamp, rec.ID, n)
 	default:
 		log.Println("cache exists ,but no records. get data with range.")
 		ca.getWithRange(n)
@@ -115,8 +117,8 @@ func (u *updateQue) doUpdateNode(rec *record, n *node) bool {
 		return true
 	default:
 		log.Println("telling update")
-		u.nodeManager.tellUpdate(ca, rec.Stamp, rec.ID, nil)
-		u.nodeManager.join(n)
+		u.NodeManager.TellUpdate(ca.Datfile, rec.Stamp, rec.ID, nil)
+		u.NodeManager.Join(n)
 		return true
 	}
 }

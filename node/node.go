@@ -26,7 +26,7 @@
  * POSSIBILITY OF SUCH DAMAGE.
  */
 
-package gou
+package node
 
 import (
 	"errors"
@@ -37,11 +37,16 @@ import (
 	"strconv"
 	"strings"
 	"time"
+
+	"github.com/shingetsu-gou/shingetsu-gou/util"
 )
 
-var (
-	myself *node
-)
+var Version string
+
+//Get Gou version for useragent and servername.
+func getUA() string {
+	return "shinGETsu/0.7 (Gou/" + Version + ")"
+}
 
 //urlopen retrievs html data from url
 func urlopen(url string, timeout time.Duration) ([]string, error) {
@@ -49,7 +54,7 @@ func urlopen(url string, timeout time.Duration) ([]string, error) {
 	if err != nil {
 		log.Fatal(err)
 	}
-	req.Header.Set("User-Agent", getVersion())
+	req.Header.Set("User-Agent", getUA())
 
 	client := &http.Client{
 		Timeout: timeout,
@@ -60,7 +65,7 @@ func urlopen(url string, timeout time.Duration) ([]string, error) {
 		return nil, err
 	}
 	var lines []string
-	err = eachIOLine(resp.Body, func(line string, i int) error {
+	err = util.EachIOLine(resp.Body, func(line string, i int) error {
 		strings.TrimRight(line, "\r\n")
 		lines = append(lines, line)
 		return nil
@@ -68,60 +73,59 @@ func urlopen(url string, timeout time.Duration) ([]string, error) {
 	return lines, err
 }
 
-var NewNode func(string) *node
+var NodeCfg *NodeConfig
 
 type NodeConfig struct {
-	nodeAllow *regexpList
-	nodeDeny  *regexpList
-	myself    *node
+	NodeManager *NodeManager
+	NodeAllow   *util.RegexpList
+	NodeDeny    *util.RegexpList
 }
 
 //node represents node info.
-type node struct {
+type Node struct {
 	*NodeConfig
-	nodestr string
+	Nodestr string
 }
 
-//NewNode checks nodestr format and returns node obj.
-func _NewNode(nodestr string, cfg *NodeConfig) *node {
-	nodestr = strings.TrimSpace(nodestr)
-	if nodestr == "" {
-		log.Printf("nodestr is empty")
+//NewNode checks Nodestr format and returns node obj.
+func NewNode(Nodestr string) *Node {
+	Nodestr = strings.TrimSpace(Nodestr)
+	if Nodestr == "" {
+		log.Printf("Nodestr is empty")
 		return nil
 	}
-	if match, err := regexp.MatchString(`\d+/[^: ]+$`, nodestr); !match || err != nil {
+	if match, err := regexp.MatchString(`\d+/[^: ]+$`, Nodestr); !match || err != nil {
 		log.Println("bad format", err)
 		return nil
 	}
-	n := &node{
-		NodeConfig: cfg,
-		nodestr:    strings.Replace(nodestr, "+", "/", -1),
+	n := &Node{
+		NodeConfig: NodeCfg,
+		Nodestr:    strings.Replace(Nodestr, "+", "/", -1),
 	}
 	return n
 }
 
-//equals return true is nodestr is equal.
-func (n *node) equals(nn *node) bool {
+//equals return true is Nodestr is equal.
+func (n *Node) equals(nn *Node) bool {
 	if nn == nil {
 		return false
 	}
-	return n.nodestr == nn.nodestr
+	return n.Nodestr == nn.Nodestr
 }
 
 //makeNode makes node from host info.
-func makeNode(host, path string, port int) *node {
-	n := &node{}
-	n.nodestr = net.JoinHostPort(host, strconv.Itoa(port)) + strings.Replace(path, "+", "/", -1)
-	return n
+func MakeNode(host, path string, port int) *Node {
+	Nodestr := net.JoinHostPort(host, strconv.Itoa(port)) + strings.Replace(path, "+", "/", -1)
+	return NewNode(Nodestr)
 }
 
-//toxstring covnerts nodestr to saku node format.
-func (n *node) toxstring() string {
-	return strings.Replace(n.nodestr, "/", "+", -1)
+//toxstring covnerts Nodestr to saku node format.
+func (n *Node) toxstring() string {
+	return strings.Replace(n.Nodestr, "/", "+", -1)
 }
 
-//talk talks with n with the message and returns data.
-func (n *node) talk(message string) ([]string, error) {
+//Talk talks with n with the message and returns data.
+func (n *Node) Talk(message string) ([]string, error) {
 	const defaultTimeout = 20 * time.Second // Seconds; Timeout for TCP
 
 	const getTimeout = 2 * time.Minute // Seconds; Timeout for /get
@@ -136,8 +140,8 @@ func (n *node) talk(message string) ([]string, error) {
 		timeout = defaultTimeout
 	}
 
-	message = "http://" + n.nodestr + message
-	log.Println("talk:", message)
+	message = "http://" + n.Nodestr + message
+	log.Println("Talk:", message)
 	res, err := urlopen(message, timeout)
 	if err != nil {
 		log.Println(message, err)
@@ -146,37 +150,36 @@ func (n *node) talk(message string) ([]string, error) {
 }
 
 //ping pings to n and return response.
-func (n *node) ping() (string, error) {
-	res, err := n.talk("/ping")
+func (n *Node) Ping() (string, error) {
+	res, err := n.Talk("/ping")
 	if err != nil {
-		log.Println("/ping", n.nodestr, err)
+		log.Println("/ping", n.Nodestr, err)
 		return "", err
 	}
 	if res[0] == "PONG" && len(res) == 2 {
 		log.Println("ponged,i am", res[1])
-		n.myself = NewNode(res[1])
+		n.NodeManager.setMyself(res[1])
 		return res[1], nil
 	}
-	log.Println("/ping", n.nodestr, "error")
+	log.Println("/ping", n.Nodestr, "error")
 	return "", errors.New("connected,but not ponged")
 }
 
 //isAllow returns fase if n is not allowed and denied.
-func (n *node) isAllowed() bool {
-	if !n.nodeAllow.check(n.nodestr) && n.nodeDeny.check(n.nodestr) {
+func (n *Node) IsAllowed() bool {
+	if !n.NodeAllow.Check(n.Nodestr) && n.NodeDeny.Check(n.Nodestr) {
 		return false
 	}
 	return true
 }
 
 //join requests n to join me and return true and other node name if success.
-func (n *node) join() (bool, *node) {
-	if !n.isAllowed() {
-		log.Println(n.nodestr, "is not allowd")
+func (n *Node) join() (bool, *Node) {
+	if !n.IsAllowed() {
+		log.Println(n.Nodestr, "is not allowd")
 		return false, nil
 	}
-	path := strings.Replace(ServerURL, "/", "+", -1)
-	res, err := n.talk("/join/" + n.myself.nodestr + path)
+	res, err := n.Talk("/join/" + n.NodeManager.GetMyself().Nodestr)
 	if err != nil {
 		return false, nil
 	}
@@ -191,27 +194,26 @@ func (n *node) join() (bool, *node) {
 }
 
 //getNode request n to pass me another node info and returns another node.
-func (n *node) getNode() *node {
-	res, err := n.talk("/node")
+func (n *Node) getNode() *Node {
+	res, err := n.Talk("/node")
 	if err != nil {
-		log.Println("/node", n.nodestr, "error")
+		log.Println("/node", n.Nodestr, "error")
 		return nil
 	}
 	return NewNode(res[0])
 }
 
 //bye says goodbye to n and returns true if success.
-func (n *node) bye() bool {
-	path := strings.Replace(ServerURL, "/", "+", -1)
-	res, err := n.talk("/bye/" + n.myself.nodestr + path)
+func (n *Node) bye() bool {
+	res, err := n.Talk("/bye/" + n.NodeManager.GetMyself().Nodestr)
 	if err != nil {
-		log.Println("/bye", n.nodestr, "error")
+		log.Println("/bye", n.Nodestr, "error")
 		return false
 	}
 	return (res[0] == "BYEBYE")
 }
 
-type nodeSlice []*node
+type nodeSlice []*Node
 
 //Len returns size of nodes.
 func (ns nodeSlice) Len() int {
@@ -223,19 +225,19 @@ func (ns nodeSlice) Swap(i, j int) {
 	ns[i], ns[j] = ns[j], ns[i]
 }
 
-//getNodestrSlice returns slice of nodestr of nodes.
-func (ns nodeSlice) getNodestrSlice() []string {
+//getNodestrSlice returns slice of Nodestr of nodes.
+func (ns nodeSlice) GetNodestrSlice() []string {
 	s := make([]string, ns.Len())
 	for i, v := range ns {
-		s[i] = v.nodestr
+		s[i] = v.Nodestr
 	}
 	return s
 }
 
 //has returns true if nodeslice has node n.
-func (ns nodeSlice) has(n *node) bool {
+func (ns nodeSlice) has(n *Node) bool {
 	for _, nn := range ns {
-		if n.nodestr == nn.nodestr {
+		if n.Nodestr == nn.Nodestr {
 			return true
 		}
 	}
@@ -256,7 +258,7 @@ func (ns nodeSlice) uniq() nodeSlice {
 
 //extend make a new nodeslice including specified slices.
 func (ns nodeSlice) extend(a nodeSlice) nodeSlice {
-	nn := make([]*node, ns.Len()+a.Len())
+	nn := make([]*Node, ns.Len()+a.Len())
 	copy(nn, ns)
 	copy(nn[ns.Len():], a)
 	return nn

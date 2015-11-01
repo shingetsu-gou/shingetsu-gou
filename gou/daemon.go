@@ -34,7 +34,6 @@ import (
 	"log"
 	"net"
 	"net/http"
-	"net/http/pprof"
 	"os"
 	"path"
 	"strconv"
@@ -43,7 +42,11 @@ import (
 
 	"golang.org/x/net/netutil"
 
-	"github.com/gorilla/handlers"
+	"github.com/shingetsu-gou/shingetsu-gou/cgi"
+	"github.com/shingetsu-gou/shingetsu-gou/mch"
+	"github.com/shingetsu-gou/shingetsu-gou/node"
+	"github.com/shingetsu-gou/shingetsu-gou/thread"
+	"github.com/shingetsu-gou/shingetsu-gou/util"
 )
 
 func initPackages(cfg *Config) {
@@ -52,152 +55,133 @@ func initPackages(cfg *Config) {
 		"pushare.zenno.info:8000/server.cgi",
 	}
 	fmutex := &sync.RWMutex{}
-	var myself *node
-	htemplate := newHtemplate(cfg.TemplateDir)
-	ttemplate := newTtemplate(cfg.TemplateDir)
-	cachedRule := newRegexpList(cfg.SpamList)
-	nodeAllow := newRegexpList(cfg.NodeAllowFile)
-	nodeDeny := newRegexpList(cfg.NodeDenyFile)
-	initNode := newConfList(cfg.InitnodeList, defaultInitNode)
+	var myself *node.Node
+	htemplate := util.NewHtemplate(cfg.TemplateDir)
+	ttemplate := util.NewTtemplate(cfg.TemplateDir)
+	cachedRule := util.NewRegexpList(cfg.SpamList)
+	nodeAllow := util.NewRegexpList(cfg.NodeAllowFile)
+	nodeDeny := util.NewRegexpList(cfg.NodeDenyFile)
+	initNode := util.NewConfList(cfg.InitnodeList, defaultInitNode)
 
-	nodeManager := NewNodeManager(&NodeManagerConfig{
-		serverName:  cfg.ServerName,
-		lookup:      cfg.Lookup(),
-		defaultPort: cfg.DefaultPort,
-		enableNAT:   cfg.EnableNAT,
-		fmutex:      fmutex,
-		nodeAllow:   nodeAllow,
-		nodeDeny:    nodeDeny,
-		myself:      myself,
-		initNode:    initNode,
+	nodeManager := node.NewNodeManager(&node.NodeManagerConfig{
+		ServerName:  cfg.ServerName,
+		Lookup:      cfg.Lookup(),
+		DefaultPort: cfg.DefaultPort,
+		EnableNAT:   cfg.EnableNAT,
+		Fmutex:      fmutex,
+		NodeAllow:   nodeAllow,
+		NodeDeny:    nodeDeny,
+		Myself:      myself,
+		InitNode:    initNode,
 	})
-	userTag := newUserTag(&UserTagConfig{
-		cacheDir: cfg.CacheDir,
-		fmutex:   fmutex,
+	userTag := thread.NewUserTag(&thread.UserTagConfig{
+		CacheDir: cfg.CacheDir,
+		Fmutex:   fmutex,
 	})
-	suggestedTagTable := newSuggestedTagTable(&SuggestedTagTableConfig{
-		tagSize: cfg.TagSize,
-		sugtag:  cfg.Sugtag(),
-		fmutex:  fmutex,
+	suggestedTagTable := thread.NewSuggestedTagTable(&thread.SuggestedTagTableConfig{
+		TagSize: cfg.TagSize,
+		Sugtag:  cfg.Sugtag(),
+		Fmutex:  fmutex,
 	})
-	recentList := newRecentList(&RecentListConfig{
-		recentRange:       cfg.RecentRange,
-		tagSize:           cfg.TagSize,
-		recent:            cfg.Recent(),
-		fmutex:            fmutex,
-		nodeManager:       nodeManager,
-		suggestedTagTable: suggestedTagTable,
+	recentList := thread.NewRecentList(&thread.RecentListConfig{
+		RecentRange:       cfg.RecentRange,
+		TagSize:           cfg.TagSize,
+		Recent:            cfg.Recent(),
+		Fmutex:            fmutex,
+		NodeManager:       nodeManager,
+		SuggestedTagTable: suggestedTagTable,
 	})
-	updateQue := newUpdateQue(&UpdateQueConfig{
-		recentList:  recentList,
-		nodeManager: nodeManager,
+	updateQue := thread.NewUpdateQue(&thread.UpdateQueConfig{
+		RecentList:  recentList,
+		NodeManager: nodeManager,
 	})
-	datakeyTable := newDatakeyTable(&DatakeyTableConfig{
-		datakey:    cfg.Datakey(),
-		recentList: recentList,
-		fmutex:     fmutex,
+	datakeyTable := mch.NewDatakeyTable(&mch.DatakeyTableConfig{
+		Datakey:    cfg.Datakey(),
+		RecentList: recentList,
+		Fmutex:     fmutex,
 	})
-	datakeyTable.load()
+	datakeyTable.Load()
 
-	newAdminCGI = func(w http.ResponseWriter, r *http.Request) (adminCGI, error) {
-		return _newAdminCGI(w, r, &AdminCGIConfig{
-			adminSID:          cfg.AdminSid(),
-			nodeManager:       nodeManager,
-			htemplate:         htemplate,
-			userTag:           userTag,
-			suggestedTagTable: suggestedTagTable,
-			recentList:        recentList,
-		})
+	cgi.AdminCfg = &cgi.AdminCGIConfig{
+		AdminSID:          cfg.AdminSid(),
+		NodeManager:       nodeManager,
+		Htemplate:         htemplate,
+		UserTag:           userTag,
+		SuggestedTagTable: suggestedTagTable,
+		RecentList:        recentList,
 	}
 
-	NewCacheList = func() *cacheList {
-		return _newCacheList(&CacheListConfig{
-			saveSize:    cfg.SaveSize,
-			saveRemoved: cfg.SaveRemoved,
-			cacheDir:    cfg.CacheDir,
-			saveRecord:  cfg.SaveRecord,
-			fmutex:      fmutex,
-		})
+	thread.CacheListCfg = &thread.CacheListConfig{
+		SaveSize:    cfg.SaveSize,
+		SaveRemoved: cfg.SaveRemoved,
+		CacheDir:    cfg.CacheDir,
+		SaveRecord:  cfg.SaveRecord,
+		Fmutex:      fmutex,
 	}
 
-	NewRecord = func(datfile, idstr string) *record {
-		return _newRecord(datfile, idstr, &RecordConfig{
-			defaultThumbnailSize: cfg.DefaultThumbnailSize,
-			cacheDir:             cfg.CacheDir,
-			fmutex:               fmutex,
-			cachedRule:           cachedRule,
-		})
+	thread.RecorcCfg = &thread.RecordConfig{
+		DefaultThumbnailSize: cfg.DefaultThumbnailSize,
+		CacheDir:             cfg.CacheDir,
+		Fmutex:               fmutex,
+		CachedRule:           cachedRule,
 	}
 
-	NewCGI = func(w http.ResponseWriter, r *http.Request) *cgi {
-		return _newCGI(w, r, &CGIConfig{
-			fileDir:           cfg.FileDir,
-			docroot:           cfg.Docroot,
-			maxConnection:     cfg.MaxConnection,
-			serverName:        cfg.ServerName,
-			reAdminStr:        cfg.ReAdminStr,
-			reFriendStr:       cfg.ReFriendStr,
-			reVisitorStr:      cfg.ReVisitorStr,
-			htemplate:         htemplate,
-			userTag:           userTag,
-			suggestedTagTable: suggestedTagTable,
-		})
+	cgi.CGICfg = &cgi.CGIConfig{
+		FileDir:           cfg.FileDir,
+		Docroot:           cfg.Docroot,
+		MaxConnection:     cfg.MaxConnection,
+		ServerName:        cfg.ServerName,
+		ReAdminStr:        cfg.ReAdminStr,
+		ReFriendStr:       cfg.ReFriendStr,
+		ReVisitorStr:      cfg.ReVisitorStr,
+		Htemplate:         htemplate,
+		UserTag:           userTag,
+		SuggestedTagTable: suggestedTagTable,
 	}
-	NewGatewayCGI = func(w http.ResponseWriter, r *http.Request) (gatewayCGI, error) {
-		return _newGatewayCGI(w, r, &GatewayConfig{
-			rssRange:       cfg.RSSRange,
-			motd:           cfg.Motd(),
-			topRecentRange: cfg.TopRecentRange,
-			runDir:         cfg.RunDir,
-			serverName:     cfg.ServerName,
-			enable2ch:      cfg.Enable2ch,
-			recentList:     recentList,
-			ttemplate:      ttemplate,
-		})
+	cgi.GatewayCfg = &cgi.GatewayConfig{
+		RSSRange:       cfg.RSSRange,
+		Motd:           cfg.Motd(),
+		TopRecentRange: cfg.TopRecentRange,
+		RunDir:         cfg.RunDir,
+		ServerName:     cfg.ServerName,
+		Enable2ch:      cfg.Enable2ch,
+		RecentList:     recentList,
+		Ttemplate:      ttemplate,
 	}
-	newMchCGI = func(w http.ResponseWriter, r *http.Request) (mchCGI, error) {
-		return _newMchCGI(w, r, &MchConfig{
-			motd:         cfg.Motd(),
-			filedir:      cfg.FileDir,
-			recentList:   recentList,
-			datakeyTable: datakeyTable,
-			updateQue:    updateQue,
-		})
+	cgi.MchCfg = &cgi.MchConfig{
+		Motd:         cfg.Motd(),
+		RecentList:   recentList,
+		DatakeyTable: datakeyTable,
+		UpdateQue:    updateQue,
 	}
-	NewNode = func(nodestr string) *node {
-		return _NewNode(nodestr, &NodeConfig{
-			nodeAllow: nodeAllow,
-			nodeDeny:  nodeDeny,
-			myself:    myself,
-		})
+	node.NodeCfg = &node.NodeConfig{
+		NodeAllow: nodeAllow,
+		NodeDeny:  nodeDeny,
 	}
-	NewServerCGI = func(w http.ResponseWriter, r *http.Request) (serverCGI, error) {
-		return newServerCGI(w, r, &ServerConfig{
-			recentRange: cfg.RecentRange,
-			nodeManager: nodeManager,
-			initNode:    initNode,
-			updateQue:   updateQue,
-			recentList:  recentList,
-		})
+	cgi.ServerCfg = &cgi.ServerConfig{
+		RecentRange: cfg.RecentRange,
+		NodeManager: nodeManager,
+		InitNode:    initNode,
+		UpdateQue:   updateQue,
+		RecentList:  recentList,
 	}
-	NewThreadCGI = func(w http.ResponseWriter, r *http.Request) (threadCGI, error) {
-		return newThreadCGI(w, r, &ThreadCGIConfig{
-			threadPageSize:       cfg.ThreadPageSize,
-			defaultThumbnailSize: cfg.DefaultThumbnailSize,
-			recordLimit:          cfg.RecordLimit,
-			forceThumbnail:       cfg.ForceThumbnail,
-			htemplate:            htemplate,
-			updateQue:            updateQue,
-		})
+	cgi.ThreadCfg = &cgi.ThreadCGIConfig{
+		ThreadPageSize:       cfg.ThreadPageSize,
+		DefaultThumbnailSize: cfg.DefaultThumbnailSize,
+		RecordLimit:          cfg.RecordLimit,
+		ForceThumbnail:       cfg.ForceThumbnail,
+		Htemplate:            htemplate,
+		UpdateQue:            updateQue,
 	}
 	go cron(nodeManager, recentList)
+
 }
 
 //StartDaemon setups document root and necessary dirs.
 //,rm lock files, save pid, start cron job and a http server.
 func StartDaemon(cfg *Config) {
 	for _, j := range []string{cfg.RunDir, cfg.CacheDir, cfg.LogDir} {
-		if !IsDir(j) {
+		if !util.IsDir(j) {
 			err := os.Mkdir(j, 0755)
 			if err != nil {
 				log.Fatal(err)
@@ -217,7 +201,7 @@ func StartDaemon(cfg *Config) {
 		log.Fatalln(err)
 	}
 	limitListener := netutil.LimitListener(listener, cfg.MaxConnection)
-	sm := newLoggingServeMux()
+	sm := cgi.NewLoggingServeMux()
 	s := &http.Server{
 		Addr:           h,
 		Handler:        sm,
@@ -226,49 +210,19 @@ func StartDaemon(cfg *Config) {
 		MaxHeaderBytes: 1 << 20,
 	}
 	initPackages(cfg)
-	adminSetup(sm)
-	serverSetup(sm)
-	gatewaySetup(sm)
-	threadSetup(sm)
+	cgi.AdminSetup(sm)
+	cgi.ServerSetup(sm)
+	cgi.GatewaySetup(sm)
+	cgi.ThreadSetup(sm)
 
 	if cfg.Enable2ch {
 		fmt.Println("started 2ch interface...")
-		mchSetup(sm)
+		cgi.MchSetup(sm)
 	}
-	sm.registerPprof()
-	sm.registCompressHandler("/", handleRoot(cfg.Docroot))
+	sm.RegisterPprof()
+	sm.RegistCompressHandler("/", handleRoot(cfg.Docroot))
 	fmt.Println("started daemon and http server...")
 	log.Fatal(s.Serve(limitListener))
-}
-
-func (s *loggingServeMux) registerPprof() {
-	s.Handle("/debug/pprof/", http.HandlerFunc(pprof.Index))
-	s.Handle("/debug/pprof/cmdline", http.HandlerFunc(pprof.Cmdline))
-	s.Handle("/debug/pprof/profile", http.HandlerFunc(pprof.Profile))
-	s.Handle("/debug/pprof/symbol", http.HandlerFunc(pprof.Symbol))
-}
-
-//loggingServerMux is ServerMux with logging
-type loggingServeMux struct {
-	*http.ServeMux
-}
-
-//newLoggingServeMux returns loggingServeMux obj.
-func newLoggingServeMux() *loggingServeMux {
-	return &loggingServeMux{
-		http.NewServeMux(),
-	}
-}
-
-//ServeHTTP just calles http.ServeMux.ServeHTTP after logging.
-func (s *loggingServeMux) ServeHTTP(w http.ResponseWriter, r *http.Request) {
-	log.Println(r.RemoteAddr, r.Method, r.URL.Path, r.Header.Get("User-Agent"), r.Header.Get("Referer"))
-	s.ServeMux.ServeHTTP(w, r)
-}
-
-//compressHandler returns handlers.CompressHandler to simplfy.
-func (s *loggingServeMux) registCompressHandler(path string, fn func(w http.ResponseWriter, r *http.Request)) {
-	s.Handle(path, handlers.CompressHandler(http.HandlerFunc(fn)))
 }
 
 //handleRoot return handler that handles url not defined other handlers.
@@ -276,12 +230,12 @@ func (s *loggingServeMux) registCompressHandler(path string, fn func(w http.Resp
 func handleRoot(docroot string) func(http.ResponseWriter, *http.Request) {
 	return func(w http.ResponseWriter, r *http.Request) {
 		if r.URL.Path == "/" {
-			printTitle(w, r)
+			cgi.PrintTitle(w, r)
 			return
 		}
 		pathOnDisk := path.Join(docroot, r.URL.Path)
 
-		if IsFile(pathOnDisk) {
+		if util.IsFile(pathOnDisk) {
 			http.ServeFile(w, r, pathOnDisk)
 			return
 		}

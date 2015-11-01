@@ -26,24 +26,30 @@
  * POSSIBILITY OF SUCH DAMAGE.
  */
 
-package gou
+package cgi
 
 import (
 	"bytes"
 	"errors"
 	"fmt"
+	"html"
 	"log"
 	"net/http"
+	"regexp"
 	"sort"
+	"strconv"
 	"strings"
 	"time"
 
 	"github.com/gorilla/handlers"
 	"github.com/gorilla/mux"
+	"github.com/shingetsu-gou/shingetsu-gou/mch"
+	"github.com/shingetsu-gou/shingetsu-gou/thread"
+	"github.com/shingetsu-gou/shingetsu-gou/util"
 )
 
 //mchSetup setups handlers for 2ch interface.
-func mchSetup(s *loggingServeMux) {
+func MchSetup(s *loggingServeMux) {
 	log.Println("start 2ch interface")
 	rtr := mux.NewRouter()
 
@@ -55,7 +61,7 @@ func mchSetup(s *loggingServeMux) {
 	registToRouter(rtr, "/2ch/head.txt", headApp)
 	s.Handle("/2ch/", handlers.CompressHandler(rtr))
 
-	s.registCompressHandler("/test/bbs.cgi", postCommentApp)
+	s.RegistCompressHandler("/test/bbs.cgi", postCommentApp)
 }
 
 //boardApp just calls boardApp(), only print title.
@@ -119,14 +125,13 @@ func headApp(w http.ResponseWriter, r *http.Request) {
 	a.headApp()
 }
 
-var newMchCGI func(http.ResponseWriter, *http.Request) (mchCGI, error)
+var MchCfg *MchConfig
 
 type MchConfig struct {
-	motd         string
-	filedir      string
-	recentList   *RecentList
-	datakeyTable *DatakeyTable
-	updateQue    *updateQue
+	Motd         string
+	RecentList   *thread.RecentList
+	DatakeyTable *mch.DatakeyTable
+	UpdateQue    *thread.UpdateQue
 }
 
 //mchCGI is a class for renderring pages of 2ch interface .
@@ -137,10 +142,10 @@ type mchCGI struct {
 
 //newMchCGI returns mchCGI obj if visitor  is allowed.
 //if not allowed print 403.
-func _newMchCGI(w http.ResponseWriter, r *http.Request, cfg *MchConfig) (mchCGI, error) {
+func newMchCGI(w http.ResponseWriter, r *http.Request) (mchCGI, error) {
 	c := mchCGI{
 		cgi:       NewCGI(w, r),
-		MchConfig: cfg,
+		MchConfig: MchCfg,
 	}
 	defer c.close()
 	if c.cgi == nil || !c.checkVisitor() {
@@ -156,7 +161,7 @@ func _newMchCGI(w http.ResponseWriter, r *http.Request, cfg *MchConfig) (mchCGI,
 //data type),time=t after converted cp932. ServeContent is used to make clients possible
 //to use range request.
 func (m *mchCGI) serveContent(name string, t time.Time, str string) {
-	br := bytes.NewReader([]byte(toSJIS(str)))
+	br := bytes.NewReader([]byte(util.ToSJIS(str)))
 	http.ServeContent(m.wr, m.req, name, t, br)
 }
 
@@ -166,9 +171,9 @@ func (m *mchCGI) boardApp() {
 	if l == "" {
 		l = "ja"
 	}
-	message := searchMessage(l, m.fileDir)
+	message := searchMessage(l, m.FileDir)
 	m.wr.Header().Set("Content-Type", "text/html; charset=Shift_JIS")
-	board := escape(getBoard(m.path()))
+	board := util.Escape(util.GetBoard(m.path()))
 	text := ""
 	if board != "" {
 		text = fmt.Sprintf("%s - %s - %s", message["logo"], message["description"], board)
@@ -189,24 +194,29 @@ func (m *mchCGI) boardApp() {
 	m.serveContent("a.html", time.Time{}, htmlStr)
 }
 
-//threadApp load cache specified in the url and returns dat file
-//listing records. if cache len=0 or for each refering the cache 4 times
-//reloads cache fron network.
+//threadApp load thread.Cache specified in the url and returns dat file
+//listing records. if thread.Cache len=0 or for each refering the thread.Cache 4 times
+//reloads thread.Cache fron network.
 func (m *mchCGI) threadApp(board, datkey string) {
 	m.wr.Header().Set("Content-Type", "text/plain; charset=Shift_JIS")
-	key, err := m.datakeyTable.getFilekey(datkey)
+	n, err := strconv.ParseInt(datkey, 10, 64)
+	if err != nil {
+		log.Println(err)
+		return
+	}
+	key := m.DatakeyTable.GetFilekey(n)
 	if err != nil {
 		m.wr.WriteHeader(404)
 		fmt.Fprintf(m.wr, "404 Not Found")
 	}
-	data := NewCache(key)
-	i := data.readInfo()
+	data := thread.NewCache(key)
+	i := data.ReadInfo()
 
 	if m.checkGetCache() {
-		if data.Exists() || i.len == 0 {
-			data.search()
+		if data.Exists() || i.Len == 0 {
+			data.GetCache()
 		} else {
-			go data.search()
+			go data.GetCache()
 		}
 	}
 
@@ -214,83 +224,83 @@ func (m *mchCGI) threadApp(board, datkey string) {
 		m.wr.WriteHeader(404)
 		fmt.Fprintf(m.wr, "404 Not Found")
 	}
-	thread := m.datakeyTable.makeDat(data, board, m.req.Host)
+	thread := m.DatakeyTable.MakeDat(data, board, m.req.Host)
 	str := strings.Join(thread, "\n")
-	m.serveContent("a.txt", time.Unix(i.stamp, 0), str)
+	m.serveContent("a.txt", time.Unix(i.Stamp, 0), str)
 }
 
-//makeSubjectCachelist returns caches in all cache and in recentlist sorted by recent stamp.
-//if board is specified,  returns caches whose tagstr=board.
-func (m *mchCGI) makeSubjectCachelist(board string) []*cache {
-	cl := NewCacheList()
+//makeSubjectCachelist returns thread.Caches in all thread.Cache and in recentlist sorted by recent stamp.
+//if board is specified,  returns thread.Caches whose tagstr=board.
+func (m *mchCGI) makeSubjectCachelist(board string) []*thread.Cache {
+	cl := thread.NewCacheList()
 	seen := make([]string, cl.Len())
 	for i, c := range cl.Caches {
 		seen[i] = c.Datfile
 	}
-	for _, rec := range m.recentList.infos {
-		if !hasString(seen, rec.datfile) {
-			seen = append(seen, rec.datfile)
-			c := NewCache(rec.datfile)
-			cl.append(c)
+	for _, rec := range m.RecentList.GetRecords() {
+		if !util.HasString(seen, rec.Datfile) {
+			seen = append(seen, rec.Datfile)
+			c := thread.NewCache(rec.Datfile)
+			cl.Append(c)
 		}
 	}
-	var result []*cache
+	var result []*thread.Cache
 	for _, c := range cl.Caches {
 		result = append(result, c)
 	}
-	sort.Sort(sort.Reverse(sortByRecentStamp{result}))
+	sort.Sort(sort.Reverse(thread.SortByRecentStamp{result}))
 	if board == "" {
 		return result
 	}
-	var result2 []*cache
+	var result2 []*thread.Cache
 	for _, c := range result {
-		if c.hasTag(board) {
+		if c.HasTag(board) {
 			result2 = append(result2, c)
 		}
 	}
 	return result2
 }
 
-//subjectApp makes list of records title from caches whose tag is same as one stripped from url.
+//subjectApp makes list of records title from thread.Caches whose tag is same as one stripped from url.
 func (m *mchCGI) subjectApp(board string) {
 	var boardEncoded, boardName string
 	if board != "" {
-		boardEncoded = strDecode(board)
+		boardEncoded = util.StrDecode(board)
 	}
 	if boardEncoded != "" {
-		boardName = fileDecode("dummy_" + boardEncoded)
+		boardName = util.FileDecode("dummy_" + boardEncoded)
 	}
 	subject, lastStamp := m.makeSubject(boardName)
 	m.wr.Header().Set("Content-Type", "text/plain; charset=Shift_JIS")
 	m.serveContent("a.txt", time.Unix(lastStamp, 0), strings.Join(subject, "\n"))
 }
 
-//makeSubject makes subject.txt(list of records title) from caches with tag=board.
+//makeSubject makes subject.txt(list of records title) from thread.Caches with tag=board.
 func (m *mchCGI) makeSubject(board string) ([]string, int64) {
 	loadFromNet := m.checkGetCache()
 	var subjects []string
 	cl := m.makeSubjectCachelist(board)
 	var lastStamp int64
 	for _, c := range cl {
-		i := c.readInfo()
-		if !loadFromNet && i.len == 0 {
+		i := c.ReadInfo()
+		if !loadFromNet && i.Len == 0 {
 			continue
 		}
-		if lastStamp < i.stamp {
-			lastStamp = i.stamp
+		if lastStamp < i.Stamp {
+			lastStamp = i.Stamp
 		}
-		key, err := m.datakeyTable.getDatkey(c.Datfile)
+		key, err := m.DatakeyTable.GetDatkey(c.Datfile)
 		if err != nil {
 			log.Println(err)
 			continue
 		}
-		titleStr := fileDecode(c.Datfile)
+		titleStr := util.FileDecode(c.Datfile)
 		if titleStr == "" {
 			continue
 		}
 		titleStr = strings.Trim(titleStr, "\r\n")
 		subjects = append(subjects, fmt.Sprintf("%d.dat<>%s (%d)",
-			key, titleStr, i.len))
+			key, titleStr, i.Len))
 	}
 	return subjects, lastStamp
 }
@@ -299,7 +309,7 @@ func (m *mchCGI) makeSubject(board string) ([]string, int64) {
 func (m *mchCGI) headApp() {
 	m.wr.Header().Set("Content-Type", "text/plain; charset=Shift_JIS")
 	var body string
-	err := eachLine(m.motd, func(line string, i int) error {
+	err := util.EachLine(m.Motd, func(line string, i int) error {
 		line = strings.TrimSpace(line)
 		body += line + "<br>\n"
 		return nil
@@ -308,4 +318,143 @@ func (m *mchCGI) headApp() {
 		log.Println(err)
 	}
 	m.serveContent("a.txt", time.Time{}, body)
+}
+
+var (
+	errSpamM = errors.New("this is spam")
+)
+
+//postComment creates a record from args and adds it to thread.Cache.
+//also adds tag if not tag!=""
+func (m *mchCGI) postComment(threadKey, name, mail, body, passwd, tag string) error {
+	stamp := time.Now().Unix()
+	recbody := make(map[string]string)
+	recbody["body"] = html.EscapeString(body)
+	recbody["name"] = html.EscapeString(name)
+	recbody["mail"] = html.EscapeString(mail)
+
+	c := thread.NewCache(threadKey)
+	rec := thread.NewRecord(c.Datfile, "")
+	rec.Build(stamp, recbody, passwd)
+	if rec.IsSpam() {
+		return errSpamM
+	}
+	rec.Sync()
+	if tag != "" {
+		c.SetTags([]string{tag})
+		c.SyncTag()
+	}
+	go m.UpdateQue.UpdateNodes(rec, nil)
+	return nil
+}
+
+//errorResp render erro page with cp932 code.
+func (m *mchCGI) errorResp(msg string, info map[string]string) {
+	m.wr.Header().Set("Content-Type", "text/html; charset=Shift_JIS")
+	info["message"] = msg
+	m.Htemplate.RenderTemplate("2ch_error", info, m.wr)
+}
+
+//getCP932 returns form value of key with cp932 code.
+func (m *mchCGI) getCP932(key string) string {
+	return util.FromSJIS(m.req.FormValue(key))
+}
+
+//getcommentData returns comment data with map in cp932 code.
+func (m *mchCGI) getCommentData() map[string]string {
+	mail := m.getCP932("mail")
+	if strings.ToLower(mail) == "sage" {
+		mail = ""
+	}
+	return map[string]string{
+		"subject": m.getCP932("subject"),
+		"name":    m.getCP932("FROM"),
+		"mail":    mail,
+		"body":    m.getCP932("MESSAGE"),
+		"key":     m.getCP932("key"),
+	}
+}
+
+func (m *mchCGI) checkInfo(info map[string]string) string {
+	key := ""
+	if info["subject"] != "" {
+		key = util.FileEncode("thread", info["subject"])
+	} else {
+		n, err := strconv.ParseInt(info["key"], 10, 64)
+		if err != nil {
+			m.errorResp(err.Error(), info)
+			return ""
+		}
+		key = m.DatakeyTable.GetFilekey(n)
+	}
+
+	switch {
+	case info["body"] == "":
+		m.errorResp("本文がありません.", info)
+		return ""
+	case thread.NewCache(key).Exists(), m.hasAuth():
+	case info["subject"] != "":
+		m.errorResp("掲示版を作る権限がありません", info)
+		return ""
+	default:
+		m.errorResp("掲示版がありません", info)
+		return ""
+	}
+
+	if info["subject"] == "" && key == "" {
+		m.errorResp("フォームが変です.", info)
+		return ""
+	}
+	return key
+}
+
+//postCommentApp
+func (m *mchCGI) postCommentApp() {
+	if m.req.Method != "POST" {
+		m.wr.Header().Set("Content-Type", "text/plain")
+		m.wr.WriteHeader(404)
+		fmt.Fprintf(m.wr, "404 Not Found")
+		return
+	}
+	info := m.getCommentData()
+	info["host"] = m.req.Host
+	key := m.checkInfo(info)
+	if key == "" {
+		return
+	}
+
+	referer := m.getCP932("Referer")
+	reg := regexp.MustCompile("/2ch_([^/]+)/")
+	var tag string
+	if ma := reg.FindStringSubmatch(referer); ma != nil && m.hasAuth() {
+		tag = util.FileDecode("dummy_" + ma[1])
+	}
+	table := mch.NewResTable(thread.NewCache(key))
+	reg = regexp.MustCompile(">>([1-9][0-9]*)")
+	body := reg.ReplaceAllStringFunc(info["body"], func(str string) string {
+		noStr := reg.FindStringSubmatch(str)[1]
+		no, err := strconv.Atoi(noStr)
+		if err != nil {
+			log.Fatal(err)
+		}
+		return ">>" + table.Num2id[no]
+	})
+
+	name := info["name"]
+	var passwd string
+	if strings.ContainsRune(name, '#') {
+		ary := strings.Split(name, "#")
+		name = ary[0]
+		passwd = ary[1]
+	}
+	if passwd != "" && !m.isAdmin() {
+		m.errorResp("自ノード以外で署名機能は使えません", info)
+	}
+	err := m.postComment(key, name, info["mail"], body, passwd, tag)
+	if err == errSpamM {
+		m.errorResp("スパムとみなされました", info)
+	}
+	m.wr.Header().Set("Content-Type", "text/html; charset=Shift_JIS")
+	fmt.Fprintln(m.wr,
+		util.ToSJIS(`<html lang="ja"><head><meta http-equiv="Content-Type" content="text/html"><title>書きこみました。</title></head><body>書きこみが終わりました。<br><br></body></html>`))
 }

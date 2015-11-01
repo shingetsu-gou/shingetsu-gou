@@ -26,7 +26,7 @@
  * POSSIBILITY OF SUCH DAMAGE.
  */
 
-package gou
+package cgi
 
 import (
 	"errors"
@@ -39,23 +39,27 @@ import (
 	"strconv"
 	"strings"
 	"time"
+
+	"github.com/shingetsu-gou/shingetsu-gou/node"
+	"github.com/shingetsu-gou/shingetsu-gou/thread"
+	"github.com/shingetsu-gou/shingetsu-gou/util"
 )
 
 //ServerURL is the url to server.cgi
 const ServerURL = "/server.cgi"
 
 //serverSetup setups handlers for server.cgi
-func serverSetup(s *loggingServeMux) {
-	s.registCompressHandler(ServerURL+"/ping", doPing)
-	s.registCompressHandler(ServerURL+"/node", doNode)
-	s.registCompressHandler(ServerURL+"/join/", doJoin)
-	s.registCompressHandler(ServerURL+"/bye/", doBye)
-	s.registCompressHandler(ServerURL+"/have/", doHave)
-	s.registCompressHandler(ServerURL+"/get/", doGetHead)
-	s.registCompressHandler(ServerURL+"/head/", doGetHead)
-	s.registCompressHandler(ServerURL+"/update/", doUpdate)
-	s.registCompressHandler(ServerURL+"/recent/", doRecent)
-	s.registCompressHandler(ServerURL+"/", doMotd)
+func ServerSetup(s *loggingServeMux) {
+	s.RegistCompressHandler(ServerURL+"/ping", doPing)
+	s.RegistCompressHandler(ServerURL+"/node", doNode)
+	s.RegistCompressHandler(ServerURL+"/join/", doJoin)
+	s.RegistCompressHandler(ServerURL+"/bye/", doBye)
+	s.RegistCompressHandler(ServerURL+"/have/", doHave)
+	s.RegistCompressHandler(ServerURL+"/get/", doGetHead)
+	s.RegistCompressHandler(ServerURL+"/head/", doGetHead)
+	s.RegistCompressHandler(ServerURL+"/update/", doUpdate)
+	s.RegistCompressHandler(ServerURL+"/recent/", doRecent)
+	s.RegistCompressHandler(ServerURL+"/", doMotd)
 }
 
 //doPing just resopnse PONG with remote addr.
@@ -76,10 +80,10 @@ func doNode(w http.ResponseWriter, r *http.Request) {
 		log.Println(err)
 		return
 	}
-	if s.nodeManager.listLen() > 0 {
-		fmt.Fprintln(w, s.nodeManager.getNodestrSliceInTable("")[0])
+	if s.NodeManager.ListLen() > 0 {
+		fmt.Fprintln(w, s.NodeManager.GetNodestrSliceInTable("")[0])
 	} else {
-		fmt.Fprintln(w, s.initNode.data[0])
+		fmt.Fprintln(w, s.InitNode.GetData()[0])
 	}
 }
 
@@ -96,18 +100,18 @@ func doJoin(w http.ResponseWriter, r *http.Request) {
 	if n == nil {
 		return
 	}
-	if !n.isAllowed() {
+	if !n.IsAllowed() {
 		return
 	}
-	if _, err := n.ping(); err != nil {
+	if _, err := n.Ping(); err != nil {
 		return
 	}
-	suggest := s.nodeManager.replaceNodeInList(n)
+	suggest := s.NodeManager.ReplaceNodeInList(n)
 	if suggest == nil {
 		fmt.Fprintln(s.wr, "WELCOME")
 		return
 	}
-	fmt.Fprintf(s.wr, "WELCOME\n%s\n", suggest.nodestr)
+	fmt.Fprintf(s.wr, "WELCOME\n%s\n", suggest.Nodestr)
 }
 
 //doBye  removes from nodelist and says bye to the node specified in url.
@@ -123,7 +127,7 @@ func doBye(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	s.nodeManager.removeFromList(n)
+	s.NodeManager.RemoveFromList(n)
 	fmt.Fprintln(s.wr, "BYEBYE")
 }
 
@@ -142,8 +146,8 @@ func doHave(w http.ResponseWriter, r *http.Request) {
 		log.Println("illegal url")
 		return
 	}
-	ca := NewCache(m[1])
-	if ca.hasRecord() {
+	ca := thread.NewCache(m[1])
+	if ca.HasRecord() {
 		fmt.Fprintln(w, "YES")
 	} else {
 		fmt.Fprintln(w, "NO")
@@ -178,24 +182,24 @@ func doUpdate(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	n := makeNode(host, path, port)
-	if !n.isAllowed() {
+	n := node.MakeNode(host, path, port)
+	if !n.IsAllowed() {
 		log.Println("detects spam")
 		return
 	}
-	s.nodeManager.appendToTable(datfile, n)
-	s.nodeManager.sync()
+	s.NodeManager.AppendToTable(datfile, n)
+	s.NodeManager.Sync()
 	nstamp, err := strconv.ParseInt(stamp, 10, 64)
 	if err != nil {
 		log.Println(err)
 		return
 	}
 
-	if !isInUpdateRange(nstamp) {
+	if !thread.IsInUpdateRange(nstamp) {
 		return
 	}
-	rec := NewRecord(datfile, stamp+"_"+id)
-	go s.updateQue.updateNodes(rec, n)
+	rec := thread.NewRecord(datfile, stamp+"_"+id)
+	go s.UpdateQue.UpdateNodes(rec, n)
 	fmt.Fprintln(w, "OK")
 }
 
@@ -214,16 +218,16 @@ func doRecent(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	stamp := m[1]
-	last := time.Now().Unix() + s.recentRange
+	last := time.Now().Unix() + s.RecentRange
 	begin, end, _ := s.parseStamp(stamp, last)
-	for _, i := range s.recentList.infos {
+	for _, i := range s.RecentList.GetRecords() {
 		if begin > i.Stamp || i.Stamp > end {
 			return
 		}
-		ca := NewCache(i.datfile)
-		cont := fmt.Sprintf("%d<>%s<>%s", i.Stamp, i.ID, i.datfile)
-		if ca.lenTags() > 0 {
-			cont += "<>tag:" + ca.tagString()
+		ca := thread.NewCache(i.Datfile)
+		cont := fmt.Sprintf("%d<>%s<>%s", i.Stamp, i.ID, i.Datfile)
+		if ca.LenTags() > 0 {
+			cont += "<>tag:" + ca.TagString()
 		}
 		_, err := fmt.Fprintf(w, "%s\n", cont)
 		if err != nil {
@@ -241,7 +245,7 @@ func doMotd(w http.ResponseWriter, r *http.Request) {
 		log.Println(err)
 		return
 	}
-	f, err := ioutil.ReadFile(s.motd)
+	f, err := ioutil.ReadFile(s.Motd)
 	if err != nil {
 		log.Println(err)
 		return
@@ -265,17 +269,17 @@ func doGetHead(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	method, datfile, stamp := m[1], m[2], m[3]
-	ca := NewCache(datfile)
-	begin, end, id := s.parseStamp(stamp, ca.readInfo().stamp)
-	recs := ca.loadRecords()
+	ca := thread.NewCache(datfile)
+	begin, end, id := s.parseStamp(stamp, ca.ReadInfo().Stamp)
+	recs := ca.LoadRecords()
 	for _, r := range recs {
 		if begin <= r.Stamp && r.Stamp <= end && (id == "" || strings.HasSuffix(r.Idstr(), id)) {
 			if method == "get" {
-				err := r.load()
+				err := r.Load()
 				if err != nil {
 					log.Println(err)
 				}
-				fmt.Fprintf(s.wr, r.recstr())
+				fmt.Fprintf(s.wr, r.Recstr())
 			} else {
 				fmt.Fprintln(s.wr, strings.Replace(r.Idstr(), "_", "<>", -1))
 			}
@@ -283,15 +287,15 @@ func doGetHead(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-var NewServerCGI func(w http.ResponseWriter, r *http.Request) (serverCGI, error)
+var ServerCfg *ServerConfig
 
 type ServerConfig struct {
-	recentRange int64
-	motd        string
-	nodeManager *NodeManager
-	initNode    *confList
-	updateQue   *updateQue
-	recentList  *RecentList
+	RecentRange int64
+	Motd        string
+	NodeManager *node.NodeManager
+	InitNode    *util.ConfList
+	UpdateQue   *thread.UpdateQue
+	RecentList  *thread.RecentList
 }
 
 //serverCGI is for server.cgi handler.
@@ -301,9 +305,9 @@ type serverCGI struct {
 }
 
 //newServerCGI set content-type to text and  returns serverCGI obj.
-func newServerCGI(w http.ResponseWriter, r *http.Request, cfg *ServerConfig) (serverCGI, error) {
+func NewServerCGI(w http.ResponseWriter, r *http.Request) (serverCGI, error) {
 	c := serverCGI{
-		ServerConfig: cfg,
+		ServerConfig: ServerCfg,
 		cgi:          NewCGI(w, r),
 	}
 	if c.cgi == nil {
@@ -339,7 +343,7 @@ func (s *serverCGI) getRemoteHostname(host string) string {
 }
 
 //makeNode makes and returns node obj from /method/ip:port.
-func (s *serverCGI) makeNode(method string) *node {
+func (s *serverCGI) makeNode(method string) *node.Node {
 	reg := regexp.MustCompile("^" + method + `/([^:]*):(\d+)(.*)`)
 	m := reg.FindStringSubmatch(s.path())
 	if m == nil {
@@ -357,7 +361,7 @@ func (s *serverCGI) makeNode(method string) *node {
 		log.Println(err)
 		return nil
 	}
-	return makeNode(host, path, port)
+	return node.MakeNode(host, path, port)
 }
 
 //parseStamp parses format beginStamp - endStamp/id and returns them.

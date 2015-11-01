@@ -26,7 +26,7 @@
  * POSSIBILITY OF SUCH DAMAGE.
  */
 
-package gou
+package cgi
 
 import (
 	"io"
@@ -34,6 +34,8 @@ import (
 	"sort"
 	"strings"
 	"time"
+
+	"github.com/shingetsu-gou/shingetsu-gou/util"
 )
 
 //Item represents RSS contents.
@@ -59,7 +61,7 @@ type RSS struct {
 	parent      string
 	URI         string
 	XSL         string
-	template    *Ttemplate
+	template    *util.Ttemplate
 }
 
 //Swap swaps feed[i] and feed[j]
@@ -78,7 +80,7 @@ func (r *RSS) Len() int {
 }
 
 //newRSS makes RSS object.
-func newRss(template *Ttemplate, encode, lang, title, parent, link, uri, description, xsl string) *RSS {
+func newRss(template *util.Ttemplate, encode, lang, title, parent, link, uri, description, xsl string) *RSS {
 	if encode == "" {
 		encode = "utf-8"
 	}
@@ -131,7 +133,7 @@ func (r *RSS) makeRSS1(wr io.Writer) {
 		c.Content = strings.Replace(c.content, "]]", "&#93;&#93;>", -1)
 	}
 	sort.Sort(sort.Reverse(r))
-	r.template.renderTemplate("rss1", *r, wr)
+	r.template.RenderTemplate("rss1", *r, wr)
 }
 
 //W3cdate returns RSS formated date string.

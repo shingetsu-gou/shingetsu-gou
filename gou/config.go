@@ -36,18 +36,11 @@ import (
 	"sync"
 	"time"
 
+	"github.com/shingetsu-gou/shingetsu-gou/util"
+
 	"gopkg.in/ini.v1"
 )
 
-const (
-	//Version is one of Gou. it shoud be overwritten when building on travis.
-	Version = "Git/unstable"
-)
-
-//Get Gou version for useragent and servername.
-func getVersion() string {
-	return "shinGETsu/0.7 (Gou/" + Version + ")"
-}
 
 //getIntValue gets int value from ini file.
 func getIntValue(i *ini.File, section, key string, vdefault int) int {
@@ -143,7 +136,7 @@ func NewConfig() *Config {
 	}
 	i := ini.Empty()
 	for _, f := range files {
-		if IsFile(f) {
+		if util.IsFile(f) {
 			if err := i.Append(f); err != nil {
 				log.Fatal("cannot load ini files", f, "ignored")
 			}

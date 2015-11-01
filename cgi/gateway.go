@@ -26,7 +26,7 @@
  * POSSIBILITY OF SUCH DAMAGE.
  */
 
-package gou
+package cgi
 
 import (
 	"fmt"
@@ -41,6 +41,9 @@ import (
 	"strings"
 	"time"
 
+	"github.com/shingetsu-gou/shingetsu-gou/thread"
+	"github.com/shingetsu-gou/shingetsu-gou/util"
+
 	"golang.org/x/text/language"
 )
 
@@ -53,7 +56,7 @@ type message map[string]string
 func newMessage(file string) message {
 	m := make(map[string]string)
 	re := regexp.MustCompile(`^\s*#`)
-	err := eachLine(file, func(line string, i int) error {
+	err := util.EachLine(file, func(line string, i int) error {
 		var err error
 		if re.MatchString(line) {
 			return nil
@@ -93,7 +96,7 @@ func searchMessage(acceptLanguage, filedir string) message {
 		slang := strings.Split(l, "-")[0]
 		for _, j := range []string{l, slang} {
 			file := path.Join(filedir, "message-"+j+".txt")
-			if IsFile(file) {
+			if util.IsFile(file) {
 				return newMessage(file)
 			}
 		}
@@ -107,7 +110,7 @@ type GatewayLink struct {
 	CGIname     string
 	Command     string
 	Description string
-	htemplate   *Htemplate
+	htemplate   *util.Htemplate
 }
 
 //Render renders "gateway_link.txt" and returns its resutl string which is not escaped in template.
@@ -116,15 +119,15 @@ func (c GatewayLink) Render(cginame, command string) template.HTML {
 	c.CGIname = cginame
 	c.Command = command
 	c.Description = c.Message["desc_"+command]
-	return template.HTML(c.htemplate.executeTemplate("gateway_link", c))
+	return template.HTML(c.htemplate.ExecuteTemplate("gateway_link", c))
 }
 
 //ListItem is for list_item.txt
 type ListItem struct {
-	Cache             *cache
+	Cache             *thread.Cache
 	Title             string
-	Tags              tagslice
-	Sugtags           []*tag
+	Tags              thread.Tagslice
+	Sugtags           []*thread.Tag
 	Target            string
 	Remove            bool
 	IsAdmin           bool
@@ -134,13 +137,13 @@ type ListItem struct {
 	Message           message
 	filter            string
 	tag               string
-	suggestedTagTable *SuggestedTagTable
-	htemplate         *Htemplate
+	suggestedTagTable *thread.SuggestedTagTable
+	htemplate         *util.Htemplate
 }
 
 //checkCache checks cache ca has specified tag and datfile doesn't contains filterd string.
-func (l *ListItem) checkCache(ca *cache, target string) (string, bool) {
-	x := fileDecode(ca.Datfile)
+func (l *ListItem) checkCache(ca *thread.Cache, target string) (string, bool) {
+	x := util.FileDecode(ca.Datfile)
 	if x == "" {
 		return "", false
 	}
@@ -149,8 +152,8 @@ func (l *ListItem) checkCache(ca *cache, target string) (string, bool) {
 	}
 	if l.tag != "" {
 		switch {
-		case ca.hasTagstr(strings.ToLower(l.tag)):
-		case target == "recent" && l.suggestedTagTable.hasTagstr(ca.Datfile, strings.ToLower(l.tag)):
+		case ca.HasTagstr(strings.ToLower(l.tag)):
+		case target == "recent" && l.suggestedTagTable.HasTagstr(ca.Datfile, strings.ToLower(l.tag)):
 		default:
 			return "", false
 		}
@@ -160,51 +163,51 @@ func (l *ListItem) checkCache(ca *cache, target string) (string, bool) {
 
 //Render renders "list_items.txt" and returns its resutl string which is not escaped in template.
 //ListItem.IsAdmin,filter,tag,Message must be setted up previously.
-func (l ListItem) Render(ca *cache, remove bool, target string, search bool) template.HTML {
+func (l ListItem) Render(ca *thread.Cache, remove bool, target string, search bool) template.HTML {
 	x, ok := l.checkCache(ca, target)
 	if !ok {
 		return template.HTML("")
 	}
-	x = escapeSpace(x)
+	x = util.EscapeSpace(x)
 	var strOpts string
 	if search {
 		strOpts = "?search_new_file=yes"
 	}
-	var sugtags []*tag
+	var sugtags []*thread.Tag
 	if target == "recent" {
-		strTags := make([]string, ca.lenTags())
-		for i, v := range ca.getTags() {
+		strTags := make([]string, ca.LenTags())
+		for i, v := range ca.GetTags() {
 			strTags[i] = strings.ToLower(v.Tagstr)
 		}
-		for _, st := range l.suggestedTagTable.get(ca.Datfile, nil) {
-			if !hasString(strTags, strings.ToLower(st.Tagstr)) {
+		for _, st := range l.suggestedTagTable.Get(ca.Datfile, nil) {
+			if !util.HasString(strTags, strings.ToLower(st.Tagstr)) {
 				sugtags = append(sugtags, st)
 			}
 		}
 	}
 	l.Cache = ca
 	l.Title = x
-	l.Tags = ca.getTags()
+	l.Tags = ca.GetTags()
 	l.Sugtags = sugtags
 	l.Target = target
 	l.Remove = remove
 	l.StrOpts = strOpts
 	l.GatewayCGI = GatewayURL
 	l.ThreadURL = ThreadURL
-	return template.HTML(l.htemplate.executeTemplate("list_item", l))
+	return template.HTML(l.htemplate.ExecuteTemplate("list_item", l))
 }
 
 type CGIConfig struct {
-	fileDir           string
-	docroot           string
-	maxConnection     int
-	serverName        string
-	reAdminStr        string
-	reFriendStr       string
-	reVisitorStr      string
-	htemplate         *Htemplate
-	userTag           *UserTag
-	suggestedTagTable *SuggestedTagTable
+	FileDir           string
+	Docroot           string
+	MaxConnection     int
+	ServerName        string
+	ReAdminStr        string
+	ReFriendStr       string
+	ReVisitorStr      string
+	Htemplate         *util.Htemplate
+	UserTag           *thread.UserTag
+	SuggestedTagTable *thread.SuggestedTagTable
 }
 
 //cgi is a base class for all http handlers.
@@ -220,24 +223,24 @@ type cgi struct {
 
 var cgis chan *cgi
 
-var NewCGI func(http.ResponseWriter, *http.Request) *cgi
+var CGICfg *CGIConfig
 
 //newCGI reads messages file, and set params , returns cgi obj.
-func _newCGI(w http.ResponseWriter, r *http.Request, cfg *CGIConfig) *cgi {
+func NewCGI(w http.ResponseWriter, r *http.Request) *cgi {
 	if cgis == nil {
-		cgis = make(chan *cgi, cfg.maxConnection)
+		cgis = make(chan *cgi, CGICfg.MaxConnection)
 	}
 	var c *cgi
 	select {
 	case c = <-cgis:
 	default:
 		c = &cgi{
-			CGIConfig: cfg,
+			CGIConfig: CGICfg,
 		}
 	}
-	c.jc = newJsCache(c.docroot)
+	c.jc = newJsCache(c.Docroot)
 	c.wr = w
-	c.m = searchMessage(r.Header.Get("Accept-Language"), c.fileDir)
+	c.m = searchMessage(r.Header.Get("Accept-Language"), c.FileDir)
 	c.req = r
 	err := r.ParseForm()
 	if err != nil {
@@ -248,7 +251,7 @@ func _newCGI(w http.ResponseWriter, r *http.Request, cfg *CGIConfig) *cgi {
 }
 
 func (c *cgi) host() string {
-	host := c.serverName
+	host := c.ServerName
 	if host == "" {
 		host = c.req.Host
 	}
@@ -256,7 +259,7 @@ func (c *cgi) host() string {
 }
 
 func (c *cgi) isAdmin() bool {
-	m, err := regexp.MatchString(c.reAdminStr, c.req.RemoteAddr)
+	m, err := regexp.MatchString(c.ReAdminStr, c.req.RemoteAddr)
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -264,7 +267,7 @@ func (c *cgi) isAdmin() bool {
 }
 
 func (c *cgi) isFriend() bool {
-	m, err := regexp.MatchString(c.reFriendStr, c.req.RemoteAddr)
+	m, err := regexp.MatchString(c.ReFriendStr, c.req.RemoteAddr)
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -272,7 +275,7 @@ func (c *cgi) isFriend() bool {
 }
 
 func (c *cgi) isVisitor() bool {
-	m, err := regexp.MatchString(c.reVisitorStr, c.req.RemoteAddr)
+	m, err := regexp.MatchString(c.ReVisitorStr, c.req.RemoteAddr)
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -306,7 +309,7 @@ func (c *cgi) close() {
 func (c *cgi) extension(suffix string, useMerged bool) []string {
 	var filename []string
 	var merged string
-	err := eachFiles(c.docroot, func(f os.FileInfo) error {
+	err := util.EachFiles(c.Docroot, func(f os.FileInfo) error {
 		i := f.Name()
 		if strings.HasSuffix(i, "."+suffix) && (!strings.HasPrefix(i, ".") || strings.HasPrefix(i, "_")) {
 			filename = append(filename, i)
@@ -335,7 +338,7 @@ func (c *cgi) footer(menubar *Menubar) {
 	}{
 		menubar,
 	}
-	c.htemplate.renderTemplate("footer", g, c.wr)
+	c.Htemplate.RenderTemplate("footer", g, c.wr)
 }
 
 //rfc822Time convers stamp to "2006-01-02 15:04:05"
@@ -351,7 +354,7 @@ func (c *cgi) printParagraph(contentsKey string) {
 	}{
 		Contents: template.HTML(c.m[contentsKey]),
 	}
-	c.htemplate.renderTemplate("paragraph", g, c.wr)
+	c.Htemplate.RenderTemplate("paragraph", g, c.wr)
 }
 
 //Menubar is var set for menubar.txt
@@ -370,7 +373,7 @@ func (c *cgi) makeMenubar(id, rss string) *Menubar {
 	g := &Menubar{
 		GatewayLink{
 			Message:   c.m,
-			htemplate: c.htemplate,
+			htemplate: c.Htemplate,
 		},
 		GatewayURL,
 		c.m,
@@ -425,12 +428,12 @@ func (c *cgi) header(title, rss string, cookie []*http.Cookie, denyRobot bool) {
 			http.SetCookie(c.wr, co)
 		}
 	}
-	c.htemplate.renderTemplate("header", h, c.wr)
+	c.Htemplate.RenderTemplate("header", h, c.wr)
 }
 
 //resAnchor retuns a href  string with url.
 func (c *cgi) resAnchor(id, appli string, title string, absuri bool) string {
-	title = strEncode(title)
+	title = util.StrEncode(title)
 	var prefix, innerlink string
 	if absuri {
 		prefix = "http://" + c.host()
@@ -444,7 +447,7 @@ func (c *cgi) resAnchor(id, appli string, title string, absuri bool) string {
 func (c *cgi) htmlFormat(plain, appli string, title string, absuri bool) string {
 	buf := strings.Replace(plain, "<br>", "\n", -1)
 	buf = strings.Replace(buf, "\t", "        ", -1)
-	buf = escape(buf)
+	buf = util.Escape(buf)
 	reg := regexp.MustCompile(`https?://[^\x00-\x20"'\(\)<>\[\]\x7F-\xFF]{2,}`)
 	buf = reg.ReplaceAllString(buf, `<a href="$0">$0</a>`)
 	reg = regexp.MustCompile("&gt;&gt;[0-9a-f]{8}")
@@ -458,7 +461,7 @@ func (c *cgi) htmlFormat(plain, appli string, title string, absuri bool) string 
 		bl := c.bracketLink(str[2:len(str)-2], appli, absuri)
 		return bl
 	})
-	return escapeSpace(tmp)
+	return util.EscapeSpace(tmp)
 }
 
 //bracketLink convert ling string to [[link]] string with href tag.
@@ -470,34 +473,34 @@ func (c *cgi) bracketLink(link, appli string, absuri bool) string {
 	}
 	reg := regexp.MustCompile("^/(thread)/([^/]+)/([0-9a-f]{8})$")
 	if m := reg.FindStringSubmatch(link); m != nil {
-		url := prefix + ThreadURL + "/" + strEncode(m[2]) + "/" + m[3]
+		url := prefix + ThreadURL + "/" + util.StrEncode(m[2]) + "/" + m[3]
 		return "<a href=\"" + url + "\" class=\"reclink\">[[" + link + "]]</a>"
 	}
 
 	reg = regexp.MustCompile("^/(thread)/([^/]+)$")
 	if m := reg.FindStringSubmatch(link); m != nil {
-		uri := prefix + ThreadURL + "/" + strEncode(m[2])
+		uri := prefix + ThreadURL + "/" + util.StrEncode(m[2])
 		return "<a href=\"" + uri + "\">[[" + link + "]]</a>"
 	}
 
 	reg = regexp.MustCompile("^([^/]+)/([0-9a-f]{8})$")
 	if m := reg.FindStringSubmatch(link); m != nil {
-		uri := prefix + appli + "/" + strEncode(m[1]) + "/" + m[2]
+		uri := prefix + appli + "/" + util.StrEncode(m[1]) + "/" + m[2]
 		return "<a href=\"" + uri + "\" class=\"reclink\">[[" + link + "]]</a>"
 	}
 
 	reg = regexp.MustCompile("^([^/]+)$")
 	if m := reg.FindStringSubmatch(link); m != nil {
-		uri := prefix + appli + "/" + strEncode(m[1])
+		uri := prefix + appli + "/" + util.StrEncode(m[1])
 		return "<a href=\"" + uri + "\">[[" + link + "]]</a>"
 	}
 	return "[[" + link + "]]"
 }
 
 //removeFileForm render remove_form_form page.
-func (c *cgi) removeFileForm(ca *cache, title string) {
+func (c *cgi) removeFileForm(ca *thread.Cache, title string) {
 	s := struct {
-		Cache    *cache
+		Cache    *thread.Cache
 		Title    string
 		IsAdmin  bool
 		AdminCGI string
@@ -509,7 +512,7 @@ func (c *cgi) removeFileForm(ca *cache, title string) {
 		AdminURL,
 		c.m,
 	}
-	c.htemplate.renderTemplate("remove_file_form", s, c.wr)
+	c.Htemplate.RenderTemplate("remove_file_form", s, c.wr)
 }
 
 //printJump render jump (redirect)page.
@@ -519,7 +522,7 @@ func (c *cgi) printJump(next string) {
 	}{
 		template.HTML(next),
 	}
-	c.htemplate.renderTemplate("jump", s, c.wr)
+	c.Htemplate.RenderTemplate("jump", s, c.wr)
 }
 
 //print302 renders jump page(meaning found and redirect)
@@ -538,7 +541,7 @@ func (c *cgi) print403() {
 
 //print404 render the 404 page.
 //if ca!=nil also renders info page of removing cache.
-func (c *cgi) print404(ca *cache, id string) {
+func (c *cgi) print404(ca *thread.Cache, id string) {
 	c.header(c.m["404"], "", nil, true)
 	c.printParagraph("404_body")
 	if ca != nil {
@@ -558,13 +561,13 @@ func (c *cgi) hasAuth() bool {
 }
 
 //printIndexList renders index_list.txt which renders threads in cachelist.
-func (c *cgi) printIndexList(cl []*cache, target string, footer bool, searchNewFile bool) {
+func (c *cgi) printIndexList(cl []*thread.Cache, target string, footer bool, searchNewFile bool) {
 	s := struct {
 		Target        string
 		Filter        string
 		Tag           string
-		Taglist       tagslice
-		Cachelist     []*cache
+		Taglist       thread.Tagslice
+		Cachelist     []*thread.Cache
 		GatewayCGI    string
 		AdminCGI      string
 		Message       message
@@ -578,7 +581,7 @@ func (c *cgi) printIndexList(cl []*cache, target string, footer bool, searchNewF
 		target,
 		c.filter,
 		c.tag,
-		c.userTag.get(),
+		c.UserTag.Get(),
 		cl,
 		GatewayURL,
 		AdminURL,
@@ -588,19 +591,19 @@ func (c *cgi) printIndexList(cl []*cache, target string, footer bool, searchNewF
 		c.isFriend(),
 		[]string{"thread"},
 		GatewayLink{
-			htemplate: c.htemplate,
+			htemplate: c.Htemplate,
 			Message:   c.m,
 		},
 		ListItem{
-			htemplate:         c.htemplate,
-			suggestedTagTable: c.suggestedTagTable,
+			htemplate:         c.Htemplate,
+			suggestedTagTable: c.SuggestedTagTable,
 			IsAdmin:           c.isAdmin(),
 			filter:            c.filter,
 			tag:               c.tag,
 			Message:           c.m,
 		},
 	}
-	c.htemplate.renderTemplate("index_list", s, c.wr)
+	c.Htemplate.RenderTemplate("index_list", s, c.wr)
 	if footer {
 		c.printNewElementForm()
 		c.footer(nil)
@@ -627,7 +630,7 @@ func (c *cgi) printNewElementForm() {
 		titleLimit,
 		c.isAdmin(),
 	}
-	c.htemplate.renderTemplate("new_element_form", s, c.wr)
+	c.Htemplate.RenderTemplate("new_element_form", s, c.wr)
 }
 
 //checkGetCache return true

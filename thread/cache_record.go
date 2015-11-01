@@ -26,7 +26,7 @@
  * POSSIBILITY OF SUCH DAMAGE.
  */
 
-package gou
+package thread
 
 import (
 	"crypto/md5"
@@ -44,11 +44,13 @@ import (
 	"strings"
 	"sync"
 	"time"
+
+	"github.com/shingetsu-gou/shingetsu-gou/util"
 )
 
 //RecordHead represents one line in updatelist/recentlist
 type RecordHead struct {
-	datfile string //cache file name
+	Datfile string //cache file name
 	Stamp   int64  //unixtime
 	ID      string //md5(bodystr)
 }
@@ -63,7 +65,7 @@ func newRecordHeadFromLine(line string) (*RecordHead, error) {
 	}
 	u := &RecordHead{
 		ID:      strs[1],
-		datfile: strs[2],
+		Datfile: strs[2],
 	}
 	var err error
 	u.Stamp, err = strconv.ParseInt(strs[0], 10, 64)
@@ -76,13 +78,13 @@ func newRecordHeadFromLine(line string) (*RecordHead, error) {
 
 //equals returns true if u=v
 func (u *RecordHead) equals(rec *RecordHead) bool {
-	return u.datfile == rec.datfile && u.ID == rec.ID && u.Stamp == rec.Stamp
+	return u.Datfile == rec.Datfile && u.ID == rec.ID && u.Stamp == rec.Stamp
 }
 
 //hash returns md5 of RecordHead.
 func (u *RecordHead) hash() [16]byte {
 	m := md5.New()
-	m.Write([]byte(u.datfile))
+	m.Write([]byte(u.Datfile))
 	binary.Write(m, binary.LittleEndian, u.Stamp)
 	m.Write([]byte(u.ID))
 	var r [16]byte
@@ -90,9 +92,9 @@ func (u *RecordHead) hash() [16]byte {
 	return r
 }
 
-//recstr returns one line of update/recentlist file.
-func (u *RecordHead) recstr() string {
-	return fmt.Sprintf("%d<>%s<>%s", u.Stamp, u.ID, u.datfile)
+//Recstr returns one line of update/recentlist file.
+func (u *RecordHead) Recstr() string {
+	return fmt.Sprintf("%d<>%s<>%s", u.Stamp, u.ID, u.Datfile)
 }
 
 //Idstr returns real file name of the record file.
@@ -127,17 +129,17 @@ func (r recordHeads) has(rec *RecordHead) bool {
 	return false
 }
 
-var NewRecord func(datfile, idstr string) *record
+var RecorcCfg *RecordConfig
 
 type RecordConfig struct {
-	defaultThumbnailSize string
-	cacheDir             string
-	fmutex               *sync.RWMutex
-	cachedRule           *regexpList
+	DefaultThumbnailSize string
+	CacheDir             string
+	Fmutex               *sync.RWMutex
+	CachedRule           *util.RegexpList
 }
 
 //record represents one record.
-type record struct {
+type Record struct {
 	*RecordConfig
 	RecordHead
 	contents map[string]string
@@ -147,12 +149,12 @@ type record struct {
 
 //newRecord parse idstr unixtime+"_"+md5(bodystr)), set stamp and id, and return record obj.
 //if parse failes returns nil.
-func _newRecord(datfile, idstr string, cfg *RecordConfig) *record {
+func NewRecord(Datfile, idstr string) *Record {
 	var err error
-	r := &record{
-		RecordConfig: cfg,
+	r := &Record{
+		RecordConfig: RecorcCfg,
 	}
-	r.datfile = datfile
+	r.Datfile = Datfile
 	if idstr != "" {
 		buf := strings.Split(idstr, "_")
 		if len(buf) != 2 {
@@ -169,14 +171,14 @@ func _newRecord(datfile, idstr string, cfg *RecordConfig) *record {
 }
 
 //len returns size of contents
-func (r *record) len() int {
+func (r *Record) len() int {
 	r.mutex.RLock()
 	defer r.mutex.RUnlock()
 	return len(r.contents)
 }
 
-//makeRecords makes and returns record from recstr
-func makeRecord(line string) *record {
+//makeRecords makes and returns record from Recstr
+func makeRecord(line string) *Record {
 	line = strings.TrimRight(line, "\r\n")
 	buf := strings.Split(line, "<>")
 	if len(buf) <= 2 || buf[0] == "" || buf[1] == "" || buf[2] == "" {
@@ -192,7 +194,7 @@ func makeRecord(line string) *record {
 }
 
 //bodystr returns body part of one line in the record file.
-func (r *record) bodystr() string {
+func (r *Record) bodystr() string {
 	r.mutex.RLock()
 	defer r.mutex.RUnlock()
 
@@ -204,7 +206,7 @@ func (r *record) bodystr() string {
 }
 
 //HasBodyValue returns true if key k exists
-func (r *record) HasBodyValue(k string) bool {
+func (r *Record) HasBodyValue(k string) bool {
 	r.mutex.RLock()
 	defer r.mutex.RUnlock()
 
@@ -216,7 +218,7 @@ func (r *record) HasBodyValue(k string) bool {
 
 //getBodyValue returns value of key k
 //return def if not exists.
-func (r *record) GetBodyValue(k string, def string) string {
+func (r *Record) GetBodyValue(k string, def string) string {
 	r.mutex.RLock()
 	defer r.mutex.RUnlock()
 
@@ -227,44 +229,44 @@ func (r *record) GetBodyValue(k string, def string) string {
 }
 
 //path returns path for real file
-func (r *record) path() string {
-	if r.Idstr() == "" || r.datfile == "" {
+func (r *Record) path() string {
+	if r.Idstr() == "" || r.Datfile == "" {
 		return ""
 	}
-	return filepath.Join(r.cacheDir, r.dathash(), "record", r.Idstr())
+	return filepath.Join(r.CacheDir, r.dathash(), "record", r.Idstr())
 }
 
 //rmPath returns path for removed marker
-func (r *record) rmPath() string {
-	if r.Idstr() == "" || r.datfile == "" {
+func (r *Record) rmPath() string {
+	if r.Idstr() == "" || r.Datfile == "" {
 		return ""
 	}
-	return filepath.Join(r.cacheDir, r.dathash(), "removed", r.Idstr())
+	return filepath.Join(r.CacheDir, r.dathash(), "removed", r.Idstr())
 }
 
-//dathash returns the same string as datfile if encoding=asis
-func (r *record) dathash() string {
-	if r.datfile == "" {
+//dathash returns the same string as Datfile if encoding=asis
+func (r *Record) dathash() string {
+	if r.Datfile == "" {
 		return ""
 	}
-	return fileHash(r.datfile)
+	return util.FileHash(r.Datfile)
 }
 
 //Exists return true if record file exists.
-func (r *record) Exists() bool {
-	return IsFile(r.path())
+func (r *Record) Exists() bool {
+	return util.IsFile(r.path())
 }
 
 //parse parses one line in record file and response of /recent/ and set params to record r.
-func (r *record) parse(recstr string) error {
+func (r *Record) parse(Recstr string) error {
 	r.mutex.Lock()
 	defer r.mutex.Unlock()
 
 	var err error
-	recstr = strings.TrimRight(recstr, "\r\n")
-	tmp := strings.Split(recstr, "<>")
+	Recstr = strings.TrimRight(Recstr, "\r\n")
+	tmp := strings.Split(Recstr, "<>")
 	if len(tmp) < 2 {
-		err := errors.New(recstr + ":bad format")
+		err := errors.New(Recstr + ":bad format")
 		log.Println(err)
 		return err
 	}
@@ -294,9 +296,9 @@ func (r *record) parse(recstr string) error {
 }
 
 //size returns real file size of record.
-func (r *record) size() int64 {
-	r.fmutex.RLock()
-	defer r.fmutex.RUnlock()
+func (r *Record) size() int64 {
+	r.Fmutex.RLock()
+	defer r.Fmutex.RUnlock()
 	s, err := os.Stat(r.path())
 	if err != nil {
 		log.Println(err)
@@ -307,10 +309,10 @@ func (r *record) size() int64 {
 
 //remove moves the record file  to remove path
 //and removes all thumbnails ,attached files and body files.
-func (r *record) remove() error {
-	r.fmutex.Lock()
-	defer r.fmutex.Unlock()
-	err := moveFile(r.path(), r.rmPath())
+func (r *Record) Remove() error {
+	r.Fmutex.Lock()
+	defer r.Fmutex.Unlock()
+	err := util.MoveFile(r.path(), r.rmPath())
 	if err != nil {
 		log.Println(err)
 		return err
@@ -321,7 +323,7 @@ func (r *record) remove() error {
 			log.Println(err)
 		}
 	}
-	err = os.Remove(r.attachPath("", ""))
+	err = os.Remove(r.AttachPath("", ""))
 	if err != nil {
 		log.Println(err)
 	}
@@ -329,12 +331,12 @@ func (r *record) remove() error {
 }
 
 //load loads a record file and parses it.
-func (r *record) load() error {
-	r.fmutex.RLock()
-	defer r.fmutex.RUnlock()
+func (r *Record) Load() error {
+	r.Fmutex.RLock()
+	defer r.Fmutex.RUnlock()
 
 	if !r.Exists() {
-		err := r.remove()
+		err := r.Remove()
 		if err != nil {
 			log.Println(err)
 		}
@@ -349,7 +351,7 @@ func (r *record) load() error {
 }
 
 //build sets params in record from args and return id.
-func (r *record) build(stamp int64, body map[string]string, passwd string) string {
+func (r *Record) Build(stamp int64, body map[string]string, passwd string) string {
 	r.mutex.Lock()
 	defer r.mutex.Unlock()
 	r.contents = make(map[string]string)
@@ -362,10 +364,10 @@ func (r *record) build(stamp int64, body map[string]string, passwd string) strin
 		i++
 	}
 	if passwd != "" {
-		k := makePrivateKey(passwd)
-		pubkey, _ := k.getKeys()
-		md := md5digest(r.bodystr())
-		sign := k.sign(md)
+		k := util.MakePrivateKey(passwd)
+		pubkey, _ := k.GetKeys()
+		md := util.MD5digest(r.bodystr())
+		sign := k.Sign(md)
 		r.contents["pubkey"] = pubkey
 		r.contents["sign"] = sign
 		r.contents["target"] = strings.Join(r.keyOrder, ",")
@@ -373,26 +375,26 @@ func (r *record) build(stamp int64, body map[string]string, passwd string) strin
 		r.keyOrder = append(r.keyOrder, "sign")
 		r.keyOrder = append(r.keyOrder, "target")
 	}
-	r.ID = md5digest(r.bodystr())
+	r.ID = util.MD5digest(r.bodystr())
 	return r.ID
 }
 
 //md5check return true if md5 of bodystr is same as r.id.
-func (r *record) md5check() bool {
-	return md5digest(r.bodystr()) == r.ID
+func (r *Record) md5check() bool {
+	return util.MD5digest(r.bodystr()) == r.ID
 }
 
 //allthumnailPath finds and returns all thumbnails path in disk
-func (r *record) allthumbnailPath() []string {
-	r.fmutex.RLock()
-	defer r.fmutex.RUnlock()
+func (r *Record) allthumbnailPath() []string {
+	r.Fmutex.RLock()
+	defer r.Fmutex.RUnlock()
 	if r.path() == "" {
 		log.Println("null file name")
 		return nil
 	}
-	dir := filepath.Join(r.cacheDir, r.dathash(), "attach")
+	dir := filepath.Join(r.CacheDir, r.dathash(), "attach")
 	var thumbnail []string
-	err := eachFiles(dir, func(fi os.FileInfo) error {
+	err := util.EachFiles(dir, func(fi os.FileInfo) error {
 		dname := fi.Name()
 		if strings.HasPrefix(dname, "s"+r.Idstr()) {
 			thumbnail = append(thumbnail, filepath.Join(dir, dname))
@@ -406,16 +408,16 @@ func (r *record) allthumbnailPath() []string {
 	return thumbnail
 }
 
-//attachPath returns attach path
+//AttachPath returns attach path
 //if suffix !="" create path from args.
 //if suffix =="" find file starting with idstr and returns its name.
 //if thumbnailSize!="" find thumbnail.
-func (r *record) attachPath(suffix string, thumbnailSize string) string {
+func (r *Record) AttachPath(suffix string, thumbnailSize string) string {
 	if r.path() == "" {
 		log.Println("null file name")
 		return ""
 	}
-	dir := filepath.Join(r.cacheDir, r.dathash(), "attach")
+	dir := filepath.Join(r.CacheDir, r.dathash(), "attach")
 	if suffix != "" {
 		reg := regexp.MustCompile(`[^-_.A-Za-z0-9]`)
 		reg.ReplaceAllString(suffix, "")
@@ -427,10 +429,10 @@ func (r *record) attachPath(suffix string, thumbnailSize string) string {
 		}
 		return filepath.Join(dir, r.Idstr()+"."+suffix)
 	}
-	r.fmutex.RLock()
-	defer r.fmutex.RUnlock()
+	r.Fmutex.RLock()
+	defer r.Fmutex.RUnlock()
 	var result string
-	err := eachFiles(dir, func(fi os.FileInfo) error {
+	err := util.EachFiles(dir, func(fi os.FileInfo) error {
 		dname := fi.Name()
 		if strings.HasPrefix(dname, r.Idstr()) {
 			result = filepath.Join(dir, dname)
@@ -444,9 +446,9 @@ func (r *record) attachPath(suffix string, thumbnailSize string) string {
 }
 
 //makeThumbnail fixes suffix,thumbnailSize and calls makeThumbnailInternal.
-func (r *record) makeThumbnail(suffix string, thumbnailSize string) {
+func (r *Record) MakeThumbnail(suffix string, thumbnailSize string) {
 	if thumbnailSize == "" {
-		thumbnailSize = r.defaultThumbnailSize
+		thumbnailSize = r.DefaultThumbnailSize
 	}
 	if thumbnailSize == "" {
 		return
@@ -455,10 +457,10 @@ func (r *record) makeThumbnail(suffix string, thumbnailSize string) {
 		suffix = r.GetBodyValue("suffix", "jpg")
 	}
 
-	attachPath := r.attachPath(suffix, "")
-	thumbnailPath := r.attachPath(suffix, thumbnailSize)
-	log.Println(attachPath, thumbnailPath)
-	if IsFile(thumbnailPath) {
+	AttachPath := r.AttachPath(suffix, "")
+	thumbnailPath := r.AttachPath(suffix, thumbnailSize)
+	log.Println(AttachPath, thumbnailPath)
+	if util.IsFile(thumbnailPath) {
 		return
 	}
 	size := strings.Split(thumbnailSize, "x")
@@ -471,43 +473,43 @@ func (r *record) makeThumbnail(suffix string, thumbnailSize string) {
 		log.Println(thumbnailSize, "is illegal format")
 		return
 	}
-	r.fmutex.Lock()
-	defer r.fmutex.Unlock()
-	makeThumbnail(attachPath, thumbnailPath, suffix, uint(x), uint(y))
+	r.Fmutex.Lock()
+	defer r.Fmutex.Unlock()
+	util.MakeThumbnail(AttachPath, thumbnailPath, suffix, uint(x), uint(y))
 }
 
 //saveAttached decodes base64 v and saves to attached , make and save thumbnail
-func (r *record) saveAttached(v string) {
-	r.fmutex.Lock()
+func (r *Record) saveAttached(v string) {
+	r.Fmutex.Lock()
 	attach, err := base64.StdEncoding.DecodeString(v)
 	if err != nil {
 		log.Println("cannot decode attached file")
 		return
 	}
-	attachPath := r.attachPath(r.GetBodyValue("suffix", "txt"), "")
-	thumbnailPath := r.attachPath(r.GetBodyValue("suffix", "jpg"), r.defaultThumbnailSize)
+	AttachPath := r.AttachPath(r.GetBodyValue("suffix", "txt"), "")
+	thumbnailPath := r.AttachPath(r.GetBodyValue("suffix", "jpg"), r.DefaultThumbnailSize)
 
-	if err = writeFile(attachPath, string(attach)); err != nil {
+	if err = util.WriteFile(AttachPath, string(attach)); err != nil {
 		log.Println(err)
 		return
 	}
-	r.fmutex.Unlock()
-	if !IsFile(thumbnailPath) {
-		r.makeThumbnail("", "")
+	r.Fmutex.Unlock()
+	if !util.IsFile(thumbnailPath) {
+		r.MakeThumbnail("", "")
 	}
 }
 
-//sync saves recstr to the file. if attached file exists, saves it to attached path.
+//sync saves Recstr to the file. if attached file exists, saves it to attached path.
 //and save body part to body path. if signed, also saves body part.
-func (r *record) sync() {
-	r.fmutex.Lock()
-	defer r.fmutex.Unlock()
+func (r *Record) Sync() {
+	r.Fmutex.Lock()
+	defer r.Fmutex.Unlock()
 
-	if IsFile(r.rmPath()) {
+	if util.IsFile(r.rmPath()) {
 		return
 	}
-	if !IsFile(r.path()) {
-		err := writeFile(r.path(), r.recstr()+"\n")
+	if !util.IsFile(r.path()) {
+		err := util.WriteFile(r.path(), r.Recstr()+"\n")
 		if err != nil {
 			log.Println(err)
 		}
@@ -518,7 +520,7 @@ func (r *record) sync() {
 }
 
 //bodyString retuns bodystr not including attach field, and shorten pubkey.
-func (r *record) bodyString() string {
+func (r *Record) bodyString() string {
 	r.mutex.RLock()
 	defer r.mutex.RUnlock()
 
@@ -533,7 +535,7 @@ func (r *record) bodyString() string {
 		case "sign":
 		case "pubkey":
 			if r.checkSign() {
-				shortKey := cutKey(r.contents["pubkey"])
+				shortKey := util.CutKey(r.contents["pubkey"])
 				buf = append(buf, "pubkey:"+shortKey)
 			}
 		default:
@@ -544,7 +546,7 @@ func (r *record) bodyString() string {
 }
 
 //checkSign check signature in the record is valid.
-func (r *record) checkSign() bool {
+func (r *Record) checkSign() bool {
 	r.mutex.RLock()
 	defer r.mutex.RUnlock()
 
@@ -561,15 +563,15 @@ func (r *record) checkSign() bool {
 		}
 		targets[i] = t + ":" + r.contents[t]
 	}
-	md := md5digest(strings.Join(targets, "<>"))
-	if verify(md, r.contents["sign"], r.contents["pubkey"]) {
+	md := util.MD5digest(strings.Join(targets, "<>"))
+	if util.Verify(md, r.contents["sign"], r.contents["pubkey"]) {
 		return true
 	}
 	return false
 }
 
 //meets checks the record meets condisions of args
-func (r *record) meets(i string, stamp int64, id string, begin, end int64) bool {
+func (r *Record) meets(i string, stamp int64, id string, begin, end int64) bool {
 	r.mutex.RLock()
 	defer r.mutex.RUnlock()
 
@@ -596,16 +598,16 @@ func (r *record) meets(i string, stamp int64, id string, begin, end int64) bool 
 	return true
 }
 
-//isSpam returns true if recstr is listed in spam.txt
-func (r *record) isSpam() bool {
-	return r.cachedRule.check(r.recstr())
+//isSpam returns true if Recstr is listed in spam.txt
+func (r *Record) IsSpam() bool {
+	return r.CachedRule.Check(r.Recstr())
 }
 
-type recordMap map[string]*record
+type recordMap map[string]*Record
 
 //get returns records which hav key=i.
 //return def if not found.
-func (r recordMap) get(i string, def *record) *record {
+func (r recordMap) Get(i string, def *Record) *Record {
 	if v, exist := r[i]; exist {
 		return v
 	}
@@ -613,7 +615,7 @@ func (r recordMap) get(i string, def *record) *record {
 }
 
 //keys returns key strings(ids) of records
-func (r recordMap) keys() []string {
+func (r recordMap) Keys() []string {
 	ks := make([]string, len(r))
 	i := 0
 	for k := range r {
@@ -627,13 +629,13 @@ func (r recordMap) keys() []string {
 //removeRecords remove old records while remaing #saveSize records.
 //and also removes duplicates recs.
 func (r recordMap) removeRecords(limit int64, saveSize int) {
-	ids := r.keys()
+	ids := r.Keys()
 	if saveSize < len(ids) {
 		ids = ids[:len(ids)-saveSize]
 		if limit > 0 {
 			for _, re := range ids {
 				if r[re].Stamp+limit < time.Now().Unix() {
-					err := r[re].remove()
+					err := r[re].Remove()
 					if err != nil {
 						log.Println(err)
 					}
@@ -644,9 +646,9 @@ func (r recordMap) removeRecords(limit int64, saveSize int) {
 	}
 	once := make(map[string]struct{})
 	for k, rec := range r {
-		if IsFile(rec.path()) {
+		if util.IsFile(rec.path()) {
 			if _, exist := once[rec.ID]; exist {
-				err := rec.remove()
+				err := rec.Remove()
 				if err != nil {
 					log.Println(err)
 				}
@@ -656,4 +658,14 @@ func (r recordMap) removeRecords(limit int64, saveSize int) {
 			}
 		}
 	}
+}
+
+//makeAttachLink makes and returns attached file link.
+func (rec *Record) MakeAttachLink(sakuHost string) string {
+	if rec.GetBodyValue("attach", "") == "" {
+		return ""
+	}
+	url := fmt.Sprintf("http://%s/thread.cgi/%s/%s/%d.%s",
+		sakuHost, rec.Datfile, rec.ID, rec.Stamp, rec.GetBodyValue("suffix", "txt"))
+	return "<br><br>[Attached]<br>" + url
 }

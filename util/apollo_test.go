@@ -26,61 +26,32 @@
  * POSSIBILITY OF SUCH DAMAGE.
  */
 
-package gou
+package util
 
 import (
-	"fmt"
-	"regexp"
-	"strconv"
-	"time"
+	"log"
+	"testing"
 )
 
-//datastr2ch unixtime str ecpochStr to the certain format string.
-//e.g. 2006/01/02(日) 15:04:05.99
-func datestr2ch(epoch int64) string {
-	t := time.Unix(epoch, 0)
-	d := t.Format("2006/01/02(%s) 15:04:05.99")
-	wdays := []string{"日", "月", "火", "水", "木", "金", "土"}
-	return fmt.Sprintf(d, wdays[t.Weekday()])
-}
-
-//resTable maps id[:8] and its number.
-type resTable struct {
-	id2num map[string]int
-	num2id []string
-}
-
-//newResTable creates ane returns a resTable maps instance.
-func newResTable(ca *cache) *resTable {
-	r := &resTable{
-		make(map[string]int),
-		make([]string, ca.readInfo().len+1),
+func TestApllo(t *testing.T) {
+	pkey := MakePrivateKey("test")
+	log.Println(pkey.keyD, pkey.keyN)
+	pub, pri := pkey.GetKeys()
+	log.Println(pkey.keyD, pkey.keyN)
+	log.Println(pub, pri)
+	if pub != "DpmzfQSOhbpxE7xuaiEao3ztv9NAJi/loTs2N43f5hC3XpT3z9VhApcrYy94XhMBKONo5H14c8STrriPJnCcVA" {
+		t.Fatal("publickey key unmatch")
 	}
-	recs := ca.loadRecords()
-	for i, k := range recs.keys() {
-		rec := recs.get(k, nil)
-		r.num2id[i+1] = rec.ID[:8]
-		r.id2num[rec.ID[:8]] = i + 1
+	if pri != "BAcp0SUgUOSY+TrLhy/MEszzq0Obadi3EhXDEUUD9FmOkv7vhPiNrgg2HR8DmuFiPcXNHdqu44wyGRX5bmdcQA" {
+		t.Fatal("privatekey unmatch")
 	}
-	return r
-}
-
-//makeAttachLink makes and returns attached file link.
-func makeAttachLink(rec *record, sakuHost string) string {
-	if rec.GetBodyValue("attach", "") == "" {
-		return ""
+	log.Println(pkey.keyD, pkey.keyN)
+	s := pkey.Sign("test")
+	log.Println(s)
+	if s != "7peLqh1dbHjwmDpmREUytCu7k/2S3cS2eLYn+z42TaQkaHoyTRVUTKekbinRQQpkEGJah0hyDDIPc+AZHjecDA" {
+		t.Fatalf("sign failed")
 	}
-	url := fmt.Sprintf("http://%s/thread.cgi/%s/%s/%d.%s",
-		sakuHost, rec.datfile, rec.ID, rec.Stamp, rec.GetBodyValue("suffix", "txt"))
-	return "<br><br>[Attached]<br>" + url
-}
-
-//makeRSSAnchor replace id to the record number.
-func makeRSSAnchor(body string, table *resTable) string {
-	reg := regexp.MustCompile("&gt;&gt;([0-9a-f]{8})")
-	return reg.ReplaceAllStringFunc(body, func(str string) string {
-		id := reg.FindStringSubmatch(str)[1]
-		no := table.id2num[id]
-		return "&gt;&gt;" + strconv.Itoa(no)
-	})
+	if v := Verify("test", s, pub); !v {
+		t.Fatalf("verify failed")
+	}
 }

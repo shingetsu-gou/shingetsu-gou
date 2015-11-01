@@ -26,7 +26,7 @@
  * POSSIBILITY OF SUCH DAMAGE.
  */
 
-package gou
+package util
 
 import (
 	"bytes"
@@ -48,9 +48,9 @@ var funcMap = map[string]interface{}{
 	"toKB":         func(a int) float64 { return float64(a) / (1024) },
 	"toInt":        func(a int64) int { return int(a) },
 	"stopEscaping": func(a string) template.HTML { return template.HTML(a) },
-	"strEncode":    strEncode,
-	"escape":       escape,
-	"escapeSpace":  escapeSpace,
+	"strEncode":    StrEncode,
+	"escape":       Escape,
+	"escapeSpace":  EscapeSpace,
 	"localtime":    func(stamp int64) string { return time.Unix(stamp, 0).Format("2006-01-02 15:04") },
 	"unescapedPrintf": func(format string, a ...interface{}) htmlTemplate.HTML {
 		return htmlTemplate.HTML(fmt.Sprintf(format, a))
@@ -62,7 +62,7 @@ type Ttemplate struct {
 }
 
 //newTtemplate adds funcmap to template var and parse files.
-func newTtemplate(templateDir string) *Ttemplate {
+func NewTtemplate(templateDir string) *Ttemplate {
 	t := &Ttemplate{textTemplate.New("")}
 	templateFiles := templateDir + "/rss1.txt"
 	t.Funcs(textTemplate.FuncMap(funcMap))
@@ -78,7 +78,7 @@ type Htemplate struct {
 }
 
 //newHtemplate adds funcmap to template var and parse files.
-func newHtemplate(templateDir string) *Htemplate {
+func NewHtemplate(templateDir string) *Htemplate {
 	t := &Htemplate{htmlTemplate.New("")}
 	templateFiles := templateDir + "/*.txt"
 	if !IsDir(templateDir) {
@@ -93,21 +93,21 @@ func newHtemplate(templateDir string) *Htemplate {
 }
 
 //renderTemplate executes template and write to wr.
-func (t *Htemplate) renderTemplate(file string, st interface{}, wr io.Writer) {
-	if err := t.ExecuteTemplate(wr, file, st); err != nil {
+func (t *Htemplate) RenderTemplate(file string, st interface{}, wr io.Writer) {
+	if err := t.Template.ExecuteTemplate(wr, file, st); err != nil {
 		log.Println(err)
 	}
 }
 
 //executeTemplate executes template and returns it as string.
-func (t *Htemplate) executeTemplate(file string, st interface{}) string {
+func (t *Htemplate) ExecuteTemplate(file string, st interface{}) string {
 	var doc bytes.Buffer
-	t.renderTemplate(file, st, &doc)
+	t.RenderTemplate(file, st, &doc)
 	return doc.String()
 }
 
 //renderTemplate executes rss template and write to wr.
-func (t *Ttemplate) renderTemplate(file string, st interface{}, wr io.Writer) {
+func (t *Ttemplate) RenderTemplate(file string, st interface{}, wr io.Writer) {
 	if err := t.ExecuteTemplate(wr, file, st); err != nil {
 		log.Println(err)
 	}

@@ -42,9 +42,16 @@ import (
 	"gopkg.in/natefinch/lumberjack.v2"
 
 	"github.com/shingetsu-gou/shingetsu-gou/gou"
+	"github.com/shingetsu-gou/shingetsu-gou/node"
+)
+
+const (
+	//Version is one of Gou. it shoud be overwritten when building on travis.
+	Version = "Git/unstable"
 )
 
 func init() {
+	node.Version = Version
 	log.SetFlags(log.Ldate | log.Ltime | log.Lshortfile)
 	log.SetOutput(os.Stdout)
 }

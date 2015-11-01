@@ -26,7 +26,7 @@
  * POSSIBILITY OF SUCH DAMAGE.
  */
 
-package gou
+package thread
 
 import (
 	"errors"
@@ -39,166 +39,169 @@ import (
 	"strings"
 	"sync"
 	"time"
+
+	"github.com/shingetsu-gou/shingetsu-gou/node"
+	"github.com/shingetsu-gou/shingetsu-gou/util"
 )
 
 var (
 	cacheMap = make(map[string]sync.Pool)
 	errSpam  = errors.New("this is spam")
 	errGet   = errors.New("cannot get data")
-	NewCache func(string) *cache
+	CacheCfg *CacheConfig
 )
 
 //cacheInfo represents size/len/velocity of cache.
-type cacheInfo struct {
-	size     int64 //size of total records
-	len      int   //# of records
-	velocity int   //# of new records in one day
-	stamp    int64 //stamp of newest record
+type CacheInfo struct {
+	Size     int64 //size of total records
+	Len      int   //# of records
+	Velocity int   //# of new records in one day
+	Stamp    int64 //stamp of newest record
 }
 
 type CacheConfig struct {
-	cacheDir          string
-	recordLimit       int
-	syncRange         int64
-	getRange          int64
-	nodeManager       *NodeManager
-	userTag           *UserTag
-	suggestedTagTable *SuggestedTagTable
-	recentList        *RecentList
-	fmutex            *sync.RWMutex
+	CacheDir          string
+	RecordLimit       int
+	SyncRange         int64
+	GetRange          int64
+	NodeManager       *node.NodeManager
+	UserTag           *UserTag
+	SuggestedTagTable *SuggestedTagTable
+	RecentList        *RecentList
+	Fmutex            *sync.RWMutex
 }
 
 //cache represents cache of one file.
-type cache struct {
+type Cache struct {
 	*CacheConfig
 	Datfile string
-	tags    tagslice //made by the user
+	tags    Tagslice //made by the user
 	mutex   sync.RWMutex
 }
 
 //newCache read files to set params and returns cache obj.
 //it uses sync.pool to ensure that only one cache obj exists for one datfile.
 //and garbage collected when not used.
-func _newCache(datfile string, cfg *CacheConfig) *cache {
+func NewCache(datfile string) *Cache {
 	p, exist := cacheMap[datfile]
 	if !exist {
 		p.New = func() interface{} {
-			c := &cache{
+			c := &Cache{
 				Datfile:     datfile,
-				CacheConfig: cfg,
+				CacheConfig: CacheCfg,
 			}
 			c.tags = loadTagslice(path.Join(c.datpath(), "tag.txt"))
 			return c
 		}
 	}
-	c := p.Get().(*cache)
+	c := p.Get().(*Cache)
 	p.Put(c)
 	return c
 }
 
 //addTags add user tag list from vals.
-func (c *cache) addTags(vals []string) {
+func (c *Cache) AddTags(vals []string) {
 	c.mutex.Lock()
 	defer c.mutex.Unlock()
 	c.tags.addString(vals)
-	c.userTag.setDirty()
+	c.UserTag.setDirty()
 }
 
 //setTags set user tag list from vals.
-func (c *cache) setTags(vals []string) {
+func (c *Cache) SetTags(vals []string) {
 	c.mutex.Lock()
 	defer c.mutex.Unlock()
 	c.tags = newTagslice(vals)
-	c.userTag.setDirty()
+	c.UserTag.setDirty()
 }
 
 //lenTags returns # of set user tag.
-func (c *cache) lenTags() int {
+func (c *Cache) LenTags() int {
 	c.mutex.Lock()
 	defer c.mutex.Unlock()
 	return c.tags.Len()
 }
 
 //tagString returns string of user tag.
-func (c *cache) tagString() string {
+func (c *Cache) TagString() string {
 	c.mutex.Lock()
 	defer c.mutex.Unlock()
 	return c.tags.string()
 }
 
 //tagstr returns string of user tag.
-func (c *cache) getTagstrSlice() []string {
+func (c *Cache) GetTagstrSlice() []string {
 	c.mutex.Lock()
 	defer c.mutex.Unlock()
-	return c.tags.getTagstrSlice()
+	return c.tags.GetTagstrSlice()
 }
 
 //getTags returns copy of usertags.
-func (c *cache) getTags() tagslice {
+func (c *Cache) GetTags() Tagslice {
 	c.mutex.RLock()
 	defer c.mutex.RUnlock()
-	ts := make([]*tag, c.tags.Len())
+	ts := make([]*Tag, c.tags.Len())
 	copy(ts, c.tags)
-	return tagslice(ts)
+	return Tagslice(ts)
 }
 
 //hasTagstr returns true if tag has tagstr.
-func (c *cache) hasTagstr(tagstr string) bool {
+func (c *Cache) HasTagstr(tagstr string) bool {
 	c.mutex.RLock()
 	defer c.mutex.RUnlock()
-	return c.tags.hasTagstr(tagstr)
+	return c.tags.HasTagstr(tagstr)
 }
 
 //hasTab returns true if cache has tagstr=board tag in usertag or sugtag.
-func (c *cache) hasTag(board string) bool {
-	if c.suggestedTagTable.hasTagstr(c.Datfile, board) {
+func (c *Cache) HasTag(board string) bool {
+	if c.SuggestedTagTable.HasTagstr(c.Datfile, board) {
 		return true
 	}
-	return c.hasTagstr(board)
+	return c.HasTagstr(board)
 }
 
 //dathash returns datfile itself is type=asis.
-func (c *cache) dathash() string {
-	return fileHash(c.Datfile)
+func (c *Cache) dathash() string {
+	return util.FileHash(c.Datfile)
 }
 
 //datpath returns real file path of this cache.
-func (c *cache) datpath() string {
-	return path.Join(c.cacheDir, c.dathash())
+func (c *Cache) datpath() string {
+	return path.Join(c.CacheDir, c.dathash())
 }
 
 //recentStamp  returns time of getting by /recent.
-func (c *cache) recentStamp() int64 {
-	n := c.recentList.newest(c.Datfile)
+func (c *Cache) RecentStamp() int64 {
+	n := c.RecentList.Newest(c.Datfile)
 	if n == nil {
-		return c.readInfo().stamp
+		return c.ReadInfo().Stamp
 	}
 	return n.Stamp
 }
 
-//readInfo reads cache info from disk and returns #,velocity, and total size.
-func (c *cache) readInfo() *cacheInfo {
-	c.fmutex.RLock()
-	defer c.fmutex.RUnlock()
+//ReadInfo reads cache info from disk and returns #,velocity, and total size.
+func (c *Cache) ReadInfo() *CacheInfo {
+	c.Fmutex.RLock()
+	defer c.Fmutex.RUnlock()
 	d := path.Join(c.datpath(), "record")
-	if !IsDir(d) {
+	if !util.IsDir(d) {
 		return nil
 	}
-	ci := &cacheInfo{}
-	err := eachFiles(d, func(dir os.FileInfo) error {
+	ci := &CacheInfo{}
+	err := util.EachFiles(d, func(dir os.FileInfo) error {
 		stamp, err := strconv.ParseInt(strings.Split(dir.Name(), "_")[0], 10, 64)
 		if err != nil {
 			log.Println(err)
 			return nil
 		}
-		if ci.stamp < stamp {
-			ci.stamp = stamp
+		if ci.Stamp < stamp {
+			ci.Stamp = stamp
 		}
 		if time.Unix(stamp, 0).After(time.Now().Add(-7 * 24 * time.Hour)) {
-			ci.velocity++
+			ci.Velocity++
 		}
-		ci.size += dir.Size()
-		ci.len++
+		ci.Size += dir.Size()
+		ci.Len++
 		return nil
 	})
 	if err != nil {
@@ -208,18 +211,18 @@ func (c *cache) readInfo() *cacheInfo {
 }
 
 //load loads and returns records from files on the disk .
-func (c *cache) loadRecords() recordMap {
-	c.fmutex.RLock()
-	defer c.fmutex.RUnlock()
+func (c *Cache) LoadRecords() recordMap {
+	c.Fmutex.RLock()
+	defer c.Fmutex.RUnlock()
 	r := path.Join(c.datpath(), "record")
-	if !IsDir(r) {
+	if !util.IsDir(r) {
 		return nil
 	}
 	if !c.Exists() {
 		return nil
 	}
-	recs := make(map[string]*record)
-	err := eachFiles(r, func(f os.FileInfo) error {
+	recs := make(map[string]*Record)
+	err := util.EachFiles(r, func(f os.FileInfo) error {
 		recs[f.Name()] = NewRecord(c.Datfile, f.Name())
 		return nil
 	})
@@ -230,9 +233,9 @@ func (c *cache) loadRecords() recordMap {
 }
 
 //hasRecord return true if  cache has more than one records or removed records.
-func (c *cache) hasRecord() bool {
-	c.fmutex.RLock()
-	defer c.fmutex.RUnlock()
+func (c *Cache) HasRecord() bool {
+	c.Fmutex.RLock()
+	defer c.Fmutex.RUnlock()
 	f, err := ioutil.ReadDir(path.Join(c.datpath(), "record"))
 	if err != nil {
 		return false
@@ -243,21 +246,21 @@ func (c *cache) hasRecord() bool {
 }
 
 //syncStatus saves params to files.
-func (c *cache) syncTag() {
-	c.fmutex.Lock()
-	defer c.fmutex.Unlock()
+func (c *Cache) SyncTag() {
+	c.Fmutex.Lock()
+	defer c.Fmutex.Unlock()
 	c.mutex.RLock()
 	c.mutex.RUnlock()
 	c.tags.sync(path.Join(c.datpath(), "tag.txt"))
 }
 
 //setupDirectories make necessary dirs.
-func (c *cache) setupDirectories() {
-	c.fmutex.Lock()
-	defer c.fmutex.Unlock()
+func (c *Cache) SetupDirectories() {
+	c.Fmutex.Lock()
+	defer c.Fmutex.Unlock()
 	for _, d := range []string{"", "/attach", "/body", "/record", "/removed"} {
 		di := path.Join(c.datpath(), d)
-		if !IsDir(di) {
+		if !util.IsDir(di) {
 			err := os.Mkdir(di, 0755)
 			if err != nil {
 				log.Fatal(err)
@@ -270,23 +273,23 @@ func (c *cache) setupDirectories() {
 //adds the rec to cache if meets conditions.
 //if spam or big data, remove the rec from disk.
 //returns count of added records to the cache and spam/getting error.
-func (c *cache) checkData(res []string, stamp int64, id string, begin, end int64) (int, error) {
+func (c *Cache) checkData(res []string, stamp int64, id string, begin, end int64) (int, error) {
 	var err error
 	count := 0
 	for _, i := range res {
 		r := NewRecord(c.Datfile, "")
 		if er := r.parse(i); er == nil && r.meets(i, stamp, id, begin, end) {
 			count++
-			if len(i) > c.recordLimit*1024 || r.isSpam() {
+			if len(i) > c.RecordLimit*1024 || r.IsSpam() {
 				err = errSpam
 				log.Printf("warning:%s/%s:too large or spam record", c.Datfile, r.Idstr())
-				r.sync()
-				errr := r.remove()
+				r.Sync()
+				errr := r.Remove()
 				if errr != nil {
 					log.Println(errr)
 				}
 			} else {
-				r.sync()
+				r.Sync()
 			}
 		} else {
 			log.Println("warning::broken record", c.Datfile, i)
@@ -298,55 +301,13 @@ func (c *cache) checkData(res []string, stamp int64, id string, begin, end int64
 	return count, err
 }
 
-//getData gets records from node n and checks its is same as stamp and id in args.
-//save recs if success. returns errSpam or errGet.
-func (c *cache) getData(stamp int64, id string, n *node) error {
-	res, err := n.talk(fmt.Sprintf("/get/%s/%d/%s", c.Datfile, stamp, id))
-	if err != nil {
-		log.Println(err)
-		return errGet
-	}
-	count, err := c.checkData(res, stamp, id, -1, -1)
-	if count == 0 {
-		log.Println(c.Datfile, stamp, "records not found")
-	}
-	return err
-}
-
-//getWithRange gets records with range using node n and adds to cache after checking them.
-//if no records exist in cache, uses head
-//return true if gotten records>0
-func (c *cache) getWithRange(n *node) bool {
-	now := time.Now().Unix()
-
-	begin := c.readInfo().stamp
-	begin2 := now - c.syncRange
-	if begin2 < begin {
-		begin = begin2
-	}
-
-	if !c.hasRecord() {
-		begin = now - c.getRange
-	}
-
-	res, err := n.talk(fmt.Sprintf("/get/%s/%d-", c.Datfile, begin))
-	if err != nil {
-		return false
-	}
-	count, err := c.checkData(res, -1, "", begin, now)
-	if err == nil || count > 0 {
-		log.Println(c.Datfile, count, "records were saved")
-	}
-	return count > 0
-}
-
 //checkAttach checks files attach dir and if corresponding records
 //don't exist in record dir, removes the attached file.
-func (c *cache) checkAttach() {
-	c.fmutex.Lock()
-	defer c.fmutex.Unlock()
-	dir := path.Join(c.cacheDir, c.dathash(), "attach")
-	err := eachFiles(dir, func(d os.FileInfo) error {
+func (c *Cache) checkAttach() {
+	c.Fmutex.Lock()
+	defer c.Fmutex.Unlock()
+	dir := path.Join(c.CacheDir, c.dathash(), "attach")
+	err := util.EachFiles(dir, func(d os.FileInfo) error {
 		idstr := d.Name()
 		if i := strings.IndexRune(idstr, '.'); i > 0 {
 			idstr = idstr[:i]
@@ -355,7 +316,7 @@ func (c *cache) checkAttach() {
 			idstr = idstr[1:]
 		}
 		rec := NewRecord(c.Datfile, idstr)
-		if !IsFile(rec.path()) {
+		if !util.IsFile(rec.path()) {
 			err := os.Remove(path.Join(dir, d.Name()))
 			if err != nil {
 				log.Println(err)
@@ -369,9 +330,9 @@ func (c *cache) checkAttach() {
 }
 
 //remove removes all files and dirs of cache.
-func (c *cache) remove() {
-	c.fmutex.Lock()
-	defer c.fmutex.Unlock()
+func (c *Cache) Remove() {
+	c.Fmutex.Lock()
+	defer c.Fmutex.Unlock()
 	err := os.RemoveAll(c.datpath())
 	if err != nil {
 		log.Println(err)
@@ -379,19 +340,61 @@ func (c *cache) remove() {
 }
 
 //exists return true is datapath exists.
-func (c *cache) Exists() bool {
-	c.fmutex.RLock()
-	defer c.fmutex.RUnlock()
-	return IsDir(c.datpath())
+func (c *Cache) Exists() bool {
+	c.Fmutex.RLock()
+	defer c.Fmutex.RUnlock()
+	return util.IsDir(c.datpath())
+}
+
+//getWithRange gets records with range using node n and adds to cache after checking them.
+//if no records exist in cache, uses head
+//return true if gotten records>0
+func (c *Cache) getWithRange(n *node.Node) bool {
+	now := time.Now().Unix()
+
+	begin := c.ReadInfo().Stamp
+	begin2 := now - c.SyncRange
+	if begin2 < begin {
+		begin = begin2
+	}
+
+	if !c.HasRecord() {
+		begin = now - c.GetRange
+	}
+
+	res, err := n.Talk(fmt.Sprintf("/get/%s/%d-", c.Datfile, begin))
+	if err != nil {
+		return false
+	}
+	count, err := c.checkData(res, -1, "", begin, now)
+	if err == nil || count > 0 {
+		log.Println(c.Datfile, count, "records were saved")
+	}
+	return count > 0
 }
 
 //search checks  nodes in lookuptable have the cache.
 //if found adds to nodelist ,get records , and adds to nodes in cache.
-func (c *cache) search() bool {
-	n := c.nodeManager.search(c, c.nodeManager.get(c.Datfile, nil))
+func (c *Cache) GetCache() bool {
+	n := c.NodeManager.Search(c.Datfile, nil)
 	if n != nil {
 		c.getWithRange(n)
 		return true
 	}
 	return false
+}
+
+//getData gets records from node n and checks its is same as stamp and id in args.
+//save recs if success. returns errSpam or errGet.
+func (c *Cache) GetData(stamp int64, id string, n *node.Node) error {
+	res, err := n.Talk(fmt.Sprintf("/get/%s/%d/%s", c.Datfile, stamp, id))
+	if err != nil {
+		log.Println(err)
+		return errGet
+	}
+	count, err := c.checkData(res, stamp, id, -1, -1)
+	if count == 0 {
+		log.Println(c.Datfile, stamp, "records not found")
+	}
+	return err
 }

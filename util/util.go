@@ -26,27 +26,29 @@
  * POSSIBILITY OF SUCH DAMAGE.
  */
 
-package gou
+package util
 
 import (
 	"crypto/md5"
 	"encoding/hex"
+	"fmt"
 	"log"
 	"mime"
 	"net/url"
 	"path/filepath"
 	"regexp"
 	"strings"
+	"time"
 )
 
 //md5digest returns hex string of md5sum
-func md5digest(dat string) string {
+func MD5digest(dat string) string {
 	sum := md5.Sum([]byte(dat))
 	return hex.EncodeToString(sum[:])
 }
 
 //strEncode returns enscaped string for url , including "~"
-func strEncode(query string) string {
+func StrEncode(query string) string {
 	str := url.QueryEscape(query)
 	str = strings.Replace(str, "~", "%7E", -1)
 	str = strings.Replace(str, "+", "%20", -1)
@@ -54,7 +56,7 @@ func strEncode(query string) string {
 }
 
 //escapeSpace converts spaces into html space.
-func escapeSpace(msg string) string {
+func EscapeSpace(msg string) string {
 	msg = strings.Replace(msg, "  ", "&nbsp;&nbsp;", -1)
 	msg = strings.Replace(msg, "<br> ", "<br>&nbsp;", -1)
 	reg := regexp.MustCompile("^ ")
@@ -66,7 +68,7 @@ func escapeSpace(msg string) string {
 }
 
 //escape is like a html.escapestring, except &#xxxx and \n
-func escape(msg string) string {
+func Escape(msg string) string {
 	msg = strings.Replace(msg, "&", "&amp;", -1)
 	reg := regexp.MustCompile(`&amp;(#\d+|#[Xx][0-9A-Fa-f]+|[A-Za-z0-9]+);`)
 	msg = string(reg.ReplaceAllString(msg, "&$1;"))
@@ -78,7 +80,7 @@ func escape(msg string) string {
 }
 
 //strDecode decode from url query
-func strDecode(query string) string {
+func StrDecode(query string) string {
 	str, err := url.QueryUnescape(query)
 	if err != nil {
 		return ""
@@ -89,7 +91,7 @@ func strDecode(query string) string {
 //from attachutil.py
 
 //isValidImage checks type of path is same as mimetype or not.
-func isValidImage(mimetype, path string) bool {
+func IsValidImage(mimetype, path string) bool {
 	ext := filepath.Ext(path)
 	if ext == "" {
 		return false
@@ -107,13 +109,22 @@ func isValidImage(mimetype, path string) bool {
 //from mch/util.py
 
 //getBoard returns decoded board name.
-func getBoard(url string) string {
+func GetBoard(url string) string {
 	reg := regexp.MustCompile(`/2ch_([^/]+)/`)
 	m := reg.FindStringSubmatch(url)
 	if m == nil {
 		return ""
 	}
-	return fileDecode("dummy_" + m[1])
+	return FileDecode("dummy_" + m[1])
+}
+
+//datastr2ch unixtime str ecpochStr to the certain format string.
+//e.g. 2006/01/02(日) 15:04:05.99
+func Datestr2ch(epoch int64) string {
+	t := time.Unix(epoch, 0)
+	d := t.Format("2006/01/02(%s) 15:04:05.99")
+	wdays := []string{"日", "月", "火", "水", "木", "金", "土"}
+	return fmt.Sprintf(d, wdays[t.Weekday()])
 }
 
 //from title.py
@@ -123,14 +134,14 @@ func getBoard(url string) string {
 //    'foo_61'
 //    >>> file_encode('foo', '~')
 //    'foo_7E'
-func fileEncode(t, query string) string {
+func FileEncode(t, query string) string {
 	return t + "_" + strings.ToUpper(hex.EncodeToString([]byte(query)))
 }
 
 //fileDecode decodes filename.
 //    >>> file_decode('foo_7E')
 //    '~'
-func fileDecode(query string) string {
+func FileDecode(query string) string {
 	strs := strings.Split(query, "_")
 	if len(strs) < 2 {
 		return ""
@@ -144,6 +155,6 @@ func fileDecode(query string) string {
 }
 
 //filehash simply returns itself, because it not implement except 'asis'
-func fileHash(query string) string {
+func FileHash(query string) string {
 	return query
 }

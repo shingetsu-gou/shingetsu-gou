@@ -26,7 +26,7 @@
  * POSSIBILITY OF SUCH DAMAGE.
  */
 
-package gou
+package util
 
 import (
 	"bufio"
@@ -51,8 +51,8 @@ import (
 )
 
 //eachIOLine iterates each line to  a ReadCloser ,calls func and close f.
-func eachIOLine(f io.ReadCloser, handler func(line string, num int) error) error {
-	defer fclose(f)
+func EachIOLine(f io.ReadCloser, handler func(line string, num int) error) error {
+	defer Fclose(f)
 	r := bufio.NewReader(f)
 	var err error
 	for i := 0; err == nil; i++ {
@@ -74,17 +74,17 @@ func eachIOLine(f io.ReadCloser, handler func(line string, num int) error) error
 }
 
 //eachLine iterates each line and calls a func.
-func eachLine(path string, handler func(line string, num int) error) error {
+func EachLine(path string, handler func(line string, num int) error) error {
 	f, err := os.Open(path)
 	if err != nil {
 		return err
 	}
-	return eachIOLine(f, handler)
+	return EachIOLine(f, handler)
 }
 
 //eachKeyValueLine calls func for each line which contains key and value separated with "<>"
-func eachKeyValueLine(path string, handler func(key string, value []string, num int) error) error {
-	err := eachLine(path, func(line string, i int) error {
+func EachKeyValueLine(path string, handler func(key string, value []string, num int) error) error {
+	err := EachLine(path, func(line string, i int) error {
 		kv := strings.Split(line, "<>")
 		if len(kv) != 2 {
 			log.Fatal("illegal line in", path)
@@ -97,12 +97,12 @@ func eachKeyValueLine(path string, handler func(key string, value []string, num 
 }
 
 //hasString returns true if ary has val.
-func hasString(s []string, val string) bool {
-	return findString(s, val) != -1
+func HasString(s []string, val string) bool {
+	return FindString(s, val) != -1
 }
 
 //findString search val in ary and returns index. it returns -1 if not found.
-func findString(s []string, val string) int {
+func FindString(s []string, val string) int {
 	for i, v := range s {
 		if v == val {
 			return i
@@ -112,12 +112,12 @@ func findString(s []string, val string) int {
 }
 
 //writeSlice write ary into a path.
-func writeSlice(path string, ary []string) error {
+func WriteSlice(path string, ary []string) error {
 	if path == "" {
 		panic("path is null")
 	}
 	f, err := os.Create(path)
-	defer fclose(f)
+	defer Fclose(f)
 	if err != nil {
 		log.Println(err)
 		return err
@@ -133,13 +133,13 @@ func writeSlice(path string, ary []string) error {
 }
 
 //writeSlice write map into a path.
-func writeMap(path string, ary map[string][]string) error {
+func WriteMap(path string, ary map[string][]string) error {
 	f, err := os.Create(path)
 	if err != nil {
 		log.Println(err)
 		return err
 	}
-	defer fclose(f)
+	defer Fclose(f)
 
 	for k, v := range ary {
 		_, err := f.WriteString(k + "<>" + strings.Join(v, " ") + "\n")
@@ -152,7 +152,7 @@ func writeMap(path string, ary map[string][]string) error {
 }
 
 //eachFiles iterates each dirs in dir and calls handler,not recirsively.
-func eachFiles(dir string, handler func(dir os.FileInfo) error) error {
+func EachFiles(dir string, handler func(dir os.FileInfo) error) error {
 	dirs, err := ioutil.ReadDir(dir)
 	if err != nil {
 		return err
@@ -184,19 +184,19 @@ func IsDir(path string) bool {
 }
 
 //moveFile moves a file from src to dest.
-func moveFile(src, dst string) error {
+func MoveFile(src, dst string) error {
 	log.Println(src, dst)
 	in, err := os.Open(src)
 	if err != nil {
 		return err
 	}
-	defer fclose(in)
+	defer Fclose(in)
 
 	out, err := os.Create(dst)
 	if err != nil {
 		return err
 	}
-	defer fclose(out)
+	defer Fclose(out)
 
 	_, err = io.Copy(out, in)
 	if err != nil {
@@ -206,13 +206,13 @@ func moveFile(src, dst string) error {
 }
 
 //shufflable interface is for shuffle ary.
-type shufflable interface {
+type Shufflable interface {
 	Len() int
 	Swap(i int, j int)
 }
 
 //shuffle shuffles shufflable ary.
-func shuffle(slc shufflable) {
+func Shuffle(slc Shufflable) {
 	N := slc.Len()
 	for i := 0; i < N; i++ {
 		// choose index uniformly in [i, N-1]
@@ -222,20 +222,20 @@ func shuffle(slc shufflable) {
 }
 
 //close closes io.Close, if err exists ,println err.
-func fclose(f io.Closer) {
+func Fclose(f io.Closer) {
 	if err := f.Close(); err != nil {
 		log.Println(err)
 	}
 }
 
 //compressHandler returns handlers.CompressHandler to simplfy.
-func registToRouter(s *mux.Router, path string, fn func(w http.ResponseWriter, r *http.Request)) {
+func RegistToRouter(s *mux.Router, path string, fn func(w http.ResponseWriter, r *http.Request)) {
 	s.Handle(path, http.HandlerFunc(fn))
 }
 
 //fileSize returns file size of file.
 //returns 0 if file is not found.
-func fileSize(path string) int64 {
+func FileSize(path string) int64 {
 	st, err := os.Stat(path)
 	if err != nil {
 		log.Println(err)
@@ -245,7 +245,7 @@ func fileSize(path string) int64 {
 }
 
 //writeFile rite date to path.
-func writeFile(path, data string) error {
+func WriteFile(path, data string) error {
 	err := ioutil.WriteFile(path, []byte(data), 0666)
 	if err != nil {
 		log.Println(err)
@@ -255,13 +255,13 @@ func writeFile(path, data string) error {
 }
 
 //makeThumbnail makes thumbnail to suffix image format with thumbnailSize.
-func makeThumbnail(from, to, suffix string, x, y uint) {
+func MakeThumbnail(from, to, suffix string, x, y uint) {
 	file, err := os.Open(from)
 	if err != nil {
 		log.Println(err)
 		return
 	}
-	defer fclose(file)
+	defer Fclose(file)
 
 	img, _, err := image.Decode(file)
 	if err != nil {
@@ -274,7 +274,7 @@ func makeThumbnail(from, to, suffix string, x, y uint) {
 		log.Println(err)
 		return
 	}
-	defer fclose(out)
+	defer Fclose(out)
 	switch suffix {
 	case "jpg", "jpeg":
 		err = jpeg.Encode(out, m, nil)
@@ -291,7 +291,7 @@ func makeThumbnail(from, to, suffix string, x, y uint) {
 }
 
 // toSJIS Converts an string (a valid UTF-8 string) to a ShiftJIS string
-func toSJIS(b string) string {
+func ToSJIS(b string) string {
 	return convertSJIS(b, true)
 }
 
@@ -309,6 +309,6 @@ func convertSJIS(b string, toSJIS bool) string {
 }
 
 //fromSJIS Converts an array of bytes (a valid ShiftJIS string) to a UTF-8 string
-func fromSJIS(b string) string {
+func FromSJIS(b string) string {
 	return convertSJIS(b, false)
 }

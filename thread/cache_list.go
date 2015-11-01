@@ -26,7 +26,7 @@
  * POSSIBILITY OF SUCH DAMAGE.
  */
 
-package gou
+package thread
 
 import (
 	"log"
@@ -35,15 +35,15 @@ import (
 	"regexp"
 	"sync"
 	"time"
+
+	"github.com/shingetsu-gou/shingetsu-gou/util"
 )
 
-var NewCacheList func() *cacheList
+//Caches is a slice of *cache
+type Caches []*Cache
 
-//caches is a slice of *cache
-type caches []*cache
-
-//has return true is caches has cache cc
-func (c caches) has(cc *cache) bool {
+//has return true is Caches has cache cc
+func (c Caches) Has(cc *Cache) bool {
 	for _, c := range c {
 		if c.Datfile == cc.Datfile {
 			return true
@@ -53,106 +53,108 @@ func (c caches) has(cc *cache) bool {
 }
 
 //Len returns size of cache slice.
-func (c caches) Len() int {
+func (c Caches) Len() int {
 	return len(c)
 }
 
 //Swap swaps order of cache slice.
-func (c caches) Swap(i, j int) {
+func (c Caches) Swap(i, j int) {
 	c[i], c[j] = c[j], c[i]
 }
 
 //sortByRecentStamp is for sorting by recentStamp.
-type sortByRecentStamp struct {
-	caches
+type SortByRecentStamp struct {
+	Caches
 }
 
 //Less returns true if cache[i].recentStamp < cache[j].recentStamp.
-func (c sortByRecentStamp) Less(i, j int) bool {
-	return c.caches[i].recentStamp() < c.caches[j].recentStamp()
+func (c SortByRecentStamp) Less(i, j int) bool {
+	return c.Caches[i].RecentStamp() < c.Caches[j].RecentStamp()
 }
 
 //sortByStamp is for sorting by stamp.
-type sortByStamp struct {
-	caches
+type SortByStamp struct {
+	Caches
 	stamp []int64
 }
 
-func newSortByStamp(cs caches) sortByStamp {
-	s := sortByStamp{
-		caches: cs,
+func NewSortByStamp(cs Caches) SortByStamp {
+	s := SortByStamp{
+		Caches: cs,
 		stamp:  make([]int64, cs.Len()),
 	}
 	for i, v := range cs {
-		s.stamp[i] = v.readInfo().stamp
+		s.stamp[i] = v.ReadInfo().Stamp
 	}
 	return s
 }
 
 //Less returns true if cache[i].stamp < cache[j].stamp.
-func (c sortByStamp) Less(i, j int) bool {
+func (c SortByStamp) Less(i, j int) bool {
 	return c.stamp[i] < c.stamp[j]
 }
 
 //sortByVelocity is for sorting by velocity.
-type sortByVelocity struct {
-	caches
+type SortByVelocity struct {
+	Caches
 	velocity []int
 	size     []int64
 }
 
-func newSortByVelocity(cs caches) sortByVelocity {
-	s := sortByVelocity{
-		caches:   cs,
+func NewSortByVelocity(cs Caches) SortByVelocity {
+	s := SortByVelocity{
+		Caches:   cs,
 		velocity: make([]int, cs.Len()),
 		size:     make([]int64, cs.Len()),
 	}
 	for i, v := range cs {
-		f := v.readInfo()
-		s.velocity[i] = f.velocity
-		s.size[i] = f.size
+		f := v.ReadInfo()
+		s.velocity[i] = f.Velocity
+		s.size[i] = f.Size
 	}
 	return s
 }
 
 //Less returns true if cache[i].velocity < cache[j].velocity.
 //if velocity[i]==velocity[j],  returns true if cache[i].size< cache[j].size.
-func (c sortByVelocity) Less(i, j int) bool {
+func (c SortByVelocity) Less(i, j int) bool {
 	if c.velocity[i] != c.velocity[j] {
 		return c.velocity[i] < c.velocity[j]
 	}
 	return c.size[i] < c.size[j]
 }
 
+var CacheListCfg *CacheListConfig
+
 type CacheListConfig struct {
-	saveSize    int
-	saveRemoved int64
-	cacheDir    string
-	saveRecord  int64
-	fmutex      *sync.RWMutex
+	SaveSize    int
+	SaveRemoved int64
+	CacheDir    string
+	SaveRecord  int64
+	Fmutex      *sync.RWMutex
 }
 
 //cacheList is slice of *cache
 type cacheList struct {
-	Caches caches
+	Caches Caches
 	*CacheListConfig
 }
 
-//newCacheList loads all caches in disk and returns cachelist obj.
-func _newCacheList(cfg *CacheListConfig) *cacheList {
+//newCacheList loads all Caches in disk and returns cachelist obj.
+func NewCacheList() *cacheList {
 	c := &cacheList{
-		CacheListConfig: cfg,
+		CacheListConfig: CacheListCfg,
 	}
 	c.load()
 	return c
 }
 
 //append adds cache cc to list.
-func (c *cacheList) append(cc *cache) {
+func (c *cacheList) Append(cc *Cache) {
 	c.Caches = append(c.Caches, cc)
 }
 
-//Len returns # of caches
+//Len returns # of Caches
 func (c *cacheList) Len() int {
 	return len(c.Caches)
 }
@@ -162,12 +164,12 @@ func (c *cacheList) Swap(i, j int) {
 	c.Caches[i], c.Caches[j] = c.Caches[j], c.Caches[i]
 }
 
-//locad loads all caches in disk
+//locad loads all Caches in disk
 func (c *cacheList) load() {
 	if c.Caches != nil {
 		c.Caches = c.Caches[:0]
 	}
-	err := eachFiles(c.cacheDir, func(f os.FileInfo) error {
+	err := util.EachFiles(c.CacheDir, func(f os.FileInfo) error {
 		cc := NewCache(f.Name())
 		c.Caches = append(c.Caches, cc)
 		return nil
@@ -180,34 +182,34 @@ func (c *cacheList) load() {
 
 //getall reload all records in cache in cachelist from network,
 //and reset params.
-func (c *cacheList) getall() {
+func (c *cacheList) Getall() {
 	const clientTimeout = 30 * time.Minute // Seconds; client_timeout < sync_cycle
 
 	timelimit := time.Now().Add(clientTimeout)
-	shuffle(c)
+	util.Shuffle(c)
 	for _, ca := range c.Caches {
 		now := time.Now()
 		if now.After(timelimit) {
 			log.Println("client timeout")
 			return
 		}
-		ca.search()
+		ca.GetCache()
 		ca.checkAttach()
 	}
 }
 
-//search reloads records in caches in cachelist
+//search reloads records in Caches in cachelist
 //and returns slice of cache which matches query.
-func (c *cacheList) search(query *regexp.Regexp) caches {
-	var result []*cache
+func (c *cacheList) Search(query *regexp.Regexp) Caches {
+	var result []*Cache
 	for _, ca := range c.Caches {
-		recs := ca.loadRecords()
+		recs := ca.LoadRecords()
 		for _, rec := range recs {
-			err := rec.load()
+			err := rec.Load()
 			if err != nil {
 				log.Println(err)
 			}
-			if query.MatchString(rec.recstr()) {
+			if query.MatchString(rec.Recstr()) {
 				result = append(result, ca)
 				break
 			}
@@ -216,27 +218,27 @@ func (c *cacheList) search(query *regexp.Regexp) caches {
 	return result
 }
 
-//cleanRecords remove old or duplicates records for each caches.
-func (c *cacheList) cleanRecords() {
-	c.fmutex.Lock()
-	defer c.fmutex.Unlock()
+//cleanRecords remove old or duplicates records for each Caches.
+func (c *cacheList) CleanRecords() {
+	c.Fmutex.Lock()
+	defer c.Fmutex.Unlock()
 	for _, ca := range c.Caches {
-		recs := ca.loadRecords()
-		recs.removeRecords(c.saveRecord, c.saveSize)
+		recs := ca.LoadRecords()
+		recs.removeRecords(c.SaveRecord, c.SaveSize)
 	}
 }
 
 //removeRemoved removes removed files if old.
-func (c *cacheList) removeRemoved() {
+func (c *cacheList) RemoveRemoved() {
 	for _, ca := range c.Caches {
 		r := path.Join(ca.Datfile, "removed")
-		if !IsDir(r) {
+		if !util.IsDir(r) {
 			continue
 		}
-		err := eachFiles(r, func(f os.FileInfo) error {
+		err := util.EachFiles(r, func(f os.FileInfo) error {
 			rec := NewRecord(ca.Datfile, f.Name())
-			if c.saveRemoved > 0 && rec.Stamp+c.saveRemoved < time.Now().Unix() &&
-				rec.Stamp < ca.readInfo().stamp {
+			if c.SaveRemoved > 0 && rec.Stamp+c.SaveRemoved < time.Now().Unix() &&
+				rec.Stamp < ca.ReadInfo().Stamp {
 				err := os.Remove(path.Join(ca.datpath(), "removed", f.Name()))
 				if err != nil {
 					log.Println(err)

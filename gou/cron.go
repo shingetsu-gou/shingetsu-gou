@@ -31,10 +31,13 @@ package gou
 import (
 	"log"
 	"time"
+
+	"github.com/shingetsu-gou/shingetsu-gou/node"
+	"github.com/shingetsu-gou/shingetsu-gou/thread"
 )
 
 //cron runs cron, and update everything if it is after specified cycle.
-func cron(nodeManager *NodeManager, recentList *RecentList) {
+func cron(nodeManager *node.NodeManager, recentList *thread.RecentList) {
 	const (
 		clientCycle = 5 * time.Minute  // Seconds; Access client.cgi
 		pingCycle   = 5 * time.Minute  // Seconds; Check nodes
@@ -42,23 +45,23 @@ func cron(nodeManager *NodeManager, recentList *RecentList) {
 		initCycle   = 20 * time.Minute // Seconds; Check initial node
 	)
 
-	nodeManager.initialize()
+	nodeManager.Initialize()
 	doSync(nodeManager, recentList)
 
 	for {
 		select {
 		case <-time.After(clientCycle):
-			nodeManager.rejoin()
+			nodeManager.Rejoin()
 
 		case <-time.After(pingCycle):
-			nodeManager.pingAll()
-			nodeManager.initialize()
-			nodeManager.sync()
+			nodeManager.PingAll()
+			nodeManager.Initialize()
+			nodeManager.Sync()
 			doSync(nodeManager, recentList)
 			log.Println("nodelist.pingall finished")
 
-		case <-time.After(initCycle * time.Duration(nodeManager.listLen())):
-			nodeManager.initialize()
+		case <-time.After(initCycle * time.Duration(nodeManager.ListLen())):
+			nodeManager.Initialize()
 
 		case <-time.After(syncCycle):
 			doSync(nodeManager, recentList)
@@ -69,26 +72,26 @@ func cron(nodeManager *NodeManager, recentList *RecentList) {
 //doSync checks nodes in the nodelist are alive, reloads cachelist, removes old removed files,
 //reloads all tags from cachelist,reload srecent list from nodes in search list,
 //and reloads cache info from files in the disk.
-func doSync(nodeManager *NodeManager, recentList *RecentList) {
-	if nodeManager.listLen() == 0 {
+func doSync(nodeManager *node.NodeManager, recentList *thread.RecentList) {
+	if nodeManager.ListLen() == 0 {
 		return
 	}
-	nodeManager.rejoinList()
+	nodeManager.RejoinList()
 	log.Println("lookupTable.join finished")
 
-	nodeManager.sync()
+	nodeManager.Sync()
 	log.Println("lookupTable.join finished")
 
-	cl := NewCacheList()
-	cl.cleanRecords()
+	cl := thread.NewCacheList()
+	cl.CleanRecords()
 	log.Println("cachelist.cleanRecords finished")
 
-	cl.removeRemoved()
+	cl.RemoveRemoved()
 	log.Println("cachelist.removeRemoved finished")
 
-	recentList.getAll()
+	recentList.Getall()
 	log.Println("recentList.getall finished")
 
-	cl.getall()
+	cl.Getall()
 	log.Println("cacheList.getall finished")
 }

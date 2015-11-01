@@ -26,32 +26,42 @@
  * POSSIBILITY OF SUCH DAMAGE.
  */
 
-package gou
+package mch
 
 import (
-	"log"
-	"testing"
+	"regexp"
+	"strconv"
+
+	"github.com/shingetsu-gou/shingetsu-gou/thread"
 )
 
-func TestApllo(t *testing.T) {
-	pkey := makePrivateKey("test")
-	log.Println(pkey.keyD, pkey.keyN)
-	pub, pri := pkey.getKeys()
-	log.Println(pkey.keyD, pkey.keyN)
-	log.Println(pub, pri)
-	if pub != "DpmzfQSOhbpxE7xuaiEao3ztv9NAJi/loTs2N43f5hC3XpT3z9VhApcrYy94XhMBKONo5H14c8STrriPJnCcVA" {
-		t.Fatal("publickey key unmatch")
+//resTable maps id[:8] and its number.
+type ResTable struct {
+	id2num map[string]int
+	Num2id []string
+}
+
+//newResTable creates ane returns a resTable maps instance.
+func NewResTable(ca *thread.Cache) *ResTable {
+	r := &ResTable{
+		make(map[string]int),
+		make([]string, ca.ReadInfo().Len+1),
 	}
-	if pri != "BAcp0SUgUOSY+TrLhy/MEszzq0Obadi3EhXDEUUD9FmOkv7vhPiNrgg2HR8DmuFiPcXNHdqu44wyGRX5bmdcQA" {
-		t.Fatal("privatekey unmatch")
+	recs := ca.LoadRecords()
+	for i, k := range recs.Keys() {
+		rec := recs.Get(k, nil)
+		r.Num2id[i+1] = rec.ID[:8]
+		r.id2num[rec.ID[:8]] = i + 1
 	}
-	log.Println(pkey.keyD, pkey.keyN)
-	s := pkey.sign("test")
-	log.Println(s)
-	if s != "7peLqh1dbHjwmDpmREUytCu7k/2S3cS2eLYn+z42TaQkaHoyTRVUTKekbinRQQpkEGJah0hyDDIPc+AZHjecDA" {
-		t.Fatalf("sign failed")
-	}
-	if v := verify("test", s, pub); !v {
-		t.Fatalf("verify failed")
-	}
+	return r
+}
+
+//makeRSSAnchor replace id to the record number.
+func (table *ResTable) MakeRSSAnchor(body string) string {
+	reg := regexp.MustCompile("&gt;&gt;([0-9a-f]{8})")
+	return reg.ReplaceAllStringFunc(body, func(str string) string {
+		id := reg.FindStringSubmatch(str)[1]
+		no := table.id2num[id]
+		return "&gt;&gt;" + strconv.Itoa(no)
+	})
 }

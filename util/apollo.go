@@ -28,7 +28,7 @@
 
 //sign based on http://shingetsu.info/protocol/protocol-0.5-2.pdf page 8
 
-package gou
+package util
 
 import (
 	"crypto/md5"
@@ -86,7 +86,7 @@ type privateKey struct {
 }
 
 //getKey returns base64 encoded private key
-func (p *privateKey) getKeys() (string, string) {
+func (p *privateKey) GetKeys() (string, string) {
 	return intToBase64(p.keyN), intToBase64(p.keyD)
 }
 
@@ -147,7 +147,7 @@ func intToBase64(n *big.Int) string {
 }
 
 //sign signs mesg by p.
-func (p *privateKey) sign(mesg string) string {
+func (p *privateKey) Sign(mesg string) string {
 	var enc, m big.Int
 	setBytesReverse(&m, []byte(mesg))
 	enc.Exp(&m, p.keyD, p.keyN)
@@ -155,7 +155,7 @@ func (p *privateKey) sign(mesg string) string {
 }
 
 //verify verifies testsig by publicKey.
-func verify(mesg, testsig, publicKey string) bool {
+func Verify(mesg, testsig, publicKey string) bool {
 	if len(mesg)*4 > len(publicKey)*3 {
 		return false
 	}
@@ -172,7 +172,7 @@ func verify(mesg, testsig, publicKey string) bool {
 }
 
 //cutKey cuts key to 11words.
-func cutKey(key string) string {
+func CutKey(key string) string {
 	digest := md5.Sum([]byte(key))
 	k := base64.StdEncoding.EncodeToString(digest[:])[:11]
 	return string(k)
@@ -187,7 +187,7 @@ func setBytesReverse(b *big.Int, d []byte) *big.Int {
 }
 
 //makePrivateKey makes privatekey from keystr
-func makePrivateKey(keystr string) *privateKey {
+func MakePrivateKey(keystr string) *privateKey {
 	var seedbuf [64]byte
 	seed1 := md5.Sum([]byte(keystr))
 	seed2 := md5.Sum([]byte(keystr + "pad1"))
