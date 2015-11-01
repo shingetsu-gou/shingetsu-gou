@@ -63,7 +63,7 @@ func initPackages(cfg *Config) {
 	nodeDeny := util.NewRegexpList(cfg.NodeDenyFile)
 	initNode := util.NewConfList(cfg.InitnodeList, defaultInitNode)
 
-	nodeManager := node.NewNodeManager(&node.NodeManagerConfig{
+	nodeManager := node.NewManager(&node.ManagerConfig{
 		ServerName:  cfg.ServerName,
 		Lookup:      cfg.Lookup(),
 		DefaultPort: cfg.DefaultPort,
@@ -119,7 +119,7 @@ func initPackages(cfg *Config) {
 		Fmutex:      fmutex,
 	}
 
-	thread.RecorcCfg = &thread.RecordConfig{
+	thread.RecordCfg = &thread.RecordConfig{
 		DefaultThumbnailSize: cfg.DefaultThumbnailSize,
 		CacheDir:             cfg.CacheDir,
 		Fmutex:               fmutex,
@@ -178,7 +178,7 @@ func initPackages(cfg *Config) {
 }
 
 //StartDaemon setups document root and necessary dirs.
-//,rm lock files, save pid, start cron job and a http server.
+//And save pid, start cron job and a http server.
 func StartDaemon(cfg *Config) {
 	for _, j := range []string{cfg.RunDir, cfg.CacheDir, cfg.LogDir} {
 		if !util.IsDir(j) {

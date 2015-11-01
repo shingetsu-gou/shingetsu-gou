@@ -42,7 +42,7 @@ import (
 
 const defaultUpdateRange = 24 * time.Hour // Seconds
 
-//isInUpdateRange returns true if stamp is in updateRange.
+//IsInUpdateRange returns true if stamp is in updateRange.
 func IsInUpdateRange(nstamp int64) bool {
 	now := time.Now()
 	if now.Add(-defaultUpdateRange).Unix() < nstamp && nstamp < now.Add(defaultUpdateRange).Unix() {
@@ -51,12 +51,13 @@ func IsInUpdateRange(nstamp int64) bool {
 	return false
 }
 
+//RecentListConfig is confi for Recentlist struct.
 type RecentListConfig struct {
 	RecentRange       int64
 	TagSize           int
 	Recent            string
 	Fmutex            *sync.RWMutex
-	NodeManager       *node.NodeManager
+	NodeManager       *node.Manager
 	SuggestedTagTable *SuggestedTagTable
 }
 
@@ -69,7 +70,7 @@ type RecentList struct {
 	mutex   sync.RWMutex
 }
 
-//newRecentList load a file and create a RecentList obj.
+//NewRecentList load the saved file and create a RecentList obj.
 func NewRecentList(cfg *RecentListConfig) *RecentList {
 	r := &RecentList{
 		RecentListConfig: cfg,
@@ -78,7 +79,7 @@ func NewRecentList(cfg *RecentListConfig) *RecentList {
 	return r
 }
 
-//loadFile reads from file and add records.
+//loadFile reads recentlist from the file and add as records.
 func (r *RecentList) loadFile() {
 	r.Fmutex.RLock()
 	defer r.Fmutex.RUnlock()
@@ -97,7 +98,8 @@ func (r *RecentList) loadFile() {
 	}
 }
 
-//append add a infos generated from the record.
+//Newest returns newest record of datfile in the list.
+//if not found returns nil.
 func (r *RecentList) Newest(Datfile string) *RecordHead {
 	r.mutex.RLock()
 	defer r.mutex.RUnlock()
@@ -109,7 +111,7 @@ func (r *RecentList) Newest(Datfile string) *RecordHead {
 	return nil
 }
 
-//append add a infos generated from the record.
+//Append add a infos generated from the record.
 func (r *RecentList) Append(rec *Record) {
 	loc := r.find(rec)
 	r.mutex.Lock()
@@ -137,12 +139,12 @@ func (r *RecentList) find(rec *Record) int {
 	return -1
 }
 
-//hasRecord returns true if has record r.
+//hasInfo returns true if has record r.
 func (r *RecentList) hasInfo(rec *Record) bool {
 	return r.find(rec) != -1
 }
 
-//remove removes info which is same as record r
+//remove removes info which is same as record rec
 func (r *RecentList) remove(rec *Record) {
 	if l := r.find(rec); l != -1 {
 		r.mutex.Lock()
@@ -151,7 +153,7 @@ func (r *RecentList) remove(rec *Record) {
 	}
 }
 
-//removeInfo removes info r
+//removeInfo removes info rec
 func (r *RecentList) removeInfo(rec *RecordHead) {
 	r.mutex.RLock()
 	for i, v := range r.infos {
@@ -178,9 +180,8 @@ func (r *RecentList) getRecstrSlice() []string {
 	return result
 }
 
-//sync remove old records and save to the file.
+//Sync remove old records and save to the file.
 func (r *RecentList) Sync() {
-
 	r.mutex.Lock()
 	for i, rec := range r.infos {
 		if defaultUpdateRange > 0 && rec.Stamp+int64(defaultUpdateRange) < time.Now().Unix() {
@@ -196,7 +197,7 @@ func (r *RecentList) Sync() {
 	}
 }
 
-//getAll retrieves Recent records from nodes in searchlist and stores them.
+//Getall retrieves Recent records from nodes in searchlist and stores them.
 //tags are shuffled and truncated to tagsize and stored to sugtags in cache.
 //also source nodes are stored into lookuptable.
 //also tags which Recentlist doen't have in sugtagtable are truncated
@@ -241,7 +242,7 @@ func (r *RecentList) Getall() {
 	r.SuggestedTagTable.sync()
 }
 
-//makeRecentCachelist returns sorted cachelist copied from Recentlist.
+//MakeRecentCachelist returns sorted cachelist copied from Recentlist.
 //which doens't contain duplicate Caches.
 func (r *RecentList) MakeRecentCachelist() Caches {
 	r.mutex.RLock()
@@ -258,6 +259,8 @@ func (r *RecentList) MakeRecentCachelist() Caches {
 	sort.Sort(sort.Reverse(SortByRecentStamp{cl}))
 	return cl
 }
+
+//GetRecords copies and returns recorcds in recentlist.
 func (r *RecentList) GetRecords() []*RecordHead {
 	r.mutex.RLock()
 	defer r.mutex.RUnlock()

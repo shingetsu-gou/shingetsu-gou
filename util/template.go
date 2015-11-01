@@ -57,11 +57,12 @@ var funcMap = map[string]interface{}{
 	},
 }
 
+//Ttemplate is for rendering text rss template.
 type Ttemplate struct {
 	*textTemplate.Template
 }
 
-//newTtemplate adds funcmap to template var and parse files.
+//NewTtemplate adds funcmap to template var and parse files.
 func NewTtemplate(templateDir string) *Ttemplate {
 	t := &Ttemplate{textTemplate.New("")}
 	templateFiles := templateDir + "/rss1.txt"
@@ -73,11 +74,12 @@ func NewTtemplate(templateDir string) *Ttemplate {
 	return t
 }
 
+//Htemplate is for rendering html stuff.
 type Htemplate struct {
 	*htmlTemplate.Template
 }
 
-//newHtemplate adds funcmap to template var and parse files.
+//NewHtemplate adds funcmap to template var and parse files.
 func NewHtemplate(templateDir string) *Htemplate {
 	t := &Htemplate{htmlTemplate.New("")}
 	templateFiles := templateDir + "/*.txt"
@@ -92,21 +94,21 @@ func NewHtemplate(templateDir string) *Htemplate {
 	return t
 }
 
-//renderTemplate executes template and write to wr.
+//RenderTemplate executes template and write to wr.
 func (t *Htemplate) RenderTemplate(file string, st interface{}, wr io.Writer) {
 	if err := t.Template.ExecuteTemplate(wr, file, st); err != nil {
 		log.Println(err)
 	}
 }
 
-//executeTemplate executes template and returns it as string.
+//ExecuteTemplate executes template and returns it as string.
 func (t *Htemplate) ExecuteTemplate(file string, st interface{}) string {
 	var doc bytes.Buffer
 	t.RenderTemplate(file, st, &doc)
 	return doc.String()
 }
 
-//renderTemplate executes rss template and write to wr.
+//RenderTemplate executes rss template and write to wr.
 func (t *Ttemplate) RenderTemplate(file string, st interface{}, wr io.Writer) {
 	if err := t.ExecuteTemplate(wr, file, st); err != nil {
 		log.Println(err)

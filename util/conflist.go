@@ -37,7 +37,7 @@ import (
 	"time"
 )
 
-//confList represents regexp list.
+//ConfList represents regexp list.
 //    One regexp per one line.
 type ConfList struct {
 	mtime *time.Time
@@ -46,7 +46,7 @@ type ConfList struct {
 	mutex sync.RWMutex
 }
 
-//newConfList makes a confList instance from path.
+//NewConfList makes a confList instance from path.
 func NewConfList(path string, defaultList []string) *ConfList {
 	r := &ConfList{path: path}
 	r.update()
@@ -56,6 +56,7 @@ func NewConfList(path string, defaultList []string) *ConfList {
 	return r
 }
 
+//GetData retuns a coy of lines in the file.
 func (r *ConfList) GetData() []string {
 	r.mutex.RLock()
 	defer r.mutex.RUnlock()
@@ -93,14 +94,14 @@ func (r *ConfList) update() {
 	}
 }
 
-//regexpList represents RegExp list.
+//RegexpList represents RegExp list.
 //    One regexp per one line.
 type RegexpList struct {
 	*ConfList
 	regs []*regexp.Regexp
 }
 
-//newRegExpList make a regexpList and regexp.comples each lines in the file.
+//NewRegexpList makes a regexpList and regexp.comples each lines in the file.
 func NewRegexpList(path string) *RegexpList {
 	c := NewConfList(path, []string{})
 	r := &RegexpList{}
@@ -109,7 +110,7 @@ func NewRegexpList(path string) *RegexpList {
 	return r
 }
 
-//check checks whethere target matches one of all regexps or not.
+//Check returns true if target matches one of all regexps or not.
 func (r *RegexpList) Check(target string) bool {
 	r.update()
 	r.mutex.RLock()

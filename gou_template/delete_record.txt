@@ -39,7 +39,7 @@
 {{ range $rec:=.Records }}
   {{ if $rec.Exists }}
     <p><label><input type="checkbox" checked="checked" name="record" value="{{$rec.Idstr}}" />
-    {{$root.Getbody $rec}}</label></p>
+    {{$rec.Getbody}}</label></p>
   {{ else }}
     <p>{{.Message.no_record}}</p>
   {{ end }}

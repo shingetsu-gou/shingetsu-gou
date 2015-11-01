@@ -37,17 +37,21 @@ import (
 	"github.com/shingetsu-gou/shingetsu-gou/node"
 )
 
+//UpdateQueConfig is a config of UpdateQue.
 type UpdateQueConfig struct {
 	RecentList  *RecentList
-	NodeManager *node.NodeManager
+	NodeManager *node.Manager
 }
 
+//UpdateQue is for telling updates of records.
+//it records hash of updated records for 1 hour not to tell again.
 type UpdateQue struct {
 	*UpdateQueConfig
 	mutex   sync.Mutex
 	updated map[[16]byte]time.Time
 }
 
+//NewUpdateQue makes and returns UpdateQue obj.
 func NewUpdateQue(cfg *UpdateQueConfig) *UpdateQue {
 	return &UpdateQue{
 		UpdateQueConfig: cfg,
@@ -55,7 +59,7 @@ func NewUpdateQue(cfg *UpdateQueConfig) *UpdateQue {
 	}
 }
 
-//run do doUpdateNode for each records using related nodes.
+//UpdateNodes do doUpdateNode for each records using related nodes.
 //if success to doUpdateNode, add node to updatelist and recentlist and
 //removes the record from queue.
 func (u *UpdateQue) UpdateNodes(rec *Record, n *node.Node) {
@@ -113,7 +117,7 @@ func (u *UpdateQue) doUpdateNode(rec *Record, n *node.Node) bool {
 		log.Println("could not get")
 		return false
 	case errSpam:
-		log.Println("makred spam")
+		log.Println("marked spam")
 		return true
 	default:
 		log.Println("telling update")

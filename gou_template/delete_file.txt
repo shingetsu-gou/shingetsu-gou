@@ -13,8 +13,8 @@
 
 {{ range $cache:=.Files }}
   {{ if $cache.Exists }}
-    <h2><input type="checkbox" checked="checked" name="file" value="{{$cache.Datfile}}" />{{$root.Gettitle $cache}}</h2>
-    {{ range $rec:=$root.Getcontents $cache }}
+    <h2><input type="checkbox" checked="checked" name="file" value="{{$cache.Datfile}}" />{{$cache.Gettitle}}</h2>
+    {{ range $rec:=$cache.Getcontents }}
       <p>{{$rec}}</p>
     {{ end }}
   {{ else }}

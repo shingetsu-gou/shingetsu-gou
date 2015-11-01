@@ -48,10 +48,11 @@ var (
 	cacheMap = make(map[string]sync.Pool)
 	errSpam  = errors.New("this is spam")
 	errGet   = errors.New("cannot get data")
+	//CacheCfg is config for Cache struct.it must be set before using it.
 	CacheCfg *CacheConfig
 )
 
-//cacheInfo represents size/len/velocity of cache.
+//CacheInfo represents size/len/velocity of cache.
 type CacheInfo struct {
 	Size     int64 //size of total records
 	Len      int   //# of records
@@ -59,19 +60,20 @@ type CacheInfo struct {
 	Stamp    int64 //stamp of newest record
 }
 
+//CacheConfig is config for Cache struct.
 type CacheConfig struct {
 	CacheDir          string
 	RecordLimit       int
 	SyncRange         int64
 	GetRange          int64
-	NodeManager       *node.NodeManager
+	NodeManager       *node.Manager
 	UserTag           *UserTag
 	SuggestedTagTable *SuggestedTagTable
 	RecentList        *RecentList
 	Fmutex            *sync.RWMutex
 }
 
-//cache represents cache of one file.
+//Cache represents cache of one file.
 type Cache struct {
 	*CacheConfig
 	Datfile string
@@ -79,7 +81,7 @@ type Cache struct {
 	mutex   sync.RWMutex
 }
 
-//newCache read files to set params and returns cache obj.
+//NewCache read tag files to set and returns cache obj.
 //it uses sync.pool to ensure that only one cache obj exists for one datfile.
 //and garbage collected when not used.
 func NewCache(datfile string) *Cache {
@@ -99,44 +101,42 @@ func NewCache(datfile string) *Cache {
 	return c
 }
 
-//addTags add user tag list from vals.
+//AddTags add user tag list from vals.
 func (c *Cache) AddTags(vals []string) {
 	c.mutex.Lock()
 	defer c.mutex.Unlock()
 	c.tags.addString(vals)
-	c.UserTag.setDirty()
 }
 
-//setTags set user tag list from vals.
+//SetTags sets user tag list from vals.
 func (c *Cache) SetTags(vals []string) {
 	c.mutex.Lock()
 	defer c.mutex.Unlock()
 	c.tags = newTagslice(vals)
-	c.UserTag.setDirty()
 }
 
-//lenTags returns # of set user tag.
+//LenTags returns # of set user tag.
 func (c *Cache) LenTags() int {
 	c.mutex.Lock()
 	defer c.mutex.Unlock()
 	return c.tags.Len()
 }
 
-//tagString returns string of user tag.
+//TagString returns string of user tag.
 func (c *Cache) TagString() string {
 	c.mutex.Lock()
 	defer c.mutex.Unlock()
 	return c.tags.string()
 }
 
-//tagstr returns string of user tag.
+//GetTagstrSlice returns tagstr slice of user tag.
 func (c *Cache) GetTagstrSlice() []string {
 	c.mutex.Lock()
 	defer c.mutex.Unlock()
 	return c.tags.GetTagstrSlice()
 }
 
-//getTags returns copy of usertags.
+//GetTags returns copy of usertags.
 func (c *Cache) GetTags() Tagslice {
 	c.mutex.RLock()
 	defer c.mutex.RUnlock()
@@ -145,14 +145,14 @@ func (c *Cache) GetTags() Tagslice {
 	return Tagslice(ts)
 }
 
-//hasTagstr returns true if tag has tagstr.
+//HasTagstr returns true if tag has tagstr.
 func (c *Cache) HasTagstr(tagstr string) bool {
 	c.mutex.RLock()
 	defer c.mutex.RUnlock()
 	return c.tags.HasTagstr(tagstr)
 }
 
-//hasTab returns true if cache has tagstr=board tag in usertag or sugtag.
+//HasTag returns true if cache has tagstr=board tag in usertag or sugtag.
 func (c *Cache) HasTag(board string) bool {
 	if c.SuggestedTagTable.HasTagstr(c.Datfile, board) {
 		return true
@@ -170,7 +170,7 @@ func (c *Cache) datpath() string {
 	return path.Join(c.CacheDir, c.dathash())
 }
 
-//recentStamp  returns time of getting by /recent.
+//RecentStamp  returns time of getting by /recent.
 func (c *Cache) RecentStamp() int64 {
 	n := c.RecentList.Newest(c.Datfile)
 	if n == nil {
@@ -210,8 +210,8 @@ func (c *Cache) ReadInfo() *CacheInfo {
 	return ci
 }
 
-//load loads and returns records from files on the disk .
-func (c *Cache) LoadRecords() recordMap {
+//LoadRecords loads and returns record maps from the disk .
+func (c *Cache) LoadRecords() RecordMap {
 	c.Fmutex.RLock()
 	defer c.Fmutex.RUnlock()
 	r := path.Join(c.datpath(), "record")
@@ -229,10 +229,10 @@ func (c *Cache) LoadRecords() recordMap {
 	if err != nil {
 		log.Println(err, c.datpath())
 	}
-	return recordMap(recs)
+	return RecordMap(recs)
 }
 
-//hasRecord return true if  cache has more than one records or removed records.
+//HasRecord return true if  cache has more than one records or removed records.
 func (c *Cache) HasRecord() bool {
 	c.Fmutex.RLock()
 	defer c.Fmutex.RUnlock()
@@ -245,7 +245,7 @@ func (c *Cache) HasRecord() bool {
 	return len(f) > 0 || (err == nil && len(d) > 0)
 }
 
-//syncStatus saves params to files.
+//SyncTag saves usertags to files.
 func (c *Cache) SyncTag() {
 	c.Fmutex.Lock()
 	defer c.Fmutex.Unlock()
@@ -254,11 +254,11 @@ func (c *Cache) SyncTag() {
 	c.tags.sync(path.Join(c.datpath(), "tag.txt"))
 }
 
-//setupDirectories make necessary dirs.
+//SetupDirectories make necessary dirs.
 func (c *Cache) SetupDirectories() {
 	c.Fmutex.Lock()
 	defer c.Fmutex.Unlock()
-	for _, d := range []string{"", "/attach", "/body", "/record", "/removed"} {
+	for _, d := range []string{"", "/attach", "/record", "/removed"} {
 		di := path.Join(c.datpath(), d)
 		if !util.IsDir(di) {
 			err := os.Mkdir(di, 0755)
@@ -329,7 +329,7 @@ func (c *Cache) checkAttach() {
 	}
 }
 
-//remove removes all files and dirs of cache.
+//Remove Remove all files and dirs of cache.
 func (c *Cache) Remove() {
 	c.Fmutex.Lock()
 	defer c.Fmutex.Unlock()
@@ -339,7 +339,7 @@ func (c *Cache) Remove() {
 	}
 }
 
-//exists return true is datapath exists.
+//Exists return true is datapath exists.
 func (c *Cache) Exists() bool {
 	c.Fmutex.RLock()
 	defer c.Fmutex.RUnlock()
@@ -373,8 +373,8 @@ func (c *Cache) getWithRange(n *node.Node) bool {
 	return count > 0
 }
 
-//search checks  nodes in lookuptable have the cache.
-//if found adds to nodelist ,get records , and adds to nodes in cache.
+//GetCache checks  nodes in lookuptable have the cache.
+//if found gets records.
 func (c *Cache) GetCache() bool {
 	n := c.NodeManager.Search(c.Datfile, nil)
 	if n != nil {
@@ -384,7 +384,7 @@ func (c *Cache) GetCache() bool {
 	return false
 }
 
-//getData gets records from node n and checks its is same as stamp and id in args.
+//GetData gets records from node n and checks its is same as stamp and id in args.
 //save recs if success. returns errSpam or errGet.
 func (c *Cache) GetData(stamp int64, id string, n *node.Node) error {
 	res, err := n.Talk(fmt.Sprintf("/get/%s/%d/%s", c.Datfile, stamp, id))
@@ -397,4 +397,31 @@ func (c *Cache) GetData(stamp int64, id string, n *node.Node) error {
 		log.Println(c.Datfile, stamp, "records not found")
 	}
 	return err
+}
+
+//Gettitle returns title part if *_*.
+//returns ca.datfile if not.
+func (c *Cache) Gettitle() string {
+	if strings.HasPrefix(c.Datfile, "thread_") {
+		return util.FileDecode(c.Datfile)
+	}
+	return c.Datfile
+}
+
+//GetContents returns recstrs of cache.
+//len(recstrs) is <=2.
+func (c *Cache) GetContents() []string {
+	contents := make([]string, 0, 2)
+	recs := c.LoadRecords()
+	for _, rec := range recs {
+		err := rec.Load()
+		if err != nil {
+			log.Println(err)
+		}
+		contents = append(contents, util.Escape(rec.Recstr()))
+		if len(contents) > 2 {
+			return contents
+		}
+	}
+	return contents
 }

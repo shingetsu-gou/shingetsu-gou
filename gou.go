@@ -43,6 +43,7 @@ import (
 
 	"github.com/shingetsu-gou/shingetsu-gou/gou"
 	"github.com/shingetsu-gou/shingetsu-gou/node"
+	"github.com/shingetsu-gou/shingetsu-gou/util"
 )
 
 const (
@@ -67,12 +68,12 @@ func expandAssets(fileDir, templateDir, docroot string) {
 	for _, fname := range AssetNames() {
 		dir := filepath.SplitList(fname)[0]
 		fnameDisk := strings.Replace(fname, dir, dname[dir], 1)
-		if gou.IsFile(fnameDisk) {
+		if util.IsFile(fnameDisk) {
 			continue
 		}
 		log.Println("expanding", fnameDisk)
 		path, _ := path.Split(fnameDisk)
-		if !gou.IsDir(path) {
+		if !util.IsDir(path) {
 			err := os.MkdirAll(path, 0755)
 			if err != nil {
 				log.Fatal(err)

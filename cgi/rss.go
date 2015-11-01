@@ -127,7 +127,7 @@ func (r *RSS) append(link, title, creator, description, content string, subject 
 	r.Feeds = append(r.Feeds, i)
 }
 
-//makeRSS renders template.
+//makeRSS1 renders template.
 func (r *RSS) makeRSS1(wr io.Writer) {
 	for _, c := range r.Feeds {
 		c.Content = strings.Replace(c.content, "]]", "&#93;&#93;>", -1)

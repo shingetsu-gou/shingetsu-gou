@@ -37,7 +37,7 @@ import (
 )
 
 //cron runs cron, and update everything if it is after specified cycle.
-func cron(nodeManager *node.NodeManager, recentList *thread.RecentList) {
+func cron(nodeManager *node.Manager, recentList *thread.RecentList) {
 	const (
 		clientCycle = 5 * time.Minute  // Seconds; Access client.cgi
 		pingCycle   = 5 * time.Minute  // Seconds; Check nodes
@@ -72,7 +72,7 @@ func cron(nodeManager *node.NodeManager, recentList *thread.RecentList) {
 //doSync checks nodes in the nodelist are alive, reloads cachelist, removes old removed files,
 //reloads all tags from cachelist,reload srecent list from nodes in search list,
 //and reloads cache info from files in the disk.
-func doSync(nodeManager *node.NodeManager, recentList *thread.RecentList) {
+func doSync(nodeManager *node.Manager, recentList *thread.RecentList) {
 	if nodeManager.ListLen() == 0 {
 		return
 	}

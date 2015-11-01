@@ -25,9 +25,7 @@
 <h2>{{.Message.recent_changes}}</h2>
 <ul id="top_index">
 {{ range $cache:=.Cachelist }}
-  {{ if eq $cache.Typee $root.Types }}
     {{$root.ListItem.Render $cache false $root.Target false}}
-  {{ end }}
 {{ end }}
 </ul>
 {{ if and (not .Cachelist)  (or .IsFriend .IsAdmin) }}

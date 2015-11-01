@@ -48,8 +48,8 @@ import (
 //ServerURL is the url to server.cgi
 const ServerURL = "/server.cgi"
 
-//serverSetup setups handlers for server.cgi
-func ServerSetup(s *loggingServeMux) {
+//ServerSetup setups handlers for server.cgi
+func ServerSetup(s *LoggingServeMux) {
 	s.RegistCompressHandler(ServerURL+"/ping", doPing)
 	s.RegistCompressHandler(ServerURL+"/node", doNode)
 	s.RegistCompressHandler(ServerURL+"/join/", doJoin)
@@ -74,7 +74,7 @@ func doPing(w http.ResponseWriter, r *http.Request) {
 
 //doNode returns one of nodelist. if nodelist.len=0 returns one of initNode.
 func doNode(w http.ResponseWriter, r *http.Request) {
-	s, err := NewServerCGI(w, r)
+	s, err := newServerCGI(w, r)
 	defer s.close()
 	if err != nil {
 		log.Println(err)
@@ -90,7 +90,7 @@ func doNode(w http.ResponseWriter, r *http.Request) {
 //doJoin adds node specified in url to searchlist and nodelist.
 //if nodelist>#defaultnode removes and says bye one node in nodelist and returns welcome its ip:port.
 func doJoin(w http.ResponseWriter, r *http.Request) {
-	s, err := NewServerCGI(w, r)
+	s, err := newServerCGI(w, r)
 	defer s.close()
 	if err != nil {
 		log.Println(err)
@@ -116,7 +116,7 @@ func doJoin(w http.ResponseWriter, r *http.Request) {
 
 //doBye  removes from nodelist and says bye to the node specified in url.
 func doBye(w http.ResponseWriter, r *http.Request) {
-	s, err := NewServerCGI(w, r)
+	s, err := newServerCGI(w, r)
 	defer s.close()
 	if err != nil {
 		log.Println(err)
@@ -133,7 +133,7 @@ func doBye(w http.ResponseWriter, r *http.Request) {
 
 //doHave checks existance of cache whose name is specified in url.
 func doHave(w http.ResponseWriter, r *http.Request) {
-	s, err := NewServerCGI(w, r)
+	s, err := newServerCGI(w, r)
 	defer s.close()
 	if err != nil {
 		log.Println(err)
@@ -157,7 +157,7 @@ func doHave(w http.ResponseWriter, r *http.Request) {
 //doUpdate adds remote node to searchlist and lookuptable with datfile specified in url.
 //if stamp is in range of defaultUpdateRange adds to updateque.
 func doUpdate(w http.ResponseWriter, r *http.Request) {
-	s, err := NewServerCGI(w, r)
+	s, err := newServerCGI(w, r)
 	defer s.close()
 	if err != nil {
 		log.Println(err)
@@ -205,7 +205,7 @@ func doUpdate(w http.ResponseWriter, r *http.Request) {
 
 //doRecent renders records whose timestamp is in range of one specified in url.
 func doRecent(w http.ResponseWriter, r *http.Request) {
-	s, err := NewServerCGI(w, r)
+	s, err := newServerCGI(w, r)
 	defer s.close()
 	if err != nil {
 		log.Println(err)
@@ -239,7 +239,7 @@ func doRecent(w http.ResponseWriter, r *http.Request) {
 
 //doMotd simply renders motd file.
 func doMotd(w http.ResponseWriter, r *http.Request) {
-	s, err := NewServerCGI(w, r)
+	s, err := newServerCGI(w, r)
 	defer s.close()
 	if err != nil {
 		log.Println(err)
@@ -256,7 +256,7 @@ func doMotd(w http.ResponseWriter, r *http.Request) {
 //doGetHead renders records contents(get) or id+timestamp(head) who has id and
 // whose stamp is in range of one specified by url.
 func doGetHead(w http.ResponseWriter, r *http.Request) {
-	s, err := NewServerCGI(w, r)
+	s, err := newServerCGI(w, r)
 	defer s.close()
 	if err != nil {
 		log.Println(err)
@@ -287,12 +287,15 @@ func doGetHead(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
+//ServerCfg is config for serverCGI struct.
+//must set beforehand.
 var ServerCfg *ServerConfig
 
+//ServerConfig is config for serverCGI struct.
 type ServerConfig struct {
 	RecentRange int64
 	Motd        string
-	NodeManager *node.NodeManager
+	NodeManager *node.Manager
 	InitNode    *util.ConfList
 	UpdateQue   *thread.UpdateQue
 	RecentList  *thread.RecentList
@@ -305,10 +308,10 @@ type serverCGI struct {
 }
 
 //newServerCGI set content-type to text and  returns serverCGI obj.
-func NewServerCGI(w http.ResponseWriter, r *http.Request) (serverCGI, error) {
+func newServerCGI(w http.ResponseWriter, r *http.Request) (serverCGI, error) {
 	c := serverCGI{
 		ServerConfig: ServerCfg,
-		cgi:          NewCGI(w, r),
+		cgi:          newCGI(w, r),
 	}
 	if c.cgi == nil {
 		return c, errors.New("cannot make CGI")

@@ -40,12 +40,13 @@ import (
 	"github.com/shingetsu-gou/shingetsu-gou/util"
 )
 
-//tag represents one tag.
+//Tag represents one tag.
 type Tag struct {
 	Tagstr string
 	weight int
 }
 
+//Tagslice is a slice of *Tag.
 type Tagslice []*Tag
 
 //Len returns size of tags.
@@ -63,7 +64,7 @@ func (t Tagslice) Less(i, j int) bool {
 	return t[i].weight < t[j].weight
 }
 
-//newTagslice create suggestedTagList obj and adds tags tagstr=value.
+//newTagslice create TagList obj and adds tags tagstr=value.
 func newTagslice(values []string) Tagslice {
 	s := make([]*Tag, len(values))
 	for i, v := range values {
@@ -88,7 +89,7 @@ func loadTagslice(path string) Tagslice {
 	return t
 }
 
-//getTagstrSlice returns tagstr slice of tags.
+//GetTagstrSlice returns tagstr slice of tags.
 func (t Tagslice) GetTagstrSlice() []string {
 	result := make([]string, t.Len())
 	for i, v := range t {
@@ -119,7 +120,7 @@ func (t Tagslice) checkAppend(val string) {
 	t = append(t, &Tag{val, 1})
 }
 
-//hasTagstr return true if one of tags has tagstr
+//HasTagstr return true if one of tags has tagstr
 func (t Tagslice) HasTagstr(tagstr string) bool {
 	for _, v := range t {
 		if v.Tagstr == tagstr {
@@ -155,6 +156,7 @@ func (t Tagslice) sync(path string) {
 	}
 }
 
+//SuggestedTagTableConfig is a config for SuggestedTagTable struct.
 type SuggestedTagTableConfig struct {
 	TagSize int
 	Sugtag  string
@@ -168,7 +170,7 @@ type SuggestedTagTable struct {
 	mutex      sync.RWMutex
 }
 
-//newSuggestedTagTable make SuggestedTagTable obj and read info from the file.
+//NewSuggestedTagTable make SuggestedTagTable obj and read info from the file.
 func NewSuggestedTagTable(cfg *SuggestedTagTableConfig) *SuggestedTagTable {
 	s := &SuggestedTagTable{
 		SuggestedTagTableConfig: cfg,
@@ -205,7 +207,7 @@ func (s *SuggestedTagTable) sync() {
 	}
 }
 
-//get returns copy of suggestedTagList associated with datfile or returns def if not exists.
+//Get returns copy of Tagslice associated with datfile or returns def if not exists.
 func (s *SuggestedTagTable) Get(datfile string, def Tagslice) Tagslice {
 	s.mutex.RLock()
 	defer s.mutex.RUnlock()
@@ -237,14 +239,14 @@ func (s *SuggestedTagTable) addString(datfile string, vals []string) {
 	s.Sugtaglist[datfile].addString(vals)
 }
 
-//hasTagstr return true if one of tags has tagstr
+//HasTagstr return true if one of tags has tagstr
 func (s *SuggestedTagTable) HasTagstr(datfile string, tagstr string) bool {
 	s.mutex.RLock()
 	defer s.mutex.RUnlock()
 	return s.Sugtaglist[datfile].HasTagstr(tagstr)
 }
 
-//string return tagstr string.
+//String return tagstr string of datfile.
 func (s *SuggestedTagTable) String(datfile string) string {
 	s.mutex.RLock()
 	defer s.mutex.RUnlock()
@@ -270,41 +272,28 @@ func (s *SuggestedTagTable) prune(recentlist *RecentList) {
 	}
 }
 
+//UserTagConfig is a config for UserTag.
 type UserTagConfig struct {
 	CacheDir string
 	Fmutex   *sync.RWMutex
 }
 
-//UserTagList represents tags saved by the user.
+//UserTag represents tags saved by the user.
 type UserTag struct {
 	*UserTagConfig
-	mutex   sync.Mutex
-	isClean bool
-	tags    Tagslice
 }
 
+//NewUserTag returns UserTag obj.
 func NewUserTag(cfg *UserTagConfig) *UserTag {
 	return &UserTag{
 		UserTagConfig: cfg,
 	}
 }
 
-//setDirty sets dirty flag.
-func (u *UserTag) setDirty() {
-	u.mutex.Lock()
-	defer u.mutex.Unlock()
-	u.isClean = false
-}
-
-//get reads tags from the disk and retrusn Tagslice.
+//Get reads tags from the disk  if dirty and returns Tagslice.
 func (u *UserTag) Get() Tagslice {
 	u.Fmutex.RLock()
 	defer u.Fmutex.RUnlock()
-	u.mutex.Lock()
-	defer u.mutex.Unlock()
-	if u.isClean {
-		return u.tags
-	}
 	var tags Tagslice
 	err := util.EachFiles(u.CacheDir, func(i os.FileInfo) error {
 		fname := path.Join(u.CacheDir, i.Name(), "tag.txt")
@@ -320,7 +309,5 @@ func (u *UserTag) Get() Tagslice {
 	if err != nil {
 		log.Fatal(err)
 	}
-	u.tags = tags
-	u.isClean = true
 	return tags
 }

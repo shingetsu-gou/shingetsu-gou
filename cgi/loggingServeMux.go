@@ -37,36 +37,38 @@ import (
 	"github.com/gorilla/mux"
 )
 
-//loggingServerMux is ServerMux with logging
-type loggingServeMux struct {
+//LoggingServeMux is ServerMux with logging
+type LoggingServeMux struct {
 	*http.ServeMux
 }
 
-//newLoggingServeMux returns loggingServeMux obj.
-func NewLoggingServeMux() *loggingServeMux {
-	return &loggingServeMux{
+//NewLoggingServeMux returns loggingServeMux obj.
+func NewLoggingServeMux() *LoggingServeMux {
+	return &LoggingServeMux{
 		http.NewServeMux(),
 	}
 }
 
 //ServeHTTP just calles http.ServeMux.ServeHTTP after logging.
-func (s *loggingServeMux) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+func (s *LoggingServeMux) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	log.Println(r.RemoteAddr, r.Method, r.URL.Path, r.Header.Get("User-Agent"), r.Header.Get("Referer"))
 	s.ServeMux.ServeHTTP(w, r)
 }
 
-//compressHandler returns handlers.CompressHandler to simplfy.
-func (s *loggingServeMux) RegistCompressHandler(path string, fn func(w http.ResponseWriter, r *http.Request)) {
+//RegistCompressHandler registers fn to s after registering CompressHandler with path.
+func (s *LoggingServeMux) RegistCompressHandler(path string, fn func(w http.ResponseWriter, r *http.Request)) {
 	s.Handle(path, handlers.CompressHandler(http.HandlerFunc(fn)))
 }
 
-func (s *loggingServeMux) RegisterPprof() {
+//RegisterPprof registers pprof relates funcs to s.
+func (s *LoggingServeMux) RegisterPprof() {
 	s.Handle("/debug/pprof/", http.HandlerFunc(pprof.Index))
 	s.Handle("/debug/pprof/cmdline", http.HandlerFunc(pprof.Cmdline))
 	s.Handle("/debug/pprof/profile", http.HandlerFunc(pprof.Profile))
 	s.Handle("/debug/pprof/symbol", http.HandlerFunc(pprof.Symbol))
 }
 
+//registToRouter registers fn to s with path.
 func registToRouter(s *mux.Router, path string, fn func(w http.ResponseWriter, r *http.Request)) {
 	s.Handle(path, http.HandlerFunc(fn))
 }

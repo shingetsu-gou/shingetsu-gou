@@ -42,6 +42,7 @@ import (
 	"github.com/shingetsu-gou/shingetsu-gou/util"
 )
 
+//DatakeyTableConfig is config for DatakeyTable struct.
 type DatakeyTableConfig struct {
 	Datakey    string
 	RecentList *thread.RecentList
@@ -56,7 +57,7 @@ type DatakeyTable struct {
 	mutex           sync.RWMutex
 }
 
-//newDatakeyTable make DataKeyTable obj.
+//NewDatakeyTable make DataKeyTable obj.
 func NewDatakeyTable(cfg *DatakeyTableConfig) *DatakeyTable {
 	d := &DatakeyTable{
 		DatakeyTableConfig: cfg,
@@ -86,7 +87,7 @@ func (d *DatakeyTable) loadInternal() {
 	}
 }
 
-//load loads from the file, adds stamps/datfile pairs from cachelist and recentlist.
+//Load loads from the file, adds stamps/datfile pairs from cachelist and recentlist.
 //and saves to file.
 func (d *DatakeyTable) Load() {
 	d.loadInternal()
@@ -154,7 +155,7 @@ func (d *DatakeyTable) setFromCache(ca *thread.Cache) {
 	d.setEntry(firstStamp, ca.Datfile)
 }
 
-//getDatKey returns stamp from filekey.
+//GetDatkey returns stamp from filekey.
 //if not found, tries to read from cache.
 func (d *DatakeyTable) GetDatkey(filekey string) (int64, error) {
 	d.mutex.RLock()
@@ -174,7 +175,7 @@ func (d *DatakeyTable) GetDatkey(filekey string) (int64, error) {
 	return -1, errors.New(filekey + " not found")
 }
 
-//GetFileKey returns value from datkey(stamp) string.
+//GetFilekey returns value from datkey(stamp).
 func (d *DatakeyTable) GetFilekey(nDatkey int64) string {
 	d.mutex.RLock()
 	defer d.mutex.RUnlock()
@@ -184,7 +185,7 @@ func (d *DatakeyTable) GetFilekey(nDatkey int64) string {
 	return ""
 }
 
-//makeBracketLink add links to [[hoe]] .
+//MakeBracketLink changes str in brackets to the html links format.
 func (d *DatakeyTable) MakeBracketLink(body, datHost, board string, table *ResTable) string {
 	regs := []*regexp.Regexp{
 		regexp.MustCompile("^(?P<title>[^/]+)$"),
@@ -228,7 +229,7 @@ func (d *DatakeyTable) MakeBracketLink(body, datHost, board string, table *ResTa
 	})
 }
 
-//makeBody makes a dat line after stamp.
+//MakeBody makes a dat body(message) line after stamp.
 func (d *DatakeyTable) MakeBody(rec *thread.Record, host, board string, table *ResTable) string {
 	body := rec.GetBodyValue("body", "")
 	body += rec.MakeAttachLink(host)
@@ -237,7 +238,7 @@ func (d *DatakeyTable) MakeBody(rec *thread.Record, host, board string, table *R
 	return body
 }
 
-//makeDat makes dat lines of 2ch from cache.
+//MakeDat makes dat lines of 2ch from cache.
 func (d *DatakeyTable) MakeDat(ca *thread.Cache, board, host string) []string {
 	recs := ca.LoadRecords()
 	dat := make([]string, len(recs))

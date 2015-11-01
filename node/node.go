@@ -41,20 +41,18 @@ import (
 	"github.com/shingetsu-gou/shingetsu-gou/util"
 )
 
+//Version , same as one in main package.
 var Version string
-
-//Get Gou version for useragent and servername.
-func getUA() string {
-	return "shinGETsu/0.7 (Gou/" + Version + ")"
-}
 
 //urlopen retrievs html data from url
 func urlopen(url string, timeout time.Duration) ([]string, error) {
+	ua := "shinGETsu/0.7 (Gou/" + Version + ")"
+
 	req, err := http.NewRequest("GET", url, nil)
 	if err != nil {
 		log.Fatal(err)
 	}
-	req.Header.Set("User-Agent", getUA())
+	req.Header.Set("User-Agent", ua)
 
 	client := &http.Client{
 		Timeout: timeout,
@@ -73,15 +71,17 @@ func urlopen(url string, timeout time.Duration) ([]string, error) {
 	return lines, err
 }
 
+//NodeCfg is a global stuf for Node struct. it must be set before using it.
 var NodeCfg *NodeConfig
 
+//NodeConfig contains params for Node struct.
 type NodeConfig struct {
-	NodeManager *NodeManager
+	NodeManager *Manager
 	NodeAllow   *util.RegexpList
 	NodeDeny    *util.RegexpList
 }
 
-//node represents node info.
+//Node represents node info.
 type Node struct {
 	*NodeConfig
 	Nodestr string
@@ -113,7 +113,7 @@ func (n *Node) equals(nn *Node) bool {
 	return n.Nodestr == nn.Nodestr
 }
 
-//makeNode makes node from host info.
+//MakeNode makes node from host info.
 func MakeNode(host, path string, port int) *Node {
 	Nodestr := net.JoinHostPort(host, strconv.Itoa(port)) + strings.Replace(path, "+", "/", -1)
 	return NewNode(Nodestr)
@@ -149,7 +149,7 @@ func (n *Node) Talk(message string) ([]string, error) {
 	return res, err
 }
 
-//ping pings to n and return response.
+//Ping pings to n and return response.
 func (n *Node) Ping() (string, error) {
 	res, err := n.Talk("/ping")
 	if err != nil {
@@ -165,7 +165,7 @@ func (n *Node) Ping() (string, error) {
 	return "", errors.New("connected,but not ponged")
 }
 
-//isAllow returns fase if n is not allowed and denied.
+//IsAllowed returns fase if n is not allowed and denied.
 func (n *Node) IsAllowed() bool {
 	if !n.NodeAllow.Check(n.Nodestr) && n.NodeDeny.Check(n.Nodestr) {
 		return false
@@ -226,7 +226,7 @@ func (ns nodeSlice) Swap(i, j int) {
 }
 
 //getNodestrSlice returns slice of Nodestr of nodes.
-func (ns nodeSlice) GetNodestrSlice() []string {
+func (ns nodeSlice) getNodestrSlice() []string {
 	s := make([]string, ns.Len())
 	for i, v := range ns {
 		s[i] = v.Nodestr

@@ -45,7 +45,8 @@ const (
 	shareNodes   = 5 // Nodes having the file
 )
 
-type NodeManagerConfig struct {
+//ManagerConfig contains params for NodeManager struct.
+type ManagerConfig struct {
 	ServerName  string
 	Lookup      string
 	DefaultPort int
@@ -58,21 +59,21 @@ type NodeManagerConfig struct {
 	InitNode    *util.ConfList
 }
 
-//NodeManager represents map datfile to it's source node list.
-type NodeManager struct {
-	*NodeManagerConfig
+//Manager represents the map that maps datfile to it's source node list.
+type Manager struct {
+	*ManagerConfig
 	isDirty      bool
 	nodes        map[string]nodeSlice //map[""] is nodelist
 	externalPort int
 	mutex        sync.RWMutex
 }
 
-//newLookupTable read the file and returns LookupTable obj.
-func NewNodeManager(cfg *NodeManagerConfig) *NodeManager {
-	r := &NodeManager{
-		NodeManagerConfig: cfg,
-		nodes:             make(map[string]nodeSlice),
-		externalPort:      cfg.DefaultPort,
+//NewManager read the file and returns NodeManager obj.
+func NewManager(cfg *ManagerConfig) *Manager {
+	r := &Manager{
+		ManagerConfig: cfg,
+		nodes:         make(map[string]nodeSlice),
+		externalPort:  cfg.DefaultPort,
 	}
 	err := util.EachKeyValueLine(cfg.Lookup, func(key string, value []string, i int) error {
 		var nl nodeSlice
@@ -91,71 +92,67 @@ func NewNodeManager(cfg *NodeManagerConfig) *NodeManager {
 	return r
 }
 
-func (n *NodeManager) setMyself(Nodestr string) {
-	n.mutex.Lock()
-	n.Myself = MakeNode(Nodestr, n.ServerURL, n.externalPort)
-	n.mutex.Unlock()
+//setMyself makes node from nodestr and set to myself obj.
+func (lt *Manager) setMyself(nodestr string) {
+	lt.mutex.Lock()
+	lt.Myself = MakeNode(nodestr, lt.ServerURL, lt.externalPort)
+	lt.mutex.Unlock()
 }
 
-func (n *NodeManager) GetMyself() *Node {
-	if n.ServerName != "" {
-		return MakeNode(n.ServerName, n.ServerURL, n.externalPort)
+//GetMyself returns myself if servername is not set.
+//or makes and returns a node from servername.
+func (lt *Manager) GetMyself() *Node {
+	if lt.ServerName != "" {
+		return MakeNode(lt.ServerName, lt.ServerURL, lt.externalPort)
 	}
-	return n.Myself
+	return lt.Myself
 }
 
-//setUPnP setups node relates variables and get external port by upnp if enabled.
-func (n *NodeManager) setUPnP() {
+//setUPnP gets external port by upnp if enabled.
+func (lt *Manager) setUPnP() {
 	nt, err := nat.NewNetStatus()
 	if err != nil {
 		log.Println(err)
 	} else {
-		m, err := nt.LoopPortMapping("tcp", n.DefaultPort, "shingetsu-gou", 10*time.Minute)
+		m, err := nt.LoopPortMapping("tcp", lt.DefaultPort, "shingetsu-gou", 10*time.Minute)
 		if err != nil {
 			log.Println(err)
 		} else {
-			n.externalPort = m.ExternalPort
+			lt.externalPort = m.ExternalPort
 		}
 	}
 }
 
-//appendToList add node n to nodelist if it is allowd and list doesn't have it.
-func (lt *NodeManager) getFromList(n int) *Node {
+//getFromList returns number=n in the nodelist.
+func (lt *Manager) getFromList(n int) *Node {
 	lt.mutex.RLock()
 	defer lt.mutex.RUnlock()
 	if lt.ListLen() == 0 {
 		return nil
 	}
-	return lt.nodes[""][0]
-}
-
-//FileLen returns # of datfile.
-func (lt *NodeManager) FileLen() int {
-	lt.mutex.RLock()
-	defer lt.mutex.RUnlock()
-	return len(lt.nodes) - 1
+	return lt.nodes[""][n]
 }
 
 //NodeLen returns size of all nodes.
-func (lt *NodeManager) NodeLen() int {
+func (lt *Manager) NodeLen() int {
 	ns := lt.getAllNodes()
 	return ns.Len()
 }
 
-//listLen returns size of nodelist.
-func (lt *NodeManager) ListLen() int {
+//ListLen returns size of nodelist.
+func (lt *Manager) ListLen() int {
 	lt.mutex.RLock()
 	defer lt.mutex.RUnlock()
 	return len(lt.nodes[""])
 }
 
-//getNodestr returns Nodestr of all nodes.
-func (lt *NodeManager) GetNodestrSlice() []string {
-	return lt.getAllNodes().GetNodestrSlice()
+//GetNodestrSlice returns Nodestr of all nodes.
+func (lt *Manager) GetNodestrSlice() []string {
+	return lt.getAllNodes().getNodestrSlice()
 }
 
 //getAllNodes returns all nodes in table.
-func (lt *NodeManager) getAllNodes() nodeSlice {
+func (lt *Manager) getAllNodes() nodeSlice {
 	var n nodeSlice
 	n = make([]*Node, lt.NodeLen())
 	i := 0
@@ -170,16 +167,16 @@ func (lt *NodeManager) getAllNodes() nodeSlice {
 	return n.uniq()
 }
 
-//getNodestr returns Nodestr of all nodes.
-func (lt *NodeManager) GetNodestrSliceInTable(datfile string) []string {
+//GetNodestrSliceInTable returns Nodestr slice of nodes associated datfile thread.
+func (lt *Manager) GetNodestrSliceInTable(datfile string) []string {
 	lt.mutex.RLock()
 	defer lt.mutex.RUnlock()
 	n := lt.nodes["datfile"]
-	return n.GetNodestrSlice()
+	return n.getNodestrSlice()
 }
 
-//random selects #n node randomly except exclude nodes.
-func (lt *NodeManager) Random(exclude nodeSlice, num int) []*Node {
+//Random selects #n nodes randomly except exclude nodes.
+func (lt *Manager) Random(exclude nodeSlice, num int) []*Node {
 	all := lt.getAllNodes()
 	if exclude != nil {
 		for i, n := range all {
@@ -196,8 +193,8 @@ func (lt *NodeManager) Random(exclude nodeSlice, num int) []*Node {
 	return r
 }
 
-//appendToTable add node n to table if it is allowd and list doesn't have it.
-func (lt *NodeManager) AppendToTable(datfile string, n *Node) {
+//AppendToTable add node n to table if it is allowd and list doesn't have it.
+func (lt *Manager) AppendToTable(datfile string, n *Node) {
 	lt.mutex.RLock()
 	l := len(lt.nodes[datfile])
 	lt.mutex.RUnlock()
@@ -211,7 +208,7 @@ func (lt *NodeManager) AppendToTable(datfile string, n *Node) {
 }
 
 //extendTable adds slice of nodes with check.
-func (lt *NodeManager) extendToTable(datfile string, ns []*Node) {
+func (lt *Manager) extendToTable(datfile string, ns []*Node) {
 	if ns == nil {
 		return
 	}
@@ -221,13 +218,13 @@ func (lt *NodeManager) extendToTable(datfile string, ns []*Node) {
 }
 
 //appendToList add node n to nodelist if it is allowd and list doesn't have it.
-func (lt *NodeManager) appendToList(n *Node) {
+func (lt *Manager) appendToList(n *Node) {
 	lt.AppendToTable("", n)
 }
 
-//replaceNodeInList removes one node and say bye to the node and add n in nodelist.
+//ReplaceNodeInList removes one node and say bye to the node and add n in nodelist.
 //if len(node)>defaultnode
-func (lt *NodeManager) ReplaceNodeInList(n *Node) *Node {
+func (lt *Manager) ReplaceNodeInList(n *Node) *Node {
 	lt.mutex.RLock()
 	l := len(lt.nodes[""])
 	lt.mutex.RUnlock()
@@ -245,17 +242,17 @@ func (lt *NodeManager) ReplaceNodeInList(n *Node) *Node {
 }
 
 //extendToList adds node slice to nodelist.
-func (lt *NodeManager) extendToList(ns []*Node) {
+func (lt *Manager) extendToList(ns []*Node) {
 	lt.extendToTable("", ns)
 }
 
 //hasNode returns true if nodelist in all tables has n.
-func (lt *NodeManager) hasNode(n *Node) bool {
+func (lt *Manager) hasNode(n *Node) bool {
 	return len(lt.findNode(n)) > 0
 }
 
 //findNode returns datfile of node n, or -1 if not exist.
-func (lt *NodeManager) findNode(n *Node) []string {
+func (lt *Manager) findNode(n *Node) []string {
 	lt.mutex.RLock()
 	defer lt.mutex.RUnlock()
 	var r []string
@@ -268,21 +265,21 @@ func (lt *NodeManager) findNode(n *Node) []string {
 }
 
 //hasNodeInTable returns true if nodelist has n.
-func (lt *NodeManager) hasNodeInTable(datfile string, n *Node) bool {
+func (lt *Manager) hasNodeInTable(datfile string, n *Node) bool {
 	return lt.findNodeInTable(datfile, n) != -1
 }
 
 //findNode returns location of node n, or -1 if not exist.
-func (lt *NodeManager) findNodeInTable(datfile string, n *Node) int {
+func (lt *Manager) findNodeInTable(datfile string, n *Node) int {
 	return util.FindString(lt.GetNodestrSliceInTable(datfile), n.Nodestr)
 }
 
-//removeFromTable removes node n and return true if exists.
+//RemoveFromTable removes node n and return true if exists.
 //or returns false if not exists.
-func (lt *NodeManager) RemoveFromTable(datfile string, n *Node) bool {
+func (lt *Manager) RemoveFromTable(datfile string, n *Node) bool {
 	lt.mutex.Lock()
 	defer lt.mutex.Unlock()
-	if i := util.FindString(lt.nodes[datfile].GetNodestrSlice(), n.Nodestr); i >= 0 {
+	if i := util.FindString(lt.nodes[datfile].getNodestrSlice(), n.Nodestr); i >= 0 {
 		lt.nodes[datfile] = append(lt.nodes[datfile][:i], lt.nodes[datfile][i+1:]...)
 		lt.isDirty = true
 		return true
@@ -290,15 +287,15 @@ func (lt *NodeManager) RemoveFromTable(datfile string, n *Node) bool {
 	return false
 }
 
-//removeFromList removes node n from nodelist and return true if exists.
+//RemoveFromList removes node n from nodelist and return true if exists.
 //or returns false if not exists.
-func (lt *NodeManager) RemoveFromList(n *Node) bool {
+func (lt *Manager) RemoveFromList(n *Node) bool {
 	return lt.RemoveFromTable("", n)
 }
 
-//removeNode removes node n from all tables and return true if exists.
+//RemoveFromAllTable removes node n from all tables and return true if exists.
 //or returns false if not exists.
-func (lt *NodeManager) RemoveFromAllTable(n *Node) bool {
+func (lt *Manager) RemoveFromAllTable(n *Node) bool {
 	del := false
 	lt.mutex.RLock()
 	for k := range lt.nodes {
@@ -309,7 +306,7 @@ func (lt *NodeManager) RemoveFromAllTable(n *Node) bool {
 }
 
 //moreNodes gets another node info from each nodes in nodelist.
-func (lt *NodeManager) moreNodes() {
+func (lt *Manager) moreNodes() {
 	const retry = 5 // Times; Common setting
 
 	no := 0
@@ -328,9 +325,9 @@ func (lt *NodeManager) moreNodes() {
 	}
 }
 
-//initialize pings one of initNode except myself and added it if success,
+//Initialize pings one of initNode except myself and added it if success,
 //and get another node info from each nodes in nodelist.
-func (lt *NodeManager) Initialize() {
+func (lt *Manager) Initialize() {
 
 	if lt.ListLen() > defaultNodes {
 		return
@@ -354,10 +351,10 @@ func (lt *NodeManager) Initialize() {
 	lt.Sync()
 }
 
-//join tells n to join and adds n to nodelist if welcomed.
+//Join tells n to join and adds n to nodelist if welcomed.
 //if n returns another nodes, repeats it and return true..
 //removes fron nodelist if not welcomed and return false.
-func (lt *NodeManager) Join(n *Node) bool {
+func (lt *Manager) Join(n *Node) bool {
 	const retryJoin = 2 // Times; Join network
 
 	if n == nil {
@@ -385,9 +382,9 @@ func (lt *NodeManager) Join(n *Node) bool {
 	return flag
 }
 
-//tellUpdate makes mynode info from node or dnsname or ip addr,
+//TellUpdate makes mynode info from node or dnsname or ip addr,
 //and broadcast the updates of record id=id in cache c.datfile with stamp.
-func (lt *NodeManager) TellUpdate(datfile string, stamp int64, id string, node *Node) {
+func (lt *Manager) TellUpdate(datfile string, stamp int64, id string, node *Node) {
 	var tellstr string
 	switch {
 	case node != nil:
@@ -399,8 +396,8 @@ func (lt *NodeManager) TellUpdate(datfile string, stamp int64, id string, node *
 	}
 	msg := strings.Join([]string{"/update", datfile, strconv.FormatInt(stamp, 10), id, tellstr}, "/")
 
-	ns := lt.Get(datfile, nil)
-	ns.extend(lt.Get("", nil))
+	ns := lt.get(datfile, nil)
+	ns.extend(lt.get("", nil))
 
 	for _, n := range ns {
 		_, err := n.Talk(msg)
@@ -410,9 +407,9 @@ func (lt *NodeManager) TellUpdate(datfile string, stamp int64, id string, node *
 	}
 }
 
-//Get returns rawnodelist associated with datfile
-//if not found return def
-func (lt *NodeManager) Get(datfile string, def nodeSlice) nodeSlice {
+//get returns rawnodelist associated with datfile
+//if not found returns def
+func (lt *Manager) get(datfile string, def nodeSlice) nodeSlice {
 	lt.mutex.RLock()
 	defer lt.mutex.RUnlock()
 	if v, exist := lt.nodes[datfile]; exist {
@@ -423,8 +420,8 @@ func (lt *NodeManager) Get(datfile string, def nodeSlice) nodeSlice {
 	return nodeSlice(def)
 }
 
-//stringmap returns map of k=datfile, v=Nodestr of rawnodelist.
-func (lt *NodeManager) stringMap() map[string][]string {
+//stringMap returns map of k=datfile, v=Nodestr of rawnodelist.
+func (lt *Manager) stringMap() map[string][]string {
 	lt.mutex.RLock()
 	defer lt.mutex.RUnlock()
 	result := make(map[string][]string)
@@ -432,13 +429,13 @@ func (lt *NodeManager) stringMap() map[string][]string {
 		if k == "" {
 			continue
 		}
-		result[k] = v.GetNodestrSlice()
+		result[k] = v.getNodestrSlice()
 	}
 	return result
 }
 
-//sync saves  k=datfile, v=Nodestr map to the file.
-func (lt *NodeManager) Sync() {
+//Sync saves  k=datfile, v=Nodestr map to the file.
+func (lt *Manager) Sync() {
 	if lt.isDirty {
 		m := lt.stringMap()
 		lt.Fmutex.Lock()
@@ -454,14 +451,14 @@ func (lt *NodeManager) Sync() {
 	}
 }
 
-//search checks one allowed nodes which selected randomly from nodes has the datfile record.
+//Search checks one allowed nodes which selected randomly from nodes has the datfile record.
 //if not found,n is removed from lookuptable. also if not pingable  removes n from searchlist and cache c.
 //if found, n is added to lookuptable.
-func (lt *NodeManager) Search(datfile string, nodes []*Node) *Node {
+func (lt *Manager) Search(datfile string, nodes []*Node) *Node {
 	const searchDepth = 30 // Search node size
 
-	ns := lt.Get(datfile, nil)
-	ns.extend(lt.Get("", nil))
+	ns := lt.get(datfile, nil)
+	ns.extend(lt.get("", nil))
 	ns.extend(nodes)
 	if ns.Len() < searchDepth {
 		ns = ns.extend(lt.Random(ns, searchDepth-ns.Len()))
@@ -488,10 +485,10 @@ func (lt *NodeManager) Search(datfile string, nodes []*Node) *Node {
 	return nil
 }
 
-//rejoin add nodes in searchlist if ping is ok and len(nodelist)<defaultNodes
+//Rejoin adds nodes in searchlist if ping is ok and len(nodelist)<defaultNodes
 //and doesn't have it's node.
 //if ping is ng, removes node from searchlist.
-func (lt *NodeManager) Rejoin() {
+func (lt *Manager) Rejoin() {
 	all := lt.getAllNodes()
 	for _, n := range all {
 		if lt.ListLen() >= defaultNodes {
@@ -515,9 +512,9 @@ func (lt *NodeManager) Rejoin() {
 	}
 }
 
-//pingAll pings to all nodes in nodelist.
+//PingAll pings to all nodes in nodelist.
 //if ng, removes from nodelist.
-func (lt *NodeManager) PingAll() {
+func (lt *Manager) PingAll() {
 	lt.mutex.RLock()
 	for _, n := range lt.nodes[""] {
 		lt.mutex.RUnlock()
@@ -529,8 +526,8 @@ func (lt *NodeManager) PingAll() {
 	lt.mutex.RUnlock()
 }
 
-//rejoinlist joins all node in nodelist.
-func (lt *NodeManager) RejoinList() {
+//RejoinList joins all node in nodelist.
+func (lt *Manager) RejoinList() {
 	lt.mutex.RLock()
 	defer lt.mutex.RUnlock()
 	for _, n := range lt.nodes[""] {

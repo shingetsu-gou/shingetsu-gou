@@ -50,7 +50,7 @@ import (
 	"github.com/nfnt/resize"
 )
 
-//eachIOLine iterates each line to  a ReadCloser ,calls func and close f.
+//EachIOLine iterates each line to  a ReadCloser ,calls func and close f.
 func EachIOLine(f io.ReadCloser, handler func(line string, num int) error) error {
 	defer Fclose(f)
 	r := bufio.NewReader(f)
@@ -73,7 +73,7 @@ func EachIOLine(f io.ReadCloser, handler func(line string, num int) error) error
 	return err
 }
 
-//eachLine iterates each line and calls a func.
+//EachLine iterates each lines and calls a func.
 func EachLine(path string, handler func(line string, num int) error) error {
 	f, err := os.Open(path)
 	if err != nil {
@@ -82,7 +82,7 @@ func EachLine(path string, handler func(line string, num int) error) error {
 	return EachIOLine(f, handler)
 }
 
-//eachKeyValueLine calls func for each line which contains key and value separated with "<>"
+//EachKeyValueLine calls func for each line which contains key and value separated with "<>"
 func EachKeyValueLine(path string, handler func(key string, value []string, num int) error) error {
 	err := EachLine(path, func(line string, i int) error {
 		kv := strings.Split(line, "<>")
@@ -96,12 +96,12 @@ func EachKeyValueLine(path string, handler func(key string, value []string, num 
 	return err
 }
 
-//hasString returns true if ary has val.
+//HasString returns true if ary has val.
 func HasString(s []string, val string) bool {
 	return FindString(s, val) != -1
 }
 
-//findString search val in ary and returns index. it returns -1 if not found.
+//FindString search the val in ary and returns index. it returns -1 if not found.
 func FindString(s []string, val string) int {
 	for i, v := range s {
 		if v == val {
@@ -111,7 +111,7 @@ func FindString(s []string, val string) int {
 	return -1
 }
 
-//writeSlice write ary into a path.
+//WriteSlice write ary into a path.
 func WriteSlice(path string, ary []string) error {
 	if path == "" {
 		panic("path is null")
@@ -132,7 +132,7 @@ func WriteSlice(path string, ary []string) error {
 	return nil
 }
 
-//writeSlice write map into a path.
+//WriteMap write map into a path.
 func WriteMap(path string, ary map[string][]string) error {
 	f, err := os.Create(path)
 	if err != nil {
@@ -151,7 +151,7 @@ func WriteMap(path string, ary map[string][]string) error {
 	return nil
 }
 
-//eachFiles iterates each dirs in dir and calls handler,not recirsively.
+//EachFiles iterates each dirs in dir and calls handler,not recirsively.
 func EachFiles(dir string, handler func(dir os.FileInfo) error) error {
 	dirs, err := ioutil.ReadDir(dir)
 	if err != nil {
@@ -183,7 +183,7 @@ func IsDir(path string) bool {
 	return fs.IsDir()
 }
 
-//moveFile moves a file from src to dest.
+//MoveFile moves a file from src to dest.
 func MoveFile(src, dst string) error {
 	log.Println(src, dst)
 	in, err := os.Open(src)
@@ -205,13 +205,13 @@ func MoveFile(src, dst string) error {
 	return os.Remove(src)
 }
 
-//shufflable interface is for shuffle ary.
+//Shufflable interface is for shuffle ary.
 type Shufflable interface {
 	Len() int
 	Swap(i int, j int)
 }
 
-//shuffle shuffles shufflable ary.
+//Shuffle shuffles shufflable ary.
 func Shuffle(slc Shufflable) {
 	N := slc.Len()
 	for i := 0; i < N; i++ {
@@ -221,19 +221,19 @@ func Shuffle(slc Shufflable) {
 	}
 }
 
-//close closes io.Close, if err exists ,println err.
+//Fclose closes io.Close, if err exists ,println err.
 func Fclose(f io.Closer) {
 	if err := f.Close(); err != nil {
 		log.Println(err)
 	}
 }
 
-//compressHandler returns handlers.CompressHandler to simplfy.
+//RegistToRouter registers fn to s with path and returns the handler.
 func RegistToRouter(s *mux.Router, path string, fn func(w http.ResponseWriter, r *http.Request)) {
 	s.Handle(path, http.HandlerFunc(fn))
 }
 
-//fileSize returns file size of file.
+//FileSize returns file size of file.
 //returns 0 if file is not found.
 func FileSize(path string) int64 {
 	st, err := os.Stat(path)
@@ -244,7 +244,7 @@ func FileSize(path string) int64 {
 	return st.Size()
 }
 
-//writeFile rite date to path.
+//WriteFile writes date to path.
 func WriteFile(path, data string) error {
 	err := ioutil.WriteFile(path, []byte(data), 0666)
 	if err != nil {
@@ -254,7 +254,7 @@ func WriteFile(path, data string) error {
 	return nil
 }
 
-//makeThumbnail makes thumbnail to suffix image format with thumbnailSize.
+//MakeThumbnail makes thumbnail to suffix image format with thumbnailSize.
 func MakeThumbnail(from, to, suffix string, x, y uint) {
 	file, err := os.Open(from)
 	if err != nil {
@@ -290,12 +290,12 @@ func MakeThumbnail(from, to, suffix string, x, y uint) {
 	}
 }
 
-// toSJIS Converts an string (a valid UTF-8 string) to a ShiftJIS string
+// ToSJIS converts an string (a valid UTF-8 string) to a ShiftJIS string
 func ToSJIS(b string) string {
 	return convertSJIS(b, true)
 }
 
-// toSJIS Converts an string (a valid UTF-8 string) to/from a ShiftJIS string
+// convertSJIS converts an string (a valid UTF-8 string) to/from a ShiftJIS string
 func convertSJIS(b string, toSJIS bool) string {
 	t := japanese.ShiftJIS.NewDecoder()
 	if toSJIS {
@@ -308,7 +308,7 @@ func convertSJIS(b string, toSJIS bool) string {
 	return string(r)
 }
 
-//fromSJIS Converts an array of bytes (a valid ShiftJIS string) to a UTF-8 string
+//FromSJIS converts an array of bytes (a valid ShiftJIS string) to a UTF-8 string
 func FromSJIS(b string) string {
 	return convertSJIS(b, false)
 }

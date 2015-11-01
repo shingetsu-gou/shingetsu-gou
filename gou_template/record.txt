@@ -4,7 +4,7 @@
 {{define "record"}}
 <dt id="r{{.Sid}}" data-record-id="{{.Sid}}">
 {{ if .IsAdmin }}
-  <input type="checkbox" name="record" value="{{.Rec.Stamp}}_{{.Rec.ID}}" />
+  <input type="checkbox" name="record" value="{{.RecHead.Stamp}}_{{.RecHead.ID}}" />
 {{ end }}
 <a href="{{.ThreadCGI}}/{{strEncode .Path}}/{{.Sid}}" class="id" id="i{{.Sid}}" name="i{{.Sid}}">{{.Sid}}</a>
 {{$name:=.Rec.GetBodyValue "name" "" }}
@@ -21,9 +21,9 @@
 {{ if $pubkey}}
   <span class="sign" title="{{.Message.signature}}:{{.Rec.GetBodyValue "target" ""}}">{{$pubkey}}</span>
 {{ end }}
-<span class="stamp" data-stamp="{{.Rec.Stamp}}">{{localtime .Rec.Stamp}}</span>
+<span class="stamp" data-stamp="{{.RecHead.Stamp}}">{{localtime .RecHead.Stamp}}</span>
 {{ if .Rec.HasBodyValue "attach"}}
-  <a href="{{.ThreadCGI}}/{{.Cache.Datfile}}/{{.Rec.ID}}/{{.Rec.Stamp}}.{{.Suffix}}">{{.Rec.Stamp}}.{{.Suffix}}</a>
+  <a href="{{.ThreadCGI}}/{{.Datfile}}/{{.RecHead.ID}}/{{.RecHead.Stamp}}.{{.Suffix}}">{{.RecHead.Stamp}}.{{.Suffix}}</a>
   ({{toKB (toInt .AttachSize)|printf "%.0f"}}{{.Message.kb}})
 {{ end }}
 </dt>
@@ -33,11 +33,11 @@
   {{stopEscaping .ResAnchor}}{{.RemoveID}}</a>]
 {{ end }}
 {{ if .Thumbnail}}
-  <br /><a href="{{.ThreadCGI}}/{{.Cache.Datfile}}/{{.Rec.ID}}/{{.Rec.Stamp}}.{{.Suffix}}">
-    <img src="/x.gif" data-lazyimg data-src="{{.ThreadCGI}}/{{.Cache.Datfile}}/{{.Rec.ID}}/s{{.Rec.Stamp}}.{{.Thumbnail}}.{{.Suffix}}" alt="" /></a>
+  <br /><a href="{{.ThreadCGI}}/{{.Datfile}}/{{.RecHead.ID}}/{{.RecHead.Stamp}}.{{.Suffix}}">
+    <img src="/x.gif" data-lazyimg data-src="{{.ThreadCGI}}/{{.Datfile}}/{{.RecHead.ID}}/s{{.RecHead.Stamp}}.{{.Thumbnail}}.{{.Suffix}}" alt="" /></a>
 {{ else}}
   {{if and (.Rec.GetBodyValue "attach" "") (eq .Suffix "jpg" "gif" "png") }}
-  <br /><img src="/x.gif" data-lazyimg data-src="{{.ThreadCGI}}/{{.Cache.Datfile}}/{{.Rec.ID}}/{{.Rec.Stamp}}.{{.Suffix}}" height="210" alt="" /></a>
+  <br /><img src="/x.gif" data-lazyimg data-src="{{.ThreadCGI}}/{{.Datfile}}/{{.RecHead.ID}}/{{.RecHead.Stamp}}.{{.Suffix}}" height="210" alt="" /></a>
 {{ end }}
 {{ end }}
 </dd>

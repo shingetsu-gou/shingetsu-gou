@@ -35,13 +35,13 @@ import (
 	"github.com/shingetsu-gou/shingetsu-gou/thread"
 )
 
-//resTable maps id[:8] and its number.
+//ResTable maps id[:8] and its number.
 type ResTable struct {
 	id2num map[string]int
 	Num2id []string
 }
 
-//newResTable creates ane returns a resTable maps instance.
+//NewResTable creates ane returns a resTable instance.
 func NewResTable(ca *thread.Cache) *ResTable {
 	r := &ResTable{
 		make(map[string]int),
@@ -56,7 +56,7 @@ func NewResTable(ca *thread.Cache) *ResTable {
 	return r
 }
 
-//makeRSSAnchor replace id to the record number.
+//MakeRSSAnchor replaces id to the record number in body.
 func (table *ResTable) MakeRSSAnchor(body string) string {
 	reg := regexp.MustCompile("&gt;&gt;([0-9a-f]{8})")
 	return reg.ReplaceAllStringFunc(body, func(str string) string {

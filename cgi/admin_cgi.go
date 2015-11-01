@@ -49,13 +49,15 @@ import (
 	"github.com/shingetsu-gou/shingetsu-gou/util"
 )
 
+//AdminCfg is config for AdminCFG struct.
+//it must be setted before using.
 var AdminCfg *AdminCGIConfig
 
 //AdminURL is the url to admin.cgi
 const AdminURL = "/admin.cgi"
 
-//adminSetups registers handlers for admin.cgi
-func AdminSetup(s *loggingServeMux) {
+//AdminSetup registers handlers for admin.cgi
+func AdminSetup(s *LoggingServeMux) {
 	s.RegistCompressHandler(AdminURL+"/status", printStatus)
 	s.RegistCompressHandler(AdminURL+"/edittag", printEdittag)
 	s.RegistCompressHandler(AdminURL+"/savetag", saveTagCGI)
@@ -67,7 +69,7 @@ func AdminSetup(s *loggingServeMux) {
 //i.e. confirmagion page for deleting rec/file(rdel/fdel) and for deleting.
 //(xrdel/xfdel)
 func execCmd(w http.ResponseWriter, r *http.Request) {
-	a, err := NewAdminCGI(w, r)
+	a, err := newAdminCGI(w, r)
 	if err != nil {
 		log.Println(err)
 		return
@@ -93,7 +95,7 @@ func execCmd(w http.ResponseWriter, r *http.Request) {
 //printSearch renders the page for searching if query=""
 //or do query if query!=""
 func printSearch(w http.ResponseWriter, r *http.Request) {
-	a, err := NewAdminCGI(w, r)
+	a, err := newAdminCGI(w, r)
 	defer a.close()
 	if err != nil {
 		log.Println(err)
@@ -114,7 +116,7 @@ func printSearch(w http.ResponseWriter, r *http.Request) {
 //#linknodes,#knownNodes,#files,#records,cacheSize,selfnode/linknodes/knownnodes
 // ip:port,
 func printStatus(w http.ResponseWriter, r *http.Request) {
-	a, err := NewAdminCGI(w, r)
+	a, err := newAdminCGI(w, r)
 	defer a.close()
 	if err != nil {
 		log.Println()
@@ -160,7 +162,7 @@ func printStatus(w http.ResponseWriter, r *http.Request) {
 
 //printEdittag renders the page for editing tags in thread specified by form "file".
 func printEdittag(w http.ResponseWriter, r *http.Request) {
-	a, err := NewAdminCGI(w, r)
+	a, err := newAdminCGI(w, r)
 	defer a.close()
 	if err != nil {
 		log.Println(err)
@@ -197,7 +199,7 @@ func printEdittag(w http.ResponseWriter, r *http.Request) {
 
 //saveTagCGI saves edited tags of file and render this file with 302.
 func saveTagCGI(w http.ResponseWriter, r *http.Request) {
-	a, err := NewAdminCGI(w, r)
+	a, err := newAdminCGI(w, r)
 	defer a.close()
 	if err != nil {
 		log.Println(err)
@@ -225,9 +227,10 @@ func saveTagCGI(w http.ResponseWriter, r *http.Request) {
 	a.print302(next)
 }
 
+//AdminCGIConfig is config for AdminCGI struct.
 type AdminCGIConfig struct {
 	AdminSID          string
-	NodeManager       *node.NodeManager
+	NodeManager       *node.Manager
 	Htemplate         *util.Htemplate
 	UserTag           *thread.UserTag
 	SuggestedTagTable *thread.SuggestedTagTable
@@ -242,10 +245,10 @@ type adminCGI struct {
 
 //newAdminCGI returns adminCGI obj if client is admin.
 //if not render 403.
-func NewAdminCGI(w http.ResponseWriter, r *http.Request) (adminCGI, error) {
+func newAdminCGI(w http.ResponseWriter, r *http.Request) (adminCGI, error) {
 	a := adminCGI{
 		AdminCGIConfig: AdminCfg,
-		cgi:            NewCGI(w, r),
+		cgi:            newCGI(w, r),
 	}
 	if a.cgi == nil {
 		return a, errors.New("cannot make cgi")
@@ -292,15 +295,6 @@ type DeleteRecord struct {
 	Datfile  string
 	Records  []*thread.Record
 	Sid      string
-}
-
-//Getbody retuns contents of rec.
-func (d DeleteRecord) Getbody(rec *thread.Record) string {
-	err := rec.Load()
-	if err != nil {
-		log.Println(err)
-	}
-	return rec.Recstr()
 }
 
 //printDeleteRecord renders comfirmation page for deleting a record.
@@ -357,41 +351,6 @@ func (a *adminCGI) doDeleteRecord(rmFiles []string, records []string, dopost str
 	a.print302(next)
 }
 
-//DelFile is for rendering confirmation page of deleting file.
-type DelFile struct {
-	Message  message
-	adminCGI string
-	Files    []*thread.Cache
-	Sid      string
-}
-
-//Gettitle returns title part if *_*.
-//returns ca.datfile if not.
-func (d *DelFile) Gettitle(ca *thread.Cache) string {
-	if strings.HasPrefix(ca.Datfile, "thread_") {
-		return util.FileDecode(ca.Datfile)
-	}
-	return ca.Datfile
-}
-
-//GetContents returns recstrs of cache.
-//len(recstrs) is <=2.
-func (d *DelFile) GetContents(ca *thread.Cache) []string {
-	contents := make([]string, 0, 2)
-	recs := ca.LoadRecords()
-	for _, rec := range recs {
-		err := rec.Load()
-		if err != nil {
-			log.Println(err)
-		}
-		contents = append(contents, util.Escape(rec.Recstr()))
-		if len(contents) > 2 {
-			return contents
-		}
-	}
-	return contents
-}
-
 //postDeleteMessage tells others deletion of a record.
 //and adds to updateList and recentlist.
 func (a *adminCGI) postDeleteMessage(ca *thread.Cache, rec *thread.Record) {
@@ -422,7 +381,12 @@ func (a *adminCGI) printDeleteFile(files []string) {
 	for i, v := range files {
 		cas[i] = thread.NewCache(v)
 	}
-	d := DelFile{
+	d := struct {
+		Message  message
+		adminCGI string
+		Files    []*thread.Cache
+		Sid      string
+	}{
 		a.m,
 		AdminURL,
 		cas,

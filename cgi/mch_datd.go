@@ -48,8 +48,8 @@ import (
 	"github.com/shingetsu-gou/shingetsu-gou/util"
 )
 
-//mchSetup setups handlers for 2ch interface.
-func MchSetup(s *loggingServeMux) {
+//MchSetup setups handlers for 2ch interface.
+func MchSetup(s *LoggingServeMux) {
 	log.Println("start 2ch interface")
 	rtr := mux.NewRouter()
 
@@ -125,8 +125,11 @@ func headApp(w http.ResponseWriter, r *http.Request) {
 	a.headApp()
 }
 
+//MchCfg is config for mchCGI struct.
+//mut be setted beforehand.
 var MchCfg *MchConfig
 
+//MchConfig is config for mchCGI struct.
 type MchConfig struct {
 	Motd         string
 	RecentList   *thread.RecentList
@@ -144,7 +147,7 @@ type mchCGI struct {
 //if not allowed print 403.
 func newMchCGI(w http.ResponseWriter, r *http.Request) (mchCGI, error) {
 	c := mchCGI{
-		cgi:       NewCGI(w, r),
+		cgi:       newCGI(w, r),
 		MchConfig: MchCfg,
 	}
 	defer c.close()
@@ -248,7 +251,7 @@ func (m *mchCGI) makeSubjectCachelist(board string) []*thread.Cache {
 	for _, c := range cl.Caches {
 		result = append(result, c)
 	}
-	sort.Sort(sort.Reverse(thread.SortByRecentStamp{result}))
+	sort.Sort(sort.Reverse(thread.SortByRecentStamp{Caches: result}))
 	if board == "" {
 		return result
 	}
@@ -375,6 +378,8 @@ func (m *mchCGI) getCommentData() map[string]string {
 	}
 }
 
+//checkInfo checks posted info and returs thread name.
+//if ok.
 func (m *mchCGI) checkInfo(info map[string]string) string {
 	key := ""
 	if info["subject"] != "" {
@@ -408,7 +413,8 @@ func (m *mchCGI) checkInfo(info map[string]string) string {
 	return key
 }
 
-//postCommentApp
+//postCommentApp checks posted data and replaces >> links to html links,
+//and  saves it as record.
 func (m *mchCGI) postCommentApp() {
 	if m.req.Method != "POST" {
 		m.wr.Header().Set("Content-Type", "text/plain")

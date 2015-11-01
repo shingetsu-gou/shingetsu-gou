@@ -41,13 +41,13 @@ import (
 	"time"
 )
 
-//md5digest returns hex string of md5sum
+//MD5digest returns hex string of md5sum
 func MD5digest(dat string) string {
 	sum := md5.Sum([]byte(dat))
 	return hex.EncodeToString(sum[:])
 }
 
-//strEncode returns enscaped string for url , including "~"
+//StrEncode returns enscaped string for url , including "~"
 func StrEncode(query string) string {
 	str := url.QueryEscape(query)
 	str = strings.Replace(str, "~", "%7E", -1)
@@ -55,7 +55,7 @@ func StrEncode(query string) string {
 	return str
 }
 
-//escapeSpace converts spaces into html space.
+//EscapeSpace converts spaces into html space.
 func EscapeSpace(msg string) string {
 	msg = strings.Replace(msg, "  ", "&nbsp;&nbsp;", -1)
 	msg = strings.Replace(msg, "<br> ", "<br>&nbsp;", -1)
@@ -67,7 +67,7 @@ func EscapeSpace(msg string) string {
 	return msg
 }
 
-//escape is like a html.escapestring, except &#xxxx and \n
+//Escape is like a html.escapestring, except &#xxxx and \n
 func Escape(msg string) string {
 	msg = strings.Replace(msg, "&", "&amp;", -1)
 	reg := regexp.MustCompile(`&amp;(#\d+|#[Xx][0-9A-Fa-f]+|[A-Za-z0-9]+);`)
@@ -79,7 +79,7 @@ func Escape(msg string) string {
 	return msg
 }
 
-//strDecode decode from url query
+//StrDecode decode from url query
 func StrDecode(query string) string {
 	str, err := url.QueryUnescape(query)
 	if err != nil {
@@ -90,7 +90,7 @@ func StrDecode(query string) string {
 
 //from attachutil.py
 
-//isValidImage checks type of path is same as mimetype or not.
+//IsValidImage checks type of path is same as mimetype or not.
 func IsValidImage(mimetype, path string) bool {
 	ext := filepath.Ext(path)
 	if ext == "" {
@@ -108,7 +108,7 @@ func IsValidImage(mimetype, path string) bool {
 
 //from mch/util.py
 
-//getBoard returns decoded board name.
+//GetBoard returns decoded board name.
 func GetBoard(url string) string {
 	reg := regexp.MustCompile(`/2ch_([^/]+)/`)
 	m := reg.FindStringSubmatch(url)
@@ -118,7 +118,7 @@ func GetBoard(url string) string {
 	return FileDecode("dummy_" + m[1])
 }
 
-//datastr2ch unixtime str ecpochStr to the certain format string.
+//Datestr2ch converts unixtime str ecpochStr to the certain format string.
 //e.g. 2006/01/02(日) 15:04:05.99
 func Datestr2ch(epoch int64) string {
 	t := time.Unix(epoch, 0)
@@ -129,7 +129,7 @@ func Datestr2ch(epoch int64) string {
 
 //from title.py
 
-//fileEncode encodes filename.
+//FileEncode encodes filename.
 //    >>> file_encode('foo', 'a')
 //    'foo_61'
 //    >>> file_encode('foo', '~')
@@ -138,7 +138,7 @@ func FileEncode(t, query string) string {
 	return t + "_" + strings.ToUpper(hex.EncodeToString([]byte(query)))
 }
 
-//fileDecode decodes filename.
+//FileDecode decodes filename.
 //    >>> file_decode('foo_7E')
 //    '~'
 func FileDecode(query string) string {
@@ -154,7 +154,7 @@ func FileDecode(query string) string {
 	return string(b)
 }
 
-//filehash simply returns itself, because it not implement except 'asis'
+//FileHash simply returns itself, because it does not implement other types except 'asis'.
 func FileHash(query string) string {
 	return query
 }

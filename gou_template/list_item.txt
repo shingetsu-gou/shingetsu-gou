@@ -8,17 +8,13 @@
   <label style="display:inline-block">
   <input type="checkbox" name="file" value="{{.Cache.Datfile}}" style="display:inline-block" />
 {{ end }}
-{{ if eq .Target "recent" }}
   <span class="stamp" id="s{{.Cache.RecentStamp}}">{{localtime .Cache.RecentStamp}}</span>
-{{ else }}
-  <span class="stamp" id="s{{.Cache.ValidStamp}}">{{localtime .Cache.ValidStamp}}</span>
-{{ end }}
 {{ if and .IsAdmin .Remove }}
   </label>
 {{ end }}
 
 <a href="{{ThreadURL}}/{{strEncode .Title}}{{.StrOpts}}">{{.Title}}</a>
-({{.Cache.Len}}/{{toMB .Cache.Size|printf "%.1f"}}{{.Message.mb}})
+({{.Cache.Len}}/{{toMB .CacheSize|printf "%.1f"}}{{.Message.mb}})
 {{ if .Tags}}
   <span class="tags">
   {{ range $tag:=.Tags.Tags }}

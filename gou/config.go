@@ -41,7 +41,6 @@ import (
 	"gopkg.in/ini.v1"
 )
 
-
 //getIntValue gets int value from ini file.
 func getIntValue(i *ini.File, section, key string, vdefault int) int {
 	return i.Section(section).Key(key).MustInt(vdefault)

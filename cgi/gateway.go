@@ -47,8 +47,6 @@ import (
 	"golang.org/x/text/language"
 )
 
-//const searchTimeout = 10 * time.Minute // used for timeout of lockfile,for now not used
-
 //message hold string map.
 type message map[string]string
 
@@ -125,6 +123,7 @@ func (c GatewayLink) Render(cginame, command string) template.HTML {
 //ListItem is for list_item.txt
 type ListItem struct {
 	Cache             *thread.Cache
+	CacheSize         int64
 	Title             string
 	Tags              thread.Tagslice
 	Sugtags           []*thread.Tag
@@ -185,6 +184,7 @@ func (l ListItem) Render(ca *thread.Cache, remove bool, target string, search bo
 			}
 		}
 	}
+	l.CacheSize = ca.ReadInfo().Size
 	l.Cache = ca
 	l.Title = x
 	l.Tags = ca.GetTags()
@@ -197,6 +197,7 @@ func (l ListItem) Render(ca *thread.Cache, remove bool, target string, search bo
 	return template.HTML(l.htemplate.ExecuteTemplate("list_item", l))
 }
 
+//CGIConfig is config for CGI struct.
 type CGIConfig struct {
 	FileDir           string
 	Docroot           string
@@ -223,10 +224,13 @@ type cgi struct {
 
 var cgis chan *cgi
 
+//CGICfg is cfg for CGI struct.
+//it must be set before using.
 var CGICfg *CGIConfig
 
 //newCGI reads messages file, and set params , returns cgi obj.
-func NewCGI(w http.ResponseWriter, r *http.Request) *cgi {
+//cgi obj is cached.
+func newCGI(w http.ResponseWriter, r *http.Request) *cgi {
 	if cgis == nil {
 		cgis = make(chan *cgi, CGICfg.MaxConnection)
 	}
@@ -250,6 +254,7 @@ func NewCGI(w http.ResponseWriter, r *http.Request) *cgi {
 	return c
 }
 
+//host returns servername or host in http header.
 func (c *cgi) host() string {
 	host := c.ServerName
 	if host == "" {
@@ -258,6 +263,7 @@ func (c *cgi) host() string {
 	return host
 }
 
+//isAdmin returns tur if matches admin regexp setted in config file.
 func (c *cgi) isAdmin() bool {
 	m, err := regexp.MatchString(c.ReAdminStr, c.req.RemoteAddr)
 	if err != nil {
@@ -266,6 +272,7 @@ func (c *cgi) isAdmin() bool {
 	return m
 }
 
+//isFriend returns tur if matches friend regexp setted in config file.
 func (c *cgi) isFriend() bool {
 	m, err := regexp.MatchString(c.ReFriendStr, c.req.RemoteAddr)
 	if err != nil {
@@ -274,6 +281,7 @@ func (c *cgi) isFriend() bool {
 	return m
 }
 
+//isVisitor returns tur if matches visitor regexp setted in config file.
 func (c *cgi) isVisitor() bool {
 	m, err := regexp.MatchString(c.ReVisitorStr, c.req.RemoteAddr)
 	if err != nil {
@@ -282,6 +290,8 @@ func (c *cgi) isVisitor() bool {
 	return m
 }
 
+//path returns path part of url.
+//e.g. /thread.cgi/hoe/moe -> hoe/moe
 func (c *cgi) path() string {
 	p := strings.Split(c.req.URL.Path, "/")
 	//  /thread.cgi/hoe
@@ -431,7 +441,7 @@ func (c *cgi) header(title, rss string, cookie []*http.Cookie, denyRobot bool) {
 	c.Htemplate.RenderTemplate("header", h, c.wr)
 }
 
-//resAnchor retuns a href  string with url.
+//resAnchor returns a href  string with url.
 func (c *cgi) resAnchor(id, appli string, title string, absuri bool) string {
 	title = util.StrEncode(title)
 	var prefix, innerlink string
@@ -500,13 +510,15 @@ func (c *cgi) bracketLink(link, appli string, absuri bool) string {
 //removeFileForm render remove_form_form page.
 func (c *cgi) removeFileForm(ca *thread.Cache, title string) {
 	s := struct {
-		Cache    *thread.Cache
-		Title    string
-		IsAdmin  bool
-		AdminCGI string
-		Message  message
+		Cache     *thread.Cache
+		CacheSize int64
+		Title     string
+		IsAdmin   bool
+		AdminCGI  string
+		Message   message
 	}{
 		ca,
+		ca.ReadInfo().Size,
 		title,
 		c.isAdmin(),
 		AdminURL,
@@ -574,7 +586,6 @@ func (c *cgi) printIndexList(cl []*thread.Cache, target string, footer bool, sea
 		SearchNewFile bool
 		IsAdmin       bool
 		IsFriend      bool
-		Types         []string
 		GatewayLink
 		ListItem
 	}{
@@ -589,7 +600,6 @@ func (c *cgi) printIndexList(cl []*thread.Cache, target string, footer bool, sea
 		searchNewFile,
 		c.isAdmin(),
 		c.isFriend(),
-		[]string{"thread"},
 		GatewayLink{
 			htemplate: c.Htemplate,
 			Message:   c.m,
@@ -650,7 +660,6 @@ func (c *cgi) checkGetCache() bool {
 		return true
 	}
 	if reg.MatchString(agent) {
-		log.Println("ng")
 		return false
 	}
 	return true

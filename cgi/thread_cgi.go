@@ -57,8 +57,8 @@ import (
 //ThreadURL is the url to thread.cgi
 const ThreadURL = "/thread.cgi"
 
-//threadSetup setups handlers for thread.cgi
-func ThreadSetup(s *loggingServeMux) {
+//ThreadSetup setups handlers for thread.cgi
+func ThreadSetup(s *LoggingServeMux) {
 	rtr := mux.NewRouter()
 
 	registToRouter(rtr, ThreadURL+"/", printThreadIndex)
@@ -83,14 +83,14 @@ func ThreadSetup(s *loggingServeMux) {
 
 //printThreadIndex adds records in multiform and redirect to its thread page.
 func printThreadIndex(w http.ResponseWriter, r *http.Request) {
-	if a, err := NewThreadCGI(w, r); err == nil {
+	if a, err := newThreadCGI(w, r); err == nil {
 		defer a.close()
 		a.printThreadIndex()
 	}
 }
 
 func printAttach(w http.ResponseWriter, r *http.Request) {
-	if a, err := NewThreadCGI(w, r); err == nil {
+	if a, err := newThreadCGI(w, r); err == nil {
 		defer a.close()
 		m := mux.Vars(r)
 		var stamp int64
@@ -108,7 +108,7 @@ func printAttach(w http.ResponseWriter, r *http.Request) {
 
 //printThread renders whole thread list page.
 func printThread(w http.ResponseWriter, r *http.Request) {
-	if a, err := NewThreadCGI(w, r); err == nil {
+	if a, err := newThreadCGI(w, r); err == nil {
 		defer a.close()
 		m := mux.Vars(r)
 		var page int
@@ -123,8 +123,11 @@ func printThread(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
+//ThreadCfg is config for threadCGI struct.
+//must set beforehand.
 var ThreadCfg *ThreadCGIConfig
 
+//ThreadCGIConfig is config for threadCGI struct.
 type ThreadCGIConfig struct {
 	ThreadPageSize       int
 	DefaultThumbnailSize string
@@ -141,10 +144,10 @@ type threadCGI struct {
 }
 
 //newThreadCGI returns threadCGI obj.
-func NewThreadCGI(w http.ResponseWriter, r *http.Request) (threadCGI, error) {
+func newThreadCGI(w http.ResponseWriter, r *http.Request) (threadCGI, error) {
 	t := threadCGI{
 		ThreadCGIConfig: ThreadCfg,
-		cgi:             NewCGI(w, r),
+		cgi:             newCGI(w, r),
 	}
 
 	if t.cgi == nil {
@@ -449,8 +452,9 @@ func (t *threadCGI) printRecord(ca *thread.Cache, rec *thread.Record) {
 		id8 = id8[:8]
 	}
 	s := struct {
-		Cache      *thread.Cache
+		Datfile    string
 		Rec        *thread.Record
+		RecHead    thread.RecordHead
 		Sid        string
 		Path       string
 		AttachSize int64
@@ -463,8 +467,9 @@ func (t *threadCGI) printRecord(ca *thread.Cache, rec *thread.Record) {
 		ResAnchor  string
 		Message    message
 	}{
-		ca,
+		ca.Datfile,
 		rec,
+		rec.CopyRecordHead(),
 		id8,
 		t.path(),
 		attachSize,
