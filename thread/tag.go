@@ -113,11 +113,11 @@ func (t Tagslice) prune(size int) Tagslice {
 }
 
 //checkAppend append tagstr=val tag if tagList doesn't have its tag.
-func (t Tagslice) checkAppend(val string) {
+func (t Tagslice) checkAppend(val string) Tagslice {
 	if strings.ContainsAny(val, "<>&") || util.HasString(t.GetTagstrSlice(), val) {
-		return
+		return t
 	}
-	t = append(t, &Tag{val, 1})
+	return append(t, &Tag{val, 1})
 }
 
 //HasTagstr return true if one of tags has tagstr
@@ -131,21 +131,11 @@ func (t Tagslice) HasTagstr(tagstr string) bool {
 }
 
 //addString add tagstr=vals tag
-func (t Tagslice) addString(vals []string) {
+func (t Tagslice) addString(vals []string) Tagslice {
 	for _, val := range vals {
-		t.checkAppend(val)
+		t = t.checkAppend(val)
 	}
-}
-
-//add adds vals tags.
-func (t Tagslice) add(vals []*Tag) {
-	for _, val := range vals {
-		if i := util.FindString(t.GetTagstrSlice(), val.Tagstr); i >= 0 {
-			t[i].weight++
-		} else {
-			t.checkAppend(val.Tagstr)
-		}
-	}
+	return t
 }
 
 //sync saves tagstr of tags to path.
@@ -166,7 +156,7 @@ type SuggestedTagTableConfig struct {
 //SuggestedTagTable represents tags associated with datfile retrieved from network.
 type SuggestedTagTable struct {
 	*SuggestedTagTableConfig
-	Sugtaglist map[string]Tagslice
+	sugtaglist map[string]Tagslice
 	mutex      sync.RWMutex
 }
 
@@ -174,13 +164,13 @@ type SuggestedTagTable struct {
 func NewSuggestedTagTable(cfg *SuggestedTagTableConfig) *SuggestedTagTable {
 	s := &SuggestedTagTable{
 		SuggestedTagTableConfig: cfg,
-		Sugtaglist:              make(map[string]Tagslice),
+		sugtaglist:              make(map[string]Tagslice),
 	}
 	if !util.IsFile(cfg.Sugtag) {
 		return s
 	}
 	err := util.EachKeyValueLine(cfg.Sugtag, func(k string, vs []string, i int) error {
-		s.Sugtaglist[k] = newTagslice(vs)
+		s.sugtaglist[k] = newTagslice(vs)
 		return nil
 	})
 	if err != nil {
@@ -191,11 +181,10 @@ func NewSuggestedTagTable(cfg *SuggestedTagTableConfig) *SuggestedTagTable {
 
 //sync saves Sugtaglists.
 func (s *SuggestedTagTable) sync() {
-	log.Println("syncing..")
 	m := make(map[string][]string)
 	s.mutex.RLock()
 	defer s.mutex.RUnlock()
-	for k, v := range s.Sugtaglist {
+	for k, v := range s.sugtaglist {
 		s := v.GetTagstrSlice()
 		m[k] = s
 	}
@@ -211,7 +200,7 @@ func (s *SuggestedTagTable) sync() {
 func (s *SuggestedTagTable) Get(datfile string, def Tagslice) Tagslice {
 	s.mutex.RLock()
 	defer s.mutex.RUnlock()
-	if v, exist := s.Sugtaglist[datfile]; exist {
+	if v, exist := s.sugtaglist[datfile]; exist {
 		tags := make([]*Tag, v.Len())
 		copy(tags, v)
 		return Tagslice(tags)
@@ -223,9 +212,9 @@ func (s *SuggestedTagTable) Get(datfile string, def Tagslice) Tagslice {
 func (s *SuggestedTagTable) keys() []string {
 	s.mutex.RLock()
 	defer s.mutex.RUnlock()
-	ary := make([]string, len(s.Sugtaglist))
+	ary := make([]string, len(s.sugtaglist))
 	i := 0
-	for k := range s.Sugtaglist {
+	for k := range s.sugtaglist {
 		ary[i] = k
 		i++
 	}
@@ -236,39 +225,39 @@ func (s *SuggestedTagTable) keys() []string {
 func (s *SuggestedTagTable) addString(datfile string, vals []string) {
 	s.mutex.Lock()
 	defer s.mutex.Unlock()
-	s.Sugtaglist[datfile].addString(vals)
+	s.sugtaglist[datfile] = s.sugtaglist[datfile].addString(vals)
 }
 
 //HasTagstr return true if one of tags has tagstr
 func (s *SuggestedTagTable) HasTagstr(datfile string, tagstr string) bool {
 	s.mutex.RLock()
 	defer s.mutex.RUnlock()
-	return s.Sugtaglist[datfile].HasTagstr(tagstr)
+	return s.sugtaglist[datfile].HasTagstr(tagstr)
 }
 
 //String return tagstr string of datfile.
 func (s *SuggestedTagTable) String(datfile string) string {
 	s.mutex.RLock()
 	defer s.mutex.RUnlock()
-	return s.Sugtaglist[datfile].string()
+	return s.sugtaglist[datfile].string()
 }
 
 //prune removes Sugtaglists which are not listed in recentlist,
 //or truncates its size to tagsize if listed.
 func (s *SuggestedTagTable) prune(recentlist *RecentList) {
+	tmp := s.keys()
 	s.mutex.Lock()
 	defer s.mutex.Unlock()
-	tmp := s.keys()
-	for _, r := range recentlist.infos {
+	for _, r := range recentlist.GetRecords() {
 		if l := util.FindString(tmp, r.Datfile); l != -1 {
 			tmp = append(tmp[:l], tmp[l+1:]...)
 		}
-		if v, exist := s.Sugtaglist[r.Datfile]; exist {
+		if v, exist := s.sugtaglist[r.Datfile]; exist {
 			v.prune(s.TagSize)
 		}
 	}
 	for _, datfile := range tmp {
-		delete(s.Sugtaglist, datfile)
+		delete(s.sugtaglist, datfile)
 	}
 }
 
@@ -302,7 +291,7 @@ func (u *UserTag) Get() Tagslice {
 			if err != nil {
 				return err
 			}
-			tags.addString(strings.Split(string(t), "\r\n"))
+			tags = tags.addString(strings.Split(string(t), "\r\n"))
 		}
 		return nil
 	})

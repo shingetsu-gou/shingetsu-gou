@@ -134,6 +134,7 @@ type ListItem struct {
 	GatewayCGI        string
 	ThreadURL         string
 	Message           message
+	CacheInfo         *thread.CacheInfo
 	filter            string
 	tag               string
 	suggestedTagTable *thread.SuggestedTagTable
@@ -184,7 +185,7 @@ func (l ListItem) Render(ca *thread.Cache, remove bool, target string, search bo
 			}
 		}
 	}
-	l.CacheSize = ca.ReadInfo().Size
+	l.CacheInfo = ca.ReadInfo()
 	l.Cache = ca
 	l.Title = x
 	l.Tags = ca.GetTags()
@@ -231,6 +232,10 @@ var CGICfg *CGIConfig
 //newCGI reads messages file, and set params , returns cgi obj.
 //cgi obj is cached.
 func newCGI(w http.ResponseWriter, r *http.Request) *cgi {
+	if CGICfg == nil {
+		log.Fatal("must set CGICfg")
+	}
+
 	if cgis == nil {
 		cgis = make(chan *cgi, CGICfg.MaxConnection)
 	}

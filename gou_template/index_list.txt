@@ -23,19 +23,17 @@
 
 {{ if .Target}}
   <p class="tags">
-  {{ range $t:=.Taglist.Tags }}
+  {{ range $t:=.Taglist }}
     <a href="{{$root.GatewayCGI}}/{{$root.Target}}?tag={{strEncode $t.Tagstr}}" class="tag">{{$t.Tagstr}}</a>
   {{ end }}
   </p>
 {{ end }}
 
-{{ range $type:=.Types }}
-  <ul id="{{$type}}_index">
+  <ul id="thread_index">
   {{ range $cache:=$root.Cachelist }}
       {{$root.ListItem.Render $cache true $root.Target $root.SearchNewFile}}
   {{ end }}
   </ul>
-{{ end }}
 {{ if and (not .Cachelist) (or .IsFriend .IsAdmin)}}
   <p>{{.GatewayLink.Render .GatewayCGI "recent" | unescapedPrintf .Message.empty_list }}</p>
 {{ end }}

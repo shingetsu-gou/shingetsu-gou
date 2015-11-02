@@ -85,6 +85,9 @@ type Cache struct {
 //it uses sync.pool to ensure that only one cache obj exists for one datfile.
 //and garbage collected when not used.
 func NewCache(datfile string) *Cache {
+	if CacheCfg == nil {
+		log.Fatal("must set CacheCfg")
+	}
 	p, exist := cacheMap[datfile]
 	if !exist {
 		p.New = func() interface{} {
@@ -105,7 +108,7 @@ func NewCache(datfile string) *Cache {
 func (c *Cache) AddTags(vals []string) {
 	c.mutex.Lock()
 	defer c.mutex.Unlock()
-	c.tags.addString(vals)
+	c.tags = c.tags.addString(vals)
 }
 
 //SetTags sets user tag list from vals.
@@ -183,11 +186,11 @@ func (c *Cache) RecentStamp() int64 {
 func (c *Cache) ReadInfo() *CacheInfo {
 	c.Fmutex.RLock()
 	defer c.Fmutex.RUnlock()
+	ci := &CacheInfo{}
 	d := path.Join(c.datpath(), "record")
 	if !util.IsDir(d) {
-		return nil
+		return ci
 	}
-	ci := &CacheInfo{}
 	err := util.EachFiles(d, func(dir os.FileInfo) error {
 		stamp, err := strconv.ParseInt(strings.Split(dir.Name(), "_")[0], 10, 64)
 		if err != nil {

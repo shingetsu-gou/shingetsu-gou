@@ -139,7 +139,7 @@ func printStatus(w http.ResponseWriter, r *http.Request) {
 		"files":        strconv.Itoa(cl.Len()),
 		"records":      strconv.Itoa(records),
 		"cache_size":   fmt.Sprintf("%.1f%s", float64(size)/1024/1024, a.m["mb"]),
-		"self_node":    a.NodeManager.GetMyself().Nodestr,
+		"self_node":    a.Myself.Nodestr(),
 		"alloc_mem":    fmt.Sprintf("%.1f%s", float64(mem.Alloc)/1024/1024, a.m["mb"]),
 	}
 	ns := map[string][]string{
@@ -235,6 +235,7 @@ type AdminCGIConfig struct {
 	UserTag           *thread.UserTag
 	SuggestedTagTable *thread.SuggestedTagTable
 	RecentList        *thread.RecentList
+	Myself            *node.Myself
 }
 
 //adminCGI is for admin.cgi handler.
@@ -246,6 +247,9 @@ type adminCGI struct {
 //newAdminCGI returns adminCGI obj if client is admin.
 //if not render 403.
 func newAdminCGI(w http.ResponseWriter, r *http.Request) (adminCGI, error) {
+	if AdminCfg==nil{
+		log.Fatal("must set adminConfig")
+	}
 	a := adminCGI{
 		AdminCGIConfig: AdminCfg,
 		cgi:            newCGI(w, r),

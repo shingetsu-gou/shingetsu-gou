@@ -146,6 +146,9 @@ type mchCGI struct {
 //newMchCGI returns mchCGI obj if visitor  is allowed.
 //if not allowed print 403.
 func newMchCGI(w http.ResponseWriter, r *http.Request) (mchCGI, error) {
+	if MchCfg == nil {
+		log.Fatal("must set MchCfg")
+	}
 	c := mchCGI{
 		cgi:       newCGI(w, r),
 		MchConfig: MchCfg,

@@ -58,7 +58,7 @@ type RecordHead struct {
 //newUpdateInfoFromLine parse one line in udpate/recent list and returns updateInfo obj.
 func newRecordHeadFromLine(line string) (*RecordHead, error) {
 	strs := strings.Split(strings.TrimRight(line, "\n\r"), "<>")
-	if len(strs) < 3 {
+	if len(strs) < 3 || util.FileDecode(strs[2]) == "" || !strings.HasPrefix(strs[2], "thread") {
 		err := errors.New("illegal format")
 		log.Println(err)
 		return nil, err
@@ -160,6 +160,9 @@ type Record struct {
 //NewRecord parse idstr unixtime+"_"+md5(bodystr)), set stamp and id, and return record obj.
 //if parse failes returns nil.
 func NewRecord(Datfile, idstr string) *Record {
+	if RecordCfg == nil {
+		log.Fatal("must set RecordCfg")
+	}
 	var err error
 	r := &Record{
 		RecordConfig: RecordCfg,
@@ -206,6 +209,10 @@ func makeRecord(line string) *Record {
 		return nil
 	}
 	idstr := buf[0] + "_" + buf[1]
+	if util.FileDecode(buf[2]) == "" || !strings.HasPrefix(buf[2], "thread_") {
+		//		log.Println("illegal format",buf[2])
+		return nil
+	}
 	vr := NewRecord(buf[2], idstr)
 	if err := vr.parse(line); err != nil {
 		log.Println(err)
@@ -276,6 +283,11 @@ func (r *Record) dathash() string {
 //Exists return true if record file exists.
 func (r *Record) Exists() bool {
 	return util.IsFile(r.path())
+}
+
+//recstr returns one line in the record file.
+func (r *Record) recstr() string {
+	return fmt.Sprintf("%d<>%s<>%s", r.Stamp, r.ID, r.bodystr())
 }
 
 //parse parses one line in record file and response of /recent/ and set params to record r.
@@ -536,7 +548,7 @@ func (r *Record) Sync() {
 		return
 	}
 	if !util.IsFile(r.path()) {
-		err := util.WriteFile(r.path(), r.Recstr()+"\n")
+		err := util.WriteFile(r.path(), r.recstr()+"\n")
 		if err != nil {
 			log.Println(err)
 		}
@@ -582,13 +594,13 @@ func (r *Record) checkSign() bool {
 
 //meets checks the record meets conditions of args
 func (r *Record) meets(i string, stamp int64, id string, begin, end int64) bool {
-	r.mutex.RLock()
-	defer r.mutex.RUnlock()
 
 	if r.parse(i) != nil {
 		log.Println("parse NG")
 		return false
 	}
+	r.mutex.RLock()
+	defer r.mutex.RUnlock()
 	if stamp > 0 && r.Stamp != stamp {
 		log.Println("stamp NG", r.Stamp, stamp)
 		return false

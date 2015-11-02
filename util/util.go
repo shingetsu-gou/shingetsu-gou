@@ -32,7 +32,6 @@ import (
 	"crypto/md5"
 	"encoding/hex"
 	"fmt"
-	"log"
 	"mime"
 	"net/url"
 	"path/filepath"
@@ -148,7 +147,7 @@ func FileDecode(query string) string {
 	}
 	b, err := hex.DecodeString(strs[1])
 	if err != nil {
-		log.Println("illegal file name", query, err)
+		//		log.Println("illegal file name", query, err)
 		return ""
 	}
 	return string(b)

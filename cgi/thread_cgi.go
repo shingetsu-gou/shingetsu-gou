@@ -145,6 +145,9 @@ type threadCGI struct {
 
 //newThreadCGI returns threadCGI obj.
 func newThreadCGI(w http.ResponseWriter, r *http.Request) (threadCGI, error) {
+	if ThreadCfg == nil {
+		log.Fatal("must set ThreadCfg")
+	}
 	t := threadCGI{
 		ThreadCGIConfig: ThreadCfg,
 		cgi:             newCGI(w, r),
@@ -266,9 +269,8 @@ func (t *threadCGI) printThreadHead(path, id string, page int, ca *thread.Cache,
 	switch {
 	case ca.HasRecord():
 	case t.checkGetCache():
-		if t.req.FormValue("search_new_file") != "" {
-			ca.SetupDirectories()
-		} else {
+		ca.SetupDirectories()
+		if t.req.FormValue("search_new_file") == "" {
 			ca.GetCache()
 		}
 	default:
@@ -309,7 +311,7 @@ func (t *threadCGI) printThreadTop(path, id string, nPage int, ca *thread.Cache)
 		Message   message
 		ThreadCGI string
 		AdminCGI  string
-		ResAnchor string
+		ResAnchor template.HTML
 	}{
 		path,
 		ca,
@@ -319,7 +321,7 @@ func (t *threadCGI) printThreadTop(path, id string, nPage int, ca *thread.Cache)
 		t.m,
 		ThreadURL,
 		AdminURL,
-		resAnchor,
+		template.HTML(resAnchor),
 	}
 	t.Htemplate.RenderTemplate("thread_top", s, t.wr)
 }
@@ -359,7 +361,6 @@ func (t *threadCGI) printThreadBody(id string, nPage int, ca *thread.Cache) {
 
 //printThread renders whole thread list page.
 func (t *threadCGI) printThread(path, id string, nPage int) {
-
 	if id != "" && t.req.FormValue("ajax") != "" {
 		t.printThreadAjax(id)
 		return

@@ -44,8 +44,8 @@ func cron(nodeManager *node.Manager, recentList *thread.RecentList) {
 		syncCycle   = 1 * time.Hour    // Seconds; Check cache
 		initCycle   = 20 * time.Minute // Seconds; Check initial node
 	)
-
 	nodeManager.Initialize()
+	log.Println(nodeManager.ListLen())
 	doSync(nodeManager, recentList)
 
 	for {
@@ -60,7 +60,7 @@ func cron(nodeManager *node.Manager, recentList *thread.RecentList) {
 			doSync(nodeManager, recentList)
 			log.Println("nodelist.pingall finished")
 
-		case <-time.After(initCycle * time.Duration(nodeManager.ListLen())):
+		case <-time.After(initCycle):
 			nodeManager.Initialize()
 
 		case <-time.After(syncCycle):
@@ -76,22 +76,24 @@ func doSync(nodeManager *node.Manager, recentList *thread.RecentList) {
 	if nodeManager.ListLen() == 0 {
 		return
 	}
+	log.Println("lookupTable.join start")
 	nodeManager.RejoinList()
-	log.Println("lookupTable.join finished")
-
 	nodeManager.Sync()
 	log.Println("lookupTable.join finished")
 
+	log.Println("cachelist.cleanRecords start")
 	cl := thread.NewCacheList()
 	cl.CleanRecords()
+	cl.RemoveRemoved()
 	log.Println("cachelist.cleanRecords finished")
 
-	cl.RemoveRemoved()
-	log.Println("cachelist.removeRemoved finished")
-
+	log.Println("recentList.getall start")
 	recentList.Getall()
 	log.Println("recentList.getall finished")
 
+	log.Println("cacheList.getall start")
 	cl.Getall()
 	log.Println("cacheList.getall finished")
+
+	log.Println("dosync finished")
 }

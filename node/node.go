@@ -36,6 +36,7 @@ import (
 	"regexp"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/shingetsu-gou/shingetsu-gou/util"
@@ -71,36 +72,73 @@ func urlopen(url string, timeout time.Duration) ([]string, error) {
 	return lines, err
 }
 
+//Myself contains my node info.
+type Myself struct {
+	IP         string
+	Port       int
+	Path       string
+	ServerName string
+	mutex      sync.RWMutex
+}
+
+//toNode converts myself to *Node.
+func (m *Myself) toNode() *Node {
+	m.mutex.RLock()
+	defer m.mutex.RUnlock()
+	if m.ServerName != "" {
+		return MakeNode(m.ServerName, m.Path, m.Port)
+	}
+	return MakeNode(m.IP, m.Path, m.Port)
+}
+
+//Nodestr returns nodestr.
+func (m *Myself) Nodestr() string {
+	m.mutex.RLock()
+	defer m.mutex.RUnlock()
+	return m.toNode().Nodestr
+}
+
+//toxstring returns /->+ nodestr.
+func (m *Myself) toxstring() string {
+	m.mutex.RLock()
+	defer m.mutex.RUnlock()
+	return m.toNode().toxstring()
+}
+
 //NodeCfg is a global stuf for Node struct. it must be set before using it.
 var NodeCfg *NodeConfig
 
 //NodeConfig contains params for Node struct.
 type NodeConfig struct {
-	NodeManager *Manager
-	NodeAllow   *util.RegexpList
-	NodeDeny    *util.RegexpList
+	Myself    *Myself
+	NodeAllow *util.RegexpList
+	NodeDeny  *util.RegexpList
 }
 
 //Node represents node info.
 type Node struct {
 	*NodeConfig
 	Nodestr string
+	mutex   sync.RWMutex
 }
 
-//NewNode checks Nodestr format and returns node obj.
-func NewNode(Nodestr string) *Node {
-	Nodestr = strings.TrimSpace(Nodestr)
-	if Nodestr == "" {
-		log.Printf("Nodestr is empty")
+//NewNode checks nodestr format and returns node obj.
+func NewNode(nodestr string) *Node {
+	if NodeCfg == nil {
+		log.Fatal("must set NodeCfg")
+	}
+	nodestr = strings.TrimSpace(nodestr)
+	if nodestr == "" {
+		log.Printf("nodestr is empty")
 		return nil
 	}
-	if match, err := regexp.MatchString(`\d+/[^: ]+$`, Nodestr); !match || err != nil {
-		log.Println("bad format", err)
+	if match, err := regexp.MatchString(`\d+/[^: ]+$`, nodestr); !match || err != nil {
+		log.Println("bad format", err, nodestr)
 		return nil
 	}
 	n := &Node{
 		NodeConfig: NodeCfg,
-		Nodestr:    strings.Replace(Nodestr, "+", "/", -1),
+		Nodestr:    strings.Replace(nodestr, "+", "/", -1),
 	}
 	return n
 }
@@ -115,8 +153,8 @@ func (n *Node) equals(nn *Node) bool {
 
 //MakeNode makes node from host info.
 func MakeNode(host, path string, port int) *Node {
-	Nodestr := net.JoinHostPort(host, strconv.Itoa(port)) + strings.Replace(path, "+", "/", -1)
-	return NewNode(Nodestr)
+	nodestr := net.JoinHostPort(host, strconv.Itoa(port)) + strings.Replace(path, "+", "/", -1)
+	return NewNode(nodestr)
 }
 
 //toxstring covnerts Nodestr to saku node format.
@@ -158,7 +196,9 @@ func (n *Node) Ping() (string, error) {
 	}
 	if res[0] == "PONG" && len(res) == 2 {
 		log.Println("ponged,i am", res[1])
-		n.NodeManager.setMyself(res[1])
+		n.Myself.mutex.Lock()
+		defer n.Myself.mutex.Unlock()
+		n.Myself.IP = res[1]
 		return res[1], nil
 	}
 	log.Println("/ping", n.Nodestr, "error")
@@ -179,7 +219,7 @@ func (n *Node) join() (bool, *Node) {
 		log.Println(n.Nodestr, "is not allowd")
 		return false, nil
 	}
-	res, err := n.Talk("/join/" + n.NodeManager.GetMyself().Nodestr)
+	res, err := n.Talk("/join/" + n.Myself.Nodestr())
 	if err != nil {
 		return false, nil
 	}
@@ -205,7 +245,7 @@ func (n *Node) getNode() *Node {
 
 //bye says goodbye to n and returns true if success.
 func (n *Node) bye() bool {
-	res, err := n.Talk("/bye/" + n.NodeManager.GetMyself().Nodestr)
+	res, err := n.Talk("/bye/" + n.Myself.Nodestr())
 	if err != nil {
 		log.Println("/bye", n.Nodestr, "error")
 		return false
@@ -234,26 +274,27 @@ func (ns nodeSlice) getNodestrSlice() []string {
 	return s
 }
 
-//has returns true if nodeslice has node n.
-func (ns nodeSlice) has(n *Node) bool {
+//tomap returns map[nodestr]struct{}{} for searching a node.
+func (ns nodeSlice) toMap() map[string]struct{} {
+	m := make(map[string]struct{})
 	for _, nn := range ns {
-		if n.Nodestr == nn.Nodestr {
-			return true
-		}
+		m[nn.Nodestr] = struct{}{}
 	}
-	return false
+	return m
 }
 
 //uniq solidate the slice.
 func (ns nodeSlice) uniq() nodeSlice {
-	for i, n := range ns {
-		for j, nn := range ns[i+1:] {
-			if n.equals(nn) {
-				ns, ns[len(ns)-1] = append(ns[:j], ns[j+1:]...), nil
-			}
+	m := make(map[string]struct{})
+	ret := make([]*Node, 0, ns.Len())
+
+	for _, n := range ns {
+		if _, exist := m[n.Nodestr]; !exist {
+			m[n.Nodestr] = struct{}{}
+			ret = append(ret, n)
 		}
 	}
-	return ns
+	return ret
 }
 
 //extend make a new nodeslice including specified slices.

@@ -113,17 +113,12 @@ func (r *RecentList) Newest(Datfile string) *RecordHead {
 
 //Append add a infos generated from the record.
 func (r *RecentList) Append(rec *Record) {
-	loc := r.find(rec)
+	if loc := r.find(rec); loc >= 0 {
+		return
+	}
 	r.mutex.Lock()
 	defer r.mutex.Unlock()
-	if loc >= 0 {
-		if r.infos[loc].Stamp > rec.Stamp {
-			return
-		}
-		r.infos[loc] = &rec.RecordHead
-	}
 	r.infos = append(r.infos, &rec.RecordHead)
-	sort.Sort(r.infos)
 	r.isDirty = true
 }
 
@@ -188,6 +183,7 @@ func (r *RecentList) Sync() {
 			r.infos, r.infos[len(r.infos)-1] = append(r.infos[:i], r.infos[i+1:]...), nil
 		}
 	}
+	sort.Sort(r.infos)
 	r.mutex.Unlock()
 	r.Fmutex.Lock()
 	err := util.WriteSlice(r.Recent, r.getRecstrSlice())
@@ -212,7 +208,7 @@ func (r *RecentList) Getall() {
 	var res []string
 	for _, n := range nodes {
 		var err error
-		res, err = n.Talk("/Recent/" + strconv.FormatInt(begin, 10) + "-")
+		res, err = n.Talk("/recent/" + strconv.FormatInt(begin, 10) + "-")
 		if err != nil {
 			r.NodeManager.RemoveFromAllTable(n)
 			log.Println(err)
@@ -231,7 +227,6 @@ func (r *RecentList) Getall() {
 			}
 			if len(tags) > 0 {
 				r.SuggestedTagTable.addString(rec.Datfile, tags)
-				r.SuggestedTagTable.sync()
 				r.NodeManager.AppendToTable(rec.Datfile, n)
 			}
 		}

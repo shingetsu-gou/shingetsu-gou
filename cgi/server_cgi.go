@@ -309,6 +309,9 @@ type serverCGI struct {
 
 //newServerCGI set content-type to text and  returns serverCGI obj.
 func newServerCGI(w http.ResponseWriter, r *http.Request) (serverCGI, error) {
+	if ServerCfg == nil {
+		log.Fatal("must set ServerCfg")
+	}
 	c := serverCGI{
 		ServerConfig: ServerCfg,
 		cgi:          newCGI(w, r),

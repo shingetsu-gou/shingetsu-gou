@@ -36,7 +36,6 @@ import (
 	"log"
 	"os"
 	"path"
-	"path/filepath"
 	"strings"
 
 	"gopkg.in/natefinch/lumberjack.v2"
@@ -66,7 +65,7 @@ func expandAssets(fileDir, templateDir, docroot string) {
 	}
 
 	for _, fname := range AssetNames() {
-		dir := filepath.SplitList(fname)[0]
+		dir := strings.Split(fname, string(os.PathSeparator))[0]
 		fnameDisk := strings.Replace(fname, dir, dname[dir], 1)
 		if util.IsFile(fnameDisk) {
 			continue
@@ -76,7 +75,7 @@ func expandAssets(fileDir, templateDir, docroot string) {
 		if !util.IsDir(path) {
 			err := os.MkdirAll(path, 0755)
 			if err != nil {
-				log.Fatal(err)
+				log.Fatal(err, path)
 			}
 		}
 		c, err := Asset(fname)
@@ -98,21 +97,23 @@ func setLogger(printLog, isSilent bool, logDir string) {
 		MaxBackups: 2,
 		MaxAge:     28, //days
 	}
-	fmt.Println(logDir)
 	switch {
 	case isSilent:
+		fmt.Println("logging is discarded")
 		log.SetOutput(ioutil.Discard)
 	case printLog:
+		fmt.Println("outputs logs to stdout and ", logDir)
 		m := io.MultiWriter(os.Stdout, l)
 		log.SetOutput(m)
 	default:
+		fmt.Println("output lots to ", logDir)
 		log.SetOutput(l)
 	}
+
 }
 
 func main() {
 	log.Println("starting Gou...")
-
 	cfg := gou.NewConfig()
 	var printLog, isSilent bool
 	flag.BoolVar(&printLog, "verbose", false, "print logs")
@@ -120,7 +121,6 @@ func main() {
 	flag.BoolVar(&isSilent, "silent", false, "suppress logs")
 	flag.Parse()
 	setLogger(printLog, isSilent, cfg.LogDir)
-
 	expandAssets(cfg.FileDir, cfg.TemplateDir, cfg.Docroot)
 	gou.StartDaemon(cfg)
 }

@@ -42,6 +42,7 @@ import (
 
 	"golang.org/x/net/netutil"
 
+	"github.com/shingetsu-gou/go-nat"
 	"github.com/shingetsu-gou/shingetsu-gou/cgi"
 	"github.com/shingetsu-gou/shingetsu-gou/mch"
 	"github.com/shingetsu-gou/shingetsu-gou/node"
@@ -50,12 +51,22 @@ import (
 )
 
 func initPackages(cfg *Config) {
+	externalPort := cfg.DefaultPort
+	if cfg.EnableNAT {
+		externalPort = setUPnP(cfg.DefaultPort)
+	}
+
+	myself := &node.Myself{
+		Port:       externalPort,
+		Path:       cgi.ServerURL,
+		ServerName: cfg.ServerName,
+	}
+
 	defaultInitNode := []string{
 		"node.shingetsu.info:8000/server.cgi",
 		"pushare.zenno.info:8000/server.cgi",
 	}
 	fmutex := &sync.RWMutex{}
-	var myself *node.Node
 	htemplate := util.NewHtemplate(cfg.TemplateDir)
 	ttemplate := util.NewTtemplate(cfg.TemplateDir)
 	cachedRule := util.NewRegexpList(cfg.SpamList)
@@ -63,16 +74,20 @@ func initPackages(cfg *Config) {
 	nodeDeny := util.NewRegexpList(cfg.NodeDenyFile)
 	initNode := util.NewConfList(cfg.InitnodeList, defaultInitNode)
 
+	//nodecfg must be first!
+	node.NodeCfg = &node.NodeConfig{
+		Myself:    myself,
+		NodeAllow: nodeAllow,
+		NodeDeny:  nodeDeny,
+	}
+
 	nodeManager := node.NewManager(&node.ManagerConfig{
-		ServerName:  cfg.ServerName,
-		Lookup:      cfg.Lookup(),
-		DefaultPort: cfg.DefaultPort,
-		EnableNAT:   cfg.EnableNAT,
-		Fmutex:      fmutex,
-		NodeAllow:   nodeAllow,
-		NodeDeny:    nodeDeny,
-		Myself:      myself,
-		InitNode:    initNode,
+		Lookup:    cfg.Lookup(),
+		Fmutex:    fmutex,
+		NodeAllow: nodeAllow,
+		NodeDeny:  nodeDeny,
+		Myself:    myself,
+		InitNode:  initNode,
 	})
 	userTag := thread.NewUserTag(&thread.UserTagConfig{
 		CacheDir: cfg.CacheDir,
@@ -100,7 +115,18 @@ func initPackages(cfg *Config) {
 		RecentList: recentList,
 		Fmutex:     fmutex,
 	})
-	datakeyTable.Load()
+
+	thread.CacheCfg = &thread.CacheConfig{
+		CacheDir:          cfg.CacheDir,
+		RecordLimit:       cfg.RecordLimit,
+		SyncRange:         cfg.SyncRange,
+		GetRange:          cfg.GetRange,
+		NodeManager:       nodeManager,
+		UserTag:           userTag,
+		SuggestedTagTable: suggestedTagTable,
+		RecentList:        recentList,
+		Fmutex:            fmutex,
+	}
 
 	cgi.AdminCfg = &cgi.AdminCGIConfig{
 		AdminSID:          cfg.AdminSid(),
@@ -154,10 +180,7 @@ func initPackages(cfg *Config) {
 		DatakeyTable: datakeyTable,
 		UpdateQue:    updateQue,
 	}
-	node.NodeCfg = &node.NodeConfig{
-		NodeAllow: nodeAllow,
-		NodeDeny:  nodeDeny,
-	}
+
 	cgi.ServerCfg = &cgi.ServerConfig{
 		RecentRange: cfg.RecentRange,
 		NodeManager: nodeManager,
@@ -173,8 +196,27 @@ func initPackages(cfg *Config) {
 		Htemplate:            htemplate,
 		UpdateQue:            updateQue,
 	}
+	datakeyTable.Load()
+
 	go cron(nodeManager, recentList)
 
+}
+
+//setUPnP gets external port by upnp and return external port.
+//returns defaultPort if failed.
+func setUPnP(defaultPort int) int {
+	nt, err := nat.NewNetStatus()
+	if err != nil {
+		log.Println(err)
+	} else {
+		m, err := nt.LoopPortMapping("tcp", defaultPort, "shingetsu-gou", 10*time.Minute)
+		if err != nil {
+			log.Println(err)
+		} else {
+			return m.ExternalPort
+		}
+	}
+	return defaultPort
 }
 
 //StartDaemon setups document root and necessary dirs.

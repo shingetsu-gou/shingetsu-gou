@@ -147,6 +147,9 @@ type CacheList struct {
 
 //NewCacheList loads all Caches in disk and returns cachelist obj.
 func NewCacheList() *CacheList {
+	if CacheListCfg == nil {
+		log.Fatal("must set CacheListCfg")
+	}
 	c := &CacheList{
 		CacheListConfig: CacheListCfg,
 	}

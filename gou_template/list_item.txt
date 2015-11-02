@@ -13,8 +13,8 @@
   </label>
 {{ end }}
 
-<a href="{{ThreadURL}}/{{strEncode .Title}}{{.StrOpts}}">{{.Title}}</a>
-({{.Cache.Len}}/{{toMB .CacheSize|printf "%.1f"}}{{.Message.mb}})
+<a href="{{.ThreadURL}}/{{strEncode .Title}}{{.StrOpts}}">{{.Title}}</a>
+({{.CacheInfo.Len}}/{{toInt .CacheInfo.Size|toMB|printf "%.1f"}}{{.Message.mb}})
 {{ if .Tags}}
   <span class="tags">
   {{ range $tag:=.Tags.Tags }}

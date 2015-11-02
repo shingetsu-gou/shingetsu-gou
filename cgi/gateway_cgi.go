@@ -368,6 +368,9 @@ var GatewayCfg *GatewayConfig
 
 //newGatewayCGI returns gatewayCGI obj with filter.tag value in form.
 func newGatewayCGI(w http.ResponseWriter, r *http.Request) (gatewayCGI, error) {
+	if GatewayCfg == nil {
+		log.Fatal("must set GatewayCfg")
+	}
 	a := gatewayCGI{
 		GatewayConfig: GatewayCfg,
 		cgi:           newCGI(w, r),
