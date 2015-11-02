@@ -137,7 +137,10 @@ func (r recordHeads) has(rec *RecordHead) bool {
 
 //RecordCfg is the config for Record struct.
 //it must be set befor using.
-var RecordCfg *RecordConfig
+var (
+	RecordCfg *RecordConfig
+	recordMap = make(map[string]sync.Pool)
+)
 
 //RecordConfig is the config for Record struct.
 type RecordConfig struct {
@@ -159,15 +162,24 @@ type Record struct {
 
 //NewRecord parse idstr unixtime+"_"+md5(bodystr)), set stamp and id, and return record obj.
 //if parse failes returns nil.
-func NewRecord(Datfile, idstr string) *Record {
+func NewRecord(datfile, idstr string) *Record {
 	if RecordCfg == nil {
 		log.Fatal("must set RecordCfg")
 	}
-	var err error
-	r := &Record{
-		RecordConfig: RecordCfg,
+	p, exist := recordMap[datfile]
+	if !exist {
+		p.New = func() interface{} {
+			return &Record{
+				RecordConfig: RecordCfg,
+			}
+		}
 	}
-	r.Datfile = Datfile
+	r := p.Get().(*Record)
+	p.Put(r)
+
+	var err error
+
+	r.Datfile = datfile
 	if idstr != "" {
 		buf := strings.Split(idstr, "_")
 		if len(buf) != 2 {
@@ -286,7 +298,7 @@ func (r *Record) Exists() bool {
 }
 
 //recstr returns one line in the record file.
-func (r *Record) recstr() string {
+func (r *Record) Recstr() string {
 	return fmt.Sprintf("%d<>%s<>%s", r.Stamp, r.ID, r.bodystr())
 }
 
@@ -388,33 +400,49 @@ func (r *Record) Load() error {
 	return r.parse(string(c))
 }
 
+//ShortPubkey returns short version of pubkey.
+func (r *Record) ShortPubkey() string {
+	if v, exist := r.contents["pubkey"]; exist {
+		return util.CutKey(v)
+	}
+	return ""
+}
+
 //Build sets params in record from args and return id.
 func (r *Record) Build(stamp int64, body map[string]string, passwd string) string {
-	r.mutex.Lock()
-	defer r.mutex.Unlock()
 	r.contents = make(map[string]string)
 	r.keyOrder = make([]string, len(body))
 	r.Stamp = stamp
 	i := 0
+	r.mutex.Lock()
 	for key, value := range body {
 		r.contents[key] = value
 		r.keyOrder[i] = key
 		i++
 	}
+	r.mutex.Unlock()
 	if passwd != "" {
 		k := util.MakePrivateKey(passwd)
 		pubkey, _ := k.GetKeys()
 		md := util.MD5digest(r.bodystr())
 		sign := k.Sign(md)
+		r.mutex.Lock()
 		r.contents["pubkey"] = pubkey
 		r.contents["sign"] = sign
 		r.contents["target"] = strings.Join(r.keyOrder, ",")
 		r.keyOrder = append(r.keyOrder, "pubkey")
 		r.keyOrder = append(r.keyOrder, "sign")
 		r.keyOrder = append(r.keyOrder, "target")
+		r.mutex.Unlock()
 	}
-	r.ID = util.MD5digest(r.bodystr())
+
+	id := util.MD5digest(r.bodystr())
+	r.mutex.Lock()
+	r.ID = id
 	r.isLoaded = true
+	r.mutex.Unlock()
+	r.mutex.RLock()
+	defer r.mutex.RUnlock()
 	return r.ID
 }
 
@@ -527,7 +555,7 @@ func (r *Record) saveAttached(v string) {
 	}
 	AttachPath := r.AttachPath(r.GetBodyValue("suffix", "txt"), "")
 	thumbnailPath := r.AttachPath(r.GetBodyValue("suffix", "jpg"), r.DefaultThumbnailSize)
-
+	log.Println(AttachPath, thumbnailPath)
 	if err = util.WriteFile(AttachPath, string(attach)); err != nil {
 		log.Println(err)
 		return
@@ -541,19 +569,22 @@ func (r *Record) saveAttached(v string) {
 //Sync saves Recstr to the file. if attached file exists, saves it to attached path.
 //if signed, also saves body part.
 func (r *Record) Sync() {
-	r.Fmutex.Lock()
-	defer r.Fmutex.Unlock()
 
 	if util.IsFile(r.rmPath()) {
 		return
 	}
 	if !util.IsFile(r.path()) {
-		err := util.WriteFile(r.path(), r.recstr()+"\n")
+		r.Fmutex.Lock()
+		err := util.WriteFile(r.path(), r.Recstr()+"\n")
+		r.Fmutex.Unlock()
 		if err != nil {
 			log.Println(err)
 		}
 	}
-	if v, exist := r.contents["attach"]; exist {
+	r.mutex.RLock()
+	v, exist := r.contents["attach"]
+	r.mutex.RUnlock()
+	if exist {
 		r.saveAttached(v)
 	}
 }

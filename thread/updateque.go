@@ -63,7 +63,6 @@ func NewUpdateQue(cfg *UpdateQueConfig) *UpdateQue {
 //if success to doUpdateNode, add node to updatelist and recentlist and
 //removes the record from queue.
 func (u *UpdateQue) UpdateNodes(rec *Record, n *node.Node) {
-	log.Println("updating", rec)
 	if u.doUpdateNode(rec, n) {
 		u.RecentList.Append(rec)
 		u.RecentList.Sync()
@@ -75,7 +74,7 @@ func (u *UpdateQue) deleteOldUpdated() {
 	const oldUpdated = time.Hour
 
 	for k, v := range u.updated {
-		if v.After(time.Now().Add(oldUpdated)) {
+		if time.Now().After(v.Add(oldUpdated)) {
 			delete(u.updated, k)
 		}
 	}
@@ -88,10 +87,11 @@ func (u *UpdateQue) doUpdateNode(rec *Record, n *node.Node) bool {
 	errGet := errors.New("cannot get data")
 
 	u.mutex.Lock()
+	u.deleteOldUpdated()
 	if _, exist := u.updated[rec.hash()]; exist {
+		log.Println("already broadcasted", rec.ID)
 		return true
 	}
-	u.deleteOldUpdated()
 	u.updated[rec.hash()] = time.Now()
 	u.mutex.Unlock()
 

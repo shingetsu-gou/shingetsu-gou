@@ -17,7 +17,7 @@
 {{ if $mail}}
   [{{$mail}}]
 {{ end }}
-{{$pubkey:=.Rec.GetBodyValue "pubkey" "" }}
+{{$pubkey:=.Rec.ShortPubkey }}
 {{ if $pubkey}}
   <span class="sign" title="{{.Message.signature}}:{{.Rec.GetBodyValue "target" ""}}">{{$pubkey}}</span>
 {{ end }}

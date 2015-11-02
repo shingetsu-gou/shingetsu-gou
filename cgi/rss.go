@@ -96,6 +96,7 @@ func newRss(template *util.Ttemplate, encode, lang, title, parent, link, uri, de
 		Link:        link,
 		URI:         uri,
 		parent:      parent,
+		template:    template,
 	}
 	if parent != "" && parent[len(parent)-1] != '/' {
 		r.parent += "/"

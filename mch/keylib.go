@@ -245,7 +245,8 @@ func (d *DatakeyTable) MakeDat(ca *thread.Cache, board, host string) []string {
 	table := NewResTable(ca)
 
 	i := 0
-	for _, rec := range recs {
+	for _, datfile := range recs.Keys() {
+		rec := recs[datfile]
 		err := rec.Load()
 		if err != nil {
 			log.Println(err)

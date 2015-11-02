@@ -227,8 +227,6 @@ func (c *CacheList) Search(query *regexp.Regexp) Caches {
 
 //CleanRecords remove old or duplicates records for each Caches.
 func (c *CacheList) CleanRecords() {
-	c.Fmutex.Lock()
-	defer c.Fmutex.Unlock()
 	for _, ca := range c.Caches {
 		recs := ca.LoadRecords()
 		recs.removeRecords(c.SaveRecord, c.SaveSize)
@@ -246,6 +244,8 @@ func (c *CacheList) RemoveRemoved() {
 			rec := NewRecord(ca.Datfile, f.Name())
 			if c.SaveRemoved > 0 && rec.Stamp+c.SaveRemoved < time.Now().Unix() &&
 				rec.Stamp < ca.ReadInfo().Stamp {
+				ca.Fmutex.Lock()
+				defer ca.Fmutex.Unlock()
 				err := os.Remove(path.Join(ca.datpath(), "removed", f.Name()))
 				if err != nil {
 					log.Println(err)

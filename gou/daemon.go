@@ -135,6 +135,7 @@ func initPackages(cfg *Config) {
 		UserTag:           userTag,
 		SuggestedTagTable: suggestedTagTable,
 		RecentList:        recentList,
+		Myself:            myself,
 	}
 
 	thread.CacheListCfg = &thread.CacheListConfig{

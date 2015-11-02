@@ -311,7 +311,7 @@ func (lt *Manager) Initialize() {
 	if lt.NodeLen() > 0 {
 		lt.moreNodes()
 	}
-	log.Println("# of nodelist", lt.NodeLen())
+	log.Println("# of nodelist:", lt.NodeLen())
 }
 
 //Join tells n to join and adds n to nodelist if welcomed.
@@ -354,8 +354,8 @@ func (lt *Manager) TellUpdate(datfile string, stamp int64, id string, node *Node
 	msg := strings.Join([]string{"/update", datfile, strconv.FormatInt(stamp, 10), id, tellstr}, "/")
 
 	ns := lt.get(datfile, nil)
-	ns.extend(lt.get("", nil))
-
+	ns = ns.extend(lt.get("", nil))
+	log.Println("telling #", len(ns))
 	for _, n := range ns {
 		_, err := n.Talk(msg)
 		if err != nil {
@@ -436,9 +436,8 @@ func (lt *Manager) Search(datfile string, nodes []*Node) *Node {
 			break
 		}
 	}
-	if count <= 1 {
-		log.Println("Warning: Search nodes are null.")
-	}
+	log.Println("# of nodelist:", lt.ListLen())
+
 	return nil
 }
 

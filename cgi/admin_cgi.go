@@ -135,7 +135,8 @@ func printStatus(w http.ResponseWriter, r *http.Request) {
 	runtime.ReadMemStats(&mem)
 
 	s := map[string]string{
-		"linked_nodes": strconv.Itoa(a.NodeManager.NodeLen()),
+		"known_nodes": strconv.Itoa(a.NodeManager.NodeLen()),
+		"linked_nodes": strconv.Itoa(a.NodeManager.ListLen()),
 		"files":        strconv.Itoa(cl.Len()),
 		"records":      strconv.Itoa(records),
 		"cache_size":   fmt.Sprintf("%.1f%s", float64(size)/1024/1024, a.m["mb"]),
@@ -143,7 +144,8 @@ func printStatus(w http.ResponseWriter, r *http.Request) {
 		"alloc_mem":    fmt.Sprintf("%.1f%s", float64(mem.Alloc)/1024/1024, a.m["mb"]),
 	}
 	ns := map[string][]string{
-		"linked_nodes": a.NodeManager.GetNodestrSlice(),
+		"known_nodes": a.NodeManager.GetNodestrSlice(),
+		"linked_nodes":  a.NodeManager.GetNodestrSliceInTable(""),
 	}
 
 	d := struct {

@@ -45,7 +45,6 @@ func cron(nodeManager *node.Manager, recentList *thread.RecentList) {
 		initCycle   = 20 * time.Minute // Seconds; Check initial node
 	)
 	nodeManager.Initialize()
-	log.Println(nodeManager.ListLen())
 	doSync(nodeManager, recentList)
 
 	for {

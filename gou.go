@@ -91,6 +91,8 @@ func expandAssets(fileDir, templateDir, docroot string) {
 
 //setLogger setups logger. whici outputs nothing, or file , or file and stdout
 func setLogger(printLog, isSilent bool, logDir string) {
+	log.SetFlags(log.Ldate | log.Ltime | log.Lshortfile)
+
 	l := &lumberjack.Logger{
 		Filename:   path.Join(logDir, "gou.log"),
 		MaxSize:    1, // megabytes

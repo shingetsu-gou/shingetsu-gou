@@ -166,7 +166,7 @@ func (n *Node) toxstring() string {
 func (n *Node) Talk(message string) ([]string, error) {
 	const defaultTimeout = 20 * time.Second // Seconds; Timeout for TCP
 
-	const getTimeout = 2 * time.Minute // Seconds; Timeout for /get
+	const getTimeout = 20 * time.Second // Seconds; Timeout for /get
 
 	if !strings.HasPrefix(message, "/") {
 		message = "/" + message
@@ -176,6 +176,9 @@ func (n *Node) Talk(message string) ([]string, error) {
 		timeout = getTimeout
 	} else {
 		timeout = defaultTimeout
+	}
+	if n == nil {
+		panic("nil!")
 	}
 
 	message = "http://" + n.Nodestr + message
@@ -219,7 +222,7 @@ func (n *Node) join() (bool, *Node) {
 		log.Println(n.Nodestr, "is not allowd")
 		return false, nil
 	}
-	res, err := n.Talk("/join/" + n.Myself.Nodestr())
+	res, err := n.Talk("/join/" + n.Myself.toxstring())
 	if err != nil {
 		return false, nil
 	}
