@@ -261,7 +261,7 @@ func (c *Cache) SyncTag() {
 func (c *Cache) SetupDirectories() {
 	c.Fmutex.Lock()
 	defer c.Fmutex.Unlock()
-	for _, d := range []string{"", "/attach", "/record", "/removed"} {
+	for _, d := range []string{"", "/record", "/removed"} {
 		di := path.Join(c.datpath(), d)
 		if !util.IsDir(di) {
 			err := os.Mkdir(di, 0755)
@@ -302,34 +302,6 @@ func (c *Cache) checkData(res []string, stamp int64, id string, begin, end int64
 		return 0, errGet
 	}
 	return count, err
-}
-
-//checkAttach checks files attach dir and if corresponding records
-//don't exist in record dir, removes the attached file.
-func (c *Cache) checkAttach() {
-	c.Fmutex.Lock()
-	defer c.Fmutex.Unlock()
-	dir := path.Join(c.CacheDir, c.dathash(), "attach")
-	err := util.EachFiles(dir, func(d os.FileInfo) error {
-		idstr := d.Name()
-		if i := strings.IndexRune(idstr, '.'); i > 0 {
-			idstr = idstr[:i]
-		}
-		if strings.HasPrefix(idstr, "s") {
-			idstr = idstr[1:]
-		}
-		rec := NewRecord(c.Datfile, idstr)
-		if !util.IsFile(rec.path()) {
-			err := os.Remove(path.Join(dir, d.Name()))
-			if err != nil {
-				log.Println(err)
-			}
-		}
-		return nil
-	})
-	if err != nil {
-		log.Println(err)
-	}
 }
 
 //Remove Remove all files and dirs of cache.

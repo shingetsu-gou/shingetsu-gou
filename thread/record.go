@@ -30,7 +30,6 @@ package thread
 
 import (
 	"crypto/md5"
-	"encoding/base64"
 	"errors"
 	"fmt"
 	"io/ioutil"
@@ -341,7 +340,6 @@ func (r *Record) size() int64 {
 }
 
 //Remove moves the record file  to remove path
-//and removes all thumbnails ,attached files .
 func (r *Record) Remove() error {
 	r.Fmutex.Lock()
 	err := util.MoveFile(r.path(), r.rmPath())
@@ -349,21 +347,6 @@ func (r *Record) Remove() error {
 	if err != nil {
 		log.Println(err)
 		return err
-	}
-	for _, path := range r.allthumbnailPath() {
-		r.Fmutex.Lock()
-		err := os.Remove(path)
-		r.Fmutex.Unlock()
-		if err != nil {
-			log.Println(err)
-		}
-	}
-	pa := r.AttachPath("", "")
-	r.Fmutex.Lock()
-	err = os.Remove(pa)
-	r.Fmutex.Unlock()
-	if err != nil {
-		log.Println(err)
 	}
 	return nil
 }
@@ -443,125 +426,29 @@ func (r *Record) md5check() bool {
 	return util.MD5digest(r.bodystr()) == r.ID
 }
 
-//allthumnailPath finds and returns all thumbnails path in disk
-func (r *Record) allthumbnailPath() []string {
-	r.Fmutex.RLock()
-	defer r.Fmutex.RUnlock()
-	if r.path() == "" {
-		log.Println("null file name")
-		return nil
-	}
-	dir := filepath.Join(r.CacheDir, r.dathash(), "attach")
-	var thumbnail []string
-	err := util.EachFiles(dir, func(fi os.FileInfo) error {
-		dname := fi.Name()
-		if strings.HasPrefix(dname, "s"+r.Idstr()) {
-			thumbnail = append(thumbnail, filepath.Join(dir, dname))
-		}
-		return nil
-	})
-	if err != nil {
-		log.Println(err)
-		return nil
-	}
-	return thumbnail
-}
-
 //AttachPath returns attach path
-//if suffix !="" create path from args.
-//if suffix =="" find file starting with idstr and returns its name.
-//if thumbnailSize!="" find thumbnail.
-func (r *Record) AttachPath(suffix string, thumbnailSize string) string {
+//by creating path from args.
+func (r *Record) AttachPath(thumbnailSize string) string {
 	if r.path() == "" {
 		log.Println("null file name")
 		return ""
 	}
-	dir := filepath.Join(r.CacheDir, r.dathash(), "attach")
-	if suffix != "" {
-		reg := regexp.MustCompile(`[^-_.A-Za-z0-9]`)
-		reg.ReplaceAllString(suffix, "")
-		if suffix == "" {
-			suffix = "txt"
-		}
-		if thumbnailSize != "" {
-			return filepath.Join(dir, "s"+r.Idstr()+"."+thumbnailSize+"."+suffix)
-		}
-		return filepath.Join(dir, r.Idstr()+"."+suffix)
-	}
-	r.Fmutex.RLock()
-	defer r.Fmutex.RUnlock()
-	var result string
-	err := util.EachFiles(dir, func(fi os.FileInfo) error {
-		dname := fi.Name()
-		if strings.HasPrefix(dname, r.Idstr()) {
-			result = filepath.Join(dir, dname)
-		}
-		return nil
-	})
-	if err != nil {
+	suffix := r.GetBodyValue("suffix", "")
+	if suffix == "" {
 		return ""
 	}
-	return result
-}
-
-//MakeThumbnail sets suffix,thumbnailSize and calls makeThumbnailInternal.
-func (r *Record) MakeThumbnail(suffix string, thumbnailSize string) {
-	if thumbnailSize == "" {
-		thumbnailSize = r.DefaultThumbnailSize
+	dir := filepath.Join(r.CacheDir, r.dathash(), "attach")
+	reg := regexp.MustCompile(`[^-_.A-Za-z0-9]`)
+	reg.ReplaceAllString(suffix, "")
+	if thumbnailSize != "" {
+		return filepath.Join(dir, "s"+r.Idstr()+"."+thumbnailSize+"."+suffix)
 	}
-	if thumbnailSize == "" {
-		return
-	}
-	if suffix == "" {
-		suffix = r.GetBodyValue("suffix", "jpg")
-	}
-
-	AttachPath := r.AttachPath(suffix, "")
-	thumbnailPath := r.AttachPath(suffix, thumbnailSize)
-	log.Println(AttachPath, thumbnailPath)
-	if util.IsFile(thumbnailPath) {
-		return
-	}
-	size := strings.Split(thumbnailSize, "x")
-	if len(size) != 2 {
-		return
-	}
-	x, err1 := strconv.Atoi(size[0])
-	y, err2 := strconv.Atoi(size[1])
-	if err1 != nil || err2 != nil {
-		log.Println(thumbnailSize, "is illegal format")
-		return
-	}
-	r.Fmutex.Lock()
-	defer r.Fmutex.Unlock()
-	util.MakeThumbnail(AttachPath, thumbnailPath, suffix, uint(x), uint(y))
-}
-
-//saveAttached decodes base64 v and saves to attached , make and save thumbnail
-func (r *Record) saveAttached(v string) {
-	r.Fmutex.Lock()
-	attach, err := base64.StdEncoding.DecodeString(v)
-	if err != nil {
-		log.Println("cannot decode attached file")
-		return
-	}
-	AttachPath := r.AttachPath(r.GetBodyValue("suffix", "txt"), "")
-	thumbnailPath := r.AttachPath(r.GetBodyValue("suffix", "jpg"), r.DefaultThumbnailSize)
-	log.Println(AttachPath, thumbnailPath)
-	if err = util.WriteFile(AttachPath, string(attach)); err != nil {
-		log.Println(err)
-		return
-	}
-	r.Fmutex.Unlock()
-	if !util.IsFile(thumbnailPath) {
-		r.MakeThumbnail("", "")
-	}
+	return filepath.Join(dir, r.Idstr()+"."+suffix)
 }
 
 //Sync saves Recstr to the file. if attached file exists, saves it to attached path.
 //if signed, also saves body part.
 func (r *Record) Sync() {
-
 	if util.IsFile(r.rmPath()) {
 		return
 	}
@@ -572,12 +459,6 @@ func (r *Record) Sync() {
 		if err != nil {
 			log.Println(err)
 		}
-	}
-	r.mutex.RLock()
-	v, exist := r.contents["attach"]
-	r.mutex.RUnlock()
-	if exist {
-		r.saveAttached(v)
 	}
 }
 

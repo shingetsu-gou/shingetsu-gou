@@ -34,14 +34,12 @@ import (
 	"fmt"
 	"html"
 	"html/template"
-	"io"
 	"log"
 	"math"
 	"math/rand"
 	"mime"
 	"mime/multipart"
 	"net/http"
-	"os"
 	"path"
 	"regexp"
 	"strconv"
@@ -424,10 +422,11 @@ func (t *threadCGI) printRecord(ca *thread.Cache, rec *thread.Record) {
 	thumbnailSize := ""
 	var suffix string
 	var attachSize int64
-	if rec.GetBodyValue("attach", "") != "" {
-		attachFile := rec.AttachPath("", "")
-		attachSize = util.FileSize(attachFile)
+	if at := rec.GetBodyValue("attach", ""); at != "" {
+		log.Println("attached")
 		suffix = rec.GetBodyValue("suffix", "")
+		attachFile := rec.AttachPath("")
+		attachSize = int64(len(at) * 57 / 78)
 		reg := regexp.MustCompile("^[0-9A-Za-z]+")
 		if !reg.MatchString(suffix) {
 			suffix = "txt"
@@ -513,7 +512,11 @@ func (t *threadCGI) printPostForm(ca *thread.Cache) {
 }
 
 //renderAttach render the content of attach file with content-type=typ.
-func (t *threadCGI) renderAttach(attachFile, suffix string, stamp int64, ca *thread.Cache) {
+func (t *threadCGI) renderAttach(rec *thread.Record, suffix string, stamp int64, thumbnailSize string) {
+	attachFile := rec.AttachPath(thumbnailSize)
+	if attachFile == "" {
+		return
+	}
 	typ := mime.TypeByExtension("." + suffix)
 	if typ == "" {
 		typ = "text/plain"
@@ -523,18 +526,19 @@ func (t *threadCGI) renderAttach(attachFile, suffix string, stamp int64, ca *thr
 	if !util.IsValidImage(typ, attachFile) {
 		t.wr.Header().Set("Content-Disposition", "attachment")
 	}
-	f, err := os.Open(attachFile)
-	defer util.Fclose(f)
-
+	decoded, err := base64.StdEncoding.DecodeString(rec.GetBodyValue("attach", ""))
 	if err != nil {
 		log.Println(err)
-		t.print404(ca, "")
+		t.print404(nil, "")
 		return
 	}
-	_, err = io.Copy(t.wr, f)
+	if thumbnailSize != "" && (t.ForceThumbnail || thumbnailSize == t.DefaultThumbnailSize) {
+		decoded = util.MakeThumbnail(decoded, suffix, thumbnailSize)
+	}
+	_, err = t.wr.Write(decoded)
 	if err != nil {
 		log.Println(err)
-		t.print404(ca, "")
+		t.print404(nil, "")
 	}
 }
 
@@ -554,14 +558,15 @@ func (t *threadCGI) printAttach(datfile, id string, stamp int64, thumbnailSize, 
 		t.print404(ca, "")
 		return
 	}
-	attachFile := rec.AttachPath(suffix, thumbnailSize)
-	if thumbnailSize != "" && !util.IsFile(attachFile) && (t.ForceThumbnail || thumbnailSize == t.DefaultThumbnailSize) {
-		rec.MakeThumbnail(suffix, thumbnailSize)
-	}
-	if attachFile == "" {
+	if err := rec.Load(); err != nil {
+		t.print404(ca, "")
 		return
 	}
-	t.renderAttach(attachFile, suffix, stamp, ca)
+	if rec.GetBodyValue("suffix", "") != suffix {
+		t.print404(ca, "")
+		return
+	}
+	t.renderAttach(rec, suffix, stamp, thumbnailSize)
 }
 
 //errorTime calculates gaussian distribution by box-muller transformation.
@@ -705,7 +710,6 @@ func (t *threadCGI) parseAttached() (*attached, error) {
 		log.Println(err)
 		return nil, err
 	}
-	log.Println(fpStrAttach.Filename)
 	coded := base64.StdEncoding.EncodeToString(strAttach[:s])
 	return &attached{
 		fpStrAttach.Filename,

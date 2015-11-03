@@ -304,7 +304,6 @@ func (lt *Manager) Initialize() {
 	}
 	for _, inode := range inodes {
 		if _, err := inode.Ping(); err == nil {
-			log.Println(inode)
 			lt.Join(inode)
 			break
 		}

@@ -13,3 +13,18 @@
 #    [Tt]his is (SPAM|Spam)
 #    This.*Spam
 #
+<>mail:[^@]+@[^.]+\..+
+<br> &lt;a href="
+\[url=http://
+#<br>(http://.+){5}<br>
+<>body:plime-keys.txt;5;10<>mail:
+(http://.+){10}.+
+(http://.+){5}.+<>mail:.+
+<>mail:mail
+<>body:doors
+(Casino.+){5}.+
+(kanpoulife.com.+){2}.+
+https?://.+<>mail:.+\.com.*<>name:
+<>mail:.+@(gmail|aol)\.com<>name:
+http://.+<>mail:.+yahoo\.cn<>name:
+<>mail:.*Dr.*@.*\.com<>name:.*Dr

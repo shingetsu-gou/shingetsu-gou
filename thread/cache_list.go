@@ -201,7 +201,6 @@ func (c *CacheList) Getall() {
 			return
 		}
 		ca.GetCache()
-		ca.checkAttach()
 	}
 }
 

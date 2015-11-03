@@ -41,6 +41,7 @@ import (
 	"math/rand"
 	"net/http"
 	"os"
+	"strconv"
 	"strings"
 
 	"golang.org/x/text/encoding/japanese"
@@ -254,39 +255,40 @@ func WriteFile(path, data string) error {
 }
 
 //MakeThumbnail makes thumbnail to suffix image format with thumbnailSize.
-func MakeThumbnail(from, to, suffix string, x, y uint) {
-	file, err := os.Open(from)
-	if err != nil {
-		log.Println(err)
-		return
+func MakeThumbnail(encoded []byte, suffix, thumbnailSize string) []byte {
+	size := strings.Split(thumbnailSize, "x")
+	if len(size) != 2 {
+		return nil
 	}
-	defer Fclose(file)
+	x, err1 := strconv.Atoi(size[0])
+	y, err2 := strconv.Atoi(size[1])
+	if err1 != nil || err2 != nil {
+		log.Println(thumbnailSize, "is illegal format")
+		return nil
+	}
 
+	file := bytes.NewReader(encoded)
 	img, _, err := image.Decode(file)
 	if err != nil {
 		log.Println(err)
-		return
+		return nil
 	}
-	m := resize.Resize(x, y, img, resize.Lanczos3)
-	out, err := os.Create(to)
-	if err != nil {
-		log.Println(err)
-		return
-	}
-	defer Fclose(out)
+	m := resize.Resize(uint(x), uint(y), img, resize.Lanczos3)
+	var out bytes.Buffer
 	switch suffix {
 	case "jpg", "jpeg":
-		err = jpeg.Encode(out, m, nil)
+		err = jpeg.Encode(&out, m, nil)
 	case "png":
-		err = png.Encode(out, m)
+		err = png.Encode(&out, m)
 	case "gif":
-		err = gif.Encode(out, m, nil)
+		err = gif.Encode(&out, m, nil)
 	default:
 		log.Println("illegal format", suffix)
 	}
 	if err != nil {
 		log.Println(err)
 	}
+	return out.Bytes()
 }
 
 // ToSJIS converts an string (a valid UTF-8 string) to a ShiftJIS string

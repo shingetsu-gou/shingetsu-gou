@@ -15,6 +15,24 @@ Yeah, the sun and moon are in conjunction during the new moon(shingetsu:新月, 
 
 Refer [here](http://www.shingetsu.info/) for more details about shinGETsu.
 
+## Platform
+  * MacOS darwin /Plan9 on i386
+  * Windows/OpenBSD on i386/amd64
+  * Linux/NetBSD/FreeBSD on i386/amd64/arm
+
+
+## Pros and Cons of Gou
+
+### Pros
+ 1. Fast by using goroutine instead of thread.
+ 2. Less memory Usage due to compiler language.
+ 3. Portable because there is no need to prepare runtime. Just one executable binary
+
+### Cons
+ 1. There maybe many and fatal bugs due to less actual use.
+ 2. Not official. Maybe much less gurantee and trust than official saku.
+
+
 ## License
 
 MIT License
@@ -56,9 +74,10 @@ Or you can download executable binaries from [here](https://github.com/shingetsu
 3. Gou can try to open port by uPnP and NAT-PMP. You can enable this function by setting enable_nat:true in [Gateway]  in saku.ini, which is false by default, but is true in attached saku.ini in binary.
 4. URL for 2ch interface /2ch_hoehoe/subject.txt in saku is /2ch/hoehoe/subject.txt in Gou.
 5. files in template directory are not compatible with Gou and Saku. The default template directory name in Gou is "gou_template/".
-6. files below are not used in Gou.
+6. Duplicate files are not used. i.e. files below are not used in Gou.
 	* in cache directory
 		* body directory
+		* attach directory
 		* count.stat
 		* dat.stat
 		* size.stat
@@ -71,7 +90,7 @@ Or you can download executable binaries from [here](https://github.com/shingetsu
 		* search.txt
 		* tag.txt
 		* update.txt
-7. dnsname is now same as server_name in config .
+7. dnsname is now same as server_name in saku.ini .
 
 # Note
 
