@@ -85,11 +85,11 @@ func (u *UpdateQue) deleteOldUpdated() {
 //if no fail, broadcast updates to node in cache and added n to nodelist and searchlist.
 func (u *UpdateQue) doUpdateNode(rec *Record, n *node.Node) bool {
 	errGet := errors.New("cannot get data")
-
 	u.mutex.Lock()
 	u.deleteOldUpdated()
 	if _, exist := u.updated[rec.hash()]; exist {
 		log.Println("already broadcasted", rec.ID)
+		u.mutex.Unlock()
 		return true
 	}
 	u.updated[rec.hash()] = time.Now()

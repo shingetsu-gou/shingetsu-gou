@@ -31,7 +31,6 @@ package thread
 import (
 	"crypto/md5"
 	"encoding/base64"
-	"encoding/binary"
 	"errors"
 	"fmt"
 	"io/ioutil"
@@ -83,19 +82,7 @@ func (u *RecordHead) equals(rec *RecordHead) bool {
 
 //hash returns md5 of RecordHead.
 func (u *RecordHead) hash() [16]byte {
-	m := md5.New()
-	if _, err := m.Write([]byte(u.Datfile)); err != nil {
-		log.Fatal(err)
-	}
-	if err := binary.Write(m, binary.LittleEndian, u.Stamp); err != nil {
-		log.Fatal(err)
-	}
-	if _, err := m.Write([]byte(u.ID)); err != nil {
-		log.Fatal(err)
-	}
-	var r [16]byte
-	m.Sum(r[:])
-	return r
+	return md5.Sum([]byte(u.Recstr()))
 }
 
 //Recstr returns one line of update/recentlist file.
@@ -357,19 +344,24 @@ func (r *Record) size() int64 {
 //and removes all thumbnails ,attached files .
 func (r *Record) Remove() error {
 	r.Fmutex.Lock()
-	defer r.Fmutex.Unlock()
 	err := util.MoveFile(r.path(), r.rmPath())
+	r.Fmutex.Unlock()
 	if err != nil {
 		log.Println(err)
 		return err
 	}
 	for _, path := range r.allthumbnailPath() {
+		r.Fmutex.Lock()
 		err := os.Remove(path)
+		r.Fmutex.Unlock()
 		if err != nil {
 			log.Println(err)
 		}
 	}
-	err = os.Remove(r.AttachPath("", ""))
+	pa := r.AttachPath("", "")
+	r.Fmutex.Lock()
+	err = os.Remove(pa)
+	r.Fmutex.Unlock()
 	if err != nil {
 		log.Println(err)
 	}

@@ -81,6 +81,11 @@ type Myself struct {
 	mutex      sync.RWMutex
 }
 
+//IpPortPath returns node ojb contains ip:port/path.
+func (m *Myself) IPPortPath() *Node {
+	return MakeNode(m.IP, m.Path, m.Port)
+}
+
 //toNode converts myself to *Node.
 func (m *Myself) toNode() *Node {
 	m.mutex.RLock()
@@ -88,7 +93,7 @@ func (m *Myself) toNode() *Node {
 	if m.ServerName != "" {
 		return MakeNode(m.ServerName, m.Path, m.Port)
 	}
-	return MakeNode(m.IP, m.Path, m.Port)
+	return MakeNode("", m.Path, m.Port)
 }
 
 //Nodestr returns nodestr.

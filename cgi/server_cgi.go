@@ -96,10 +96,12 @@ func doJoin(w http.ResponseWriter, r *http.Request) {
 		log.Println(err)
 		return
 	}
-	n := s.makeNode("join")
-	if n == nil {
+	host, path, port := s.extractHost("join")
+	host = s.remoteIP(host)
+	if host == "" {
 		return
 	}
+	n := node.MakeNode(host, path, port)
 	if !n.IsAllowed() {
 		return
 	}
@@ -122,10 +124,12 @@ func doBye(w http.ResponseWriter, r *http.Request) {
 		log.Println(err)
 		return
 	}
-	n := s.makeNode("bye")
-	if n == nil {
+	host, path, port := s.extractHost("bye")
+	host = s.checkRemote(host)
+	if host == "" {
 		return
 	}
+	n := node.MakeNode(host, path, port)
 
 	s.NodeManager.RemoveFromList(n)
 	fmt.Fprintln(s.wr, "BYEBYE")
@@ -238,10 +242,7 @@ func doRecent(w http.ResponseWriter, r *http.Request) {
 		if err != nil {
 			log.Println(err)
 		}
-		log.Println(cont)
 	}
-	panic("!")
-
 }
 
 //doMotd simply renders motd file.
@@ -278,6 +279,7 @@ func doGetHead(w http.ResponseWriter, r *http.Request) {
 	method, datfile, stamp := m[1], m[2], m[3]
 	ca := thread.NewCache(datfile)
 	begin, end, id := s.parseStamp(stamp, ca.ReadInfo().Stamp)
+	log.Println(begin, end, id)
 	recs := ca.LoadRecords()
 	for _, r := range recs {
 		if begin <= r.Stamp && r.Stamp <= end && (id == "" || strings.HasSuffix(r.Idstr(), id)) {
@@ -287,8 +289,10 @@ func doGetHead(w http.ResponseWriter, r *http.Request) {
 					log.Println(err)
 				}
 				fmt.Fprintf(s.wr, r.Recstr())
+				log.Println(r.Recstr())
 			} else {
 				fmt.Fprintln(s.wr, strings.Replace(r.Idstr(), "_", "<>", -1))
+				log.Println(strings.Replace(r.Idstr(), "_", "<>", -1))
 			}
 		}
 	}
@@ -353,13 +357,13 @@ func (s *serverCGI) checkRemote(host string) string {
 		log.Println(err)
 		return ""
 	}
+	if host == "" {
+		return remoteAddr
+	}
 	ipaddr, err := net.LookupIP(host)
 	if err != nil {
 		log.Println(err)
 		return ""
-	}
-	if host == "" {
-		return remoteAddr
 	}
 	for _, ipa := range ipaddr {
 		if ipa.String() == remoteAddr {
@@ -370,30 +374,25 @@ func (s *serverCGI) checkRemote(host string) string {
 }
 
 //makeNode makes and returns node obj from /method/ip:port.
-func (s *serverCGI) makeNode(method string) *node.Node {
+func (s *serverCGI) extractHost(method string) (string, string, int) {
 	reg := regexp.MustCompile("^" + method + `/([^\+]*)(\+.*)`)
 	m := reg.FindStringSubmatch(s.path())
 	if m == nil {
 		log.Println("illegal url")
-		return nil
+		return "", "", 0
 	}
 	path := m[2]
 	host, portstr, err := net.SplitHostPort(m[1])
 	if err != nil {
 		log.Println(err)
-		return nil
-	}
-	host = s.checkRemote(host)
-	if host == "" {
-		log.Println("no host")
-		return nil
+		return "", "", 0
 	}
 	port, err := strconv.Atoi(portstr)
 	if err != nil {
 		log.Println(err)
-		return nil
+		return "", "", 0
 	}
-	return node.MakeNode(host, path, port)
+	return host, path, port
 }
 
 //parseStamp parses format beginStamp - endStamp/id and returns them.

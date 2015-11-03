@@ -185,7 +185,6 @@ func IsDir(path string) bool {
 
 //MoveFile moves a file from src to dest.
 func MoveFile(src, dst string) error {
-	log.Println(src, dst)
 	in, err := os.Open(src)
 	if err != nil {
 		return err

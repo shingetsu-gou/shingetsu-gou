@@ -39,8 +39,8 @@ import (
 //cron runs cron, and update everything if it is after specified cycle.
 func cron(nodeManager *node.Manager, recentList *thread.RecentList) {
 	const (
-		clientCycle = 5 * time.Minute  // Seconds; Access client.cgi
-		pingCycle   = 5 * time.Minute  // Seconds; Check nodes
+		clientCycle = 20 * time.Minute // Seconds; Access client.cgi
+		pingCycle   = 10 * time.Minute // Seconds; Check nodes
 		syncCycle   = 1 * time.Hour    // Seconds; Check cache
 		initCycle   = 20 * time.Minute // Seconds; Check initial node
 	)

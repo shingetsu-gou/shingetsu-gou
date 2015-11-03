@@ -551,17 +551,13 @@ func (g *gatewayCGI) mchCategories() []*mchCategory {
 	if !g.Enable2ch {
 		return categories
 	}
-	err := util.EachLine(g.RunDir+"/tag.txt", func(line string, i int) error {
-		tag := strings.TrimRight(line, "\r\n")
+	for _, t := range g.UserTag.Get() {
+		tag := t.Tagstr
 		catURL := g.mchURL(tag)
 		categories = append(categories, &mchCategory{
 			catURL,
 			tag,
 		})
-		return nil
-	})
-	if err != nil {
-		log.Println(err)
 	}
 
 	return categories

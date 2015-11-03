@@ -140,7 +140,7 @@ func printStatus(w http.ResponseWriter, r *http.Request) {
 		"files":        strconv.Itoa(cl.Len()),
 		"records":      strconv.Itoa(records),
 		"cache_size":   fmt.Sprintf("%.1f%s", float64(size)/1024/1024, a.m["mb"]),
-		"self_node":    a.Myself.Nodestr(),
+		"self_node":    a.Myself.IPPortPath().Nodestr,
 		"alloc_mem":    fmt.Sprintf("%.1f%s", float64(mem.Alloc)/1024/1024, a.m["mb"]),
 	}
 	ns := map[string][]string{
@@ -389,7 +389,7 @@ func (a *adminCGI) printDeleteFile(files []string) {
 	}
 	d := struct {
 		Message  message
-		adminCGI string
+		AdminCGI string
 		Files    []*thread.Cache
 		Sid      string
 	}{

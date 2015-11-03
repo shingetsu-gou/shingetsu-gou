@@ -194,7 +194,7 @@ func (lt *Manager) ReplaceNodeInList(n *Node) *Node {
 		return nil
 	}
 	var old *Node
-	if l > defaultNodes {
+	if l >= defaultNodes {
 		old := lt.getFromList(0)
 		lt.RemoveFromList(old)
 		old.bye()
@@ -304,14 +304,15 @@ func (lt *Manager) Initialize() {
 	}
 	for _, inode := range inodes {
 		if _, err := inode.Ping(); err == nil {
+			log.Println(inode)
 			lt.Join(inode)
 			break
 		}
 	}
-	if lt.NodeLen() > 0 {
+	if lt.ListLen() > 0 {
 		lt.moreNodes()
 	}
-	log.Println("# of nodelist:", lt.NodeLen())
+	log.Println("# of nodelist:", lt.ListLen())
 }
 
 //Join tells n to join and adds n to nodelist if welcomed.
@@ -323,7 +324,7 @@ func (lt *Manager) Join(n *Node) bool {
 		return false
 	}
 	flag := false
-	if lt.hasNode(n) || lt.Myself.Nodestr() == n.Nodestr {
+	if lt.hasNodeInTable("",n) || lt.Myself.IPPortPath().Nodestr == n.Nodestr {
 		return false
 	}
 	for count := 0; count < retryJoin && lt.ListLen() < defaultNodes; count++ {
@@ -347,6 +348,8 @@ func (lt *Manager) Join(n *Node) bool {
 //TellUpdate makes mynode info from node or dnsname or ip addr,
 //and broadcast the updates of record id=id in cache c.datfile with stamp.
 func (lt *Manager) TellUpdate(datfile string, stamp int64, id string, node *Node) {
+	const updateNodes = 10
+
 	tellstr := lt.Myself.toxstring()
 	if node != nil {
 		tellstr = node.toxstring()
@@ -355,6 +358,7 @@ func (lt *Manager) TellUpdate(datfile string, stamp int64, id string, node *Node
 
 	ns := lt.get(datfile, nil)
 	ns = ns.extend(lt.get("", nil))
+	ns = ns.extend(lt.Random(ns, updateNodes))
 	log.Println("telling #", len(ns))
 	for _, n := range ns {
 		_, err := n.Talk(msg)
