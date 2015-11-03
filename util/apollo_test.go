@@ -34,7 +34,7 @@ import (
 )
 
 func TestApllo(t *testing.T) {
-	pkey := makePrivateKey("test")
+	pkey := MakePrivateKey("test")
 	log.Println(pkey.keyD, pkey.keyN)
 	pub, pri := pkey.GetKeys()
 	log.Println(pkey.keyD, pkey.keyN)
