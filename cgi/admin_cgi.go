@@ -135,7 +135,7 @@ func printStatus(w http.ResponseWriter, r *http.Request) {
 	runtime.ReadMemStats(&mem)
 
 	s := map[string]string{
-		"known_nodes": strconv.Itoa(a.NodeManager.NodeLen()),
+		"known_nodes":  strconv.Itoa(a.NodeManager.NodeLen()),
 		"linked_nodes": strconv.Itoa(a.NodeManager.ListLen()),
 		"files":        strconv.Itoa(cl.Len()),
 		"records":      strconv.Itoa(records),
@@ -144,8 +144,8 @@ func printStatus(w http.ResponseWriter, r *http.Request) {
 		"alloc_mem":    fmt.Sprintf("%.1f%s", float64(mem.Alloc)/1024/1024, a.m["mb"]),
 	}
 	ns := map[string][]string{
-		"known_nodes": a.NodeManager.GetNodestrSlice(),
-		"linked_nodes":  a.NodeManager.GetNodestrSliceInTable(""),
+		"known_nodes":  a.NodeManager.GetNodestrSlice(),
+		"linked_nodes": a.NodeManager.GetNodestrSliceInTable(""),
 	}
 
 	d := struct {
@@ -249,7 +249,7 @@ type adminCGI struct {
 //newAdminCGI returns adminCGI obj if client is admin.
 //if not render 403.
 func newAdminCGI(w http.ResponseWriter, r *http.Request) (adminCGI, error) {
-	if AdminCfg==nil{
+	if AdminCfg == nil {
 		log.Fatal("must set adminConfig")
 	}
 	a := adminCGI{

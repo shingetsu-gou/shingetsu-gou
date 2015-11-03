@@ -81,7 +81,7 @@ type Myself struct {
 	mutex      sync.RWMutex
 }
 
-//IpPortPath returns node ojb contains ip:port/path.
+//IPPortPath returns node ojb contains ip:port/path.
 func (m *Myself) IPPortPath() *Node {
 	return MakeNode(m.IP, m.Path, m.Port)
 }
@@ -124,7 +124,6 @@ type NodeConfig struct {
 type Node struct {
 	*NodeConfig
 	Nodestr string
-	mutex   sync.RWMutex
 }
 
 //NewNode checks nodestr format and returns node obj.

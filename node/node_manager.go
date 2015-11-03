@@ -324,7 +324,7 @@ func (lt *Manager) Join(n *Node) bool {
 		return false
 	}
 	flag := false
-	if lt.hasNodeInTable("",n) || lt.Myself.IPPortPath().Nodestr == n.Nodestr {
+	if lt.hasNodeInTable("", n) || lt.Myself.IPPortPath().Nodestr == n.Nodestr {
 		return false
 	}
 	for count := 0; count < retryJoin && lt.ListLen() < defaultNodes; count++ {

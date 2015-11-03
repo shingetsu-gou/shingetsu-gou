@@ -284,7 +284,7 @@ func (r *Record) Exists() bool {
 	return util.IsFile(r.path())
 }
 
-//recstr returns one line in the record file.
+//Recstr returns one line in the record file.
 func (r *Record) Recstr() string {
 	return fmt.Sprintf("%d<>%s<>%s", r.Stamp, r.ID, r.bodystr())
 }

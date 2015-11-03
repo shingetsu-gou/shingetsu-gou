@@ -58,9 +58,19 @@ Or you can download executable binaries from [here](https://github.com/shingetsu
 5. files in template directory are not compatible with Gou and Saku. The default template directory name in Gou is "gou_template/".
 6. files below are not used in Gou.
 	* in cache directory
-		* count.stat, dat.stat, size.stat, stamp.stat, validstamp,stat,velocity.stat
+		* body directory
+		* count.stat
+		* dat.stat
+		* size.stat
+		* stamp.stat
+		* validstamp.stat
+		* velocity.stat
 	* in run directory
-		* client.txt, node.txt, search.txt,tag.txt,update.txt
+		* client.txt
+		* node.txt
+		* search.txt
+		* tag.txt
+		* update.txt
 7. dnsname is now same as server_name in config .
 
 # Note
