@@ -58,6 +58,7 @@ type CacheInfo struct {
 	Len      int   //# of records
 	Velocity int   //# of new records in one day
 	Stamp    int64 //stamp of newest record
+	Oldest   int64 //oldeest stamp
 }
 
 //CacheConfig is config for Cache struct.
@@ -200,6 +201,9 @@ func (c *Cache) ReadInfo() *CacheInfo {
 		if ci.Stamp < stamp {
 			ci.Stamp = stamp
 		}
+		if ci.Oldest == 0 || ci.Oldest > stamp {
+			ci.Oldest = stamp
+		}
 		if time.Unix(stamp, 0).After(time.Now().Add(-7 * 24 * time.Hour)) {
 			ci.Velocity++
 		}
@@ -319,8 +323,9 @@ func (c *Cache) Exists() bool {
 //return true if gotten records>0
 func (c *Cache) getWithRange(n *node.Node) bool {
 	now := time.Now().Unix()
+	inf := c.ReadInfo()
 
-	begin := c.ReadInfo().Stamp
+	begin := inf.Stamp
 	begin2 := now - c.SyncRange
 	if begin2 < begin {
 		begin = begin2

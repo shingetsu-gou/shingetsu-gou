@@ -67,7 +67,6 @@ type RecentList struct {
 	*RecentListConfig
 	infos   recordHeads
 	isDirty bool
-	running bool
 	mutex   sync.RWMutex
 }
 
@@ -265,35 +264,13 @@ func (r *RecentList) GetRecords() []*RecordHead {
 	return inf
 }
 
-//GetAllContents get all contents of records from network.
-//(moonheavy)
-func (r *RecentList) GetAllContents() {
-	r.mutex.Lock()
-	if r.running {
-		r.mutex.Unlock()
-		return
-	}
-	r.running = true
-	r.mutex.Unlock()
-
+//CreateAllCachedirs creates all dirs in recentlist to be retrived when called recentlist.getall.
+//(heavymoon)
+func (r *RecentList) CreateAllCachedirs() {
 	for _, rh := range r.GetRecords() {
-		rec := NewRecord(rh.Datfile, rh.Idstr())
-		if rec.Exists() || rec.Removed() {
-			continue
+		ca := NewCache(rh.Datfile)
+		if !ca.Exists() {
+			ca.SetupDirectories()
 		}
-		ns := r.NodeManager.Get(rh.Datfile, nil)
-		ns = ns.Extend(r.NodeManager.Get("", nil))
-		if ns.Len() == 0 {
-			continue
-		}
-		for _, n := range ns {
-			if err := rec.GetData(n); err != nil {
-				log.Println(err)
-			} else {
-				rec.Sync()
-				goto NextRecord
-			}
-		}
-	NextRecord:
 	}
 }

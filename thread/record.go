@@ -510,7 +510,7 @@ func (r *Record) checkData(begin, end int64) error {
 	if !r.meets(begin, end) {
 		return errGet
 	}
-	if r.size() > int64(r.RecordLimit*1024) || r.IsSpam() {
+	if len(r.Recstr()) > r.RecordLimit<<10 || r.IsSpam() {
 		log.Printf("warning:%s/%s:too large or spam record", r.Datfile, r.Idstr())
 		errr := r.Remove()
 		if errr != nil {

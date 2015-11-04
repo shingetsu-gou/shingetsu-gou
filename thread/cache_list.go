@@ -141,7 +141,8 @@ type CacheListConfig struct {
 
 //CacheList is slice of *cache
 type CacheList struct {
-	Caches Caches
+	Caches  Caches
+	running bool
 	*CacheListConfig
 }
 
@@ -190,16 +191,7 @@ func (c *CacheList) load() {
 
 //Getall reload all records in cache in cachelist from network.
 func (c *CacheList) Getall() {
-	const clientTimeout = 30 * time.Minute // Seconds; client_timeout < sync_cycle
-
-	timelimit := time.Now().Add(clientTimeout)
-	util.Shuffle(c)
 	for _, ca := range c.Caches {
-		now := time.Now()
-		if now.After(timelimit) {
-			log.Println("client timeout")
-			return
-		}
 		ca.GetCache()
 	}
 }

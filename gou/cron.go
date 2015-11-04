@@ -36,6 +36,8 @@ import (
 	"github.com/shingetsu-gou/shingetsu-gou/thread"
 )
 
+var running bool
+
 //cron runs cron, and update everything if it is after specified cycle.
 func cron(nodeManager *node.Manager, recentList *thread.RecentList, heavymoon bool) {
 	const (
@@ -80,22 +82,30 @@ func doSync(nodeManager *node.Manager, recentList *thread.RecentList, heavymoon 
 	nodeManager.Sync()
 	log.Println("lookupTable.join finished")
 
+	log.Println("recentList.getall start")
+	recentList.Getall()
+	log.Println("recentList.getall finished")
+
+	if heavymoon {
+		log.Println("creating all cache dirs in recentlist for heavymoon...")
+		recentList.CreateAllCachedirs()
+		log.Println("creating all cache dirs finished...")
+	}
+
 	log.Println("cachelist.cleanRecords start")
 	cl := thread.NewCacheList()
 	cl.CleanRecords()
 	cl.RemoveRemoved()
 	log.Println("cachelist.cleanRecords finished")
 
-	log.Println("recentList.getall start")
-	recentList.Getall()
-	log.Println("recentList.getall finished")
-
-	log.Println("cacheList.getall start")
-	cl.Getall()
-	log.Println("cacheList.getall finished")
-
-	if heavymoon {
-		go recentList.GetAllContents()
+	if !running {
+		running = true
+		go func(cl *thread.CacheList) {
+			log.Println("cacheList.getall start")
+			cl.Getall()
+			log.Println("cacheList.getall finished")
+			running = false
+		}(cl)
 	}
 
 	log.Println("dosync finished")
