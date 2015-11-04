@@ -95,7 +95,7 @@ func NewCache(datfile string) *Cache {
 				Datfile:     datfile,
 				CacheConfig: CacheCfg,
 			}
-			c.tags = loadTagslice(path.Join(c.datpath(), "tag.txt"))
+			c.tags = loadTagslice(path.Join(c.Datpath(), "tag.txt"))
 			return c
 		}
 	}
@@ -168,8 +168,8 @@ func (c *Cache) dathash() string {
 	return util.FileHash(c.Datfile)
 }
 
-//datpath returns real file path of this cache.
-func (c *Cache) datpath() string {
+//Datpath returns real file path of this cache.
+func (c *Cache) Datpath() string {
 	return path.Join(c.CacheDir, c.dathash())
 }
 
@@ -187,7 +187,7 @@ func (c *Cache) ReadInfo() *CacheInfo {
 	c.Fmutex.RLock()
 	defer c.Fmutex.RUnlock()
 	ci := &CacheInfo{}
-	d := path.Join(c.datpath(), "record")
+	d := path.Join(c.Datpath(), "record")
 	if !util.IsDir(d) {
 		return ci
 	}
@@ -217,7 +217,7 @@ func (c *Cache) ReadInfo() *CacheInfo {
 func (c *Cache) LoadRecords() RecordMap {
 	c.Fmutex.RLock()
 	defer c.Fmutex.RUnlock()
-	r := path.Join(c.datpath(), "record")
+	r := path.Join(c.Datpath(), "record")
 	if !util.IsDir(r) {
 		return nil
 	}
@@ -230,7 +230,7 @@ func (c *Cache) LoadRecords() RecordMap {
 		return nil
 	})
 	if err != nil {
-		log.Println(err, c.datpath())
+		log.Println(err, c.Datpath())
 	}
 	return RecordMap(recs)
 }
@@ -239,11 +239,11 @@ func (c *Cache) LoadRecords() RecordMap {
 func (c *Cache) HasRecord() bool {
 	c.Fmutex.RLock()
 	defer c.Fmutex.RUnlock()
-	f, err := ioutil.ReadDir(path.Join(c.datpath(), "record"))
+	f, err := ioutil.ReadDir(path.Join(c.Datpath(), "record"))
 	if err != nil {
 		return false
 	}
-	removed := path.Join(c.datpath(), "removed")
+	removed := path.Join(c.Datpath(), "removed")
 	d, err := ioutil.ReadDir(removed)
 	return len(f) > 0 || (err == nil && len(d) > 0)
 }
@@ -254,7 +254,7 @@ func (c *Cache) SyncTag() {
 	defer c.Fmutex.Unlock()
 	c.mutex.RLock()
 	c.mutex.RUnlock()
-	c.tags.sync(path.Join(c.datpath(), "tag.txt"))
+	c.tags.sync(path.Join(c.Datpath(), "tag.txt"))
 }
 
 //SetupDirectories make necessary dirs.
@@ -262,7 +262,7 @@ func (c *Cache) SetupDirectories() {
 	c.Fmutex.Lock()
 	defer c.Fmutex.Unlock()
 	for _, d := range []string{"", "/record", "/removed"} {
-		di := path.Join(c.datpath(), d)
+		di := path.Join(c.Datpath(), d)
 		if !util.IsDir(di) {
 			err := os.Mkdir(di, 0755)
 			if err != nil {
@@ -281,21 +281,14 @@ func (c *Cache) checkData(res []string, stamp int64, id string, begin, end int64
 	count := 0
 	for _, i := range res {
 		r := NewRecord(c.Datfile, "")
-		if er := r.parse(i); er == nil && r.meets(i, stamp, id, begin, end) {
+		if errr := r.parse(i); errr != nil {
+			err = errGet
+			continue
+		}
+		r.Sync()
+		err = r.checkData(begin, end)
+		if err == nil {
 			count++
-			if len(i) > c.RecordLimit*1024 || r.IsSpam() {
-				err = errSpam
-				log.Printf("warning:%s/%s:too large or spam record", c.Datfile, r.Idstr())
-				r.Sync()
-				errr := r.Remove()
-				if errr != nil {
-					log.Println(errr)
-				}
-			} else {
-				r.Sync()
-			}
-		} else {
-			log.Println("warning::broken record", c.Datfile, i)
 		}
 	}
 	if count == 0 {
@@ -308,7 +301,7 @@ func (c *Cache) checkData(res []string, stamp int64, id string, begin, end int64
 func (c *Cache) Remove() {
 	c.Fmutex.Lock()
 	defer c.Fmutex.Unlock()
-	err := os.RemoveAll(c.datpath())
+	err := os.RemoveAll(c.Datpath())
 	if err != nil {
 		log.Println(err)
 	}
@@ -318,7 +311,7 @@ func (c *Cache) Remove() {
 func (c *Cache) Exists() bool {
 	c.Fmutex.RLock()
 	defer c.Fmutex.RUnlock()
-	return util.IsDir(c.datpath())
+	return util.IsDir(c.Datpath())
 }
 
 //getWithRange gets records with range using node n and adds to cache after checking them.
@@ -357,21 +350,6 @@ func (c *Cache) GetCache() bool {
 		return true
 	}
 	return false
-}
-
-//GetData gets records from node n and checks its is same as stamp and id in args.
-//save recs if success. returns errSpam or errGet.
-func (c *Cache) GetData(stamp int64, id string, n *node.Node) error {
-	res, err := n.Talk(fmt.Sprintf("/get/%s/%d/%s", c.Datfile, stamp, id))
-	if err != nil {
-		log.Println(err)
-		return errGet
-	}
-	count, err := c.checkData(res, stamp, id, -1, -1)
-	if count == 0 {
-		log.Println(c.Datfile, stamp, "records not found")
-	}
-	return err
 }
 
 //Gettitle returns title part if *_*.

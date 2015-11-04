@@ -104,11 +104,11 @@ func (u *UpdateQue) doUpdateNode(rec *Record, n *node.Node) bool {
 		return true
 	case ca.HasRecord():
 		log.Println("cache and records exists, get data from node n.")
-		err = ca.GetData(rec.Stamp, rec.ID, n)
+		err = rec.GetData(n)
 	default:
 		log.Println("cache exists ,but no records. get data with range.")
 		ca.getWithRange(n)
-		if flagGot := rec.Exists(); !flagGot {
+		if flagGot := (rec.Removed() || rec.Exists()); !flagGot {
 			err = errGet
 		}
 	}

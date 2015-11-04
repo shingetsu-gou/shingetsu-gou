@@ -260,20 +260,21 @@ func (n *Node) bye() bool {
 	return (res[0] == "BYEBYE")
 }
 
-type nodeSlice []*Node
+//Slice is slice of node.
+type Slice []*Node
 
 //Len returns size of nodes.
-func (ns nodeSlice) Len() int {
+func (ns Slice) Len() int {
 	return len(ns)
 }
 
 //Swap swaps nodes order.
-func (ns nodeSlice) Swap(i, j int) {
+func (ns Slice) Swap(i, j int) {
 	ns[i], ns[j] = ns[j], ns[i]
 }
 
 //getNodestrSlice returns slice of Nodestr of nodes.
-func (ns nodeSlice) getNodestrSlice() []string {
+func (ns Slice) getNodestrSlice() []string {
 	s := make([]string, ns.Len())
 	for i, v := range ns {
 		s[i] = v.Nodestr
@@ -282,7 +283,7 @@ func (ns nodeSlice) getNodestrSlice() []string {
 }
 
 //tomap returns map[nodestr]struct{}{} for searching a node.
-func (ns nodeSlice) toMap() map[string]struct{} {
+func (ns Slice) toMap() map[string]struct{} {
 	m := make(map[string]struct{})
 	for _, nn := range ns {
 		m[nn.Nodestr] = struct{}{}
@@ -291,7 +292,7 @@ func (ns nodeSlice) toMap() map[string]struct{} {
 }
 
 //uniq solidate the slice.
-func (ns nodeSlice) uniq() nodeSlice {
+func (ns Slice) uniq() Slice {
 	m := make(map[string]struct{})
 	ret := make([]*Node, 0, ns.Len())
 
@@ -304,8 +305,8 @@ func (ns nodeSlice) uniq() nodeSlice {
 	return ret
 }
 
-//extend make a new nodeslice including specified slices.
-func (ns nodeSlice) extend(a nodeSlice) nodeSlice {
+//Extend make a new nodeslice including specified slices.
+func (ns Slice) Extend(a Slice) Slice {
 	nn := make([]*Node, ns.Len()+a.Len())
 	copy(nn, ns)
 	copy(nn[ns.Len():], a)

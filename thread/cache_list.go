@@ -245,7 +245,7 @@ func (c *CacheList) RemoveRemoved() {
 				rec.Stamp < ca.ReadInfo().Stamp {
 				ca.Fmutex.Lock()
 				defer ca.Fmutex.Unlock()
-				err := os.Remove(path.Join(ca.datpath(), "removed", f.Name()))
+				err := os.Remove(path.Join(ca.Datpath(), "removed", f.Name()))
 				if err != nil {
 					log.Println(err)
 				}

@@ -29,6 +29,7 @@
 package gou
 
 import (
+	"encoding/base64"
 	"fmt"
 	"io/ioutil"
 	"log"
@@ -50,7 +51,7 @@ import (
 	"github.com/shingetsu-gou/shingetsu-gou/util"
 )
 
-func initPackages(cfg *Config) {
+func initPackages(cfg *Config) (*node.Manager, *thread.RecentList) {
 	externalPort := cfg.DefaultPort
 	if cfg.EnableNAT {
 		externalPort = setUPnP(cfg.DefaultPort)
@@ -151,6 +152,7 @@ func initPackages(cfg *Config) {
 		CacheDir:             cfg.CacheDir,
 		Fmutex:               fmutex,
 		CachedRule:           cachedRule,
+		RecordLimit:          cfg.RecordLimit,
 	}
 
 	cgi.CGICfg = &cgi.CGIConfig{
@@ -198,8 +200,7 @@ func initPackages(cfg *Config) {
 		UpdateQue:            updateQue,
 	}
 	datakeyTable.Load()
-
-	go cron(nodeManager, recentList)
+	return nodeManager, recentList
 
 }
 
@@ -252,7 +253,9 @@ func StartDaemon(cfg *Config) {
 		WriteTimeout:   60 * time.Second,
 		MaxHeaderBytes: 1 << 20,
 	}
-	initPackages(cfg)
+	nm, rl := initPackages(cfg)
+	go cron(nm, rl, cfg.HeavyMoon)
+
 	cgi.AdminSetup(sm)
 	cgi.ServerSetup(sm)
 	cgi.GatewaySetup(sm)
@@ -262,7 +265,9 @@ func StartDaemon(cfg *Config) {
 		fmt.Println("started 2ch interface...")
 		cgi.MchSetup(sm)
 	}
-	sm.RegisterPprof()
+	if cfg.EnableProf {
+		sm.RegisterPprof()
+	}
 	sm.RegistCompressHandler("/", handleRoot(cfg.Docroot))
 	fmt.Println("started daemon and http server...")
 	log.Fatal(s.Serve(limitListener))
@@ -285,5 +290,68 @@ func handleRoot(docroot string) func(http.ResponseWriter, *http.Request) {
 
 		log.Println("not found", r.URL.Path)
 		http.NotFound(w, r)
+	}
+}
+
+//Sakurifice makes cache be compatible with saku.
+//i.e. makes body dir ,attach dir and dat.stat in under cache dir.
+func Sakurifice(cfg *Config) {
+	initPackages(cfg)
+	f := path.Join(cfg.RunDir, "tag.txt")
+	if !util.IsFile(f) {
+		writeFile(f, []byte{})
+	}
+
+	cl := thread.NewCacheList()
+	log.Println("# of cache", cl.Len())
+	for _, ca := range cl.Caches {
+		log.Println("processing", ca.Datfile)
+		f := path.Join(ca.Datpath(), "dat.stat")
+		writeFile(f, []byte(ca.Datfile))
+		bodypath := path.Join(ca.Datpath(), "body")
+		mkdir(bodypath)
+		attachPath := path.Join(ca.Datpath(), "attach")
+		mkdir(attachPath)
+		recs := ca.LoadRecords()
+		for _, rec := range recs {
+			if err := rec.Load(); err != nil {
+				log.Fatal(err)
+			}
+			if at := rec.GetBodyValue("attach", ""); at != "" {
+				f := path.Join(bodypath, rec.Idstr())
+				writeFile(f, []byte(rec.BodyString()))
+
+				decoded, err := base64.StdEncoding.DecodeString(at)
+				if err != nil {
+					log.Fatal(err)
+				}
+				f = rec.AttachPath("")
+				writeFile(f, decoded)
+				if cfg.DefaultThumbnailSize == "" {
+					continue
+				}
+				decoded = util.MakeThumbnail(decoded, rec.GetBodyValue("suffix", ""), cfg.DefaultThumbnailSize)
+				if decoded != nil {
+					f = rec.AttachPath(cfg.DefaultThumbnailSize)
+					writeFile(f, decoded)
+				}
+			}
+		}
+	}
+}
+
+func mkdir(path string) {
+	if !util.IsDir(path) {
+		err := os.Mkdir(path, 0755)
+		if err != nil {
+			log.Fatal(err)
+		}
+	}
+}
+
+func writeFile(fname string, data []byte) {
+	err := ioutil.WriteFile(fname, data, 0644)
+	if err != nil {
+		log.Fatal(err)
 	}
 }

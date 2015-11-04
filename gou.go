@@ -115,14 +115,19 @@ func setLogger(printLog, isSilent bool, logDir string) {
 }
 
 func main() {
-	log.Println("starting Gou...")
+	fmt.Println("starting Gou...")
 	cfg := gou.NewConfig()
-	var printLog, isSilent bool
+	var printLog, isSilent, sakurifice bool
 	flag.BoolVar(&printLog, "verbose", false, "print logs")
 	flag.BoolVar(&printLog, "v", false, "print logs")
 	flag.BoolVar(&isSilent, "silent", false, "suppress logs")
+	flag.BoolVar(&sakurifice, "sakurifice", false, "makes caches compatible with saku")
 	flag.Parse()
 	setLogger(printLog, isSilent, cfg.LogDir)
 	expandAssets(cfg.FileDir, cfg.TemplateDir, cfg.Docroot)
-	gou.StartDaemon(cfg)
+	if sakurifice {
+		gou.Sakurifice(cfg)
+	} else {
+		gou.StartDaemon(cfg)
+	}
 }

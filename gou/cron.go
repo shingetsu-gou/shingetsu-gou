@@ -37,7 +37,7 @@ import (
 )
 
 //cron runs cron, and update everything if it is after specified cycle.
-func cron(nodeManager *node.Manager, recentList *thread.RecentList) {
+func cron(nodeManager *node.Manager, recentList *thread.RecentList, heavymoon bool) {
 	const (
 		clientCycle = 20 * time.Minute // Seconds; Access client.cgi
 		pingCycle   = 10 * time.Minute // Seconds; Check nodes
@@ -45,7 +45,7 @@ func cron(nodeManager *node.Manager, recentList *thread.RecentList) {
 		initCycle   = 20 * time.Minute // Seconds; Check initial node
 	)
 	nodeManager.Initialize()
-	doSync(nodeManager, recentList)
+	doSync(nodeManager, recentList, heavymoon)
 
 	for {
 		select {
@@ -56,14 +56,14 @@ func cron(nodeManager *node.Manager, recentList *thread.RecentList) {
 			nodeManager.PingAll()
 			nodeManager.Initialize()
 			nodeManager.Sync()
-			doSync(nodeManager, recentList)
+			doSync(nodeManager, recentList, heavymoon)
 			log.Println("nodelist.pingall finished")
 
 		case <-time.After(initCycle):
 			nodeManager.Initialize()
 
 		case <-time.After(syncCycle):
-			doSync(nodeManager, recentList)
+			doSync(nodeManager, recentList, heavymoon)
 		}
 	}
 }
@@ -71,7 +71,7 @@ func cron(nodeManager *node.Manager, recentList *thread.RecentList) {
 //doSync checks nodes in the nodelist are alive, reloads cachelist, removes old removed files,
 //reloads all tags from cachelist,reload srecent list from nodes in search list,
 //and reloads cache info from files in the disk.
-func doSync(nodeManager *node.Manager, recentList *thread.RecentList) {
+func doSync(nodeManager *node.Manager, recentList *thread.RecentList, heavymoon bool) {
 	if nodeManager.ListLen() == 0 {
 		return
 	}
@@ -93,6 +93,10 @@ func doSync(nodeManager *node.Manager, recentList *thread.RecentList) {
 	log.Println("cacheList.getall start")
 	cl.Getall()
 	log.Println("cacheList.getall finished")
+
+	if heavymoon {
+		go recentList.GetAllContents()
+	}
 
 	log.Println("dosync finished")
 }

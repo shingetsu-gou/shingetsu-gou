@@ -57,7 +57,7 @@ type ManagerConfig struct {
 type Manager struct {
 	*ManagerConfig
 	isDirty bool
-	nodes   map[string]nodeSlice //map[""] is nodelist
+	nodes   map[string]Slice //map[""] is nodelist
 	mutex   sync.RWMutex
 }
 
@@ -65,10 +65,10 @@ type Manager struct {
 func NewManager(cfg *ManagerConfig) *Manager {
 	r := &Manager{
 		ManagerConfig: cfg,
-		nodes:         make(map[string]nodeSlice),
+		nodes:         make(map[string]Slice),
 	}
 	err := util.EachKeyValueLine(cfg.Lookup, func(key string, value []string, i int) error {
-		var nl nodeSlice
+		var nl Slice
 		for _, v := range value {
 			nl = append(nl, NewNode(v))
 		}
@@ -110,8 +110,8 @@ func (lt *Manager) GetNodestrSlice() []string {
 }
 
 //getAllNodes returns all nodes in table.
-func (lt *Manager) getAllNodes() nodeSlice {
-	var n nodeSlice
+func (lt *Manager) getAllNodes() Slice {
+	var n Slice
 	lt.mutex.RLock()
 	defer lt.mutex.RUnlock()
 	for _, v := range lt.nodes {
@@ -131,7 +131,7 @@ func (lt *Manager) GetNodestrSliceInTable(datfile string) []string {
 }
 
 //Random selects # of min(all # of nodes,n) nodes randomly except exclude nodes.
-func (lt *Manager) Random(exclude nodeSlice, num int) []*Node {
+func (lt *Manager) Random(exclude Slice, num int) []*Node {
 	all := lt.getAllNodes()
 	if exclude != nil {
 		cand := make([]*Node, 0, len(all))
@@ -355,9 +355,9 @@ func (lt *Manager) TellUpdate(datfile string, stamp int64, id string, node *Node
 	}
 	msg := strings.Join([]string{"/update", datfile, strconv.FormatInt(stamp, 10), id, tellstr}, "/")
 
-	ns := lt.get(datfile, nil)
-	ns = ns.extend(lt.get("", nil))
-	ns = ns.extend(lt.Random(ns, updateNodes))
+	ns := lt.Get(datfile, nil)
+	ns = ns.Extend(lt.Get("", nil))
+	ns = ns.Extend(lt.Random(ns, updateNodes))
 	log.Println("telling #", len(ns))
 	for _, n := range ns {
 		_, err := n.Talk(msg)
@@ -367,9 +367,9 @@ func (lt *Manager) TellUpdate(datfile string, stamp int64, id string, node *Node
 	}
 }
 
-//get returns rawnodelist associated with datfile
+//Get returns rawnodelist associated with datfile
 //if not found returns def
-func (lt *Manager) get(datfile string, def nodeSlice) nodeSlice {
+func (lt *Manager) Get(datfile string, def Slice) Slice {
 	lt.mutex.RLock()
 	defer lt.mutex.RUnlock()
 	if v, exist := lt.nodes[datfile]; exist {
@@ -377,7 +377,7 @@ func (lt *Manager) get(datfile string, def nodeSlice) nodeSlice {
 		copy(nodes, v)
 		return nodes
 	}
-	return nodeSlice(def)
+	return Slice(def)
 }
 
 //stringMap returns map of k=datfile, v=Nodestr of rawnodelist.
@@ -417,11 +417,11 @@ func (lt *Manager) Sync() {
 func (lt *Manager) Search(datfile string, nodes []*Node) *Node {
 	const searchDepth = 30 // Search node size
 
-	ns := lt.get(datfile, nil)
-	ns.extend(lt.get("", nil))
-	ns.extend(nodes)
+	ns := lt.Get(datfile, nil)
+	ns.Extend(lt.Get("", nil))
+	ns.Extend(nodes)
 	if ns.Len() < searchDepth {
-		ns = ns.extend(lt.Random(ns, searchDepth-ns.Len()))
+		ns = ns.Extend(lt.Random(ns, searchDepth-ns.Len()))
 	}
 	count := 0
 	for _, n := range ns {

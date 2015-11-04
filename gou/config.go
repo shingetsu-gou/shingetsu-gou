@@ -118,6 +118,8 @@ type Config struct {
 	Enable2ch            bool
 	EnableNAT            bool //EnableNAT is enabled if you want to use nat.
 	ForceThumbnail       bool
+	EnableProf           bool
+	HeavyMoon            bool
 
 	Fmutex sync.RWMutex //Fmutex is rwmutex for syncing the disk
 
@@ -172,6 +174,8 @@ func (c *Config) initVariables(i *ini.File) {
 	c.RecordLimit = getIntValue(i, "Gateway", "record_limit", 2048)
 	c.Enable2ch = getBoolValue(i, "Gateway", "enable_2ch", false)
 	c.EnableNAT = getBoolValue(i, "Gateway", "enable_nat", false)
+	c.EnableProf = getBoolValue(i, "Gateway", "enable_prof", false)
+	c.HeavyMoon = getBoolValue(i, "Gateway", "moonlight", false)
 	c.LogDir = getPathValue(i, "Path", "log_dir", "./log") //path from cwd
 	c.ThreadPageSize = getIntValue(i, "Application Thread", "page_size", 50)
 	c.DefaultThumbnailSize = getStringValue(i, "Application Thread", "thumbnail_size", "")

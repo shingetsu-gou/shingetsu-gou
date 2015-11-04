@@ -29,7 +29,6 @@
 package thread
 
 import (
-	"crypto/md5"
 	"errors"
 	"fmt"
 	"io/ioutil"
@@ -37,95 +36,18 @@ import (
 	"os"
 	"path/filepath"
 	"regexp"
-	"sort"
 	"strconv"
 	"strings"
 	"sync"
-	"time"
 
+	"github.com/shingetsu-gou/shingetsu-gou/node"
 	"github.com/shingetsu-gou/shingetsu-gou/util"
 )
 
-//RecordHead represents one line in updatelist/recentlist
-type RecordHead struct {
-	Datfile string //cache file name
-	Stamp   int64  //unixtime
-	ID      string //md5(bodystr)
-}
-
-//newUpdateInfoFromLine parse one line in udpate/recent list and returns updateInfo obj.
-func newRecordHeadFromLine(line string) (*RecordHead, error) {
-	strs := strings.Split(strings.TrimRight(line, "\n\r"), "<>")
-	if len(strs) < 3 || util.FileDecode(strs[2]) == "" || !strings.HasPrefix(strs[2], "thread") {
-		err := errors.New("illegal format")
-		log.Println(err)
-		return nil, err
-	}
-	u := &RecordHead{
-		ID:      strs[1],
-		Datfile: strs[2],
-	}
-	var err error
-	u.Stamp, err = strconv.ParseInt(strs[0], 10, 64)
-	if err != nil {
-		log.Println(err)
-		return nil, err
-	}
-	return u, nil
-}
-
-//equals returns true if u=v
-func (u *RecordHead) equals(rec *RecordHead) bool {
-	return u.Datfile == rec.Datfile && u.ID == rec.ID && u.Stamp == rec.Stamp
-}
-
-//hash returns md5 of RecordHead.
-func (u *RecordHead) hash() [16]byte {
-	return md5.Sum([]byte(u.Recstr()))
-}
-
-//Recstr returns one line of update/recentlist file.
-func (u *RecordHead) Recstr() string {
-	return fmt.Sprintf("%d<>%s<>%s", u.Stamp, u.ID, u.Datfile)
-}
-
-//Idstr returns real file name of the record file.
-func (u *RecordHead) Idstr() string {
-	return fmt.Sprintf("%d_%s", u.Stamp, u.ID)
-}
-
-type recordHeads []*RecordHead
-
-//Less returns true if stamp of infos[i] < [j]
-func (r recordHeads) Less(i, j int) bool {
-	return r[i].Stamp < r[j].Stamp
-}
-
-//Swap swaps infos order.
-func (r recordHeads) Swap(i, j int) {
-	r[i], r[j] = r[j], r[i]
-}
-
-//Len returns size of infos
-func (r recordHeads) Len() int {
-	return len(r)
-}
-
-//has returns true if recordHeads has rec.
-func (r recordHeads) has(rec *RecordHead) bool {
-	for _, v := range r {
-		if v.equals(rec) {
-			return true
-		}
-	}
-	return false
-}
-
-//RecordCfg is the config for Record struct.
-//it must be set befor using.
 var (
+	//RecordCfg is the config for Record struct.
+	//it must be set befor using.
 	RecordCfg *RecordConfig
-	recordMap = make(map[string]sync.Pool)
 )
 
 //RecordConfig is the config for Record struct.
@@ -134,6 +56,7 @@ type RecordConfig struct {
 	CacheDir             string
 	Fmutex               *sync.RWMutex
 	CachedRule           *util.RegexpList
+	RecordLimit          int
 }
 
 //Record represents one record.
@@ -152,16 +75,9 @@ func NewRecord(datfile, idstr string) *Record {
 	if RecordCfg == nil {
 		log.Fatal("must set RecordCfg")
 	}
-	p, exist := recordMap[datfile]
-	if !exist {
-		p.New = func() interface{} {
-			return &Record{
-				RecordConfig: RecordCfg,
-			}
-		}
+	r := &Record{
+		RecordConfig: RecordCfg,
 	}
-	r := p.Get().(*Record)
-	p.Put(r)
 
 	var err error
 
@@ -283,30 +199,48 @@ func (r *Record) Exists() bool {
 	return util.IsFile(r.path())
 }
 
+//Removed return true if record is removed (i.e. exists.in removed path)
+func (r *Record) Removed() bool {
+	return util.IsFile(r.rmPath())
+}
+
 //Recstr returns one line in the record file.
 func (r *Record) Recstr() string {
 	return fmt.Sprintf("%d<>%s<>%s", r.Stamp, r.ID, r.bodystr())
 }
 
 //parse parses one line in record file and response of /recent/ and set params to record r.
-func (r *Record) parse(Recstr string) error {
+func (r *Record) parse(recstr string) error {
 	r.mutex.Lock()
 	defer r.mutex.Unlock()
 
 	var err error
-	Recstr = strings.TrimRight(Recstr, "\r\n")
-	tmp := strings.Split(Recstr, "<>")
+	recstr = strings.TrimRight(recstr, "\r\n")
+	tmp := strings.Split(recstr, "<>")
 	if len(tmp) < 2 {
-		err := errors.New(Recstr + ":bad format")
+		err := errors.New(recstr + ":bad format")
 		log.Println(err)
 		return err
 	}
-	r.Stamp, err = strconv.ParseInt(tmp[0], 10, 64)
+	stamp, err := strconv.ParseInt(tmp[0], 10, 64)
 	if err != nil {
 		log.Println(tmp[0], "bad format")
 		return err
 	}
-	r.ID = tmp[1]
+	if r.Stamp == 0 {
+		r.Stamp = stamp
+	}
+	if r.Stamp != stamp {
+		log.Println("stamp unmatch")
+		return errors.New("stamp unmatch")
+	}
+	if r.ID == "" {
+		r.ID = tmp[1]
+	}
+	if r.ID != "" && r.ID != tmp[1] {
+		log.Println("ID unmatch")
+		return errors.New("stamp unmatch")
+	}
 	r.contents = make(map[string]string)
 	r.keyOrder = nil
 	//reposense of recentlist  : stamp<>id<>thread_***<>tag:***
@@ -497,22 +431,9 @@ func (r *Record) checkSign() bool {
 }
 
 //meets checks the record meets conditions of args
-func (r *Record) meets(i string, stamp int64, id string, begin, end int64) bool {
-
-	if r.parse(i) != nil {
-		log.Println("parse NG")
-		return false
-	}
+func (r *Record) meets(begin, end int64) bool {
 	r.mutex.RLock()
 	defer r.mutex.RUnlock()
-	if stamp > 0 && r.Stamp != stamp {
-		log.Println("stamp NG", r.Stamp, stamp)
-		return false
-	}
-	if id != "" && r.ID != id {
-		log.Println("id NG", id, r.ID)
-		return false
-	}
 	if begin > r.Stamp || (end > 0 && r.Stamp > end) {
 		log.Println("stamp range NG", begin, end, r.Stamp)
 		return false
@@ -539,60 +460,63 @@ func (r *Record) MakeAttachLink(sakuHost string) string {
 	return "<br><br>[Attached]<br>" + url
 }
 
-//RecordMap is a map key=datfile, value=record.
-type RecordMap map[string]*Record
-
-//Get returns records which hav key=i.
-//return def if not found.
-func (r RecordMap) Get(i string, def *Record) *Record {
-	if v, exist := r[i]; exist {
-		return v
+//BodyString retuns bodystr not including attach field, and shorten pubkey.
+func (r *Record) BodyString() string {
+	r.mutex.RLock()
+	defer r.mutex.RUnlock()
+	buf := []string{
+		strconv.FormatInt(r.Stamp, 10),
+		r.ID,
 	}
-	return def
-}
-
-//Keys returns key strings(ids) of records
-func (r RecordMap) Keys() []string {
-	ks := make([]string, len(r))
-	i := 0
-	for k := range r {
-		ks[i] = k
-		i++
-	}
-	sort.Strings(ks)
-	return ks
-}
-
-//removeRecords remove old records while remaing #saveSize records.
-//and also removes duplicates recs.
-func (r RecordMap) removeRecords(limit int64, saveSize int) {
-	ids := r.Keys()
-	if saveSize < len(ids) {
-		ids = ids[:len(ids)-saveSize]
-		if limit > 0 {
-			for _, re := range ids {
-				if r[re].Stamp+limit < time.Now().Unix() {
-					err := r[re].Remove()
-					if err != nil {
-						log.Println(err)
-					}
-					delete(r, re)
-				}
+	for _, k := range r.keyOrder {
+		switch k {
+		case "attach":
+			buf = append(buf, "attach:1")
+		case "sign":
+		case "pubkey":
+			if r.checkSign() {
+				shortKey := util.CutKey(r.contents["pubkey"])
+				buf = append(buf, "pubkey:"+shortKey)
 			}
+		default:
+			buf = append(buf, k+":"+r.contents[k])
 		}
 	}
-	once := make(map[string]struct{})
-	for k, rec := range r {
-		if util.IsFile(rec.path()) {
-			if _, exist := once[rec.ID]; exist {
-				err := rec.Remove()
-				if err != nil {
-					log.Println(err)
-				}
-				delete(r, k)
-			} else {
-				once[rec.ID] = struct{}{}
-			}
-		}
+	return strings.Join(buf, "<>")
+}
+
+//GetData gets records from node n and checks its is same as stamp and id in args.
+//save recs if success. returns errSpam or errGet.
+func (r *Record) GetData(n *node.Node) error {
+	res, err := n.Talk(fmt.Sprintf("/get/%s/%d/%s", r.Datfile, r.Stamp, r.ID))
+	if len(res) == 0 {
+		err = errors.New("no response")
 	}
+	if err != nil {
+		log.Println(err)
+		return errGet
+	}
+	if err = r.parse(res[0]); err != nil {
+		return errGet
+	}
+	return r.checkData(-1, -1)
+}
+
+//checkData makes records from res and checks its records meets condisions of args.
+//adds the rec to cache if meets conditions.
+//if spam or big data, remove the rec from disk.
+//returns count of added records to the cache and spam/getting error.
+func (r *Record) checkData(begin, end int64) error {
+	if !r.meets(begin, end) {
+		return errGet
+	}
+	if r.size() > int64(r.RecordLimit*1024) || r.IsSpam() {
+		log.Printf("warning:%s/%s:too large or spam record", r.Datfile, r.Idstr())
+		errr := r.Remove()
+		if errr != nil {
+			log.Println(errr)
+		}
+		return errSpam
+	}
+	return nil
 }
