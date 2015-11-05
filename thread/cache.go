@@ -71,7 +71,7 @@ type CacheConfig struct {
 	UserTag           *UserTag
 	SuggestedTagTable *SuggestedTagTable
 	RecentList        *RecentList
-	Fmutex            *sync.RWMutex
+	Fmutex            *util.RWMutex
 }
 
 //Cache represents cache of one file.
@@ -79,7 +79,7 @@ type Cache struct {
 	*CacheConfig
 	Datfile string
 	tags    Tagslice //made by the user
-	mutex   sync.RWMutex
+	mutex   *util.RWMutex
 }
 
 //NewCache read tag files to set and returns cache obj.
@@ -93,6 +93,7 @@ func NewCache(datfile string) *Cache {
 	if !exist {
 		p.New = func() interface{} {
 			c := &Cache{
+				mutex:util.NewRWMutex(),
 				Datfile:     datfile,
 				CacheConfig: CacheCfg,
 			}
@@ -177,8 +178,9 @@ func (c *Cache) Datpath() string {
 //RecentStamp  returns time of getting by /recent.
 func (c *Cache) RecentStamp() int64 {
 	n := c.RecentList.Newest(c.Datfile)
-	if n == nil {
-		return c.ReadInfo().Stamp
+	s := c.ReadInfo().Stamp
+	if n == nil || n.Stamp < s {
+		return s
 	}
 	return n.Stamp
 }

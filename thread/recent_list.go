@@ -33,7 +33,6 @@ import (
 	"sort"
 	"strconv"
 	"strings"
-	"sync"
 	"time"
 
 	"github.com/shingetsu-gou/shingetsu-gou/node"
@@ -56,7 +55,7 @@ type RecentListConfig struct {
 	RecentRange       int64
 	TagSize           int
 	Recent            string
-	Fmutex            *sync.RWMutex
+	Fmutex            *util.RWMutex
 	NodeManager       *node.Manager
 	SuggestedTagTable *SuggestedTagTable
 }
@@ -67,12 +66,13 @@ type RecentList struct {
 	*RecentListConfig
 	infos   recordHeads
 	isDirty bool
-	mutex   sync.RWMutex
+	mutex   *util.RWMutex
 }
 
 //NewRecentList load the saved file and create a RecentList obj.
 func NewRecentList(cfg *RecentListConfig) *RecentList {
 	r := &RecentList{
+		mutex:            util.NewRWMutex(),
 		RecentListConfig: cfg,
 	}
 	r.loadFile()
@@ -103,12 +103,13 @@ func (r *RecentList) loadFile() {
 func (r *RecentList) Newest(Datfile string) *RecordHead {
 	r.mutex.RLock()
 	defer r.mutex.RUnlock()
+	var rh *RecordHead
 	for _, v := range r.infos {
-		if v.Datfile == Datfile {
-			return v
+		if v.Datfile == Datfile && (rh == nil || rh.Stamp < v.Stamp) {
+			rh = v
 		}
 	}
-	return nil
+	return rh
 }
 
 //Append add a infos generated from the record.

@@ -33,7 +33,6 @@ import (
 	"os"
 	"path"
 	"regexp"
-	"sync"
 	"time"
 
 	"github.com/shingetsu-gou/shingetsu-gou/util"
@@ -136,7 +135,7 @@ type CacheListConfig struct {
 	SaveRemoved int64
 	CacheDir    string
 	SaveRecord  int64
-	Fmutex      *sync.RWMutex
+	Fmutex      *util.RWMutex
 }
 
 //CacheList is slice of *cache

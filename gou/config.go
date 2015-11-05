@@ -33,7 +33,6 @@ import (
 	"os"
 	"os/user"
 	"path"
-	"sync"
 	"time"
 
 	"github.com/shingetsu-gou/shingetsu-gou/util"
@@ -120,9 +119,6 @@ type Config struct {
 	ForceThumbnail       bool
 	EnableProf           bool
 	HeavyMoon            bool
-
-	Fmutex sync.RWMutex //Fmutex is rwmutex for syncing the disk
-
 	// asis, md5, sha1, sha224, sha256, sha384, or sha512
 	//	cache_hash_method = "asis"
 	//others are not implemented for gou for now.

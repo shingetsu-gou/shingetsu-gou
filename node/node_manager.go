@@ -33,7 +33,6 @@ import (
 	"math/rand"
 	"strconv"
 	"strings"
-	"sync"
 
 	"github.com/shingetsu-gou/shingetsu-gou/util"
 )
@@ -46,7 +45,7 @@ const (
 //ManagerConfig contains params for NodeManager struct.
 type ManagerConfig struct {
 	Lookup    string
-	Fmutex    *sync.RWMutex
+	Fmutex    *util.RWMutex
 	NodeAllow *util.RegexpList
 	NodeDeny  *util.RegexpList
 	Myself    *Myself
@@ -58,12 +57,13 @@ type Manager struct {
 	*ManagerConfig
 	isDirty bool
 	nodes   map[string]Slice //map[""] is nodelist
-	mutex   sync.RWMutex
+	mutex   *util.RWMutex
 }
 
 //NewManager read the file and returns NodeManager obj.
 func NewManager(cfg *ManagerConfig) *Manager {
 	r := &Manager{
+		mutex:         util.NewRWMutex(),
 		ManagerConfig: cfg,
 		nodes:         make(map[string]Slice),
 	}

@@ -7,7 +7,7 @@
 
 ## Overview
 
-Gou（[合](https://ja.wikipedia.org/wiki/%E5%90%88_%28%E5%A4%A9%E6%96%87%29)) is a clone of P2P anonymous BBS shinGETsu [saku](https://github.com/shingetsu/saku) in golang.
+Gou（[合](https://ja.wikipedia.org/wiki/%E5%90%88_%28%E5%A4%A9%E6%96%87%29)) is an _unofficial_ clone of P2P anonymous BBS shinGETsu [saku](https://github.com/shingetsu/saku) in golang.
 
 The word "Gou(合)" means [conjunction](https://en.wikipedia.org/wiki/Astrological_aspect) in Japanese, when an aspect is an angle the planets make to each other in the horoscope.
 
@@ -16,20 +16,21 @@ Yeah, the sun and moon are in conjunction during the new moon(shingetsu:新月, 
 Refer [here](http://www.shingetsu.info/) for more details about shinGETsu.
 
 
-## Pros and Cons of Gou
+## Feature
 
-### Pros
- 2. Less memory Usage due to compiler language.
- 3. Portable because there is no need to prepare runtime. Just one executable binary
-
-### Cons
- 1. There maybe many and fatal bugs due to less actual use.
- 2. Not official. Maybe much less gurantee and trust than official saku.
+1. Setting files are compatible with ones of saku 4.6.1.
+2. You can use cache of saku without modification, but you cannot cache of Gou with saku.
+   But there is --sakurifice option to convert Gou cache.
+2. Gou uses less (about half of ) memory usage than saku.
+3. Portable because there is only one binary file for each platforms and no need to prepare runtime. 
+   Just download and click one binary to run.
+4. (should be) faster than saku (?).
 
 ## Platform
-  * MacOS darwin /Plan9 on i386
+  * MacOS darwin/Plan9 on i386
   * Windows/OpenBSD on i386/amd64
   * Linux/NetBSD/FreeBSD on i386/amd64/arm
+  * Solaris on amd64
 
 ## Requirements
 

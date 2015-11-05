@@ -38,7 +38,6 @@ import (
 	"os"
 	"path"
 	"strconv"
-	"sync"
 	"time"
 
 	"golang.org/x/net/netutil"
@@ -57,17 +56,13 @@ func initPackages(cfg *Config) (*node.Manager, *thread.RecentList) {
 		externalPort = setUPnP(cfg.DefaultPort)
 	}
 
-	myself := &node.Myself{
-		Port:       externalPort,
-		Path:       cgi.ServerURL,
-		ServerName: cfg.ServerName,
-	}
+	myself := node.NewMyself(externalPort,cgi.ServerURL,cfg.ServerName)
 
 	defaultInitNode := []string{
 		"node.shingetsu.info:8000/server.cgi",
 		"pushare.zenno.info:8000/server.cgi",
 	}
-	fmutex := &sync.RWMutex{}
+	fmutex := util.NewRWMutex()
 	htemplate := util.NewHtemplate(cfg.TemplateDir)
 	ttemplate := util.NewTtemplate(cfg.TemplateDir)
 	cachedRule := util.NewRegexpList(cfg.SpamList)

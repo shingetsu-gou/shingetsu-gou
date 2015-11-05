@@ -36,7 +36,6 @@ import (
 	"regexp"
 	"strconv"
 	"strings"
-	"sync"
 	"time"
 
 	"github.com/shingetsu-gou/shingetsu-gou/util"
@@ -74,16 +73,25 @@ func urlopen(url string, timeout time.Duration) ([]string, error) {
 
 //Myself contains my node info.
 type Myself struct {
-	IP         string
+	ip         string
 	Port       int
 	Path       string
 	ServerName string
-	mutex      sync.RWMutex
+	mutex      *util.RWMutex
+}
+
+func NewMyself(port int, path string, serverName string) *Myself {
+	return &Myself{
+		Port:       port,
+		Path:       path,
+		ServerName: serverName,
+		mutex:      util.NewRWMutex(),
+	}
 }
 
 //IPPortPath returns node ojb contains ip:port/path.
 func (m *Myself) IPPortPath() *Node {
-	return MakeNode(m.IP, m.Path, m.Port)
+	return MakeNode(m.ip, m.Path, m.Port)
 }
 
 //toNode converts myself to *Node.
@@ -108,6 +116,12 @@ func (m *Myself) toxstring() string {
 	m.mutex.RLock()
 	defer m.mutex.RUnlock()
 	return m.toNode().toxstring()
+}
+
+func (m *Myself) setIP(ip string) {
+	m.mutex.Lock()
+	defer m.mutex.Unlock()
+	m.ip = ip
 }
 
 //NodeCfg is a global stuf for Node struct. it must be set before using it.
@@ -203,9 +217,7 @@ func (n *Node) Ping() (string, error) {
 	}
 	if res[0] == "PONG" && len(res) == 2 {
 		log.Println("ponged,i am", res[1])
-		n.Myself.mutex.Lock()
-		defer n.Myself.mutex.Unlock()
-		n.Myself.IP = res[1]
+		n.Myself.setIP(res[1])
 		return res[1], nil
 	}
 	log.Println("/ping", n.Nodestr, "error")

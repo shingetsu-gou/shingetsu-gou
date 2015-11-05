@@ -35,7 +35,6 @@ import (
 	"path"
 	"sort"
 	"strings"
-	"sync"
 
 	"github.com/shingetsu-gou/shingetsu-gou/util"
 )
@@ -150,14 +149,14 @@ func (t Tagslice) sync(path string) {
 type SuggestedTagTableConfig struct {
 	TagSize int
 	Sugtag  string
-	Fmutex  *sync.RWMutex
+	Fmutex  *util.RWMutex
 }
 
 //SuggestedTagTable represents tags associated with datfile retrieved from network.
 type SuggestedTagTable struct {
 	*SuggestedTagTableConfig
 	sugtaglist map[string]Tagslice
-	mutex      sync.RWMutex
+	mutex      *util.RWMutex
 }
 
 //NewSuggestedTagTable make SuggestedTagTable obj and read info from the file.
@@ -165,6 +164,7 @@ func NewSuggestedTagTable(cfg *SuggestedTagTableConfig) *SuggestedTagTable {
 	s := &SuggestedTagTable{
 		SuggestedTagTableConfig: cfg,
 		sugtaglist:              make(map[string]Tagslice),
+		mutex:util.NewRWMutex(),
 	}
 	if !util.IsFile(cfg.Sugtag) {
 		return s
@@ -264,7 +264,7 @@ func (s *SuggestedTagTable) prune(recentlist *RecentList) {
 //UserTagConfig is a config for UserTag.
 type UserTagConfig struct {
 	CacheDir string
-	Fmutex   *sync.RWMutex
+	Fmutex   *util.RWMutex
 }
 
 //UserTag represents tags saved by the user.

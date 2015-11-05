@@ -423,7 +423,6 @@ func (t *threadCGI) printRecord(ca *thread.Cache, rec *thread.Record) {
 	var suffix string
 	var attachSize int64
 	if at := rec.GetBodyValue("attach", ""); at != "" {
-		log.Println("attached")
 		suffix = rec.GetBodyValue("suffix", "")
 		attachFile := rec.AttachPath("")
 		attachSize = int64(len(at) * 57 / 78)
