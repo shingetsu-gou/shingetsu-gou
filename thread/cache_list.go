@@ -78,20 +78,26 @@ type SortByStamp struct {
 }
 
 //NewSortByStamp makes stamps for caches and returns SortByStamp obj.
-func NewSortByStamp(cs Caches) SortByStamp {
-	s := SortByStamp{
+func NewSortByStamp(cs Caches) *SortByStamp {
+	s := &SortByStamp{
 		Caches: cs,
 		stamp:  make([]int64, cs.Len()),
 	}
 	for i, v := range cs {
-		s.stamp[i] = v.ReadInfo().Stamp
+		s.stamp[i] = v.RecentStamp()
 	}
 	return s
 }
 
 //Less returns true if cache[i].stamp < cache[j].stamp.
-func (c SortByStamp) Less(i, j int) bool {
+func (c *SortByStamp) Less(i, j int) bool {
 	return c.stamp[i] < c.stamp[j]
+}
+
+//Swap swaps order of cache slice.
+func (c *SortByStamp) Swap(i, j int) {
+	c.Caches[i], c.Caches[j] = c.Caches[j], c.Caches[i]
+	c.stamp[i], c.stamp[j] = c.stamp[j], c.stamp[i]
 }
 
 //SortByVelocity is for sorting by velocity.
@@ -102,8 +108,8 @@ type SortByVelocity struct {
 }
 
 //NewSortByVelocity makes velocity for caches and returns SortByVelocity obj.
-func NewSortByVelocity(cs Caches) SortByVelocity {
-	s := SortByVelocity{
+func NewSortByVelocity(cs Caches) *SortByVelocity {
+	s := &SortByVelocity{
 		Caches:   cs,
 		velocity: make([]int, cs.Len()),
 		size:     make([]int64, cs.Len()),
@@ -118,11 +124,18 @@ func NewSortByVelocity(cs Caches) SortByVelocity {
 
 //Less returns true if cache[i].velocity < cache[j].velocity.
 //if velocity[i]==velocity[j],  returns true if cache[i].size< cache[j].size.
-func (c SortByVelocity) Less(i, j int) bool {
+func (c *SortByVelocity) Less(i, j int) bool {
 	if c.velocity[i] != c.velocity[j] {
 		return c.velocity[i] < c.velocity[j]
 	}
 	return c.size[i] < c.size[j]
+}
+
+//Swap swaps order of cache slice.
+func (c *SortByVelocity) Swap(i, j int) {
+	c.Caches[i], c.Caches[j] = c.Caches[j], c.Caches[i]
+	c.velocity[i], c.velocity[j] = c.velocity[j], c.velocity[i]
+	c.size[i], c.size[j] = c.size[j], c.size[i]
 }
 
 //CacheListCfg is a config obj of CacheList struct.

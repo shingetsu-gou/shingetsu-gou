@@ -259,6 +259,7 @@ func PrintTitle(w http.ResponseWriter, r *http.Request) {
 			outputCachelist = append(outputCachelist, ca)
 		}
 	}
+
 	g.header(g.m["logo"]+" - "+g.m["description"], "", nil, false)
 	s := struct {
 		Cachelist     []*thread.Cache
