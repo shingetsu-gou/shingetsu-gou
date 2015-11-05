@@ -287,10 +287,11 @@ func (r *Record) Remove() error {
 
 //Load loads a record file and parses it.
 func (r *Record) Load() error {
-	r.Fmutex.RLock()
-	defer r.Fmutex.RUnlock()
+	r.mutex.RLock()
+	isLoaded := r.isLoaded
+	r.mutex.RUnlock()
 
-	if r.isLoaded {
+	if isLoaded {
 		return nil
 	}
 
@@ -301,7 +302,9 @@ func (r *Record) Load() error {
 		}
 		return errors.New("file not found")
 	}
+	r.Fmutex.RLock()
 	c, err := ioutil.ReadFile(r.path())
+	defer r.Fmutex.RUnlock()
 	if err != nil {
 		log.Println(err)
 		return err

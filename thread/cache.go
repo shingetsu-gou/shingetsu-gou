@@ -93,7 +93,7 @@ func NewCache(datfile string) *Cache {
 	if !exist {
 		p.New = func() interface{} {
 			c := &Cache{
-				mutex:util.NewRWMutex(),
+				mutex:       util.NewRWMutex(),
 				Datfile:     datfile,
 				CacheConfig: CacheCfg,
 			}
@@ -259,7 +259,7 @@ func (c *Cache) SyncTag() {
 	c.Fmutex.Lock()
 	defer c.Fmutex.Unlock()
 	c.mutex.RLock()
-	c.mutex.RUnlock()
+	defer c.mutex.RUnlock()
 	c.tags.sync(path.Join(c.Datpath(), "tag.txt"))
 }
 
