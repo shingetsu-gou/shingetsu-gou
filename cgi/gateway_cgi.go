@@ -501,6 +501,8 @@ func (g *gatewayCGI) printIndex(doChange bool) {
 	g.printParagraph("desc_" + str)
 	cl := thread.NewCacheList()
 	if doChange {
+		sort.Sort(sort.Reverse(thread.NewSortByStamp(cl.Caches)))
+	}else{
 		sort.Sort(sort.Reverse(thread.NewSortByVelocity(cl.Caches)))
 	}
 	g.printIndexList(cl.Caches, str, true, false)

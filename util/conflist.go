@@ -29,9 +29,11 @@
 package util
 
 import (
+	"fmt"
 	"log"
 	"os"
 	"regexp"
+	"strconv"
 	"strings"
 	"time"
 )
@@ -132,6 +134,16 @@ func (r *RegexpList) update() {
 	defer r.mutex.Unlock()
 	r.regs = r.regs[:0]
 	for i, line := range r.ConfList.data {
+		reg := regexp.MustCompile(`\\u([0-9a-fA-F]+)`)
+		line = reg.ReplaceAllStringFunc(line, func(l string) string {
+			m := reg.FindStringSubmatch(l)
+			code, err := strconv.ParseInt(m[1], 16, 64)
+			if err != nil {
+				fmt.Println(err)
+				return ""
+			}
+			return fmt.Sprintf("%c", code)
+		})
 		re, err := regexp.Compile(line)
 		if err != nil {
 			log.Println("cannot compile regexp", line, "line", i)

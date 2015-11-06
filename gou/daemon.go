@@ -56,7 +56,7 @@ func initPackages(cfg *Config) (*node.Manager, *thread.RecentList) {
 		externalPort = setUPnP(cfg.DefaultPort)
 	}
 
-	myself := node.NewMyself(externalPort,cgi.ServerURL,cfg.ServerName)
+	myself := node.NewMyself(externalPort, cgi.ServerURL, cfg.ServerName)
 
 	defaultInitNode := []string{
 		"node.shingetsu.info:8000/server.cgi",
@@ -312,10 +312,14 @@ func Sakurifice(cfg *Config) {
 			if err := rec.Load(); err != nil {
 				log.Fatal(err)
 			}
-			if at := rec.GetBodyValue("attach", ""); at != "" {
+			at := rec.GetBodyValue("attach", "")
+			sign := rec.GetBodyValue("sign", "")
+			pubkey := rec.GetBodyValue("pubkey", "")
+			if at != "" || sign != "" || pubkey != "" {
 				f := path.Join(bodypath, rec.Idstr())
 				writeFile(f, []byte(rec.BodyString()))
-
+			}
+			if at != "" {
 				decoded, err := base64.StdEncoding.DecodeString(at)
 				if err != nil {
 					log.Fatal(err)

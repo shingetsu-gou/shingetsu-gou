@@ -7,7 +7,7 @@
 <div class="well form-horizontal"><div class="form-actions">
   <input type="hidden" name="cmd" value="xfdel" />
   <input type="hidden" name="sid" value="{{.Sid}}" />
-  <input type="submit" value="{{.Message.Remove}}" class="btn btn-danger" />
+  <input type="submit" value="{{.Message.remove}}" class="btn btn-danger" />
   <a href="javascript:history.back();" class="btn">{{.Message.cancel}}</a>
 </div></div>
 

@@ -7,12 +7,12 @@
 
 tl;dr
 
-# 朔から移行方法
+## 朔から移行方法
 1.  [ここ](https://github.com/shingetsu-gou/shingetsu-gou/releases)から自分のOSの実行バイナリダウンロード、展開
 2. 合を実行するディレクトリに実行ファイル(shingetsu-gou)と、朔のcacheディレクトリとfileディレクトリをコピー（朔のcache/fileディレクトリは別に残しておくことを推奨します）
 3. ./shingetsu-gouで実行
 
-#合のキャッシュを朔で使う方法（合に戻る方法）
+## 合のキャッシュを朔で使う方法（朔に戻る方法）
 1. 合のキャッシュをバックアップ（推奨）
 2. 合の実行ディレクトリで./shingetsu-gou --sakurifice実行
 3. 合のcacheディレクトリとfileディレクトリを朔のディレクトリにコピー
@@ -66,7 +66,7 @@ Or you can download executable binaries from [here](https://github.com/shingetsu
 
 ## Command Options
 ```
-shingets-gou <options>
+shingetsu-gou <options>
   -sakurifice
         makes caches compatible with saku
   -silent

@@ -161,7 +161,7 @@ func (l *ListItem) checkCache(ca *thread.Cache, target string) (string, bool) {
 	return x, true
 }
 
-//Render renders "list_items.txt" and returns its resutl string which is not escaped in template.
+//Render renders "list_items.txt" and returns its result string which is not escaped in template.
 //ListItem.IsAdmin,filter,tag,Message must be setted up previously.
 func (l ListItem) Render(ca *thread.Cache, remove bool, target string, search bool) template.HTML {
 	x, ok := l.checkCache(ca, target)
