@@ -5,6 +5,19 @@
 
 # Gou(合) 
 
+tl;dr
+
+# 朔から移行方法
+1.  [ここ](https://github.com/shingetsu-gou/shingetsu-gou/releases)から自分のOSの実行バイナリダウンロード、展開
+2. 合を実行するディレクトリに実行ファイル(shingetsu-gou)と、朔のcacheディレクトリとfileディレクトリをコピー（朔のcache/fileディレクトリは別に残しておくことを推奨します）
+3. ./shingetsu-gouで実行
+
+#合のキャッシュを朔で使う方法（合に戻る方法）
+1. 合のキャッシュをバックアップ（推奨）
+2. 合の実行ディレクトリで./shingetsu-gou --sakurifice実行
+3. 合のcacheディレクトリとfileディレクトリを朔のディレクトリにコピー
+
+
 ## Overview
 
 Gou（[合](https://ja.wikipedia.org/wiki/%E5%90%88_%28%E5%A4%A9%E6%96%87%29)) is an _unofficial_ clone of P2P anonymous BBS shinGETsu [saku](https://github.com/shingetsu/saku) in golang.
@@ -19,8 +32,8 @@ Refer [here](http://www.shingetsu.info/) for more details about shinGETsu.
 ## Feature
 
 1. Setting files are compatible with ones of saku 4.6.1.
-2. You can use cache of saku without modification, but you cannot cache of Gou with saku.
-   But there is --sakurifice option to convert Gou cache.
+2. You can use cache of saku without modification, but you cannot use cache of Gou with saku.
+   But there is --sakurifice option to convert Gou cache to saku one.
 2. Gou uses less (about half of ) memory usage than saku.
 3. Portable because there is only one binary file for each platforms and no need to prepare runtime. 
    Just download and click one binary to run.
@@ -39,7 +52,7 @@ Refer [here](http://www.shingetsu.info/) for more details about shinGETsu.
 
 are required to compile.
 
-## Installation
+## Compile
 
     $ mkdir gou
     $ cd gou
@@ -53,6 +66,7 @@ Or you can download executable binaries from [here](https://github.com/shingetsu
 
 ## Command Options
 ```
+shingets-gou <options>
   -sakurifice
         makes caches compatible with saku
   -silent
@@ -98,7 +112,7 @@ Files
 
 are embeded into the exexutable binary in https://github.com/shingetsu-gou/shingetsu-gou/releases.
 If these files are not found on your disk, Gou automatically expands these to the disk
-(not overwrite). Once expanded, you can change these files as you wish.
+(but not overwrite). Once expanded, you can change these files as you wish.
 
 This is for easy to use Gou; just get a binary, and run it!
 
@@ -120,5 +134,3 @@ See also
 # Contribution
 
 Improvements to the codebase and pull requests are encouraged.
-
-

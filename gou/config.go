@@ -134,11 +134,10 @@ func NewConfig() *Config {
 	i := ini.Empty()
 	for _, f := range files {
 		if util.IsFile(f) {
+			log.Println("loading config from", f)
 			if err := i.Append(f); err != nil {
 				log.Fatal("cannot load ini files", f, "ignored")
 			}
-		} else {
-			log.Println(f, "not found, ignored.")
 		}
 	}
 	c := &Config{}

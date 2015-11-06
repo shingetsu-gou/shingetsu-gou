@@ -30,6 +30,7 @@ package node
 
 import (
 	"errors"
+	"fmt"
 	"log"
 	"net"
 	"net/http"
@@ -91,7 +92,11 @@ func NewMyself(port int, path string, serverName string) *Myself {
 
 //IPPortPath returns node ojb contains ip:port/path.
 func (m *Myself) IPPortPath() *Node {
-	return MakeNode(m.ip, m.Path, m.Port)
+	n, err := MakeNode(m.ip, m.Path, m.Port)
+	if err != nil {
+		log.Fatal(err)
+	}
+	return n
 }
 
 //toNode converts myself to *Node.
@@ -99,9 +104,17 @@ func (m *Myself) toNode() *Node {
 	m.mutex.RLock()
 	defer m.mutex.RUnlock()
 	if m.ServerName != "" {
-		return MakeNode(m.ServerName, m.Path, m.Port)
+		n, err := MakeNode(m.ServerName, m.Path, m.Port)
+		if err != nil {
+			log.Fatal(err)
+		}
+		return n
 	}
-	return MakeNode("", m.Path, m.Port)
+	n, err := MakeNode("", m.Path, m.Port)
+	if err != nil {
+		log.Fatal(err)
+	}
+	return n
 }
 
 //Nodestr returns nodestr.
@@ -121,6 +134,10 @@ func (m *Myself) toxstring() string {
 func (m *Myself) setIP(ip string) {
 	m.mutex.Lock()
 	defer m.mutex.Unlock()
+	if ip := net.ParseIP(ip); ip == nil {
+		log.Println("ip", ip, "is illegal format")
+		return
+	}
 	m.ip = ip
 }
 
@@ -141,24 +158,25 @@ type Node struct {
 }
 
 //NewNode checks nodestr format and returns node obj.
-func NewNode(nodestr string) *Node {
+func newNode(nodestr string) (*Node, error) {
 	if NodeCfg == nil {
 		log.Fatal("must set NodeCfg")
 	}
 	nodestr = strings.TrimSpace(nodestr)
 	if nodestr == "" {
-		log.Printf("nodestr is empty")
-		return nil
+		err := errors.New("nodestr is empty")
+		log.Println(err)
+		return nil, err
 	}
 	if match, err := regexp.MatchString(`\d+/[^: ]+$`, nodestr); !match || err != nil {
-		log.Println("bad format", err, nodestr)
-		return nil
+		err := errors.New(fmt.Sprintln("bad format", err, nodestr))
+		return nil, err
 	}
 	n := &Node{
 		NodeConfig: NodeCfg,
 		Nodestr:    strings.Replace(nodestr, "+", "/", -1),
 	}
-	return n
+	return n, nil
 }
 
 //equals return true is Nodestr is equal.
@@ -170,9 +188,9 @@ func (n *Node) equals(nn *Node) bool {
 }
 
 //MakeNode makes node from host info.
-func MakeNode(host, path string, port int) *Node {
+func MakeNode(host, path string, port int) (*Node, error) {
 	nodestr := net.JoinHostPort(host, strconv.Itoa(port)) + strings.Replace(path, "+", "/", -1)
-	return NewNode(nodestr)
+	return newNode(nodestr)
 }
 
 //toxstring covnerts Nodestr to saku node format.
@@ -233,33 +251,45 @@ func (n *Node) IsAllowed() bool {
 }
 
 //join requests n to join me and return true and other node name if success.
-func (n *Node) join() (bool, *Node) {
+func (n *Node) join() (*Node, error) {
 	if !n.IsAllowed() {
-		log.Println(n.Nodestr, "is not allowd")
-		return false, nil
+		err := errors.New(fmt.Sprintln(n.Nodestr, "is not allowd"))
+		return nil, err
 	}
 	res, err := n.Talk("/join/" + n.Myself.toxstring())
 	if err != nil {
-		return false, nil
+		return nil, err
 	}
 	log.Println(res)
 	switch len(res) {
 	case 0:
-		return false, nil
+		return nil, errors.New("illegal response")
 	case 1:
-		return res[0] == "WELCOME", nil
+		err = nil
+		if res[0] != "WELCOME" {
+			err = errors.New("not welcomed")
+		}
+		return nil, err
 	}
-	return (res[0] == "WELCOME"), NewNode(res[1])
+	nn, err := newNode(res[1])
+	if err != nil {
+		log.Println(err)
+		return nil, err
+	}
+	if res[0] != "WELCOME" {
+		err = errors.New("not welcomed")
+	}
+	return nn, err
 }
 
-//getNode request n to pass me another node info and returns another node.
-func (n *Node) getNode() *Node {
+//getNode requests n to pass me another node info and returns another node.
+func (n *Node) getNode() (*Node, error) {
 	res, err := n.Talk("/node")
 	if err != nil {
-		log.Println("/node", n.Nodestr, "error")
-		return nil
+		err := errors.New(fmt.Sprintln("/node", n.Nodestr, "error"))
+		return nil, err
 	}
-	return NewNode(res[0])
+	return newNode(res[0])
 }
 
 //bye says goodbye to n and returns true if success.

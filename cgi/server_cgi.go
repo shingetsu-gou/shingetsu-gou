@@ -101,8 +101,8 @@ func doJoin(w http.ResponseWriter, r *http.Request) {
 	if host == "" {
 		return
 	}
-	n := node.MakeNode(host, path, port)
-	if !n.IsAllowed() {
+	n, err := node.MakeNode(host, path, port)
+	if err != nil || !n.IsAllowed() {
 		return
 	}
 	if _, err := n.Ping(); err != nil {
@@ -129,9 +129,10 @@ func doBye(w http.ResponseWriter, r *http.Request) {
 	if host == "" {
 		return
 	}
-	n := node.MakeNode(host, path, port)
-
-	s.NodeManager.RemoveFromList(n)
+	n, err := node.MakeNode(host, path, port)
+	if err == nil {
+		s.NodeManager.RemoveFromList(n)
+	}
 	fmt.Fprintln(s.wr, "BYEBYE")
 }
 
@@ -191,8 +192,8 @@ func doUpdate(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	n := node.MakeNode(host, path, port)
-	if !n.IsAllowed() {
+	n, err := node.MakeNode(host, path, port)
+	if err != nil || !n.IsAllowed() {
 		log.Println("detects spam")
 		return
 	}

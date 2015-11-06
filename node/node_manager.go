@@ -70,7 +70,11 @@ func NewManager(cfg *ManagerConfig) *Manager {
 	err := util.EachKeyValueLine(cfg.Lookup, func(key string, value []string, i int) error {
 		var nl Slice
 		for _, v := range value {
-			nl = append(nl, NewNode(v))
+			nn, err := newNode(v)
+			if err != nil {
+				log.Fatal(err)
+			}
+			nl = append(nl, nn)
 		}
 		r.nodes[key] = nl
 		return nil
@@ -161,7 +165,7 @@ func (lt *Manager) AppendToTable(datfile string, n *Node) {
 	l := len(lt.nodes[datfile])
 	lt.mutex.RUnlock()
 	if ((datfile != "" && l < shareNodes) || (datfile == "" && l < defaultNodes)) &&
-		n.IsAllowed() && !lt.hasNodeInTable(datfile, n) {
+		n!=nil && n.IsAllowed() && !lt.hasNodeInTable(datfile, n) {
 		lt.mutex.Lock()
 		lt.isDirty = true
 		lt.nodes[datfile] = append(lt.nodes[datfile], n)
@@ -279,9 +283,11 @@ func (lt *Manager) moreNodes() {
 	all := lt.getAllNodes()
 	for lt.ListLen() < defaultNodes {
 		nn := all[no]
-		newN := nn.getNode()
-		if lt.Join(newN) {
-			all = append(all, newN)
+		newN, err := nn.getNode()
+		if err == nil {
+			if lt.Join(newN) {
+				all = append(all, newN)
+			}
 		}
 		if count++; count > retry {
 			count = 0
@@ -300,7 +306,11 @@ func (lt *Manager) Initialize() {
 	}
 	inodes := lt.Random(nil, defaultNodes)
 	for _, i := range lt.InitNode.GetData() {
-		inodes = append(inodes, NewNode(i))
+		nn, err := newNode(i)
+		if err != nil {
+			continue
+		}
+		inodes = append(inodes, nn)
 	}
 	for _, inode := range inodes {
 		if _, err := inode.Ping(); err == nil {
@@ -327,12 +337,12 @@ func (lt *Manager) Join(n *Node) bool {
 		return false
 	}
 	for count := 0; count < retryJoin && lt.ListLen() < defaultNodes; count++ {
-		welcome, extnode := n.join()
-		if welcome && extnode == nil {
+		extnode, err := n.join()
+		if err == nil && extnode == nil {
 			lt.appendToList(n)
 			return true
 		}
-		if welcome {
+		if err == nil {
 			lt.appendToList(n)
 			n = extnode
 			flag = true
