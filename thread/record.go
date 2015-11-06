@@ -304,7 +304,7 @@ func (r *Record) Load() error {
 	}
 	r.Fmutex.RLock()
 	c, err := ioutil.ReadFile(r.path())
-	defer r.Fmutex.RUnlock()
+	r.Fmutex.RUnlock()
 	if err != nil {
 		log.Println(err)
 		return err
@@ -390,8 +390,9 @@ func (r *Record) Sync() {
 		return
 	}
 	if !util.IsFile(r.path()) {
+		recstr := r.Recstr()
 		r.Fmutex.Lock()
-		err := util.WriteFile(r.path(), r.Recstr()+"\n")
+		err := util.WriteFile(r.path(), recstr+"\n")
 		r.Fmutex.Unlock()
 		if err != nil {
 			log.Println(err)
@@ -435,13 +436,14 @@ func (r *Record) checkSign() bool {
 
 //meets checks the record meets conditions of args
 func (r *Record) meets(begin, end int64) bool {
+	md5ok := r.md5check()
 	r.mutex.RLock()
 	defer r.mutex.RUnlock()
 	if begin > r.Stamp || (end > 0 && r.Stamp > end) {
 		log.Println("stamp range NG", begin, end, r.Stamp)
 		return false
 	}
-	if !r.md5check() {
+	if !md5ok {
 		log.Println("md5 NG")
 		return false
 	}

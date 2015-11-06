@@ -164,7 +164,7 @@ func NewSuggestedTagTable(cfg *SuggestedTagTableConfig) *SuggestedTagTable {
 	s := &SuggestedTagTable{
 		SuggestedTagTableConfig: cfg,
 		sugtaglist:              make(map[string]Tagslice),
-		mutex:util.NewRWMutex(),
+		mutex:                   util.NewRWMutex(),
 	}
 	if !util.IsFile(cfg.Sugtag) {
 		return s
@@ -183,11 +183,11 @@ func NewSuggestedTagTable(cfg *SuggestedTagTableConfig) *SuggestedTagTable {
 func (s *SuggestedTagTable) sync() {
 	m := make(map[string][]string)
 	s.mutex.RLock()
-	defer s.mutex.RUnlock()
 	for k, v := range s.sugtaglist {
 		s := v.GetTagstrSlice()
 		m[k] = s
 	}
+	s.mutex.RUnlock()
 	s.Fmutex.Lock()
 	err := util.WriteMap(s.Sugtag, m)
 	s.Fmutex.Unlock()
@@ -246,9 +246,10 @@ func (s *SuggestedTagTable) String(datfile string) string {
 //or truncates its size to tagsize if listed.
 func (s *SuggestedTagTable) prune(recentlist *RecentList) {
 	tmp := s.keys()
+	recs := recentlist.GetRecords()
 	s.mutex.Lock()
 	defer s.mutex.Unlock()
-	for _, r := range recentlist.GetRecords() {
+	for _, r := range recs {
 		if l := util.FindString(tmp, r.Datfile); l != -1 {
 			tmp = append(tmp[:l], tmp[l+1:]...)
 		}

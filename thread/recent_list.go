@@ -82,17 +82,19 @@ func NewRecentList(cfg *RecentListConfig) *RecentList {
 //loadFile reads recentlist from the file and add as records.
 func (r *RecentList) loadFile() {
 	r.Fmutex.RLock()
-	defer r.Fmutex.RUnlock()
 	err := util.EachLine(r.Recent, func(line string, i int) error {
 		vr, err := newRecordHeadFromLine(line)
 		if err == nil {
+			r.Fmutex.RUnlock()
 			r.mutex.Lock()
 			r.infos = append(r.infos, vr)
 			r.isDirty = true
 			r.mutex.Unlock()
+			r.Fmutex.RLock()
 		}
 		return nil
 	})
+	r.Fmutex.RUnlock()
 	if err != nil {
 		log.Println(err)
 	}
@@ -186,8 +188,9 @@ func (r *RecentList) Sync() {
 	}
 	sort.Sort(r.infos)
 	r.mutex.Unlock()
+	recstrSlice := r.getRecstrSlice()
 	r.Fmutex.Lock()
-	err := util.WriteSlice(r.Recent, r.getRecstrSlice())
+	err := util.WriteSlice(r.Recent, recstrSlice)
 	r.Fmutex.Unlock()
 	if err != nil {
 		log.Println(err)

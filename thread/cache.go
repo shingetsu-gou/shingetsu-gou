@@ -258,8 +258,6 @@ func (c *Cache) HasRecord() bool {
 func (c *Cache) SyncTag() {
 	c.Fmutex.Lock()
 	defer c.Fmutex.Unlock()
-	c.mutex.RLock()
-	defer c.mutex.RUnlock()
 	c.tags.sync(path.Join(c.Datpath(), "tag.txt"))
 }
 
