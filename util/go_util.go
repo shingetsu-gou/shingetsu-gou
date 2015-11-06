@@ -31,7 +31,6 @@ package util
 import (
 	"bufio"
 	"bytes"
-	"fmt"
 	"image"
 	"image/gif"
 	"image/jpeg"
@@ -42,11 +41,8 @@ import (
 	"math/rand"
 	"net/http"
 	"os"
-	"runtime"
 	"strconv"
 	"strings"
-	"sync"
-	"time"
 
 	"golang.org/x/text/encoding/japanese"
 	"golang.org/x/text/transform"
@@ -318,52 +314,52 @@ func FromSJIS(b string) string {
 	return convertSJIS(b, false)
 }
 
-//RWMutex is sync.RWMutex with deadlock detector.
-type RWMutex struct {
-	sync.RWMutex
-	cancel chan struct{}
-}
+////RWMutex is sync.RWMutex with deadlock detector.
+//type RWMutex struct {
+//	sync.RWMutex
+//	cancel chan struct{}
+//}
 
-//NewRWMutex returns RWMutex obj.
-func NewRWMutex() *RWMutex {
-	return &RWMutex{
-		cancel: make(chan struct{}),
-	}
-}
+////NewRWMutex returns RWMutex obj.
+//func NewRWMutex() *RWMutex {
+//	return &RWMutex{
+//		cancel: make(chan struct{}),
+//	}
+//}
 
-//Rlock is sync.RLock and start deadlock timer.
-func (m *RWMutex) RLock() {
-	m.RWMutex.RLock()
-	m.timer()
-}
+////Rlock is sync.RLock and start deadlock timer.
+//func (m *RWMutex) RLock() {
+//	m.RWMutex.RLock()
+//	m.timer()
+//}
 
-//Lock is sync.Lock and start deadlock timer.
-func (m *RWMutex) Lock() {
-	m.RWMutex.Lock()
-	m.timer()
-}
+////Lock is sync.Lock and start deadlock timer.
+//func (m *RWMutex) Lock() {
+//	m.RWMutex.Lock()
+//	m.timer()
+//}
 
-//Runlock is sync.RunLock and stop deadlock timer.
-func (m *RWMutex) RUnlock() {
-	m.RWMutex.RUnlock()
-	m.cancel <- struct{}{}
-}
+////Runlock is sync.RunLock and stop deadlock timer.
+//func (m *RWMutex) RUnlock() {
+//	m.RWMutex.RUnlock()
+//	m.cancel <- struct{}{}
+//}
 
-//Unlock is sync.RunLock and stop deadlock timer.
-func (m *RWMutex) Unlock() {
-	m.RWMutex.Unlock()
-	m.cancel <- struct{}{}
-}
+////Unlock is sync.RunLock and stop deadlock timer.
+//func (m *RWMutex) Unlock() {
+//	m.RWMutex.Unlock()
+//	m.cancel <- struct{}{}
+//}
 
-//timer starts goroutine which prints deadlock message after 3 min.
-func (m *RWMutex) timer() {
-	_, file, line, _ := runtime.Caller(2)
-	go func(file string, line int, cancel chan struct{}) {
-		select {
-		case <-time.After(1 * time.Minute):
-			panic(fmt.Sprintln("detect deadlock:file", file, "at", line))
-		case <-cancel:
-			return
-		}
-	}(file, line, m.cancel)
-}
+////timer starts goroutine which prints deadlock message after 3 min.
+//func (m *RWMutex) timer() {
+//	_, file, line, _ := runtime.Caller(2)
+//	go func(file string, line int, cancel chan struct{}) {
+//		select {
+//		case <-time.After(1 * time.Minute):
+//			panic(fmt.Sprintln("detect deadlock:file", file, "at", line))
+//		case <-cancel:
+//			return
+//		}
+//	}(file, line, m.cancel)
+//}

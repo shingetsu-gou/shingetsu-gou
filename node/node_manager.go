@@ -33,6 +33,7 @@ import (
 	"math/rand"
 	"strconv"
 	"strings"
+	"sync"
 
 	"github.com/shingetsu-gou/shingetsu-gou/util"
 )
@@ -45,7 +46,7 @@ const (
 //ManagerConfig contains params for NodeManager struct.
 type ManagerConfig struct {
 	Lookup    string
-	Fmutex    *util.RWMutex
+	Fmutex    *sync.RWMutex
 	NodeAllow *util.RegexpList
 	NodeDeny  *util.RegexpList
 	Myself    *Myself
@@ -57,13 +58,12 @@ type Manager struct {
 	*ManagerConfig
 	isDirty bool
 	nodes   map[string]Slice //map[""] is nodelist
-	mutex   *util.RWMutex
+	mutex   sync.RWMutex
 }
 
 //NewManager read the file and returns NodeManager obj.
 func NewManager(cfg *ManagerConfig) *Manager {
 	r := &Manager{
-		mutex:         util.NewRWMutex(),
 		ManagerConfig: cfg,
 		nodes:         make(map[string]Slice),
 	}
@@ -165,7 +165,7 @@ func (lt *Manager) AppendToTable(datfile string, n *Node) {
 	l := len(lt.nodes[datfile])
 	lt.mutex.RUnlock()
 	if ((datfile != "" && l < shareNodes) || (datfile == "" && l < defaultNodes)) &&
-		n!=nil && n.IsAllowed() && !lt.hasNodeInTable(datfile, n) {
+		n != nil && n.IsAllowed() && !lt.hasNodeInTable(datfile, n) {
 		lt.mutex.Lock()
 		lt.isDirty = true
 		lt.nodes[datfile] = append(lt.nodes[datfile], n)
@@ -501,6 +501,9 @@ func (lt *Manager) RejoinList() {
 	lt.mutex.RLock()
 	defer lt.mutex.RUnlock()
 	for _, n := range lt.nodes[""] {
-		n.join()
+		_, err := n.join()
+		if err != nil {
+			log.Println(err)
+		}
 	}
 }

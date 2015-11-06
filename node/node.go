@@ -37,6 +37,7 @@ import (
 	"regexp"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/shingetsu-gou/shingetsu-gou/util"
@@ -78,15 +79,15 @@ type Myself struct {
 	Port       int
 	Path       string
 	ServerName string
-	mutex      *util.RWMutex
+	mutex      sync.RWMutex
 }
 
+//NewMyself returns Myself obj.
 func NewMyself(port int, path string, serverName string) *Myself {
 	return &Myself{
 		Port:       port,
 		Path:       path,
 		ServerName: serverName,
-		mutex:      util.NewRWMutex(),
 	}
 }
 

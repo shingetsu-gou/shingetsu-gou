@@ -35,6 +35,7 @@ import (
 	"regexp"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 )
 
@@ -44,14 +45,13 @@ type ConfList struct {
 	mtime *time.Time
 	path  string
 	data  []string
-	mutex *RWMutex
+	mutex sync.RWMutex
 }
 
 //NewConfList makes a confList instance from path.
 func NewConfList(path string, defaultList []string) *ConfList {
 	r := &ConfList{
-		path:  path,
-		mutex: NewRWMutex(),
+		path: path,
 	}
 	r.update()
 	if len(r.data) == 0 {

@@ -35,6 +35,7 @@ import (
 	"regexp"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/shingetsu-gou/shingetsu-gou/thread"
@@ -45,7 +46,7 @@ import (
 type DatakeyTableConfig struct {
 	Datakey    string
 	RecentList *thread.RecentList
-	Fmutex     *util.RWMutex
+	Fmutex     *sync.RWMutex
 }
 
 //DatakeyTable stores cache stamp and cache datfile name pair.
@@ -53,13 +54,12 @@ type DatakeyTable struct {
 	*DatakeyTableConfig
 	datakey2filekey map[int64]string
 	filekey2datkey  map[string]int64
-	mutex           *util.RWMutex
+	mutex           sync.RWMutex
 }
 
 //NewDatakeyTable make DataKeyTable obj.
 func NewDatakeyTable(cfg *DatakeyTableConfig) *DatakeyTable {
 	d := &DatakeyTable{
-		mutex:              util.NewRWMutex(),
 		DatakeyTableConfig: cfg,
 		datakey2filekey:    make(map[int64]string),
 		filekey2datkey:     make(map[string]int64),

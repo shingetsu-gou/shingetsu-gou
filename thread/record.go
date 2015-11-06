@@ -38,6 +38,7 @@ import (
 	"regexp"
 	"strconv"
 	"strings"
+	"sync"
 
 	"github.com/shingetsu-gou/shingetsu-gou/node"
 	"github.com/shingetsu-gou/shingetsu-gou/util"
@@ -53,7 +54,7 @@ var (
 type RecordConfig struct {
 	DefaultThumbnailSize string
 	CacheDir             string
-	Fmutex               *util.RWMutex
+	Fmutex               *sync.RWMutex
 	CachedRule           *util.RegexpList
 	RecordLimit          int
 }
@@ -65,7 +66,7 @@ type Record struct {
 	contents map[string]string
 	keyOrder []string
 	isLoaded bool
-	mutex    *util.RWMutex
+	mutex    sync.RWMutex
 }
 
 //NewRecord parse idstr unixtime+"_"+md5(bodystr)), set stamp and id, and return record obj.
@@ -75,7 +76,6 @@ func NewRecord(datfile, idstr string) *Record {
 		log.Fatal("must set RecordCfg")
 	}
 	r := &Record{
-		mutex:        util.NewRWMutex(),
 		RecordConfig: RecordCfg,
 	}
 

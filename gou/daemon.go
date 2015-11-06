@@ -38,6 +38,7 @@ import (
 	"os"
 	"path"
 	"strconv"
+	"sync"
 	"time"
 
 	"golang.org/x/net/netutil"
@@ -62,7 +63,7 @@ func initPackages(cfg *Config) (*node.Manager, *thread.RecentList) {
 		"node.shingetsu.info:8000/server.cgi",
 		"pushare.zenno.info:8000/server.cgi",
 	}
-	fmutex := util.NewRWMutex()
+	fmutex := &sync.RWMutex{}
 	htemplate := util.NewHtemplate(cfg.TemplateDir)
 	ttemplate := util.NewTtemplate(cfg.TemplateDir)
 	cachedRule := util.NewRegexpList(cfg.SpamList)
@@ -320,25 +321,31 @@ func Sakurifice(cfg *Config) {
 				writeFile(f, []byte(rec.BodyString()))
 			}
 			if at != "" {
-				decoded, err := base64.StdEncoding.DecodeString(at)
-				if err != nil {
-					log.Fatal(err)
-				}
-				f = rec.AttachPath("")
-				writeFile(f, decoded)
-				if cfg.DefaultThumbnailSize == "" {
-					continue
-				}
-				decoded = util.MakeThumbnail(decoded, rec.GetBodyValue("suffix", ""), cfg.DefaultThumbnailSize)
-				if decoded != nil {
-					f = rec.AttachPath(cfg.DefaultThumbnailSize)
-					writeFile(f, decoded)
-				}
+				makeAttached(at, rec, f, cfg.DefaultThumbnailSize)
 			}
 		}
 	}
 }
 
+//makeAttached makes attached file cache and thumbnail.
+func makeAttached(at string, rec *thread.Record, f string, defaultThumbnailSize string) {
+	decoded, err := base64.StdEncoding.DecodeString(at)
+	if err != nil {
+		log.Fatal(err)
+	}
+	f = rec.AttachPath("")
+	writeFile(f, decoded)
+	if defaultThumbnailSize == "" {
+		return
+	}
+	decoded = util.MakeThumbnail(decoded, rec.GetBodyValue("suffix", ""), defaultThumbnailSize)
+	if decoded != nil {
+		f = rec.AttachPath(defaultThumbnailSize)
+		writeFile(f, decoded)
+	}
+}
+
+//mkdir makes dir witn 0755 permission.
 func mkdir(path string) {
 	if !util.IsDir(path) {
 		err := os.Mkdir(path, 0755)
@@ -348,6 +355,7 @@ func mkdir(path string) {
 	}
 }
 
+//writeFile writes data to file fname  with 0755 permission.
 func writeFile(fname string, data []byte) {
 	err := ioutil.WriteFile(fname, data, 0644)
 	if err != nil {

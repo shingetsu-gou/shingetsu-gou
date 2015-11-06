@@ -502,7 +502,7 @@ func (g *gatewayCGI) printIndex(doChange bool) {
 	cl := thread.NewCacheList()
 	if doChange {
 		sort.Sort(sort.Reverse(thread.NewSortByStamp(cl.Caches)))
-	}else{
+	} else {
 		sort.Sort(sort.Reverse(thread.NewSortByVelocity(cl.Caches)))
 	}
 	g.printIndexList(cl.Caches, str, true, false)
