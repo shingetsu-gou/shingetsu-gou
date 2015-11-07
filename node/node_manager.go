@@ -488,6 +488,10 @@ func (lt *Manager) PingAll() {
 	lt.mutex.RLock()
 	for _, n := range lt.nodes[""] {
 		lt.mutex.RUnlock()
+		if n == nil {
+			lt.RemoveFromAllTable(n)
+			continue
+		}
 		if _, err := n.Ping(); err != nil {
 			lt.RemoveFromAllTable(n)
 		}

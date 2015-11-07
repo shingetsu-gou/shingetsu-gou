@@ -215,7 +215,9 @@ func (n *Node) Talk(message string) ([]string, error) {
 		timeout = defaultTimeout
 	}
 	if n == nil {
-		panic("nil!")
+		err := errors.New("n==nil")
+		log.Println(err)
+		return nil, err
 	}
 
 	message = "http://" + n.Nodestr + message

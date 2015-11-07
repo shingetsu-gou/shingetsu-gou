@@ -154,7 +154,7 @@ type CacheListConfig struct {
 
 //CacheList is slice of *cache
 type CacheList struct {
-	Caches  Caches
+	Caches Caches
 	*CacheListConfig
 }
 
