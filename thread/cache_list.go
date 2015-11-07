@@ -65,11 +65,29 @@ func (c Caches) Swap(i, j int) {
 //SortByRecentStamp is for sorting by recentStamp.
 type SortByRecentStamp struct {
 	Caches
+	recentStamp []int64
+}
+
+func NewSortByRecentStamp(cs Caches) *SortByRecentStamp {
+	s := &SortByRecentStamp{
+		Caches:      cs,
+		recentStamp: make([]int64, cs.Len()),
+	}
+	for i, c := range cs {
+		s.recentStamp[i] = c.RecentStamp()
+	}
+	return s
 }
 
 //Less returns true if cache[i].recentStamp < cache[j].recentStamp.
-func (c SortByRecentStamp) Less(i, j int) bool {
-	return c.Caches[i].RecentStamp() < c.Caches[j].RecentStamp()
+func (c *SortByRecentStamp) Less(i, j int) bool {
+	return c.recentStamp[i] < c.recentStamp[j]
+}
+
+//Swap swaps order of cache slice.
+func (c *SortByRecentStamp) Swap(i, j int) {
+	c.Caches[i], c.Caches[j] = c.Caches[j], c.Caches[i]
+	c.recentStamp[i], c.recentStamp[j] = c.recentStamp[j], c.recentStamp[i]
 }
 
 //SortByStamp is for sorting by stamp.

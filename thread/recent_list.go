@@ -245,7 +245,6 @@ func (r *RecentList) Getall() {
 //which doens't contain duplicate Caches.
 func (r *RecentList) MakeRecentCachelist() Caches {
 	r.mutex.RLock()
-	defer r.mutex.RUnlock()
 	var cl Caches
 	var check []string
 	for _, rec := range r.infos {
@@ -255,7 +254,8 @@ func (r *RecentList) MakeRecentCachelist() Caches {
 			check = append(check, rec.Datfile)
 		}
 	}
-	sort.Sort(sort.Reverse(SortByRecentStamp{cl}))
+	r.mutex.RUnlock()
+	sort.Sort(sort.Reverse(NewSortByRecentStamp(cl)))
 	return cl
 }
 

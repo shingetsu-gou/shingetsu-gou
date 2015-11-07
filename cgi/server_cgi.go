@@ -289,7 +289,7 @@ func doGetHead(w http.ResponseWriter, r *http.Request) {
 				if err != nil {
 					log.Println(err)
 				}
-				fmt.Fprintf(s.wr, r.Recstr())
+				fmt.Fprintln(s.wr, r.Recstr())
 				log.Println(r.Recstr())
 			} else {
 				fmt.Fprintln(s.wr, strings.Replace(r.Idstr(), "_", "<>", -1))

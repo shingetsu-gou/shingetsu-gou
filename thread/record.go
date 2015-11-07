@@ -254,7 +254,9 @@ func (r *Record) parse(recstr string) error {
 		buf[1] = strings.Replace(buf[1], "<", "&lt;", -1)
 		buf[1] = strings.Replace(buf[1], ">", "&gt;", -1)
 		buf[1] = strings.Replace(buf[1], "\n", "<br>", -1)
-		r.keyOrder = append(r.keyOrder, buf[0])
+		if !util.HasString(r.keyOrder, buf[0]) {
+			r.keyOrder = append(r.keyOrder, buf[0])
+		}
 		r.contents[buf[0]] = buf[1]
 	}
 	r.isLoaded = true

@@ -72,7 +72,7 @@ func NewManager(cfg *ManagerConfig) *Manager {
 		for _, v := range value {
 			nn, err := newNode(v)
 			if err != nil {
-				log.Fatal(err)
+				continue
 			}
 			nl = append(nl, nn)
 		}

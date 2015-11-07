@@ -254,7 +254,7 @@ func (m *mchCGI) makeSubjectCachelist(board string) []*thread.Cache {
 	for _, c := range cl.Caches {
 		result = append(result, c)
 	}
-	sort.Sort(sort.Reverse(thread.SortByRecentStamp{Caches: result}))
+	sort.Sort(sort.Reverse(thread.NewSortByRecentStamp(result)))
 	if board == "" {
 		return result
 	}
