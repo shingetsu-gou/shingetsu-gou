@@ -116,7 +116,7 @@ func printCSVChanges(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	cl := thread.NewCacheList()
-	sort.Sort(sort.Reverse(thread.NewSortByStamp(cl.Caches)))
+	sort.Sort(sort.Reverse(thread.NewSortByStamp(cl.Caches, false)))
 	g.renderCSV(cl.Caches)
 }
 
@@ -253,7 +253,7 @@ func PrintTitle(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	cl := thread.NewCacheList()
-	sort.Sort(sort.Reverse(thread.NewSortByStamp(cl.Caches)))
+	sort.Sort(sort.Reverse(thread.NewSortByStamp(cl.Caches, false)))
 	outputCachelist := make([]*thread.Cache, 0, cl.Len())
 	for _, ca := range cl.Caches {
 		if time.Now().Unix() <= ca.ReadInfo().Stamp+g.TopRecentRange {
@@ -502,7 +502,7 @@ func (g *gatewayCGI) printIndex(doChange bool) {
 	g.printParagraph("desc_" + str)
 	cl := thread.NewCacheList()
 	if doChange {
-		sort.Sort(sort.Reverse(thread.NewSortByStamp(cl.Caches)))
+		sort.Sort(sort.Reverse(thread.NewSortByStamp(cl.Caches, false)))
 	} else {
 		sort.Sort(sort.Reverse(thread.NewSortByVelocity(cl.Caches)))
 	}

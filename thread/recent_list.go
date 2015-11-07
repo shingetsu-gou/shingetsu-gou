@@ -255,7 +255,7 @@ func (r *RecentList) MakeRecentCachelist() Caches {
 		}
 	}
 	r.mutex.RUnlock()
-	sort.Sort(sort.Reverse(NewSortByRecentStamp(cl)))
+	sort.Sort(sort.Reverse(NewSortByStamp(cl, true)))
 	return cl
 }
 

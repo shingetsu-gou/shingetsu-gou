@@ -237,7 +237,7 @@ func (r *Record) parse(recstr string) error {
 	if r.ID == "" {
 		r.ID = tmp[1]
 	}
-	if r.ID != "" && r.ID != tmp[1] {
+	if r.ID != tmp[1] {
 		log.Println("ID unmatch")
 		return errors.New("stamp unmatch")
 	}

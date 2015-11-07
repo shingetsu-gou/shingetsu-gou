@@ -456,7 +456,7 @@ func (a *adminCGI) printSearchResult(query string) {
 			result = append(result, i)
 		}
 	}
-	sort.Sort(sort.Reverse(thread.NewSortByStamp(result)))
+	sort.Sort(sort.Reverse(thread.NewSortByStamp(result, false)))
 	a.printIndexList(result, "", true, false)
 	a.footer(nil)
 }
