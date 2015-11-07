@@ -36,7 +36,7 @@ import (
 	"net"
 	"net/http"
 	"os"
-	"path"
+	"path/filepath"
 	"strconv"
 	"sync"
 	"time"
@@ -277,7 +277,7 @@ func handleRoot(docroot string) func(http.ResponseWriter, *http.Request) {
 			cgi.PrintTitle(w, r)
 			return
 		}
-		pathOnDisk := path.Join(docroot, r.URL.Path)
+		pathOnDisk := filepath.Join(docroot, r.URL.Path)
 
 		if util.IsFile(pathOnDisk) {
 			http.ServeFile(w, r, pathOnDisk)
@@ -293,7 +293,7 @@ func handleRoot(docroot string) func(http.ResponseWriter, *http.Request) {
 //i.e. makes body dir ,attach dir and dat.stat in under cache dir.
 func Sakurifice(cfg *Config) {
 	initPackages(cfg)
-	f := path.Join(cfg.RunDir, "tag.txt")
+	f := filepath.Join(cfg.RunDir, "tag.txt")
 	if !util.IsFile(f) {
 		writeFile(f, []byte{})
 	}
@@ -302,11 +302,11 @@ func Sakurifice(cfg *Config) {
 	log.Println("# of cache", cl.Len())
 	for _, ca := range cl.Caches {
 		log.Println("processing", ca.Datfile)
-		f := path.Join(ca.Datpath(), "dat.stat")
+		f := filepath.Join(ca.Datpath(), "dat.stat")
 		writeFile(f, []byte(ca.Datfile))
-		bodypath := path.Join(ca.Datpath(), "body")
+		bodypath := filepath.Join(ca.Datpath(), "body")
 		mkdir(bodypath)
-		attachPath := path.Join(ca.Datpath(), "attach")
+		attachPath := filepath.Join(ca.Datpath(), "attach")
 		mkdir(attachPath)
 		recs := ca.LoadRecords()
 		for _, rec := range recs {
@@ -317,7 +317,7 @@ func Sakurifice(cfg *Config) {
 			sign := rec.GetBodyValue("sign", "")
 			pubkey := rec.GetBodyValue("pubkey", "")
 			if at != "" || sign != "" || pubkey != "" {
-				f := path.Join(bodypath, rec.Idstr())
+				f := filepath.Join(bodypath, rec.Idstr())
 				writeFile(f, []byte(rec.BodyString()))
 			}
 			if at != "" {

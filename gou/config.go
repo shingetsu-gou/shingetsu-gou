@@ -32,7 +32,7 @@ import (
 	"log"
 	"os"
 	"os/user"
-	"path"
+	"path/filepath"
 	"time"
 
 	"github.com/shingetsu-gou/shingetsu-gou/util"
@@ -64,8 +64,8 @@ func getBoolValue(i *ini.File, section, key string, vdefault bool) bool {
 func getRelativePathValue(i *ini.File, section, key, vdefault, docroot string) string {
 	p := i.Section(section).Key(key).MustString(vdefault)
 	h := p
-	if !path.IsAbs(p) {
-		h = path.Join(docroot, p)
+	if !filepath.IsAbs(p) {
+		h = filepath.Join(docroot, p)
 	}
 	return h
 }
@@ -78,8 +78,8 @@ func getPathValue(i *ini.File, section, key string, vdefault string) string {
 		log.Fatal(err)
 	}
 	h := p
-	if !path.IsAbs(p) {
-		h = path.Join(wd, p)
+	if !filepath.IsAbs(p) {
+		h = filepath.Join(wd, p)
 	}
 	return h
 }

@@ -36,6 +36,7 @@ import (
 	"log"
 	"os"
 	"path"
+	"path/filepath"
 	"strings"
 
 	"gopkg.in/natefinch/lumberjack.v2"
@@ -65,13 +66,14 @@ func expandAssets(fileDir, templateDir, docroot string) {
 	}
 
 	for _, fname := range AssetNames() {
-		dir := strings.Split(fname, string(os.PathSeparator))[0]
+		dir := strings.Split(fname, "/")[0]
 		fnameDisk := strings.Replace(fname, dir, dname[dir], 1)
 		if util.IsFile(fnameDisk) {
 			continue
 		}
+		fnameDisk = filepath.FromSlash(fnameDisk)
 		log.Println("expanding", fnameDisk)
-		path, _ := path.Split(fnameDisk)
+		path, _ := filepath.Split(fnameDisk)
 		if !util.IsDir(path) {
 			err := os.MkdirAll(path, 0755)
 			if err != nil {
