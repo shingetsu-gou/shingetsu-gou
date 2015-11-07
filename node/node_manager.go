@@ -498,8 +498,12 @@ func (lt *Manager) Rejoin() {
 //if ng, removes from nodelist.
 func (lt *Manager) PingAll() {
 	lt.mutex.RLock()
+	var ns Slice
 	for _, n := range lt.nodes[""] {
-		lt.mutex.RUnlock()
+		ns = append(ns, n)
+	}
+	lt.mutex.RUnlock()
+	for _, n := range ns {
 		if n == nil {
 			lt.RemoveFromAllTable(n)
 			continue
@@ -507,9 +511,7 @@ func (lt *Manager) PingAll() {
 		if _, err := n.Ping(); err != nil {
 			lt.RemoveFromAllTable(n)
 		}
-		lt.mutex.RLock()
 	}
-	lt.mutex.RUnlock()
 }
 
 //RejoinList joins all node in nodelist.

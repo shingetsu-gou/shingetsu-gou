@@ -87,6 +87,7 @@ func printGatewayThread(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	g, err := newGatewayCGI(w, r)
+	defer g.close()
 	if err != nil {
 		log.Println(err)
 		return

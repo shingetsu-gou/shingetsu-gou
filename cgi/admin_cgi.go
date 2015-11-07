@@ -70,6 +70,7 @@ func AdminSetup(s *LoggingServeMux) {
 //(xrdel/xfdel)
 func execCmd(w http.ResponseWriter, r *http.Request) {
 	a, err := newAdminCGI(w, r)
+	defer a.close()
 	if err != nil {
 		log.Println(err)
 		return
@@ -89,7 +90,6 @@ func execCmd(w http.ResponseWriter, r *http.Request) {
 	case "xfdel":
 		a.doDeleteFile(rmFiles)
 	}
-	cgis <- a.cgi
 }
 
 //printSearch renders the page for searching if query=""
