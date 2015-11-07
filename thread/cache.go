@@ -348,12 +348,7 @@ func (c *Cache) getWithRange(n *node.Node) bool {
 //GetCache checks  nodes in lookuptable have the cache.
 //if found gets records.
 func (c *Cache) GetCache() bool {
-	n := c.NodeManager.Search(c.Datfile, nil)
-	if n != nil {
-		c.getWithRange(n)
-		return true
-	}
-	return false
+	return c.NodeManager.EachNodes(c.Datfile, nil, c.getWithRange)
 }
 
 //Gettitle returns title part if *_*.

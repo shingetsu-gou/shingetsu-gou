@@ -421,10 +421,10 @@ func (lt *Manager) Sync() {
 	}
 }
 
-//Search checks one allowed nodes which selected randomly from nodes has the datfile record.
+//EachNodes checks one allowed nodes which selected randomly from nodes which has the datfile record and run fn.
 //if not found,n is removed from lookuptable. also if not pingable  removes n from searchlist and cache c.
 //if found, n is added to lookuptable.
-func (lt *Manager) Search(datfile string, nodes []*Node) *Node {
+func (lt *Manager) EachNodes(datfile string, nodes []*Node, fn func(*Node) bool) bool {
 	const searchDepth = 30 // Search node size
 
 	ns := lt.Get(datfile, nil)
@@ -442,7 +442,9 @@ func (lt *Manager) Search(datfile string, nodes []*Node) *Node {
 		if err == nil && len(res) > 0 && res[0] == "YES" {
 			lt.AppendToTable(datfile, n)
 			lt.Sync()
-			return n
+			if fn(n) {
+				return true
+			}
 		}
 		lt.RemoveFromTable(datfile, n)
 		if count++; count > searchDepth {
@@ -450,8 +452,7 @@ func (lt *Manager) Search(datfile string, nodes []*Node) *Node {
 		}
 	}
 	log.Println("# of nodelist:", lt.ListLen())
-
-	return nil
+	return false
 }
 
 //Rejoin adds nodes in searchlist if ping is ok and len(nodelist)<defaultNodes

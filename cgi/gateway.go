@@ -251,6 +251,8 @@ func newCGI(w http.ResponseWriter, r *http.Request) *cgi {
 	c.wr = w
 	c.m = searchMessage(r.Header.Get("Accept-Language"), c.FileDir)
 	c.req = r
+	c.filter = ""
+	c.tag = ""
 	err := r.ParseForm()
 	if err != nil {
 		log.Println(err)
