@@ -245,7 +245,18 @@ func (lt *Manager) findNodeInTable(datfile string, n *Node) int {
 func (lt *Manager) RemoveFromTable(datfile string, n *Node) bool {
 	lt.mutex.Lock()
 	defer lt.mutex.Unlock()
-	if i := util.FindString(lt.nodes[datfile].getNodestrSlice(), n.Nodestr); i >= 0 {
+	i := 0
+	if n != nil {
+		i = util.FindString(lt.nodes[datfile].getNodestrSlice(), n.Nodestr)
+	} else {
+		for ii, nn := range lt.nodes[datfile] {
+			if nn == nil {
+				i = ii
+				break
+			}
+		}
+	}
+	if i >= 0 {
 		ln := len(lt.nodes[datfile])
 		lt.nodes[datfile], lt.nodes[datfile][ln-1] = append(lt.nodes[datfile][:i], lt.nodes[datfile][i+1:]...), nil
 		lt.isDirty = true
