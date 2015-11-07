@@ -67,7 +67,6 @@ func MchSetup(s *LoggingServeMux) {
 //boardApp just calls boardApp(), only print title.
 func boardApp(w http.ResponseWriter, r *http.Request) {
 	a, err := newMchCGI(w, r)
-	defer a.close()
 	if err != nil {
 		log.Println(err)
 		return
@@ -78,7 +77,6 @@ func boardApp(w http.ResponseWriter, r *http.Request) {
 //threadApp renders dat files(record data) in the thread.
 func threadApp(w http.ResponseWriter, r *http.Request) {
 	a, err := newMchCGI(w, r)
-	defer a.close()
 	if err != nil {
 		log.Println(err)
 		return
@@ -94,7 +92,6 @@ func threadApp(w http.ResponseWriter, r *http.Request) {
 //subjectApp renders time-subject lines of the thread.
 func subjectApp(w http.ResponseWriter, r *http.Request) {
 	a, err := newMchCGI(w, r)
-	defer a.close()
 	if err != nil {
 		log.Println(err)
 		return
@@ -106,7 +103,6 @@ func subjectApp(w http.ResponseWriter, r *http.Request) {
 //postCommentApp posts one record to the thread.
 func postCommentApp(w http.ResponseWriter, r *http.Request) {
 	a, err := newMchCGI(w, r)
-	defer a.close()
 	if err != nil {
 		log.Println(err)
 		return
@@ -117,7 +113,6 @@ func postCommentApp(w http.ResponseWriter, r *http.Request) {
 //headApp just renders motd.
 func headApp(w http.ResponseWriter, r *http.Request) {
 	a, err := newMchCGI(w, r)
-	defer a.close()
 	if err != nil {
 		log.Println(err)
 		return
@@ -153,7 +148,6 @@ func newMchCGI(w http.ResponseWriter, r *http.Request) (mchCGI, error) {
 		cgi:       newCGI(w, r),
 		MchConfig: MchCfg,
 	}
-	defer c.close()
 	if c.cgi == nil || !c.checkVisitor() {
 		w.WriteHeader(403)
 		fmt.Fprintf(w, "403 Forbidden")

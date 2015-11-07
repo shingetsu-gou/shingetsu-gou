@@ -82,14 +82,12 @@ func ThreadSetup(s *LoggingServeMux) {
 //printThreadIndex adds records in multiform and redirect to its thread page.
 func printThreadIndex(w http.ResponseWriter, r *http.Request) {
 	if a, err := newThreadCGI(w, r); err == nil {
-		defer a.close()
 		a.printThreadIndex()
 	}
 }
 
 func printAttach(w http.ResponseWriter, r *http.Request) {
 	if a, err := newThreadCGI(w, r); err == nil {
-		defer a.close()
 		m := mux.Vars(r)
 		var stamp int64
 		if m["stamp"] != "" {
@@ -107,7 +105,6 @@ func printAttach(w http.ResponseWriter, r *http.Request) {
 //printThread renders whole thread list page.
 func printThread(w http.ResponseWriter, r *http.Request) {
 	if a, err := newThreadCGI(w, r); err == nil {
-		defer a.close()
 		m := mux.Vars(r)
 		var page int
 		if m["page"] != "" {

@@ -223,8 +223,6 @@ type cgi struct {
 	tag    string
 }
 
-var cgis chan *cgi
-
 //CGICfg is cfg for CGI struct.
 //it must be set before using.
 var CGICfg *CGIConfig
@@ -236,23 +234,13 @@ func newCGI(w http.ResponseWriter, r *http.Request) *cgi {
 		log.Fatal("must set CGICfg")
 	}
 
-	if cgis == nil {
-		cgis = make(chan *cgi, CGICfg.MaxConnection)
+	c := &cgi{
+		CGIConfig: CGICfg,
+		jc:        newJsCache(CGICfg.Docroot),
+		wr:        w,
+		m:         searchMessage(r.Header.Get("Accept-Language"), CGICfg.FileDir),
+		req:       r,
 	}
-	var c *cgi
-	select {
-	case c = <-cgis:
-	default:
-		c = &cgi{
-			CGIConfig: CGICfg,
-		}
-	}
-	c.jc = newJsCache(c.Docroot)
-	c.wr = w
-	c.m = searchMessage(r.Header.Get("Accept-Language"), c.FileDir)
-	c.req = r
-	c.filter = ""
-	c.tag = ""
 	err := r.ParseForm()
 	if err != nil {
 		log.Println(err)
@@ -308,17 +296,6 @@ func (c *cgi) path() string {
 		path = strings.Join(p[2:], "/")
 	}
 	return path
-}
-
-//close returns cgi instance to channel(free list).
-func (c *cgi) close() {
-	if c == nil {
-		return
-	}
-	select {
-	case cgis <- c:
-	default:
-	}
 }
 
 //extentions reads files with suffix in root dir and return them.

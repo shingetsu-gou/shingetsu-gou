@@ -70,7 +70,6 @@ func AdminSetup(s *LoggingServeMux) {
 //(xrdel/xfdel)
 func execCmd(w http.ResponseWriter, r *http.Request) {
 	a, err := newAdminCGI(w, r)
-	defer a.close()
 	if err != nil {
 		log.Println(err)
 		return
@@ -96,7 +95,6 @@ func execCmd(w http.ResponseWriter, r *http.Request) {
 //or do query if query!=""
 func printSearch(w http.ResponseWriter, r *http.Request) {
 	a, err := newAdminCGI(w, r)
-	defer a.close()
 	if err != nil {
 		log.Println(err)
 		return
@@ -117,7 +115,6 @@ func printSearch(w http.ResponseWriter, r *http.Request) {
 // ip:port,
 func printStatus(w http.ResponseWriter, r *http.Request) {
 	a, err := newAdminCGI(w, r)
-	defer a.close()
 	if err != nil {
 		log.Println()
 		return
@@ -165,7 +162,6 @@ func printStatus(w http.ResponseWriter, r *http.Request) {
 //printEdittag renders the page for editing tags in thread specified by form "file".
 func printEdittag(w http.ResponseWriter, r *http.Request) {
 	a, err := newAdminCGI(w, r)
-	defer a.close()
 	if err != nil {
 		log.Println(err)
 		return
@@ -202,7 +198,6 @@ func printEdittag(w http.ResponseWriter, r *http.Request) {
 //saveTagCGI saves edited tags of file and render this file with 302.
 func saveTagCGI(w http.ResponseWriter, r *http.Request) {
 	a, err := newAdminCGI(w, r)
-	defer a.close()
 	if err != nil {
 		log.Println(err)
 		return

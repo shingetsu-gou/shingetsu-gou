@@ -75,7 +75,6 @@ func doPing(w http.ResponseWriter, r *http.Request) {
 //doNode returns one of nodelist. if nodelist.len=0 returns one of initNode.
 func doNode(w http.ResponseWriter, r *http.Request) {
 	s, err := newServerCGI(w, r)
-	defer s.close()
 	if err != nil {
 		log.Println(err)
 		return
@@ -91,7 +90,6 @@ func doNode(w http.ResponseWriter, r *http.Request) {
 //if nodelist>#defaultnode removes and says bye one node in nodelist and returns welcome its ip:port.
 func doJoin(w http.ResponseWriter, r *http.Request) {
 	s, err := newServerCGI(w, r)
-	defer s.close()
 	if err != nil {
 		log.Println(err)
 		return
@@ -119,7 +117,6 @@ func doJoin(w http.ResponseWriter, r *http.Request) {
 //doBye  removes from nodelist and says bye to the node specified in url.
 func doBye(w http.ResponseWriter, r *http.Request) {
 	s, err := newServerCGI(w, r)
-	defer s.close()
 	if err != nil {
 		log.Println(err)
 		return
@@ -139,7 +136,6 @@ func doBye(w http.ResponseWriter, r *http.Request) {
 //doHave checks existance of cache whose name is specified in url.
 func doHave(w http.ResponseWriter, r *http.Request) {
 	s, err := newServerCGI(w, r)
-	defer s.close()
 	if err != nil {
 		log.Println(err)
 		return
@@ -163,7 +159,6 @@ func doHave(w http.ResponseWriter, r *http.Request) {
 //if stamp is in range of defaultUpdateRange adds to updateque.
 func doUpdate(w http.ResponseWriter, r *http.Request) {
 	s, err := newServerCGI(w, r)
-	defer s.close()
 	if err != nil {
 		log.Println(err)
 		log.Println("failed to create cgi struct")
@@ -216,7 +211,6 @@ func doUpdate(w http.ResponseWriter, r *http.Request) {
 //doRecent renders records whose timestamp is in range of one specified in url.
 func doRecent(w http.ResponseWriter, r *http.Request) {
 	s, err := newServerCGI(w, r)
-	defer s.close()
 	if err != nil {
 		log.Println(err)
 		return
@@ -249,7 +243,6 @@ func doRecent(w http.ResponseWriter, r *http.Request) {
 //doMotd simply renders motd file.
 func doMotd(w http.ResponseWriter, r *http.Request) {
 	s, err := newServerCGI(w, r)
-	defer s.close()
 	if err != nil {
 		log.Println(err)
 		return
@@ -266,7 +259,6 @@ func doMotd(w http.ResponseWriter, r *http.Request) {
 // whose stamp is in range of one specified by url.
 func doGetHead(w http.ResponseWriter, r *http.Request) {
 	s, err := newServerCGI(w, r)
-	defer s.close()
 	if err != nil {
 		log.Println(err)
 		return
