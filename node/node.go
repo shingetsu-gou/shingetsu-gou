@@ -43,36 +43,6 @@ import (
 	"github.com/shingetsu-gou/shingetsu-gou/util"
 )
 
-//Version , same as one in main package.
-var Version string
-
-//urlopen retrievs html data from url
-func urlopen(url string, timeout time.Duration) ([]string, error) {
-	ua := "shinGETsu/0.7 (Gou/" + Version + ")"
-
-	req, err := http.NewRequest("GET", url, nil)
-	if err != nil {
-		log.Fatal(err)
-	}
-	req.Header.Set("User-Agent", ua)
-
-	client := &http.Client{
-		Timeout: timeout,
-	}
-	resp, err := client.Do(req)
-	if err != nil {
-		log.Println(err)
-		return nil, err
-	}
-	var lines []string
-	err = util.EachIOLine(resp.Body, func(line string, i int) error {
-		strings.TrimRight(line, "\r\n")
-		lines = append(lines, line)
-		return nil
-	})
-	return lines, err
-}
-
 //Myself contains my node info.
 type Myself struct {
 	ip         string
@@ -150,6 +120,7 @@ type NodeConfig struct {
 	Myself    *Myself
 	NodeAllow *util.RegexpList
 	NodeDeny  *util.RegexpList
+	Version   string
 }
 
 //Node represents node info.
@@ -180,6 +151,33 @@ func newNode(nodestr string) (*Node, error) {
 	return n, nil
 }
 
+//urlopen retrievs html data from url
+func (n *Node) urlopen(url string, timeout time.Duration) ([]string, error) {
+	ua := "shinGETsu/0.7 (Gou/" + n.Version + ")"
+
+	req, err := http.NewRequest("GET", url, nil)
+	if err != nil {
+		log.Fatal(err)
+	}
+	req.Header.Set("User-Agent", ua)
+
+	client := &http.Client{
+		Timeout: timeout,
+	}
+	resp, err := client.Do(req)
+	if err != nil {
+		log.Println(err)
+		return nil, err
+	}
+	var lines []string
+	err = util.EachIOLine(resp.Body, func(line string, i int) error {
+		strings.TrimRight(line, "\r\n")
+		lines = append(lines, line)
+		return nil
+	})
+	return lines, err
+}
+
 //equals return true is Nodestr is equal.
 func (n *Node) equals(nn *Node) bool {
 	if nn == nil {
@@ -203,16 +201,8 @@ func (n *Node) toxstring() string {
 func (n *Node) Talk(message string) ([]string, error) {
 	const defaultTimeout = 20 * time.Second // Seconds; Timeout for TCP
 
-	const getTimeout = 20 * time.Second // Seconds; Timeout for /get
-
 	if !strings.HasPrefix(message, "/") {
 		message = "/" + message
-	}
-	var timeout time.Duration
-	if !strings.HasPrefix(message, "/get") {
-		timeout = getTimeout
-	} else {
-		timeout = defaultTimeout
 	}
 	if n == nil {
 		err := errors.New("n==nil")
@@ -222,7 +212,7 @@ func (n *Node) Talk(message string) ([]string, error) {
 
 	message = "http://" + n.Nodestr + message
 	log.Println("Talk:", message)
-	res, err := urlopen(message, timeout)
+	res, err := n.urlopen(message, defaultTimeout)
 	if err != nil {
 		log.Println(message, err)
 	}

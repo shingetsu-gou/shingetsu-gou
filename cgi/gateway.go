@@ -210,6 +210,7 @@ type CGIConfig struct {
 	Htemplate         *util.Htemplate
 	UserTag           *thread.UserTag
 	SuggestedTagTable *thread.SuggestedTagTable
+	Version           string
 }
 
 //cgi is a base class for all http handlers.
@@ -329,8 +330,10 @@ func (c *cgi) extension(suffix string, useMerged bool) []string {
 func (c *cgi) footer(menubar *Menubar) {
 	g := struct {
 		Menubar *Menubar
+		Version string
 	}{
 		menubar,
+		c.Version,
 	}
 	c.Htemplate.RenderTemplate("footer", g, c.wr)
 }

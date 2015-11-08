@@ -51,7 +51,7 @@ import (
 	"github.com/shingetsu-gou/shingetsu-gou/util"
 )
 
-func initPackages(cfg *Config) (*node.Manager, *thread.RecentList) {
+func initPackages(cfg *Config, version string) (*node.Manager, *thread.RecentList) {
 	externalPort := cfg.DefaultPort
 	if cfg.EnableNAT {
 		externalPort = setUPnP(cfg.DefaultPort)
@@ -76,6 +76,7 @@ func initPackages(cfg *Config) (*node.Manager, *thread.RecentList) {
 		Myself:    myself,
 		NodeAllow: nodeAllow,
 		NodeDeny:  nodeDeny,
+		Version:   version,
 	}
 
 	nodeManager := node.NewManager(&node.ManagerConfig{
@@ -162,6 +163,7 @@ func initPackages(cfg *Config) (*node.Manager, *thread.RecentList) {
 		Htemplate:         htemplate,
 		UserTag:           userTag,
 		SuggestedTagTable: suggestedTagTable,
+		Version:           version,
 	}
 	cgi.GatewayCfg = &cgi.GatewayConfig{
 		RSSRange:       cfg.RSSRange,
@@ -219,7 +221,7 @@ func setUPnP(defaultPort int) int {
 
 //StartDaemon setups document root and necessary dirs.
 //And save pid, start cron job and a http server.
-func StartDaemon(cfg *Config) {
+func StartDaemon(cfg *Config, version string) {
 	for _, j := range []string{cfg.RunDir, cfg.CacheDir, cfg.LogDir} {
 		if !util.IsDir(j) {
 			err := os.Mkdir(j, 0755)
@@ -249,7 +251,7 @@ func StartDaemon(cfg *Config) {
 		WriteTimeout:   60 * time.Second,
 		MaxHeaderBytes: 1 << 20,
 	}
-	nm, rl := initPackages(cfg)
+	nm, rl := initPackages(cfg, version)
 	go cron(nm, rl, cfg.HeavyMoon)
 
 	cgi.AdminSetup(sm)
@@ -292,7 +294,7 @@ func handleRoot(docroot string) func(http.ResponseWriter, *http.Request) {
 //Sakurifice makes cache be compatible with saku.
 //i.e. makes body dir ,attach dir and dat.stat in under cache dir.
 func Sakurifice(cfg *Config) {
-	initPackages(cfg)
+	initPackages(cfg, "")
 	f := filepath.Join(cfg.RunDir, "tag.txt")
 	if !util.IsFile(f) {
 		writeFile(f, []byte{})

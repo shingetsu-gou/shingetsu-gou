@@ -42,7 +42,6 @@ import (
 	"gopkg.in/natefinch/lumberjack.v2"
 
 	"github.com/shingetsu-gou/shingetsu-gou/gou"
-	"github.com/shingetsu-gou/shingetsu-gou/node"
 	"github.com/shingetsu-gou/shingetsu-gou/util"
 )
 
@@ -52,9 +51,14 @@ const (
 )
 
 func init() {
-	node.Version = Version
 	log.SetFlags(log.Ldate | log.Ltime | log.Lshortfile)
 	log.SetOutput(os.Stdout)
+
+	flag.Usage = func() {
+		_, prog := filepath.Split(os.Args[0])
+		fmt.Fprintf(os.Stderr, "P2P anonymous BBS shinGETsu %s (%s)\n", prog, Version)
+		flag.PrintDefaults()
+	}
 }
 
 //expandAssets expands all files in a Assets if not exist in disk.
@@ -130,6 +134,6 @@ func main() {
 	if sakurifice {
 		gou.Sakurifice(cfg)
 	} else {
-		gou.StartDaemon(cfg)
+		gou.StartDaemon(cfg, Version)
 	}
 }
