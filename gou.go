@@ -45,18 +45,16 @@ import (
 	"github.com/shingetsu-gou/shingetsu-gou/util"
 )
 
-const (
-	//Version is one of Gou. it shoud be overwritten when building on travis.
-	Version = "Git/unstable"
-)
+//Version is one of Gou. it shoud be overwritten when building on travis.
+var version = "unstable"
 
 func init() {
 	log.SetFlags(log.Ldate | log.Ltime | log.Lshortfile)
 	log.SetOutput(os.Stdout)
 
 	flag.Usage = func() {
-		_, prog := filepath.Split(os.Args[0])
-		fmt.Fprintf(os.Stderr, "P2P anonymous BBS shinGETsu %s (%s)\n", prog, Version)
+		fmt.Fprintf(os.Stderr, "P2P anonymous BBS shinGETsu Gou(%s)\n", version)
+		fmt.Fprintf(os.Stderr, "%s <options>\n", os.Args[0])
 		flag.PrintDefaults()
 	}
 }
@@ -134,6 +132,6 @@ func main() {
 	if sakurifice {
 		gou.Sakurifice(cfg)
 	} else {
-		gou.StartDaemon(cfg, Version)
+		gou.StartDaemon(cfg, version)
 	}
 }
