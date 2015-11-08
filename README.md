@@ -7,18 +7,26 @@
 
 tl;dr
 
+## 特徴
+* Go言語で開発
+* sakuと設定ファイル互換
+* cacheは非互換（sakuで使ってるファイルの一部を使っていないため）だが変換コマンドで対応可能
+* ポータブル：各プラットフォーム別に実行ファイル1個
+* 省メモリ（ざっくりsakuの７割～５割くらい？）
+* 速度は早いかもしれない。 
+
 ## 新規に始める
 1.  [ここ](https://github.com/shingetsu-gou/shingetsu-gou/releases)から自分のOSの実行バイナリダウンロード、展開
 3. ./shingetsu-gouで実行
 4. ブラウザでhttp://localhost:8000/をアクセス
 5. uPnPでポートを自動で開ける努力はしますが、不可の場合、朔同様自分で開けてください。
 
-## 朔から移行方法
+## 朔から移行
 1.  [ここ](https://github.com/shingetsu-gou/shingetsu-gou/releases)から自分のOSの実行バイナリダウンロード、展開
 2. 合を実行するディレクトリに実行ファイル(shingetsu-gou)と、朔のcacheディレクトリとfileディレクトリをコピー（朔のcache/fileディレクトリは別に残しておくことを推奨します）
 3. ./shingetsu-gouで実行
 
-## 合のキャッシュを朔で使う方法（朔に戻る方法）
+## 合のキャッシュを朔で使う（朔に戻る）
 1. 合のキャッシュをバックアップ（推奨）
 2. 合の実行ディレクトリで./shingetsu-gou --sakurifice実行
 3. 合のcacheディレクトリとfileディレクトリを朔のディレクトリにコピー
