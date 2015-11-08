@@ -34,7 +34,7 @@ after_script:
   goxc -wc default publish-github -owner=shingetsu-gou -repository="shingetsu-gou";
   cat .goxc.json;
   goxc -wlc default publish-github -apikey=${GITHUB_TOKEN};
-  goxc -v -pv ${PACKAGE_VERSION};
+  goxc -v -pv ${PACKAGE_VERSION} -build-ldflags='-X main.version ${PACKAGE_VERSION}';
   cd ..;
   fi
 
