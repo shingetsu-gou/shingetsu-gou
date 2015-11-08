@@ -46,14 +46,14 @@ import (
 )
 
 //Version is one of Gou. it shoud be overwritten when building on travis.
-var version = "unstable"
+var VERSION = "unstable"
 
 func init() {
 	log.SetFlags(log.Ldate | log.Ltime | log.Lshortfile)
 	log.SetOutput(os.Stdout)
 
 	flag.Usage = func() {
-		fmt.Fprintf(os.Stderr, "P2P anonymous BBS shinGETsu Gou(%s)\n", version)
+		fmt.Fprintf(os.Stderr, "P2P anonymous BBS shinGETsu Gou(%s)\n", VERSION)
 		fmt.Fprintf(os.Stderr, "%s <options>\n", os.Args[0])
 		flag.PrintDefaults()
 	}
@@ -132,6 +132,6 @@ func main() {
 	if sakurifice {
 		gou.Sakurifice(cfg)
 	} else {
-		gou.StartDaemon(cfg, version)
+		gou.StartDaemon(cfg, VERSION)
 	}
 }
