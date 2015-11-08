@@ -53,7 +53,7 @@ func init() {
 	log.SetOutput(os.Stdout)
 
 	flag.Usage = func() {
-		fmt.Fprintf(os.Stderr, "P2P anonymous BBS shinGETsu Gou(%s)\n", VERSION)
+		fmt.Fprintf(os.Stderr, "P2P anonymous BBS shinGETsu Gou %s\n", VERSION)
 		fmt.Fprintf(os.Stderr, "%s <options>\n", os.Args[0])
 		flag.PrintDefaults()
 	}

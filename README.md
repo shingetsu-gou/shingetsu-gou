@@ -7,6 +7,12 @@
 
 tl;dr
 
+## 新規に始める
+1.  [ここ](https://github.com/shingetsu-gou/shingetsu-gou/releases)から自分のOSの実行バイナリダウンロード、展開
+3. ./shingetsu-gouで実行
+4. ブラウザでhttp://localhost:8000/をアクセス
+5. uPnPでポートを自動で開ける努力はしますが、不可の場合、朔同様自分で開けてください。
+
 ## 朔から移行方法
 1.  [ここ](https://github.com/shingetsu-gou/shingetsu-gou/releases)から自分のOSの実行バイナリダウンロード、展開
 2. 合を実行するディレクトリに実行ファイル(shingetsu-gou)と、朔のcacheディレクトリとfileディレクトリをコピー（朔のcache/fileディレクトリは別に残しておくことを推奨します）
