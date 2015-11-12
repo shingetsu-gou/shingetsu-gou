@@ -220,8 +220,6 @@ func (c *Cache) ReadInfo() *CacheInfo {
 
 //LoadRecords loads and returns record maps from the disk .
 func (c *Cache) LoadRecords() RecordMap {
-	c.Fmutex.RLock()
-	defer c.Fmutex.RUnlock()
 	r := path.Join(c.Datpath(), "record")
 	if !util.IsDir(r) {
 		return nil
@@ -230,6 +228,8 @@ func (c *Cache) LoadRecords() RecordMap {
 		return nil
 	}
 	recs := make(map[string]*Record)
+	c.Fmutex.RLock()
+	defer c.Fmutex.RUnlock()
 	err := util.EachFiles(r, func(f os.FileInfo) error {
 		recs[f.Name()] = NewRecord(c.Datfile, f.Name())
 		return nil

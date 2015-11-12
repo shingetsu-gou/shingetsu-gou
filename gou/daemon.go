@@ -219,18 +219,8 @@ func setUPnP(defaultPort int) int {
 	return defaultPort
 }
 
-//StartDaemon setups document root and necessary dirs.
-//And save pid, start cron job and a http server.
+//StartDaemon setups saves pid, start cron job and a http server.
 func StartDaemon(cfg *Config, version string) {
-	for _, j := range []string{cfg.RunDir, cfg.CacheDir, cfg.LogDir} {
-		if !util.IsDir(j) {
-			err := os.Mkdir(j, 0755)
-			if err != nil {
-				log.Fatal(err)
-			}
-		}
-	}
-
 	p := os.Getpid()
 	err := ioutil.WriteFile(cfg.PID(), []byte(strconv.Itoa(p)), 0666)
 	if err != nil {

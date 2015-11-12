@@ -112,10 +112,21 @@ func setLogger(printLog, isSilent bool, logDir string) {
 		m := io.MultiWriter(os.Stdout, l)
 		log.SetOutput(m)
 	default:
-		fmt.Println("output lots to ", logDir)
+		fmt.Println("output logs to ", logDir)
 		log.SetOutput(l)
 	}
+}
 
+//setupDirectories makes necessary dirs.
+func setupDirectories(cfg *gou.Config) {
+	for _, j := range []string{cfg.RunDir, cfg.CacheDir, cfg.LogDir} {
+		if !util.IsDir(j) {
+			err := os.MkdirAll(j, 0755)
+			if err != nil {
+				log.Fatal(err)
+			}
+		}
+	}
 }
 
 func main() {
@@ -127,6 +138,7 @@ func main() {
 	flag.BoolVar(&isSilent, "silent", false, "suppress logs")
 	flag.BoolVar(&sakurifice, "sakurifice", false, "makes caches compatible with saku")
 	flag.Parse()
+	setupDirectories(cfg)
 	setLogger(printLog, isSilent, cfg.LogDir)
 	expandAssets(cfg.FileDir, cfg.TemplateDir, cfg.Docroot)
 	if sakurifice {
