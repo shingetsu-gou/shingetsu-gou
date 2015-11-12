@@ -400,8 +400,8 @@ func (a *adminCGI) printDeleteFile(files []string) {
 
 //doDeleteFile remove files in cache and 302 to changes page.
 func (a *adminCGI) doDeleteFile(files []string) {
-	if a.req.Method != "POST" || a.checkSid() {
-		return
+	if a.req.Method != "POST" || !a.checkSid() {
+		a.print404(nil, "")
 	}
 	if files == nil {
 		a.print404(nil, "")
