@@ -33,27 +33,12 @@ import (
 	"testing"
 )
 
-func TestApllo(t *testing.T) {
+func TestEmbedURL(t *testing.T) {
 	log.SetFlags(log.Ldate | log.Ltime | log.Lshortfile)
 
-	pkey := MakePrivateKey("test")
-	log.Println(pkey.keyD, pkey.keyN)
-	pub, pri := pkey.GetKeys()
-	log.Println(pkey.keyD, pkey.keyN)
-	log.Println(pub, pri)
-	if pub != "DpmzfQSOhbpxE7xuaiEao3ztv9NAJi/loTs2N43f5hC3XpT3z9VhApcrYy94XhMBKONo5H14c8STrriPJnCcVA" {
-		t.Fatal("publickey key unmatch")
-	}
-	if pri != "BAcp0SUgUOSY+TrLhy/MEszzq0Obadi3EhXDEUUD9FmOkv7vhPiNrgg2HR8DmuFiPcXNHdqu44wyGRX5bmdcQA" {
-		t.Fatal("privatekey unmatch")
-	}
-	log.Println(pkey.keyD, pkey.keyN)
-	s := pkey.Sign("test")
-	log.Println(s)
-	if s != "7peLqh1dbHjwmDpmREUytCu7k/2S3cS2eLYn+z42TaQkaHoyTRVUTKekbinRQQpkEGJah0hyDDIPc+AZHjecDA" {
-		t.Fatalf("sign failed")
-	}
-	if v := Verify("test", s, pub); !v {
-		t.Fatalf("verify failed")
+	u := EmbedURL("https://www.youtube.com/watch?v=3Shhu476nlA")
+	log.Println(u)
+	if u == "" {
+		t.Fatal("cannot get embed url")
 	}
 }

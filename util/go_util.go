@@ -31,6 +31,7 @@ package util
 import (
 	"bufio"
 	"bytes"
+	"encoding/json"
 	"image"
 	"image/gif"
 	"image/jpeg"
@@ -41,6 +42,7 @@ import (
 	"math/rand"
 	"net/http"
 	"os"
+	"regexp"
 	"strconv"
 	"strings"
 
@@ -50,6 +52,27 @@ import (
 	"github.com/gorilla/mux"
 	"github.com/nfnt/resize"
 )
+
+//provider represents oembed provider.
+type provider struct {
+	Provider_name string
+	Provider_url  string
+	Endpoints     []struct {
+		Schemes   []string
+		URL       string
+		Discovery bool
+	}
+}
+
+//prov is oembed providers from oembed_providers.go
+var prov []*provider
+
+//init loads oembed providers in json.
+func init() {
+	if err := json.Unmarshal([]byte(oembedProviders), &prov); err != nil {
+		log.Fatal(err)
+	}
+}
 
 //EachIOLine iterates each line to  a ReadCloser ,calls func and close f.
 func EachIOLine(f io.ReadCloser, handler func(line string, num int) error) error {
@@ -314,52 +337,79 @@ func FromSJIS(b string) string {
 	return convertSJIS(b, false)
 }
 
-////RWMutex is sync.RWMutex with deadlock detector.
-//type RWMutex struct {
-//	sync.RWMutex
-//	cancel chan struct{}
-//}
+//miscURL returns url for embeding for nicovideo, images.
+func miscURL(url string) string {
+	reg := regexp.MustCompile("http://www.nicovideo.jp/watch/([a-z0-9]+)")
+	id := reg.FindStringSubmatch(url)
+	if len(id) > 1 {
+		return `	<script type="text/javascript" src="http://ext.nicovideo.jp/thumb_watch/` + id[1] + `"></script>`
+	}
 
-////NewRWMutex returns RWMutex obj.
-//func NewRWMutex() *RWMutex {
-//	return &RWMutex{
-//		cancel: make(chan struct{}),
-//	}
-//}
+	reg = regexp.MustCompile("https?://github.com/([^/]+)/([^/]+)")
+	id = reg.FindStringSubmatch(url)
+	log.Println(id)
+	if len(id) > 2 {
+		return `<div class="github-card" data-user="`+id[1]+`" data-repo="`+id[2]+`"></div>
+<script src="http://cdn.jsdelivr.net/github-cards/latest/widget.js"></script>`
+	}
 
-////Rlock is sync.RLock and start deadlock timer.
-//func (m *RWMutex) RLock() {
-//	m.RWMutex.RLock()
-//	m.timer()
-//}
+	images := []string{"jpeg", "jpg", "gif", "png"}
+	for _, img := range images {
+		if strings.HasSuffix(url, img) {
+			return `<img width="200px" src="` + url + `">`
+		}
+	}
+	return ""
+}
 
-////Lock is sync.Lock and start deadlock timer.
-//func (m *RWMutex) Lock() {
-//	m.RWMutex.Lock()
-//	m.timer()
-//}
+//EmbedURL gets the url for embeding by using oEmbed API.
+func EmbedURL(url string) string {
+	if e := miscURL(url); e != "" {
+		return e
+	}
 
-////Runlock is sync.RunLock and stop deadlock timer.
-//func (m *RWMutex) RUnlock() {
-//	m.RWMutex.RUnlock()
-//	m.cancel <- struct{}{}
-//}
-
-////Unlock is sync.RunLock and stop deadlock timer.
-//func (m *RWMutex) Unlock() {
-//	m.RWMutex.Unlock()
-//	m.cancel <- struct{}{}
-//}
-
-////timer starts goroutine which prints deadlock message after 3 min.
-//func (m *RWMutex) timer() {
-//	_, file, line, _ := runtime.Caller(2)
-//	go func(file string, line int, cancel chan struct{}) {
-//		select {
-//		case <-time.After(1 * time.Minute):
-//			panic(fmt.Sprintln("detect deadlock:file", file, "at", line))
-//		case <-cancel:
-//			return
-//		}
-//	}(file, line, m.cancel)
-//}
+	for _, p := range prov {
+		match, err := regexp.Match(p.Provider_url, []byte(url))
+		if err != nil {
+			log.Println(err)
+			continue
+		}
+		for _, e := range p.Endpoints {
+			for _, s := range e.Schemes {
+				match2, err := regexp.Match(".*"+s+".*", []byte(url))
+				if err != nil {
+					log.Print(err)
+					continue
+				}
+				match = match || match2
+				if match {
+					break
+				}
+			}
+			if !match {
+				continue
+			}
+			log.Println("geting embed url from", e.URL)
+			resp, err := http.Get(e.URL + "?url=" + url + "&format=json")
+			if err != nil {
+				log.Print(err)
+				continue
+			}
+			defer resp.Body.Close()
+			js, err := ioutil.ReadAll(resp.Body)
+			if err != nil {
+				log.Print(err)
+				continue
+			}
+			var m map[string]interface{}
+			if err := json.Unmarshal(js, &m); err != nil {
+				log.Print(string(js), err)
+				continue
+			}
+			if html, ok := m["html"].(string); ok {
+				return html
+			}
+		}
+	}
+	return ""
+}

@@ -17,7 +17,7 @@
 ({{.CacheInfo.Len}}/{{toInt .CacheInfo.Size|toMB|printf "%.1f"}}{{.Message.mb}})
 {{ if .Tags}}
   <span class="tags">
-  {{ range $tag:=.Tags.Tags }}
+  {{ range $tag:=.Tags }}
     <a href="{{$root.GatewayCGI}}/{{$root.Target}}?tag={{strEncode $tag.Tagstr}}" class="tag">{{$tag.Tagstr}}</a>
   {{ end }}
   </span>

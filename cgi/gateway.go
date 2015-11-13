@@ -445,9 +445,16 @@ func (c *cgi) htmlFormat(plain, appli string, title string, absuri bool) string 
 	buf := strings.Replace(plain, "<br>", "\n", -1)
 	buf = strings.Replace(buf, "\t", "        ", -1)
 	buf = util.Escape(buf)
-	reg := regexp.MustCompile(`https?://[^\x00-\x20"'\(\)<>\[\]\x7F-\xFF]{2,}`)
-	buf = reg.ReplaceAllString(buf, `<a href="$0">$0</a>`)
-	reg = regexp.MustCompile("&gt;&gt;[0-9a-f]{8}")
+	regLink := regexp.MustCompile(`https?://[^\x00-\x20"'\(\)<>\[\]\x7F-\xFF]{2,}`)
+	var embed string
+	for _, link := range regLink.FindAllString(buf, -1) {
+		e := util.EmbedURL(link)
+		if e != "" {
+			embed += "<br>" + e
+		}
+	}
+	buf = regLink.ReplaceAllString(buf, `<a href="$0">$0</a>`)
+	reg := regexp.MustCompile("&gt;&gt;[0-9a-f]{8}")
 	buf = reg.ReplaceAllStringFunc(buf, func(str string) string {
 		regg := regexp.MustCompile("(&gt;&gt;)([0-9a-f]{8})")
 		id := regg.ReplaceAllString(str, "$2")
@@ -458,7 +465,7 @@ func (c *cgi) htmlFormat(plain, appli string, title string, absuri bool) string 
 		bl := c.bracketLink(str[2:len(str)-2], appli, absuri)
 		return bl
 	})
-	return util.EscapeSpace(tmp)
+	return util.EscapeSpace(tmp + embed)
 }
 
 //bracketLink convert ling string to [[link]] string with href tag.

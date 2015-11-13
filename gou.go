@@ -131,6 +131,7 @@ func setupDirectories(cfg *gou.Config) {
 
 func main() {
 	fmt.Println("starting Gou...")
+	VERSION = strings.Trim(VERSION, "'")
 	cfg := gou.NewConfig()
 	var printLog, isSilent, sakurifice bool
 	flag.BoolVar(&printLog, "verbose", false, "print logs")
