@@ -422,7 +422,7 @@ func (t *threadCGI) printRecord(ca *thread.Cache, rec *thread.Record) {
 	if at := rec.GetBodyValue("attach", ""); at != "" {
 		suffix = rec.GetBodyValue("suffix", "")
 		attachFile := rec.AttachPath("")
-		attachSize = int64(len(at) * 57 / 78)
+		attachSize = int64(len(at)*57/78) + 1000
 		reg := regexp.MustCompile("^[0-9A-Za-z]+")
 		if !reg.MatchString(suffix) {
 			suffix = "txt"

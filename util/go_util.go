@@ -327,7 +327,7 @@ func convertSJIS(b string, toSJIS bool) string {
 	}
 	r, err := ioutil.ReadAll(transform.NewReader(bytes.NewReader([]byte(b)), t))
 	if err != nil {
-		log.Fatal(err)
+		log.Println(err)
 	}
 	return string(r)
 }
@@ -347,16 +347,15 @@ func miscURL(url string) string {
 
 	reg = regexp.MustCompile("https?://github.com/([^/]+)/([^/]+)")
 	id = reg.FindStringSubmatch(url)
-	log.Println(id)
 	if len(id) > 2 {
-		return `<div class="github-card" data-user="`+id[1]+`" data-repo="`+id[2]+`"></div>
+		return `<div class="github-card" data-user="` + id[1] + `" data-repo="` + id[2] + `"></div>
 <script src="http://cdn.jsdelivr.net/github-cards/latest/widget.js"></script>`
 	}
 
 	images := []string{"jpeg", "jpg", "gif", "png"}
 	for _, img := range images {
 		if strings.HasSuffix(url, img) {
-			return `<img width="200px" src="` + url + `">`
+			return `<img src="/x.gif" data-lazyimg data-src="` + url + `" height="210" alt="" />`
 		}
 	}
 	return ""
