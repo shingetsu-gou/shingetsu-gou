@@ -48,13 +48,18 @@ type finfo struct {
 
 //jsCache contains js inf, i.e. path info and  finfo of each js files..
 type jsCache struct {
-	path  string
-	files map[string]*finfo
+	path   string
+	files  map[string]*finfo
+	assets map[string]*finfo
 }
 
 //newJsCache return jsCache instnace and parse all js files under path dir.
 func newJsCache(pth string) *jsCache {
-	j := &jsCache{path: pth, files: make(map[string]*finfo)}
+	j := &jsCache{
+		path:   pth,
+		files:  make(map[string]*finfo),
+		assets: make(map[string]*finfo),
+	}
 	d, err := util.AssetDir("www")
 	if err != nil {
 		log.Fatal(err)
@@ -73,7 +78,7 @@ func newJsCache(pth string) *jsCache {
 			log.Fatal(err)
 		}
 		mt := i.ModTime()
-		j.files[f] = &finfo{
+		j.assets[f] = &finfo{
 			mtime: &mt,
 			cont:  c,
 		}
@@ -82,10 +87,22 @@ func newJsCache(pth string) *jsCache {
 	return j
 }
 
+//allFiles concats files and assets and returns it.
+func (j *jsCache) allFiles() map[string]*finfo {
+	m := make(map[string]*finfo)
+	for k, v := range j.assets {
+		m[k] = v
+	}
+	for k, v := range j.files {
+		m[k] = v
+	}
+	return m
+}
+
 //GetLatest gets latest mtime of all jsCache.files.
 func (j *jsCache) GetLatest() int64 {
 	var l *time.Time
-	for _, v := range j.files {
+	for _, v := range j.allFiles() {
 		if l == nil || v.mtime.After(*l) {
 			l = v.mtime
 		}
@@ -97,15 +114,16 @@ func (j *jsCache) GetLatest() int64 {
 func (j *jsCache) getContent() string {
 	j.update()
 	var cont string
-	keys := make([]string, len(j.files))
+	all := j.allFiles()
+	keys := make([]string, len(all))
 	i := 0
-	for k := range j.files {
+	for k := range all {
 		keys[i] = k
 		i++
 	}
 	sort.Strings(keys)
 	for _, k := range keys {
-		cont += string(j.files[k].cont)
+		cont += string(all[k].cont)
 	}
 	return cont
 }

@@ -19,7 +19,7 @@ tl;dr
 1.  [ここ](https://github.com/shingetsu-gou/shingetsu-gou/releases)から自分のOSの実行バイナリダウンロード、展開
 3. ./shingetsu-gouで実行
 4. ブラウザでhttp://localhost:8000/をアクセス
-5. uPnPでポートを自動で開ける努力はしますが、不可の場合、朔同様自分で開けてください。
+5. uPnP/NAT-PMPでポートを自動で開ける努力はしますが、不可の場合、朔同様自分で開けてください。
 
 ## 朔から移行
 1.  [ここ](https://github.com/shingetsu-gou/shingetsu-gou/releases)から自分のOSの実行バイナリダウンロード、展開
@@ -125,8 +125,9 @@ Files
 * in file/ directory
 
 are embeded into the exexutable binary in https://github.com/shingetsu-gou/shingetsu-gou/releases.
-If these files are not found on your disk, Gou automatically expands these to the disk
-(but not overwrite). Once expanded, you can change these files as you wish.
+If files in file/ dir are not found on your disk, Gou automatically expands these to the disk
+(but not overwrite). Other files are not expanded.
+But you can add files to www/ or  template/ if you wish. These files will override embded ones.
 
 This is for easy to use Gou; just get a binary, and run it!
 
