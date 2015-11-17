@@ -29,6 +29,7 @@
   </p>
 {{ end }}
 
+<div style="background:url(/arazuki_saku.png) no-repeat 100% 0%;">
   <ul id="thread_index">
   {{ range $cache:=$root.Cachelist }}
       {{$root.ListItem.Render $cache true $root.Target $root.SearchNewFile}}
@@ -50,4 +51,5 @@
   {{ end }}
   </p>
 {{ end }}
+</div>
 {{end}}

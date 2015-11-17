@@ -35,6 +35,8 @@ import (
 	htmlTemplate "html/template"
 	"io"
 	"log"
+	"path"
+	"path/filepath"
 	textTemplate "text/template"
 	"time"
 )
@@ -65,11 +67,22 @@ type Ttemplate struct {
 //NewTtemplate adds funcmap to template var and parse files.
 func NewTtemplate(templateDir string) *Ttemplate {
 	t := &Ttemplate{textTemplate.New("")}
-	templateFiles := templateDir + "/rss1.txt"
 	t.Funcs(textTemplate.FuncMap(funcMap))
-	_, err := t.ParseFiles(templateFiles)
-	if err != nil {
-		log.Fatal(err)
+	templateFiles := filepath.Join(templateDir, "rss1.txt")
+	if IsFile(templateFiles) {
+		_, err := t.ParseFiles(templateFiles)
+		if err != nil {
+			log.Fatal(err)
+		}
+	} else {
+		cont, err := Asset(path.Join("gou_template", "rss1.txt"))
+		if err != nil {
+			log.Fatal(err)
+		}
+		_, err = t.Parse(string(cont))
+		if err != nil {
+			log.Fatal(err)
+		}
 	}
 	return t
 }
@@ -82,15 +95,41 @@ type Htemplate struct {
 //NewHtemplate adds funcmap to template var and parse files.
 func NewHtemplate(templateDir string) *Htemplate {
 	t := &Htemplate{htmlTemplate.New("")}
-	templateFiles := templateDir + "/*.txt"
-	if !IsDir(templateDir) {
-		log.Fatal(templateDir, "not found")
-	}
 	t.Funcs(htmlTemplate.FuncMap(funcMap))
-	_, err := t.ParseGlob(templateFiles)
+	templateFiles := filepath.Join(templateDir, "*.txt")
+
+	if IsDir(templateDir) {
+		_, err := t.ParseGlob(templateFiles)
+		if err != nil {
+			log.Fatal(err)
+		}
+	}
+	mat, err := filepath.Glob(templateFiles)
 	if err != nil {
 		log.Fatal(err)
 	}
+	e := make(map[string]struct{})
+	for _, m := range mat {
+		e[filepath.Base(m)] = struct{}{}
+	}
+	dir, err := AssetDir("gou_template")
+	if err != nil {
+		log.Fatal(err)
+	}
+	for _, a := range dir {
+		if _, exist := e[path.Base(a)]; exist {
+			continue
+		}
+		c, err := Asset(path.Join("gou_template", a))
+		if err != nil {
+			log.Fatal(err)
+		}
+
+		if _, err := t.Parse(string(c)); err != nil {
+			log.Fatal(err)
+		}
+	}
+
 	return t
 }
 

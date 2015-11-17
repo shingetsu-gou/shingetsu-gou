@@ -211,6 +211,7 @@ type CGIConfig struct {
 	UserTag           *thread.UserTag
 	SuggestedTagTable *thread.SuggestedTagTable
 	Version           string
+	EnableEmbed       bool
 }
 
 //cgi is a base class for all http handlers.
@@ -304,10 +305,21 @@ func (c *cgi) path() string {
 func (c *cgi) extension(suffix string, useMerged bool) []string {
 	var filename []string
 	var merged string
-	err := util.EachFiles(c.Docroot, func(f os.FileInfo) error {
+	d, err := util.AssetDir("www")
+	if err != nil {
+		log.Fatal(err)
+	}
+	for _, fname := range d {
+		if util.HasExt(fname, suffix) {
+			filename = append(filename, fname)
+		}
+	}
+	err = util.EachFiles(c.Docroot, func(f os.FileInfo) error {
 		i := f.Name()
-		if strings.HasSuffix(i, "."+suffix) && (!strings.HasPrefix(i, ".") || strings.HasPrefix(i, "_")) {
-			filename = append(filename, i)
+		if util.HasExt(i, suffix) {
+			if !util.HasString(filename, i) {
+				filename = append(filename, i)
+			}
 		} else {
 			if useMerged && i == "__merged."+suffix {
 				merged = i
@@ -444,16 +456,26 @@ func (c *cgi) resAnchor(id, appli string, title string, absuri bool) string {
 func (c *cgi) htmlFormat(plain, appli string, title string, absuri bool) string {
 	buf := strings.Replace(plain, "<br>", "\n", -1)
 	buf = strings.Replace(buf, "\t", "        ", -1)
+
 	buf = util.Escape(buf)
 	regLink := regexp.MustCompile(`https?://[^\x00-\x20"'\(\)<>\[\]\x7F-\xFF]{2,}`)
-	var embed string
-	for _, link := range regLink.FindAllString(buf, -1) {
-		e := util.EmbedURL(link)
-		if e != "" {
-			embed += "<br>" + e
+	if c.EnableEmbed {
+		var strs []string
+		for _, str := range strings.Split(buf, "<br>") {
+			s := regLink.ReplaceAllString(str, `<a href="$0">$0</a>`)
+			strs = append(strs, s)
+			for _, link := range regLink.FindAllString(str, -1) {
+				e := util.EmbedURL(link)
+				log.Println(link, e)
+				if e != "" {
+					strs = append(strs, e)
+					strs = append(strs, "")
+				}
+			}
 		}
+		buf = strings.Join(strs, "<br>")
 	}
-	buf = regLink.ReplaceAllString(buf, `<a href="$0">$0</a>`)
+
 	reg := regexp.MustCompile("&gt;&gt;[0-9a-f]{8}")
 	buf = reg.ReplaceAllStringFunc(buf, func(str string) string {
 		regg := regexp.MustCompile("(&gt;&gt;)([0-9a-f]{8})")
@@ -465,7 +487,7 @@ func (c *cgi) htmlFormat(plain, appli string, title string, absuri bool) string 
 		bl := c.bracketLink(str[2:len(str)-2], appli, absuri)
 		return bl
 	})
-	return util.EscapeSpace(tmp + embed)
+	return util.EscapeSpace(tmp)
 }
 
 //bracketLink convert ling string to [[link]] string with href tag.

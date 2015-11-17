@@ -449,6 +449,7 @@ func (lt *Manager) EachNodes(datfile string, nodes []*Node, fn func(*Node) bool)
 		if n.equals(lt.Myself.toNode()) || !n.IsAllowed() {
 			continue
 		}
+		log.Println(datfile)
 		res, err := n.Talk("/have/" + datfile)
 		if err == nil && len(res) > 0 && res[0] == "YES" {
 			lt.AppendToTable(datfile, n)

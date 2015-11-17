@@ -29,6 +29,7 @@
 package gou
 
 import (
+	"bytes"
 	"encoding/base64"
 	"fmt"
 	"io/ioutil"
@@ -36,6 +37,7 @@ import (
 	"net"
 	"net/http"
 	"os"
+	"path"
 	"path/filepath"
 	"strconv"
 	"sync"
@@ -164,6 +166,7 @@ func initPackages(cfg *Config, version string) (*node.Manager, *thread.RecentLis
 		UserTag:           userTag,
 		SuggestedTagTable: suggestedTagTable,
 		Version:           version,
+		EnableEmbed:       cfg.EnableEmbed,
 	}
 	cgi.GatewayCfg = &cgi.GatewayConfig{
 		RSSRange:       cfg.RSSRange,
@@ -273,6 +276,16 @@ func handleRoot(docroot string) func(http.ResponseWriter, *http.Request) {
 
 		if util.IsFile(pathOnDisk) {
 			http.ServeFile(w, r, pathOnDisk)
+			return
+		}
+		pathOnAsset := path.Join("www", r.URL.Path)
+		if c, err := util.Asset(pathOnAsset); err == nil {
+			i, err := util.AssetInfo(pathOnAsset)
+			if err != nil {
+				log.Fatal(err)
+			}
+			reader := bytes.NewReader(c)
+			http.ServeContent(w, r, path.Base(r.URL.Path), i.ModTime(), reader)
 			return
 		}
 

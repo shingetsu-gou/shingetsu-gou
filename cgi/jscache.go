@@ -34,7 +34,6 @@ import (
 	"os"
 	"path"
 	"sort"
-	"strings"
 	"time"
 
 	"github.com/shingetsu-gou/shingetsu-gou/util"
@@ -54,8 +53,31 @@ type jsCache struct {
 }
 
 //newJsCache return jsCache instnace and parse all js files under path dir.
-func newJsCache(path string) *jsCache {
-	j := &jsCache{path: path, files: make(map[string]*finfo)}
+func newJsCache(pth string) *jsCache {
+	j := &jsCache{path: pth, files: make(map[string]*finfo)}
+	d, err := util.AssetDir("www")
+	if err != nil {
+		log.Fatal(err)
+	}
+	for _, f := range d {
+		if path.Ext(f) != ".js" {
+			continue
+		}
+		fname := path.Join("www", f)
+		c, err := util.Asset(fname)
+		if err != nil {
+			log.Fatal(err)
+		}
+		i, err := util.AssetInfo(fname)
+		if err != nil {
+			log.Fatal(err)
+		}
+		mt := i.ModTime()
+		j.files[f] = &finfo{
+			mtime: &mt,
+			cont:  c,
+		}
+	}
 	j.update()
 	return j
 }
@@ -93,10 +115,13 @@ func (j *jsCache) update() {
 	for k := range j.files {
 		j.files[k].exist = false
 	}
+	if !util.IsDir(j.path) {
+		return
+	}
 	err := util.EachFiles(j.path, func(f os.FileInfo) error {
 		var err error
 		name := f.Name()
-		if !strings.HasSuffix(name, ".js") || strings.HasPrefix(name, ".") || strings.HasPrefix(name, "_") {
+		if !util.HasExt(name, ".js") {
 			return nil
 		}
 		oldfi, exist := j.files[name]

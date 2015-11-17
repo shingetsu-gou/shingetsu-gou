@@ -3,6 +3,7 @@
  */}}
 {{define "top"}}
 {{$root:=.}}
+<div style="background:url(/arazuki_saku.png) no-repeat 100% 0%;">
 <ul class="topmenu">
   <li>{{.GatewayLink.Render .GatewayCGI "changes"}}</li>
   <li>{{.GatewayLink.Render .GatewayCGI "index"}}</li>
@@ -51,3 +52,4 @@
   </ul>
 {{ end }}
 {{end}}
+</div>

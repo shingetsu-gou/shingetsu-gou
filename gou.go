@@ -59,30 +59,27 @@ func init() {
 	}
 }
 
-//expandAssets expands all files in a Assets if not exist in disk.
+//expandAssets expands files in /file in an Assets if not exist in disk.
 func expandAssets(fileDir, templateDir, docroot string) {
-	dname := map[string]string{
-		"file":         fileDir,
-		"gou_template": templateDir,
-		"www":          docroot,
+	dir, err := util.AssetDir("file")
+	if err != nil {
+		log.Fatal(err)
 	}
-
-	for _, fname := range AssetNames() {
-		dir := strings.Split(fname, "/")[0]
-		fnameDisk := strings.Replace(fname, dir, dname[dir], 1)
+	for _, fname := range dir {
+		fnameDisk := path.Join(fileDir, fname)
+		fnameDisk = filepath.FromSlash(fnameDisk)
 		if util.IsFile(fnameDisk) {
 			continue
 		}
-		fnameDisk = filepath.FromSlash(fnameDisk)
 		log.Println("expanding", fnameDisk)
-		path, _ := filepath.Split(fnameDisk)
-		if !util.IsDir(path) {
-			err := os.MkdirAll(path, 0755)
+		d := filepath.Dir(fnameDisk)
+		if !util.IsDir(d) {
+			err := os.MkdirAll(d, 0755)
 			if err != nil {
-				log.Fatal(err, path)
+				log.Fatal(err, d)
 			}
 		}
-		c, err := Asset(fname)
+		c, err := util.Asset(path.Join("file", fname))
 		if err != nil {
 			log.Fatal(err)
 		}

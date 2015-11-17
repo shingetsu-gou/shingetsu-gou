@@ -153,7 +153,7 @@ func newNode(nodestr string) (*Node, error) {
 
 //urlopen retrievs html data from url
 func (n *Node) urlopen(url string, timeout time.Duration) ([]string, error) {
-	ua := "shinGETsu/0.7 (Gou/" + n.Version + ")"
+	ua := "shinGETsuPlus/0.8alpha (Gou/" + n.Version + ")"
 
 	req, err := http.NewRequest("GET", url, nil)
 	if err != nil {

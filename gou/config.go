@@ -120,6 +120,7 @@ type Config struct {
 	ForceThumbnail       bool
 	EnableProf           bool
 	HeavyMoon            bool
+	EnableEmbed          bool
 	// asis, md5, sha1, sha224, sha256, sha384, or sha512
 	//	cache_hash_method = "asis"
 	//others are not implemented for gou for now.
@@ -169,14 +170,15 @@ func (c *Config) initVariables(i *ini.File) {
 	c.RecentRange = getInt64Value(i, "Gateway", "recent_range", 31*24*60*60)
 	c.RecordLimit = getIntValue(i, "Gateway", "record_limit", 2048)
 	c.Enable2ch = getBoolValue(i, "Gateway", "enable_2ch", false)
-	c.EnableNAT = getBoolValue(i, "Gateway", "enable_nat", false)
+	c.EnableNAT = getBoolValue(i, "Gateway", "enable_nat", true)
 	c.EnableProf = getBoolValue(i, "Gateway", "enable_prof", false)
 	c.HeavyMoon = getBoolValue(i, "Gateway", "moonlight", false)
+	c.EnableEmbed = getBoolValue(i, "Gateway", "enabme_embed", true)
 	c.LogDir = getPathValue(i, "Path", "log_dir", "./log") //path from cwd
 	c.ThreadPageSize = getIntValue(i, "Application Thread", "page_size", 50)
 	c.DefaultThumbnailSize = getStringValue(i, "Application Thread", "thumbnail_size", "")
 	c.ForceThumbnail = getBoolValue(i, "Application Thread", "force_thumbnail", false)
-	ctype := "Application thread"
+	ctype := "Application Thread"
 	c.SaveRecord = getInt64Value(i, ctype, "save_record", 0)
 	c.SaveSize = getIntValue(i, ctype, "save_size", 1)
 	c.GetRange = getInt64Value(i, ctype, "get_range", 31*24*60*60)

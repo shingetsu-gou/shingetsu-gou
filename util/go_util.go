@@ -55,9 +55,9 @@ import (
 
 //provider represents oembed provider.
 type provider struct {
-	Provider_name string
-	Provider_url  string
-	Endpoints     []struct {
+	ProviderName string `json:"provider_name"`
+	ProviderURL  string `json:"provider_url"`
+	Endpoints    []struct {
 		Schemes   []string
 		URL       string
 		Discovery bool
@@ -361,48 +361,51 @@ func miscURL(url string) string {
 	return ""
 }
 
-//EmbedURL gets the url for embeding by using oEmbed API.
-func EmbedURL(url string) string {
-	if e := miscURL(url); e != "" {
-		return e
+//getJSON get json and converts map[string]interface{} from url by using GET.
+func getJSON(url string) (map[string]interface{}, error) {
+	resp, err := http.Get(url)
+	if err != nil {
+		log.Print(err)
+		return nil, err
 	}
+	defer Fclose(resp.Body)
+	js, err := ioutil.ReadAll(resp.Body)
+	if err != nil {
+		log.Print(err)
+		return nil, err
+	}
+	var m map[string]interface{}
+	if err := json.Unmarshal(js, &m); err != nil {
+		log.Print(string(js), err)
+		return nil, err
+	}
+	return m, err
+}
 
+//oEmbedURL returns url for embed by using oEmbed.
+func oEmbedURL(url string) string {
 	for _, p := range prov {
-		match, err := regexp.Match(p.Provider_url, []byte(url))
+		match, err := regexp.MatchString(p.ProviderURL, url)
 		if err != nil {
 			log.Println(err)
 			continue
 		}
 		for _, e := range p.Endpoints {
 			for _, s := range e.Schemes {
-				match2, err := regexp.Match(".*"+s+".*", []byte(url))
+				match2, err := regexp.MatchString(".*"+s+".*", url)
 				if err != nil {
 					log.Print(err)
 					continue
 				}
 				match = match || match2
-				if match {
-					break
-				}
 			}
 			if !match {
 				continue
 			}
 			log.Println("geting embed url from", e.URL)
-			resp, err := http.Get(e.URL + "?url=" + url + "&format=json")
+			m, err := getJSON(e.URL + "?url=" + url + "&format=json")
 			if err != nil {
 				log.Print(err)
-				continue
-			}
-			defer resp.Body.Close()
-			js, err := ioutil.ReadAll(resp.Body)
-			if err != nil {
-				log.Print(err)
-				continue
-			}
-			var m map[string]interface{}
-			if err := json.Unmarshal(js, &m); err != nil {
-				log.Print(string(js), err)
 				continue
 			}
 			if html, ok := m["html"].(string); ok {
@@ -411,4 +414,17 @@ func EmbedURL(url string) string {
 		}
 	}
 	return ""
+}
+
+//EmbedURL gets the url for embeding by using oEmbed API.
+func EmbedURL(url string) string {
+	if e := miscURL(url); e != "" {
+		return e
+	}
+	return oEmbedURL(url)
+}
+
+//HasExt returns true if fname has prefix and not secret.
+func HasExt(fname, suffix string) bool {
+	return strings.HasSuffix(fname, "."+suffix) && (!strings.HasPrefix(fname, ".") || strings.HasPrefix(fname, "_"))
 }

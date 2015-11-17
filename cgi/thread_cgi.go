@@ -399,9 +399,11 @@ func (t *threadCGI) printThread(path, id string, nPage int) {
 
 //printThreadAjax renders records in cache id for ajax.
 func (t *threadCGI) printThreadAjax(id string) {
-	filePath := util.FileEncode("thread", t.path())
+	th := strings.Split(t.path(), "/")[0]
+	filePath := util.FileEncode("thread", th)
 	ca := thread.NewCache(filePath)
 	if !ca.HasRecord() {
+		log.Println(filePath, "not found")
 		return
 	}
 	fmt.Fprintln(t.wr, "<dl>")
