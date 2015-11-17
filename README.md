@@ -115,6 +115,7 @@ shingetsu-gou <options>
 		* update.txt
 7. dnsname in config.py is same as server_name in saku.ini in Gou.
 8. Gou has moonlight-like function (I believe), _heavymoon_. Add [Gateway] moonlight:true in saku.ini if you want to use. THIS FUNCTION IS NOT RECOMMENDED because of _heavy_ network load.
+9. Contents of some links are embed into the thread. If you don't like it you can disable by [Gateway] enable_embed:false.
 
 # Note
 
