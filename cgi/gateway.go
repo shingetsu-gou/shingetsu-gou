@@ -466,7 +466,6 @@ func (c *cgi) htmlFormat(plain, appli string, title string, absuri bool) string 
 			strs = append(strs, s)
 			for _, link := range regLink.FindAllString(str, -1) {
 				e := util.EmbedURL(link)
-				log.Println(link, e)
 				if e != "" {
 					strs = append(strs, e)
 					strs = append(strs, "")

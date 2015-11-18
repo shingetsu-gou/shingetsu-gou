@@ -97,7 +97,6 @@ shingetsu-gou <options>
 4. URL for 2ch interface /2ch_hoehoe/subject.txt in saku is /2ch/hoehoe/subject.txt in Gou.
 5. files in template directory are not compatible with Gou and Saku. The default template directory name in Gou is "gou_template/".
 6. Duplicate files are not used. i.e. files below are not used in Gou. If you want to use saku after using Gou to same cache files, you must run gou command once with --sakurifice option before using skau to complement some indispensable files.
-
 	* in cache directory
 		* body directory
 		* attach directory

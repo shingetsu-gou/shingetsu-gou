@@ -70,8 +70,12 @@ func NewManager(cfg *ManagerConfig) *Manager {
 	err := util.EachKeyValueLine(cfg.Lookup, func(key string, value []string, i int) error {
 		var nl Slice
 		for _, v := range value {
+			if v == "" {
+				continue
+			}
 			nn, err := newNode(v)
 			if err != nil {
+				log.Println("line", i, "in lookup.txt,err=", err, v)
 				continue
 			}
 			nl = append(nl, nn)
@@ -323,12 +327,17 @@ func (lt *Manager) Initialize() {
 		}
 		inodes = append(inodes, nn)
 	}
+	var wg sync.WaitGroup
 	for _, inode := range inodes {
-		if _, err := inode.Ping(); err == nil {
-			lt.Join(inode)
-			break
-		}
+		wg.Add(1)
+		go func(inode *Node) {
+			defer wg.Done()
+			if _, err := inode.Ping(); err == nil {
+				lt.Join(inode)
+			}
+		}(inode)
 	}
+	wg.Wait()
 	if lt.ListLen() > 0 {
 		lt.moreNodes()
 	}
@@ -445,26 +454,35 @@ func (lt *Manager) EachNodes(datfile string, nodes []*Node, fn func(*Node) bool)
 		ns = ns.Extend(lt.Random(ns, searchDepth-ns.Len()))
 	}
 	count := 0
+	found := false
+	var wg sync.WaitGroup
+	var mutex sync.Mutex
 	for _, n := range ns {
 		if n.equals(lt.Myself.toNode()) || !n.IsAllowed() {
 			continue
 		}
-		log.Println(datfile)
-		res, err := n.Talk("/have/" + datfile)
-		if err == nil && len(res) > 0 && res[0] == "YES" {
-			lt.AppendToTable(datfile, n)
-			lt.Sync()
-			if fn(n) {
-				return true
+		wg.Add(1)
+		go func(n *Node) {
+			defer wg.Done()
+			res, err := n.Talk("/have/" + datfile)
+			if err == nil && len(res) > 0 && res[0] == "YES" {
+				lt.AppendToTable(datfile, n)
+				lt.Sync()
+				if fn(n) {
+					mutex.Lock()
+					found = true
+					mutex.Unlock()
+				}
 			}
-		}
-		lt.RemoveFromTable(datfile, n)
+			lt.RemoveFromTable(datfile, n)
+		}(n)
 		if count++; count > searchDepth {
 			break
 		}
 	}
+	wg.Wait()
 	log.Println("# of nodelist:", lt.ListLen())
-	return false
+	return found
 }
 
 //Rejoin adds nodes in searchlist if ping is ok and len(nodelist)<defaultNodes
@@ -503,26 +521,38 @@ func (lt *Manager) PingAll() {
 	for _, n := range lt.nodes[""] {
 		ns = append(ns, n)
 	}
+	var wg sync.WaitGroup
 	lt.mutex.RUnlock()
 	for _, n := range ns {
 		if n == nil {
 			lt.RemoveFromAllTable(n)
 			continue
 		}
-		if _, err := n.Ping(); err != nil {
-			lt.RemoveFromAllTable(n)
-		}
+		wg.Add(1)
+		go func(n *Node) {
+			defer wg.Done()
+			if _, err := n.Ping(); err != nil {
+				lt.RemoveFromAllTable(n)
+			}
+		}(n)
 	}
+	wg.Wait()
 }
 
 //RejoinList joins all node in nodelist.
 func (lt *Manager) RejoinList() {
 	lt.mutex.RLock()
 	defer lt.mutex.RUnlock()
+	var wg sync.WaitGroup
 	for _, n := range lt.nodes[""] {
-		_, err := n.join()
-		if err != nil {
-			log.Println(err)
-		}
+		wg.Add(1)
+		go func(n *Node) {
+			defer wg.Done()
+			_, err := n.join()
+			if err != nil {
+				log.Println(err)
+			}
+		}(n)
 	}
+	wg.Wait()
 }

@@ -114,7 +114,12 @@ func EachKeyValueLine(path string, handler func(key string, value []string, num 
 			log.Fatal("illegal line in", path)
 		}
 		vs := strings.Split(kv[1], " ")
-		err := handler(kv[0], vs, i)
+		var err error
+		if len(vs) == 1 && vs[0] == "" {
+			err = handler(kv[0], nil, i)
+		} else {
+			err = handler(kv[0], vs, i)
+		}
 		return err
 	})
 	return err

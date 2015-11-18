@@ -210,31 +210,37 @@ func (r *RecentList) Getall() {
 	}
 	nodes := r.NodeManager.Random(nil, searchNodes)
 	var res []string
+	var wg sync.WaitGroup
 	for _, n := range nodes {
-		var err error
-		res, err = n.Talk("/recent/" + strconv.FormatInt(begin, 10) + "-")
-		if err != nil {
-			r.NodeManager.RemoveFromAllTable(n)
-			log.Println(err)
-			continue
-		}
-		for _, line := range res {
-			rec := makeRecord(line)
-			if rec == nil {
-				continue
+		wg.Add(1)
+		go func(n *node.Node) {
+			defer wg.Done()
+			var err error
+			res, err = n.Talk("/recent/" + strconv.FormatInt(begin, 10) + "-")
+			if err != nil {
+				r.NodeManager.RemoveFromAllTable(n)
+				log.Println(err)
+				return
 			}
-			r.Append(rec)
-			tags := strings.Fields(strings.TrimSpace(rec.GetBodyValue("tag", "")))
-			if len(tags) > r.TagSize {
-				util.Shuffle(sort.StringSlice(tags))
-				tags = tags[:r.TagSize]
+			for _, line := range res {
+				rec := makeRecord(line)
+				if rec == nil {
+					continue
+				}
+				r.Append(rec)
+				tags := strings.Fields(strings.TrimSpace(rec.GetBodyValue("tag", "")))
+				if len(tags) > r.TagSize {
+					util.Shuffle(sort.StringSlice(tags))
+					tags = tags[:r.TagSize]
+				}
+				if len(tags) > 0 {
+					r.SuggestedTagTable.addString(rec.Datfile, tags)
+					r.NodeManager.AppendToTable(rec.Datfile, n)
+				}
 			}
-			if len(tags) > 0 {
-				r.SuggestedTagTable.addString(rec.Datfile, tags)
-				r.NodeManager.AppendToTable(rec.Datfile, n)
-			}
-		}
+		}(n)
 	}
+	wg.Wait()
 	r.Sync()
 	r.NodeManager.Sync()
 	r.SuggestedTagTable.prune(r)

@@ -272,7 +272,6 @@ func doGetHead(w http.ResponseWriter, r *http.Request) {
 	method, datfile, stamp := m[1], m[2], m[3]
 	ca := thread.NewCache(datfile)
 	begin, end, id := s.parseStamp(stamp, ca.ReadInfo().Stamp)
-	log.Println(begin, end, id)
 	recs := ca.LoadRecords()
 	for _, r := range recs {
 		if begin <= r.Stamp && r.Stamp <= end && (id == "" || strings.HasSuffix(r.Idstr(), id)) {
@@ -282,10 +281,8 @@ func doGetHead(w http.ResponseWriter, r *http.Request) {
 					log.Println(err)
 				}
 				fmt.Fprintln(s.wr, r.Recstr())
-				log.Println(r.Recstr())
 			} else {
 				fmt.Fprintln(s.wr, strings.Replace(r.Idstr(), "_", "<>", -1))
-				log.Println(strings.Replace(r.Idstr(), "_", "<>", -1))
 			}
 		}
 	}

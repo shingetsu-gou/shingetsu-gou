@@ -322,18 +322,7 @@ func (c *Cache) Exists() bool {
 //return true if gotten records>0
 func (c *Cache) getWithRange(n *node.Node) bool {
 	now := time.Now().Unix()
-	inf := c.ReadInfo()
-
-	begin := inf.Stamp
-	begin2 := now - c.SyncRange
-	if begin2 < begin {
-		begin = begin2
-	}
-
-	if !c.HasRecord() {
-		begin = now - c.GetRange
-	}
-
+	begin := now - c.GetRange
 	res, err := n.Talk(fmt.Sprintf("/get/%s/%d-", c.Datfile, begin))
 	if err != nil {
 		return false
