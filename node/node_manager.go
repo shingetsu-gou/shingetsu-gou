@@ -444,8 +444,9 @@ func (lt *Manager) Sync() {
 //EachNodes checks one allowed nodes which selected randomly from nodes which has the datfile record and run fn.
 //if not found,n is removed from lookuptable. also if not pingable  removes n from searchlist and cache c.
 //if found, n is added to lookuptable.
-func (lt *Manager) EachNodes(datfile string, nodes []*Node, fn func(*Node) bool) bool {
+func (lt *Manager) EachNodes(oneNode bool, datfile string, nodes []*Node, fn func(*Node) bool) bool {
 	const searchDepth = 5 // Search node size
+	done := make(chan struct{}, searchDepth)
 	var ns Slice
 	ns = ns.Extend(nodes)
 	ns = ns.Extend(lt.Get(datfile, nil))
@@ -466,20 +467,27 @@ func (lt *Manager) EachNodes(datfile string, nodes []*Node, fn func(*Node) bool)
 		wg.Add(1)
 		go func(n *Node) {
 			defer wg.Done()
-			res, err := n.Talk("/have/" + datfile)
-			if err == nil && len(res) > 0 && res[0] == "YES" {
+			if fn(n) {
 				lt.AppendToTable(datfile, n)
 				lt.Sync()
-				if fn(n) {
-					mutex.Lock()
-					found = true
-					mutex.Unlock()
-				}
+				mutex.Lock()
+				found = true
+				done <- struct{}{}
+				mutex.Unlock()
+				return
 			}
 			lt.RemoveFromTable(datfile, n)
 		}(n)
 	}
-	wg.Wait()
+	go func() {
+		wg.Wait()
+		done <- struct{}{}
+	}()
+	if oneNode {
+		<-done
+	} else {
+		wg.Wait()
+	}
 	return found
 }
 

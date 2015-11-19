@@ -98,7 +98,7 @@ func doSync(nodeManager *node.Manager, recentList *thread.RecentList, heavymoon 
 	cl.RemoveRemoved()
 	log.Println("cachelist.cleanRecords finished")
 
-	if !running {
+	if heavymoon && !running {
 		running = true
 		go func(cl *thread.CacheList) {
 			log.Println("cacheList.getall start")

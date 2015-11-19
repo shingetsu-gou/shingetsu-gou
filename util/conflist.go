@@ -108,9 +108,12 @@ type RegexpList struct {
 
 //NewRegexpList makes a regexpList and regexp.comples each lines in the file.
 func NewRegexpList(path string) *RegexpList {
-	c := NewConfList(path, []string{})
-	r := &RegexpList{}
-	r.ConfList = c
+	c := &ConfList{
+		path: path,
+	}
+	r := &RegexpList{
+		ConfList: c,
+	}
 	r.update()
 	return r
 }

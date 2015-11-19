@@ -202,7 +202,7 @@ func (c *CacheList) Getall() {
 		wg.Add(1)
 		go func(ca *Cache) {
 			defer wg.Done()
-			ca.GetCache()
+			ca.GetCache(false)
 		}(ca)
 	}
 	wg.Wait()

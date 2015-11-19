@@ -214,9 +214,9 @@ func (m *mchCGI) threadApp(board, datkey string) {
 
 	if m.checkGetCache() {
 		if data.Exists() || i.Len == 0 {
-			data.GetCache()
+			data.GetCache(true)
 		} else {
-			go data.GetCache()
+			go data.GetCache(false)
 		}
 	}
 
