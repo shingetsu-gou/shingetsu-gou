@@ -56,9 +56,11 @@ import (
 //provider represents oembed provider.
 type provider struct {
 	ProviderName string `json:"provider_name"`
+	providerName *regexp.Regexp
 	ProviderURL  string `json:"provider_url"`
 	Endpoints    []struct {
 		Schemes   []string
+		schemes   []*regexp.Regexp
 		URL       string
 		Discovery bool
 	}
@@ -71,6 +73,20 @@ var prov []*provider
 func init() {
 	if err := json.Unmarshal([]byte(oembedProviders), &prov); err != nil {
 		log.Fatal(err)
+	}
+	for _, p := range prov {
+		var err error
+		if p.providerName, err = regexp.Compile(p.ProviderName); err != nil {
+			log.Println(err)
+		}
+		for _, e := range p.Endpoints {
+			e.schemes = make([]*regexp.Regexp, len(e.Schemes))
+			for i, s := range e.Schemes {
+				if e.schemes[i], err = regexp.Compile(".*" + s + ".*"); err != nil {
+					log.Println(err)
+				}
+			}
+		}
 	}
 }
 
@@ -390,19 +406,16 @@ func getJSON(url string) (map[string]interface{}, error) {
 //oEmbedURL returns url for embed by using oEmbed.
 func oEmbedURL(url string) string {
 	for _, p := range prov {
-		match, err := regexp.MatchString(p.ProviderURL, url)
-		if err != nil {
-			log.Println(err)
-			continue
+		match := false
+		if p.providerName != nil {
+			match = p.providerName.MatchString(url)
 		}
 		for _, e := range p.Endpoints {
-			for _, s := range e.Schemes {
-				match2, err := regexp.MatchString(".*"+s+".*", url)
-				if err != nil {
-					log.Print(err)
+			for _, s := range e.schemes {
+				if s == nil {
 					continue
 				}
-				match = match || match2
+				match = match || s.MatchString(url)
 			}
 			if !match {
 				continue

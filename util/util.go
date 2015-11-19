@@ -58,10 +58,10 @@ func StrEncode(query string) string {
 func EscapeSpace(msg string) string {
 	msg = strings.Replace(msg, "  ", "&nbsp;&nbsp;", -1)
 	msg = strings.Replace(msg, "<br> ", "<br>&nbsp;", -1)
-	if msg[0] == ' ' {
+	if len(msg) > 0 && msg[0] == ' ' {
 		msg = "&nbsp;" + msg[1:]
 	}
-	if msg[len(msg)-1] == ' ' {
+	if len(msg) > 0 && msg[len(msg)-1] == ' ' {
 		msg = msg[:len(msg)-1] + "&nbsp;"
 	}
 	msg = strings.Replace(msg, "<br>", "<br />\n", -1)
