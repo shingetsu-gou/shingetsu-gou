@@ -289,7 +289,6 @@ func (c *Cache) checkData(res []string, stamp int64, id string, begin, end int64
 			continue
 		}
 		if r.Exists() || r.Removed() {
-			log.Println(c.Datfile,"exists")
 			continue
 		}
 		r.Sync()

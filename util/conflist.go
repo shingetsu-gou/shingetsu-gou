@@ -70,20 +70,20 @@ func (r *ConfList) GetData() []string {
 }
 
 //update read the file if newer, and stores all lines in the file.
-func (r *ConfList) update() {
+func (r *ConfList) update() bool {
 	r.mutex.Lock()
 	defer r.mutex.Unlock()
 	if r.path == "" {
-		return
+		return false
 	}
 	s, err := os.Stat(r.path)
 	if err != nil {
 		r.data = nil
-		return
+		return false
 	}
 	mtime := s.ModTime()
 	if r.mtime != nil && !mtime.After(*r.mtime) {
-		return
+		return false
 	}
 	r.mtime = &mtime
 	r.data = r.data[:0]
@@ -96,6 +96,7 @@ func (r *ConfList) update() {
 	if err != nil {
 		log.Fatal(err)
 	}
+	return true
 }
 
 //RegexpList represents RegExp list.
@@ -129,7 +130,9 @@ func (r *RegexpList) Check(target string) bool {
 
 //update read the file and regexp.comples each lines in the file if file is newer.
 func (r *RegexpList) update() {
-	r.ConfList.update()
+	if !r.ConfList.update() {
+		return
+	}
 	r.mutex.Lock()
 	defer r.mutex.Unlock()
 	r.regs = r.regs[:0]
