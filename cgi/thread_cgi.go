@@ -263,6 +263,7 @@ func (t *threadCGI) printTag(ca *thread.Cache) {
 func (t *threadCGI) printThreadHead(path, id string, page int, ca *thread.Cache, rss string) error {
 	switch {
 	case ca.HasRecord():
+		ca.GetCache()
 	case t.checkGetCache():
 		ca.SetupDirectories()
 		if t.req.FormValue("search_new_file") == "" {
