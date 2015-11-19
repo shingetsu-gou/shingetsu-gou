@@ -334,7 +334,7 @@ func (c *Cache) getWithRange(n *node.Node) bool {
 	if err == nil || count > 0 {
 		log.Println(c.Datfile, count, "records were saved")
 	}
-	return count > 0
+	return len(res)>0 && c.ReadInfo().Len > 0
 }
 
 //GetCache checks  nodes in lookuptable have the cache.
