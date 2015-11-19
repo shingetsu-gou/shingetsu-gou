@@ -55,14 +55,14 @@ import (
 
 //provider represents oembed provider.
 type provider struct {
-	ProviderName string `json:"provider_name"`
-	providerName *regexp.Regexp
-	ProviderURL  string `json:"provider_url"`
-	Endpoints    []struct {
-		Schemes   []string
-		schemes   []*regexp.Regexp
-		URL       string
-		Discovery bool
+	ProviderName    string `json:"provider_name"`
+	ProviderURL     string `json:"provider_url"`
+	regProviderURL *regexp.Regexp
+	Endpoints       []*struct {
+		Schemes    []string
+		regSchemes []*regexp.Regexp
+		URL        string
+		Discovery  bool
 	}
 }
 
@@ -75,16 +75,11 @@ func init() {
 		log.Fatal(err)
 	}
 	for _, p := range prov {
-		var err error
-		if p.providerName, err = regexp.Compile(p.ProviderName); err != nil {
-			log.Println(err)
-		}
+		p.regProviderURL= regexp.MustCompile(p.ProviderURL	+ ".*")
 		for _, e := range p.Endpoints {
-			e.schemes = make([]*regexp.Regexp, len(e.Schemes))
+			e.regSchemes = make([]*regexp.Regexp, len(e.Schemes))
 			for i, s := range e.Schemes {
-				if e.schemes[i], err = regexp.Compile(".*" + s + ".*"); err != nil {
-					log.Println(err)
-				}
+				e.regSchemes[i] = regexp.MustCompile(s + ".*")
 			}
 		}
 	}
@@ -407,11 +402,11 @@ func getJSON(url string) (map[string]interface{}, error) {
 func oEmbedURL(url string) string {
 	for _, p := range prov {
 		match := false
-		if p.providerName != nil {
-			match = p.providerName.MatchString(url)
+		if p.regProviderURL!= nil {
+			match = p.regProviderURL.MatchString(url)
 		}
 		for _, e := range p.Endpoints {
-			for _, s := range e.schemes {
+			for _, s := range e.regSchemes {
 				if s == nil {
 					continue
 				}
