@@ -284,11 +284,12 @@ func (c *Cache) checkData(res []string, stamp int64, id string, begin, end int64
 	count := 0
 	for _, i := range res {
 		r := NewRecord(c.Datfile, "")
-		if r.Exists() {
-			continue
-		}
 		if errr := r.parse(i); errr != nil {
 			err = errGet
+			continue
+		}
+		if r.Exists() || r.Removed() {
+			log.Println(c.Datfile,"exists")
 			continue
 		}
 		r.Sync()
