@@ -381,7 +381,7 @@ func getJSON(url string) (map[string]interface{}, error) {
 	}
 	var m map[string]interface{}
 	if err := json.Unmarshal(js, &m); err != nil {
-		log.Print(string(js), err)
+		log.Print(err)
 		return nil, err
 	}
 	return m, err

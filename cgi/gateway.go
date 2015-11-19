@@ -314,25 +314,26 @@ func (c *cgi) extension(suffix string, useMerged bool) []string {
 			filename = append(filename, fname)
 		}
 	}
-	err = util.EachFiles(c.Docroot, func(f os.FileInfo) error {
-		i := f.Name()
-		if util.HasExt(i, suffix) {
-			if !util.HasString(filename, i) {
-				filename = append(filename, i)
+	if util.IsDir(c.Docroot) {
+		err = util.EachFiles(c.Docroot, func(f os.FileInfo) error {
+			i := f.Name()
+			if util.HasExt(i, suffix) {
+				if !util.HasString(filename, i) {
+					filename = append(filename, i)
+				}
+			} else {
+				if useMerged && i == "__merged."+suffix {
+					merged = i
+				}
 			}
-		} else {
-			if useMerged && i == "__merged."+suffix {
-				merged = i
-			}
+			return nil
+		})
+		if err != nil {
+			log.Println(err)
 		}
-		return nil
-	})
-	if err != nil {
-		log.Println(err)
-	}
-
-	if merged != "" {
-		return []string{merged}
+		if merged != "" {
+			return []string{merged}
+		}
 	}
 	sort.Strings(filename)
 	return filename

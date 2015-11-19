@@ -445,15 +445,17 @@ func (lt *Manager) Sync() {
 //if not found,n is removed from lookuptable. also if not pingable  removes n from searchlist and cache c.
 //if found, n is added to lookuptable.
 func (lt *Manager) EachNodes(datfile string, nodes []*Node, fn func(*Node) bool) bool {
-	const searchDepth = 30 // Search node size
-
-	ns := lt.Get(datfile, nil)
-	ns.Extend(lt.Get("", nil))
-	ns.Extend(nodes)
+	const searchDepth = 5 // Search node size
+	var ns Slice
+	ns = ns.Extend(nodes)
+	ns = ns.Extend(lt.Get(datfile, nil))
+	ns = ns.Extend(lt.Get("", nil))
 	if ns.Len() < searchDepth {
 		ns = ns.Extend(lt.Random(ns, searchDepth-ns.Len()))
 	}
-	count := 0
+	if ns.Len() > searchDepth {
+		ns = ns[:searchDepth]
+	}
 	found := false
 	var wg sync.WaitGroup
 	var mutex sync.Mutex
@@ -476,12 +478,8 @@ func (lt *Manager) EachNodes(datfile string, nodes []*Node, fn func(*Node) bool)
 			}
 			lt.RemoveFromTable(datfile, n)
 		}(n)
-		if count++; count > searchDepth {
-			break
-		}
 	}
 	wg.Wait()
-	log.Println("# of nodelist:", lt.ListLen())
 	return found
 }
 

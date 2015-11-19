@@ -284,6 +284,9 @@ func (c *Cache) checkData(res []string, stamp int64, id string, begin, end int64
 	count := 0
 	for _, i := range res {
 		r := NewRecord(c.Datfile, "")
+		if r.Exists() {
+			continue
+		}
 		if errr := r.parse(i); errr != nil {
 			err = errGet
 			continue
@@ -293,9 +296,6 @@ func (c *Cache) checkData(res []string, stamp int64, id string, begin, end int64
 		if err == nil {
 			count++
 		}
-	}
-	if count == 0 {
-		return 0, errGet
 	}
 	return count, err
 }
@@ -323,6 +323,9 @@ func (c *Cache) Exists() bool {
 func (c *Cache) getWithRange(n *node.Node) bool {
 	now := time.Now().Unix()
 	begin := now - c.GetRange
+	if c.GetRange == 0 {
+		begin = 0
+	}
 	res, err := n.Talk(fmt.Sprintf("/get/%s/%d-", c.Datfile, begin))
 	if err != nil {
 		return false

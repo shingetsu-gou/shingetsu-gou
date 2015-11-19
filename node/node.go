@@ -161,9 +161,16 @@ func (n *Node) urlopen(url string, timeout time.Duration) ([]string, error) {
 	}
 	req.Header.Set("User-Agent", ua)
 
-	client := &http.Client{
-		Timeout: timeout,
+	transport := http.Transport{
+		Dial: func(network, addr string) (net.Conn, error) {
+			return net.DialTimeout(network, addr, timeout)
+		},
 	}
+
+	client := http.Client{
+		Transport: &transport,
+	}
+
 	resp, err := client.Do(req)
 	if err != nil {
 		log.Println(err)
@@ -171,7 +178,6 @@ func (n *Node) urlopen(url string, timeout time.Duration) ([]string, error) {
 	}
 	var lines []string
 	err = util.EachIOLine(resp.Body, func(line string, i int) error {
-		strings.TrimRight(line, "\r\n")
 		lines = append(lines, line)
 		return nil
 	})
@@ -199,7 +205,7 @@ func (n *Node) toxstring() string {
 
 //Talk talks with n with the message and returns data.
 func (n *Node) Talk(message string) ([]string, error) {
-	const defaultTimeout = 20 * time.Second // Seconds; Timeout for TCP
+	const defaultTimeout = time.Minute // Seconds; Timeout for TCP
 
 	if !strings.HasPrefix(message, "/") {
 		message = "/" + message

@@ -240,8 +240,8 @@ func StartDaemon(cfg *Config, version string) {
 	s := &http.Server{
 		Addr:           h,
 		Handler:        sm,
-		ReadTimeout:    60 * time.Second,
-		WriteTimeout:   60 * time.Second,
+		ReadTimeout:    3 * time.Minute,
+		WriteTimeout:   3 * time.Minute,
 		MaxHeaderBytes: 1 << 20,
 	}
 	nm, rl := initPackages(cfg, version)
