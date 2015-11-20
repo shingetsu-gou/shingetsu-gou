@@ -43,12 +43,19 @@ import (
 	"github.com/shingetsu-gou/shingetsu-gou/util"
 )
 
+const (
+	opened = iota
+	port0
+	relayed
+)
+
 //Myself contains my node info.
 type Myself struct {
 	ip         string
 	Port       int
 	Path       string
 	ServerName string
+	stat       int
 	mutex      sync.RWMutex
 }
 
@@ -59,6 +66,20 @@ func NewMyself(port int, path string, serverName string) *Myself {
 		Path:       path,
 		ServerName: serverName,
 	}
+}
+
+//isPort0 returns port0 or not.
+func (m *Myself) IsPort0() bool {
+	m.mutex.RLock()
+	defer m.mutex.RUnlock()
+	return m.stat == port0
+}
+
+//setPort0 set to be behind NAT(port0).
+func (m *Myself) setConnection(stat int) {
+	m.mutex.Lock()
+	m.stat = stat
+	m.mutex.Unlock()
 }
 
 //IPPortPath returns node ojb contains ip:port/path.
@@ -261,16 +282,15 @@ func (n *Node) join() (*Node, error) {
 	if err != nil {
 		return nil, err
 	}
-	log.Println(res)
+	log.Println("response of join:", res)
 	switch len(res) {
 	case 0:
 		return nil, errors.New("illegal response")
 	case 1:
-		err = nil
 		if res[0] != "WELCOME" {
-			err = errors.New("not welcomed")
+			return nil, errors.New("not welcomed")
 		}
-		return nil, err
+		return nil, nil
 	}
 	nn, err := newNode(res[1])
 	if err != nil {

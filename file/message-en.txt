@@ -112,4 +112,7 @@ mb<>MB
 kb<>KB
 alloc_mem<>allocated memory
 totalalloc_mem<>total allocated memory
-
+connection_status<>connection
+port0<>cannot write the board due to one-way connection
+relayed<>connection is relayed
+opened<>full connection

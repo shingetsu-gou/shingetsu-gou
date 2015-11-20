@@ -131,6 +131,11 @@ func printStatus(w http.ResponseWriter, r *http.Request) {
 	var mem runtime.MemStats
 	runtime.ReadMemStats(&mem)
 
+	port0 := a.m["opened"]
+	if a.Myself.IsPort0() {
+		port0 = a.m["port0"]
+	}
+
 	s := map[string]string{
 		"known_nodes":  strconv.Itoa(a.NodeManager.NodeLen()),
 		"linked_nodes": strconv.Itoa(a.NodeManager.ListLen()),
@@ -139,6 +144,7 @@ func printStatus(w http.ResponseWriter, r *http.Request) {
 		"cache_size":   fmt.Sprintf("%.1f%s", float64(size)/1024/1024, a.m["mb"]),
 		"self_node":    a.Myself.IPPortPath().Nodestr,
 		"alloc_mem":    fmt.Sprintf("%.1f%s", float64(mem.Alloc)/1024/1024, a.m["mb"]),
+		"connection_status":        port0,
 	}
 	ns := map[string][]string{
 		"known_nodes":  a.NodeManager.GetNodestrSlice(),

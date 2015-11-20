@@ -83,7 +83,7 @@ func websocketRelay(ws *websocket.Conn) {
 	if err != nil || !n.IsAllowed() {
 		return
 	}
-	relay.ServeRelay(host, ws)
+	relay.StartServe(host, ws)
 }
 
 //doPing just resopnse PONG with remote addr.

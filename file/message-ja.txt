@@ -114,4 +114,7 @@ kb<>KB
 google<>Google
 alloc_mem<>使用中メモリ
 totalalloc_mem<>最大使用メモリ
-
+connection_status<>接続
+port0<>片側接続のため書込めません
+relayed<>リレー接続
+opened<>相互接続

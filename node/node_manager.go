@@ -300,8 +300,9 @@ func (lt *Manager) moreNodes() {
 		nn := all[no]
 		newN, err := nn.getNode()
 		if err == nil {
-			if lt.Join(newN) {
+			if lt.Myself.IsPort0() || lt.Join(newN) {
 				all = append(all, newN)
+				lt.appendToList(newN)
 			}
 		}
 		if count++; count > retry {
@@ -328,16 +329,29 @@ func (lt *Manager) Initialize() {
 		inodes = append(inodes, nn)
 	}
 	var wg sync.WaitGroup
+	pingOK := make([]*Node, 0, len(inodes))
+	var mutex sync.Mutex
 	for _, inode := range inodes {
 		wg.Add(1)
 		go func(inode *Node) {
 			defer wg.Done()
 			if _, err := inode.Ping(); err == nil {
+				mutex.Lock()
+				pingOK = append(pingOK, inode)
+				mutex.Unlock()
 				lt.Join(inode)
 			}
 		}(inode)
 	}
 	wg.Wait()
+	if lt.ListLen() == 0 {
+		lt.Myself.setConnection(port0)
+	}
+	if lt.ListLen() == 0 {
+		for _, n := range pingOK {
+			lt.appendToList(n)
+		}
+	}
 	if lt.ListLen() > 0 {
 		lt.moreNodes()
 	}
