@@ -63,6 +63,8 @@ func NewMyself(port int, path string, serverName string) *Myself {
 
 //IPPortPath returns node ojb contains ip:port/path.
 func (m *Myself) IPPortPath() *Node {
+	m.mutex.RLock()
+	defer m.mutex.RUnlock()
 	n, err := MakeNode(m.ip, m.Path, m.Port)
 	if err != nil {
 		log.Fatal(err)

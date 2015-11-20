@@ -302,9 +302,8 @@ func (c *cgi) path() string {
 
 //extentions reads files with suffix in root dir and return them.
 //if __merged file exists return it when useMerged=true.
-func (c *cgi) extension(suffix string, useMerged bool) []string {
+func (c *cgi) extension(suffix string) []string {
 	var filename []string
-	var merged string
 	d, err := util.AssetDir("www")
 	if err != nil {
 		log.Fatal(err)
@@ -321,18 +320,11 @@ func (c *cgi) extension(suffix string, useMerged bool) []string {
 				if !util.HasString(filename, i) {
 					filename = append(filename, i)
 				}
-			} else {
-				if useMerged && i == "__merged."+suffix {
-					merged = i
-				}
 			}
 			return nil
 		})
 		if err != nil {
 			log.Println(err)
-		}
-		if merged != "" {
-			return []string{merged}
 		}
 	}
 	sort.Strings(filename)
@@ -402,7 +394,7 @@ func (c *cgi) header(title, rss string, cookie []*http.Cookie, denyRobot bool) {
 	}
 	var js []string
 	if c.req.FormValue("__debug_js") != "" {
-		js = c.extension("js", false)
+		js = c.extension("js")
 	} else {
 		c.jc.update()
 	}
@@ -426,7 +418,7 @@ func (c *cgi) header(title, rss string, cookie []*http.Cookie, denyRobot bool) {
 		rss,
 		c.jc,
 		js,
-		c.extension("css", false),
+		c.extension("css"),
 		c.makeMenubar("top", rss),
 		denyRobot,
 		time.Now().Unix(),

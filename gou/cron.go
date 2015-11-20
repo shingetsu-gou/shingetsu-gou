@@ -43,7 +43,6 @@ func cron(nodeManager *node.Manager, recentList *thread.RecentList, heavymoon bo
 	const (
 		clientCycle = 20 * time.Minute // Seconds; Access client.cgi
 		pingCycle   = 10 * time.Minute // Seconds; Check nodes
-		syncCycle   = 1 * time.Hour    // Seconds; Check cache
 		initCycle   = 20 * time.Minute // Seconds; Check initial node
 	)
 	nodeManager.Initialize()
@@ -52,20 +51,22 @@ func cron(nodeManager *node.Manager, recentList *thread.RecentList, heavymoon bo
 	for {
 		select {
 		case <-time.After(clientCycle):
+			log.Println("rejoin started")
 			nodeManager.Rejoin()
+			log.Println("rejoin finished")
 
 		case <-time.After(pingCycle):
+			log.Println("ping cycle started")
 			nodeManager.PingAll()
 			nodeManager.Initialize()
 			nodeManager.Sync()
 			doSync(nodeManager, recentList, heavymoon)
-			log.Println("nodelist.pingall finished")
+			log.Println("ping cycle finished")
 
 		case <-time.After(initCycle):
+			log.Println("initialize start")
 			nodeManager.Initialize()
-
-		case <-time.After(syncCycle):
-			doSync(nodeManager, recentList, heavymoon)
+			log.Println("initialize finish")
 		}
 	}
 }

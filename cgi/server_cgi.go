@@ -40,6 +40,9 @@ import (
 	"strings"
 	"time"
 
+	"golang.org/x/net/websocket"
+
+	"github.com/shingetsu-gou/http-relay"
 	"github.com/shingetsu-gou/shingetsu-gou/node"
 	"github.com/shingetsu-gou/shingetsu-gou/thread"
 	"github.com/shingetsu-gou/shingetsu-gou/util"
@@ -49,7 +52,7 @@ import (
 const ServerURL = "/server.cgi"
 
 //ServerSetup setups handlers for server.cgi
-func ServerSetup(s *LoggingServeMux) {
+func ServerSetup(s *LoggingServeMux, enableRelay bool) {
 	s.RegistCompressHandler(ServerURL+"/ping", doPing)
 	s.RegistCompressHandler(ServerURL+"/node", doNode)
 	s.RegistCompressHandler(ServerURL+"/join/", doJoin)
@@ -60,6 +63,27 @@ func ServerSetup(s *LoggingServeMux) {
 	s.RegistCompressHandler(ServerURL+"/update/", doUpdate)
 	s.RegistCompressHandler(ServerURL+"/recent/", doRecent)
 	s.RegistCompressHandler(ServerURL+"/", doMotd)
+	if enableRelay {
+		s.Handle(ServerURL+"/relay/", websocket.Handler(websocketRelay))
+	}
+}
+
+func websocketRelay(ws *websocket.Conn) {
+	s, err := newServerCGI(nil, ws.Request())
+	if err != nil {
+		log.Println(err)
+		return
+	}
+	host, path, port := s.extractHost("relay")
+	host = s.remoteIP(host)
+	if host == "" {
+		return
+	}
+	n, err := node.MakeNode(host, path, port)
+	if err != nil || !n.IsAllowed() {
+		return
+	}
+	relay.ServeRelay(host, ws)
 }
 
 //doPing just resopnse PONG with remote addr.

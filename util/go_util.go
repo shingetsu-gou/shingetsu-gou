@@ -55,10 +55,10 @@ import (
 
 //provider represents oembed provider.
 type provider struct {
-	ProviderName    string `json:"provider_name"`
-	ProviderURL     string `json:"provider_url"`
+	ProviderName   string `json:"provider_name"`
+	ProviderURL    string `json:"provider_url"`
 	regProviderURL *regexp.Regexp
-	Endpoints       []*struct {
+	Endpoints      []*struct {
 		Schemes    []string
 		regSchemes []*regexp.Regexp
 		URL        string
@@ -75,7 +75,7 @@ func init() {
 		log.Fatal(err)
 	}
 	for _, p := range prov {
-		p.regProviderURL= regexp.MustCompile(p.ProviderURL	+ ".*")
+		p.regProviderURL = regexp.MustCompile(p.ProviderURL + ".*")
 		for _, e := range p.Endpoints {
 			e.regSchemes = make([]*regexp.Regexp, len(e.Schemes))
 			for i, s := range e.Schemes {
@@ -402,7 +402,7 @@ func getJSON(url string) (map[string]interface{}, error) {
 func oEmbedURL(url string) string {
 	for _, p := range prov {
 		match := false
-		if p.regProviderURL!= nil {
+		if p.regProviderURL != nil {
 			match = p.regProviderURL.MatchString(url)
 		}
 		for _, e := range p.Endpoints {

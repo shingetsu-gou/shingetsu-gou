@@ -248,7 +248,7 @@ func StartDaemon(cfg *Config, version string) {
 	go cron(nm, rl, cfg.HeavyMoon)
 
 	cgi.AdminSetup(sm)
-	cgi.ServerSetup(sm)
+	cgi.ServerSetup(sm, cfg.EnableRelay)
 	cgi.GatewaySetup(sm)
 	cgi.ThreadSetup(sm)
 

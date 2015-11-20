@@ -209,12 +209,12 @@ func (r *RecentList) Getall() {
 		begin = time.Now().Unix() - r.RecentRange
 	}
 	nodes := r.NodeManager.Random(nil, searchNodes)
-	var res []string
 	var wg sync.WaitGroup
 	for _, n := range nodes {
 		wg.Add(1)
 		go func(n *node.Node) {
 			defer wg.Done()
+			var res []string
 			var err error
 			res, err = n.Talk("/recent/" + strconv.FormatInt(begin, 10) + "-")
 			if err != nil {

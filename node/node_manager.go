@@ -426,7 +426,10 @@ func (lt *Manager) stringMap() map[string][]string {
 
 //Sync saves  k=datfile, v=Nodestr map to the file.
 func (lt *Manager) Sync() {
-	if lt.isDirty {
+	lt.mutex.RLock()
+	isDirty := lt.isDirty
+	lt.mutex.RUnlock()
+	if isDirty {
 		m := lt.stringMap()
 		lt.Fmutex.Lock()
 		defer lt.Fmutex.Unlock()
@@ -459,7 +462,7 @@ func (lt *Manager) EachNodes(datfile string, nodes []*Node, fn func(*Node) bool)
 	}
 	found := false
 	var wg sync.WaitGroup
-	var mutex sync.Mutex
+	var mutex sync.RWMutex
 	for _, n := range ns {
 		if n.equals(lt.Myself.toNode()) || !n.IsAllowed() {
 			continue
@@ -484,6 +487,8 @@ func (lt *Manager) EachNodes(datfile string, nodes []*Node, fn func(*Node) bool)
 		done <- struct{}{}
 	}()
 	<-done
+	mutex.RLock()
+	defer mutex.RUnlock()
 	return found
 }
 
@@ -523,8 +528,8 @@ func (lt *Manager) PingAll() {
 	for _, n := range lt.nodes[""] {
 		ns = append(ns, n)
 	}
-	var wg sync.WaitGroup
 	lt.mutex.RUnlock()
+	var wg sync.WaitGroup
 	for _, n := range ns {
 		if n == nil {
 			lt.RemoveFromAllTable(n)
