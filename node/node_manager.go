@@ -152,7 +152,7 @@ func (lt *Manager) Random(exclude Slice, num int) []*Node {
 		all = cand
 	}
 	n := all.Len()
-	if num < n {
+	if num < n && num != 0 {
 		n = num
 	}
 	r := make([]*Node, n)

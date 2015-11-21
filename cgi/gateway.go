@@ -77,7 +77,7 @@ func newMessage(filedir, fname string) message {
 	re := regexp.MustCompile(`^\s*#`)
 	for _, line := range strings.Split(string(dat), "\n") {
 		line = strings.Trim(line, "\r\n")
-		if line=="" || re.MatchString(line) {
+		if line == "" || re.MatchString(line) {
 			continue
 		}
 		buf := strings.Split(line, "<>")

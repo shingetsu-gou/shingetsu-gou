@@ -46,6 +46,9 @@ func cron(nodeManager *node.Manager, recentList *thread.RecentList, heavymoon bo
 	)
 	nodeManager.Initialize()
 	doSync(nodeManager, recentList, heavymoon, true)
+	if myself.IsPort0() {
+		myself.TryRelay(nodeManager)
+	}
 
 	go func() {
 		for {
@@ -56,9 +59,6 @@ func cron(nodeManager *node.Manager, recentList *thread.RecentList, heavymoon bo
 			nodeManager.Sync()
 			nodeManager.Rejoin()
 			doSync(nodeManager, recentList, heavymoon, false)
-			if myself.IsPort0() {
-				go myself.TryRelay(nodeManager.Random(nil, 10))
-			}
 			log.Println("short cycle cron finished")
 		}
 	}()

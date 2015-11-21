@@ -67,7 +67,7 @@ func ServerSetup(s *LoggingServeMux, enableRelay bool) {
 	s.RegistCompressHandler(ServerURL+"/", doMotd)
 	if enableRelay {
 		s.RegistCompressHandler(ServerURL+"/proxy/", doProxy)
-		s.RegistCompressHandler(ServerURL+"/relay/", doRelay)
+		s.HandleFunc(ServerURL+"/relay/", doRelay)
 		s.Handle(ServerURL+"/request_relay/", websocket.Handler(websocketRelay))
 	}
 }
@@ -75,7 +75,7 @@ func ServerSetup(s *LoggingServeMux, enableRelay bool) {
 //doRelay relays url to websocket.
 //e.g. accept http://relay.com:8000/server.cgi/relay/client.com:8000/server.cgi/join/other.com:8000+server.cgi
 func doRelay(w http.ResponseWriter, r *http.Request) {
-	reg := regexp.MustCompile("^" + ServerURL + `/relay/(([^/]+/[^/]*).*)`)
+	reg := regexp.MustCompile("^" + ServerURL + `/relay/(([^/]+)/[^/]*.*)`)
 	m := reg.FindStringSubmatch(r.URL.Path)
 	if m == nil || len(m) < 3 {
 		log.Println("invalid path", r.URL.Path)
@@ -88,7 +88,26 @@ func doRelay(w http.ResponseWriter, r *http.Request) {
 		log.Println(err)
 		return
 	}
-	relay.HandleServer(m[2], w, r, func(res *relay.ResponseWriter) bool {
+	host, port, err := net.SplitHostPort(m[2])
+	if err != nil {
+		log.Println(err)
+		return
+	}
+	p, err := strconv.Atoi(port)
+	if err != nil {
+		log.Println(err)
+		return
+	}
+	n, err := node.MakeNode(host, "/server.cgi", p)
+	if err != nil {
+		log.Println(err)
+		return
+	}
+	if !n.IsAllowed() {
+		log.Println(n, "is not allowed")
+		return
+	}
+	relay.HandleServer(host, w, r, func(res *relay.ResponseWriter) bool {
 		return true
 	})
 	r.URL = backup
@@ -110,7 +129,7 @@ func doProxy(w http.ResponseWriter, r *http.Request) {
 	}
 	reg := regexp.MustCompile("^" + ServerURL + "/proxy/(.*)$")
 	m := reg.FindStringSubmatch(r.URL.Path)
-	if m == nil || len(m) < 2 {
+	if len(m) < 2 {
 		log.Println("invalid path", r.URL.Path)
 		return
 	}
@@ -119,13 +138,8 @@ func doProxy(w http.ResponseWriter, r *http.Request) {
 		log.Println(err)
 		return
 	}
-	cmd := strings.Split(u.Path, "/")
-	if len(cmd) != 4 {
+	if !validPath(u.Path) {
 		log.Println("invalid path", u.Path)
-		return
-	}
-	if !strings.HasPrefix(cmd[1], "join") && !strings.HasPrefix(cmd[1], "bye") && !strings.HasPrefix(cmd[1], "update") {
-		log.Println("path is not for join ,bye and update", cmd[1])
 		return
 	}
 	rp := &httputil.ReverseProxy{
@@ -136,25 +150,41 @@ func doProxy(w http.ResponseWriter, r *http.Request) {
 	rp.ServeHTTP(w, r)
 }
 
+func validPath(path string) bool {
+	cmd := strings.Split(path, "/")
+	switch {
+	case len(cmd) > 2 && (cmd[2] == "bye" || cmd[2] == "join"):
+	case len(cmd) > 5 && cmd[2] == "update":
+	default:
+		return false
+	}
+	return true
+}
+
 //websocketRelay accepts websocket relay.
-//e.g. accept url http://relay.com:8000/server.cgin/request_relay/client.com:8000+server.cgi
-//and client node=client.com:8000/server.cgi
+//e.g. accept url http://relay.com:8000/server.cgin/request_relay/
 func websocketRelay(ws *websocket.Conn) {
-	s, err := newServerCGI(nil, ws.Request())
+	host, port, err := net.SplitHostPort(ws.Request().RemoteAddr)
 	if err != nil {
 		log.Println(err)
 		return
 	}
-	host, path, port := s.extractHost("request_relay")
-	host = s.remoteIP(host)
-	if host == "" {
+	p, err := strconv.Atoi(port)
+	if err != nil {
+		log.Println(err)
 		return
 	}
-	n, err := node.MakeNode(host, path, port)
-	if err != nil || !n.IsAllowed() {
+	n, err := node.MakeNode(host, "/server.cgi", p)
+	if err != nil {
+		log.Println(err)
 		return
 	}
-	relay.StartServe(n.Nodestr, ws)
+	if !n.IsAllowed() {
+		log.Println(n, "is not allowed")
+		return
+	}
+	log.Println(host, "is accepted.")
+	relay.StartServe(host, ws)
 }
 
 //doPing just resopnse PONG with remote addr.
@@ -415,7 +445,9 @@ func newServerCGI(w http.ResponseWriter, r *http.Request) (serverCGI, error) {
 	if c.cgi == nil {
 		return c, errors.New("cannot make CGI")
 	}
-	w.Header().Set("Content-Type", "text/plain")
+	if w != nil {
+		w.Header().Set("Content-Type", "text/plain")
+	}
 
 	return c, nil
 }

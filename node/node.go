@@ -66,14 +66,14 @@ func NewMyself(port int, path string, serverName string, serveHTTP http.HandlerF
 	}
 }
 
-//IsRestricted returns relayed or not.
+//IsRelayed returns true is relayed.
 func (m *Myself) IsRelayed() bool {
 	m.mutex.RLock()
 	defer m.mutex.RUnlock()
 	return m.port0 && m.relayServer != nil
 }
 
-//isPort0 returns port0 or not.
+//IsPort0 returns port0 or not.
 func (m *Myself) IsPort0() bool {
 	m.mutex.RLock()
 	defer m.mutex.RUnlock()
@@ -102,17 +102,18 @@ func (m *Myself) IPPortPath() *Node {
 func (m *Myself) toNode() *Node {
 	m.mutex.RLock()
 	defer m.mutex.RUnlock()
-	if m.ServerName != "" {
-		n, err := MakeNode(m.ServerName, m.Path, m.Port)
-		if err != nil {
-			log.Fatal(err)
-		}
-		return n
+	serverName := m.ServerName
+	if m.ServerName == "" {
+		serverName = m.ip
 	}
-	n, err := MakeNode("", m.Path, m.Port)
+	if m.relayServer != nil {
+		serverName = m.relayServer.Nodestr + "/relay/" + serverName
+	}
+	n, err := newNode(fmt.Sprintf("%s:%d%s", serverName, m.Port, m.Path))
 	if err != nil {
 		log.Fatal(err)
 	}
+	log.Println(n)
 	return n
 }
 
@@ -148,31 +149,51 @@ func (m *Myself) RelayServer() string {
 
 //TryRelay tries to relay myself for each nodes.
 //This returns true if success.
-func (m *Myself) TryRelay(nodes []*Node) bool {
-	for _, n := range nodes {
-		origin := "http://" + m.ip
-		url := "ws://" + n.Nodestr + "/request_relay/" + m.toNode().toxstring()
-		err := relay.HandleClient(url, origin, m.serveHTTP, func(r *http.Request) {
-			//nothing to do for now
-		})
-		if err != nil {
-			log.Println(err)
-		} else {
-			m.mutex.Lock()
-			m.relayServer = n
-			m.mutex.Unlock()
-			return true
+func (m *Myself) TryRelay(manager *Manager) {
+	go func() {
+		closed := make(chan struct{})
+		for {
+			nodes := manager.Random(nil, 0)
+			//!!!!!!!!!!!!!!111
+			n, _ := newNode("192.168.1.23:8000/server.cgi")
+			nodes = append(nodes, n)
+			//!!!!!!!!!!!!!!111
+			for _, n := range nodes {
+				origin := "http://" + m.ip
+				url := "ws://" + n.Nodestr + "/request_relay/"
+				err := relay.HandleClient(url, origin, m.serveHTTP, closed, func(r *http.Request) {
+					//nothing to do for now
+				})
+				if err != nil {
+					log.Println(err)
+				} else {
+					m.mutex.Lock()
+					//!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+					n, err = MakeNode("123.230.131.165", "/server.cgi", 8000)
+					log.Println(err)
+					//!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+					m.relayServer = n
+					m.mutex.Unlock()
+					<-closed
+					m.relayServer = nil
+				}
+			}
 		}
-	}
-	return false
+	}()
 }
 
 //proxyURL returns url for proxy if relayed.
 func (m *Myself) proxyURL(path string) string {
+	m.mutex.RLock()
+	defer m.mutex.RUnlock()
 	if m.relayServer == nil {
 		return path
 	}
-	return m.relayServer.Nodestr + "/proxy/" + path
+	//!!!!!!
+	ssss, err := MakeNode("192.168.1.23", "/server.cgi", 8000)
+	log.Println(err)
+	return ssss.Nodestr + "/proxy/" + path
+	//!!!!!!
 }
 
 //NodeCfg is a global stuf for Node struct. it must be set before using it.
@@ -362,7 +383,7 @@ func (n *Node) bye() bool {
 		log.Println("/bye", n.Nodestr, "error")
 		return false
 	}
-	return (res[0] == "BYEBYE")
+	return len(res) > 0 && (res[0] == "BYEBYE")
 }
 
 //Slice is slice of node.
