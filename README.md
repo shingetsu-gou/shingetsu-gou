@@ -19,7 +19,7 @@ tl;dr
 1.  [ここ](https://github.com/shingetsu-gou/shingetsu-gou/releases)から自分のOSの実行バイナリダウンロード、展開
 3. ./shingetsu-gouで実行
 4. ブラウザでhttp://localhost:8000/をアクセス
-5. uPnP/NAT-PMPでポートを自動で開ける努力はしますが、不可の場合、朔同様自分で開けてください。
+5. uPnP/NAT-PMPでポートを自動で開ける努力はしますが、不可の場合、スレに書き込めません。朔同様自分でポートを開けてください。
 
 ## 朔から移行
 1.  [ここ](https://github.com/shingetsu-gou/shingetsu-gou/releases)から自分のOSの実行バイナリダウンロード、展開

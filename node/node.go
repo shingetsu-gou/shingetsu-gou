@@ -154,10 +154,10 @@ func (m *Myself) TryRelay(manager *Manager) {
 		closed := make(chan struct{})
 		for {
 			nodes := manager.Random(nil, 0)
-			//!!!!!!!!!!!!!!111
-			n, _ := newNode("192.168.1.23:8000/server.cgi")
-			nodes = append(nodes, n)
-			//!!!!!!!!!!!!!!111
+			/*
+				n, _ := newNode("192.168.1.23:8000/server.cgi")
+				nodes = append(nodes, n)
+			*/
 			for _, n := range nodes {
 				origin := "http://" + m.ip
 				url := "ws://" + n.Nodestr + "/request_relay/"
@@ -168,10 +168,10 @@ func (m *Myself) TryRelay(manager *Manager) {
 					log.Println(err)
 				} else {
 					m.mutex.Lock()
-					//!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-					n, err = MakeNode("123.230.131.165", "/server.cgi", 8000)
-					log.Println(err)
-					//!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+					/*
+						n, err = MakeNode("123.230.131.165", "/server.cgi", 8000)
+						log.Println(err)
+					*/
 					m.relayServer = n
 					m.mutex.Unlock()
 					<-closed
@@ -189,11 +189,12 @@ func (m *Myself) proxyURL(path string) string {
 	if m.relayServer == nil {
 		return path
 	}
-	//!!!!!!
+	/*
 	ssss, err := MakeNode("192.168.1.23", "/server.cgi", 8000)
 	log.Println(err)
 	return ssss.Nodestr + "/proxy/" + path
-	//!!!!!!
+	*/
+	return m.relayServer.Nodestr + "/proxy/" + path
 }
 
 //NodeCfg is a global stuf for Node struct. it must be set before using it.
