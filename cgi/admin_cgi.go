@@ -135,16 +135,19 @@ func printStatus(w http.ResponseWriter, r *http.Request) {
 	if a.Myself.IsPort0() {
 		port0 = a.m["port0"]
 	}
+	if a.Myself.IsRelayed() {
+		port0 = a.m["relay"]+a.Myself.RelayServer()
+	}
 
 	s := map[string]string{
-		"known_nodes":  strconv.Itoa(a.NodeManager.NodeLen()),
-		"linked_nodes": strconv.Itoa(a.NodeManager.ListLen()),
-		"files":        strconv.Itoa(cl.Len()),
-		"records":      strconv.Itoa(records),
-		"cache_size":   fmt.Sprintf("%.1f%s", float64(size)/1024/1024, a.m["mb"]),
-		"self_node":    a.Myself.IPPortPath().Nodestr,
-		"alloc_mem":    fmt.Sprintf("%.1f%s", float64(mem.Alloc)/1024/1024, a.m["mb"]),
-		"connection_status":        port0,
+		"known_nodes":       strconv.Itoa(a.NodeManager.NodeLen()),
+		"linked_nodes":      strconv.Itoa(a.NodeManager.ListLen()),
+		"files":             strconv.Itoa(cl.Len()),
+		"records":           strconv.Itoa(records),
+		"cache_size":        fmt.Sprintf("%.1f%s", float64(size)/1024/1024, a.m["mb"]),
+		"self_node":         a.Myself.IPPortPath().Nodestr,
+		"alloc_mem":         fmt.Sprintf("%.1f%s", float64(mem.Alloc)/1024/1024, a.m["mb"]),
+		"connection_status": port0,
 	}
 	ns := map[string][]string{
 		"known_nodes":  a.NodeManager.GetNodestrSlice(),

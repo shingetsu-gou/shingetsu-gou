@@ -32,10 +32,12 @@ import (
 	"fmt"
 	"html"
 	"html/template"
+	"io/ioutil"
 	"log"
 	"net/http"
 	"os"
 	"path"
+	"path/filepath"
 	"regexp"
 	"sort"
 	"strings"
@@ -51,25 +53,42 @@ import (
 type message map[string]string
 
 //newMessage reads from the file excpet #comment and stores them with url unescaping value.
-func newMessage(file string) message {
+func newMessage(filedir, fname string) message {
+	var err error
 	m := make(map[string]string)
+	var dat []byte
+	file := path.Join("file", fname)
+	if dat, err = util.Asset(file); err != nil {
+		log.Println(err)
+	}
+	file = filepath.Join(filedir, fname)
+	if util.IsFile(fname) {
+		dat1, err := ioutil.ReadFile(file)
+		if err != nil {
+			log.Println(err)
+		} else {
+			dat = dat1
+		}
+	}
+	if dat == nil {
+		return nil
+	}
+
 	re := regexp.MustCompile(`^\s*#`)
-	err := util.EachLine(file, func(line string, i int) error {
-		var err error
-		if re.MatchString(line) {
-			return nil
+	for _, line := range strings.Split(string(dat), "\n") {
+		line = strings.Trim(line, "\r\n")
+		if line=="" || re.MatchString(line) {
+			continue
 		}
 		buf := strings.Split(line, "<>")
 		if len(buf) == 2 {
 			buf[1] = html.UnescapeString(buf[1])
 			m[buf[0]] = buf[1]
+			continue
 		}
-		return err
-	})
-	if err != nil {
-		log.Println(file, err)
 		return nil
 	}
+
 	return m
 }
 
@@ -93,9 +112,8 @@ func searchMessage(acceptLanguage, filedir string) message {
 	for _, l := range lang {
 		slang := strings.Split(l, "-")[0]
 		for _, j := range []string{l, slang} {
-			file := path.Join(filedir, "message-"+j+".txt")
-			if util.IsFile(file) {
-				return newMessage(file)
+			if m := newMessage(filedir, "message-"+j+".txt"); m != nil {
+				return m
 			}
 		}
 	}
@@ -468,14 +486,14 @@ func (c *cgi) htmlFormat(plain, appli string, title string, absuri bool) string 
 		buf = strings.Join(strs, "<br>")
 	}
 
-	reg := regexp.MustCompile("&gt;&gt;[0-9a-f]{8}")
-	buf = reg.ReplaceAllStringFunc(buf, func(str string) string {
+	reg1 := regexp.MustCompile("&gt;&gt;[0-9a-f]{8}")
+	buf = reg1.ReplaceAllStringFunc(buf, func(str string) string {
 		regg := regexp.MustCompile("(&gt;&gt;)([0-9a-f]{8})")
 		id := regg.ReplaceAllString(str, "$2")
 		return regg.ReplaceAllString(str, c.resAnchor(id, appli, title, absuri)+"$1$2</a>")
 	})
-	reg = regexp.MustCompile(`\[\[([^<>]+?)\]\]`)
-	tmp := reg.ReplaceAllStringFunc(buf, func(str string) string {
+	reg2 := regexp.MustCompile(`\[\[([^<>]+?)\]\]`)
+	tmp := reg2.ReplaceAllStringFunc(buf, func(str string) string {
 		bl := c.bracketLink(str[2:len(str)-2], appli, absuri)
 		return bl
 	})

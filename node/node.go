@@ -40,45 +40,50 @@ import (
 	"sync"
 	"time"
 
+	"github.com/shingetsu-gou/http-relay"
 	"github.com/shingetsu-gou/shingetsu-gou/util"
-)
-
-const (
-	opened = iota
-	port0
-	relayed
 )
 
 //Myself contains my node info.
 type Myself struct {
-	ip         string
-	Port       int
-	Path       string
-	ServerName string
-	stat       int
-	mutex      sync.RWMutex
+	ip          string
+	Port        int
+	Path        string
+	ServerName  string
+	port0       bool
+	relayServer *Node
+	serveHTTP   http.HandlerFunc
+	mutex       sync.RWMutex
 }
 
 //NewMyself returns Myself obj.
-func NewMyself(port int, path string, serverName string) *Myself {
+func NewMyself(port int, path string, serverName string, serveHTTP http.HandlerFunc) *Myself {
 	return &Myself{
 		Port:       port,
 		Path:       path,
 		ServerName: serverName,
+		serveHTTP:  serveHTTP,
 	}
+}
+
+//IsRestricted returns relayed or not.
+func (m *Myself) IsRelayed() bool {
+	m.mutex.RLock()
+	defer m.mutex.RUnlock()
+	return m.port0 && m.relayServer != nil
 }
 
 //isPort0 returns port0 or not.
 func (m *Myself) IsPort0() bool {
 	m.mutex.RLock()
 	defer m.mutex.RUnlock()
-	return m.stat == port0
+	return m.port0 && m.relayServer == nil
 }
 
 //setPort0 set to be behind NAT(port0).
-func (m *Myself) setConnection(stat int) {
+func (m *Myself) setPort0(port0 bool) {
 	m.mutex.Lock()
-	m.stat = stat
+	m.port0 = port0
 	m.mutex.Unlock()
 }
 
@@ -125,6 +130,7 @@ func (m *Myself) toxstring() string {
 	return m.toNode().toxstring()
 }
 
+//setIP set my IP.
 func (m *Myself) setIP(ip string) {
 	m.mutex.Lock()
 	defer m.mutex.Unlock()
@@ -133,6 +139,40 @@ func (m *Myself) setIP(ip string) {
 		return
 	}
 	m.ip = ip
+}
+
+//RelayServer returns nodestr of relay server.
+func (m *Myself) RelayServer() string {
+	return m.relayServer.Nodestr
+}
+
+//TryRelay tries to relay myself for each nodes.
+//This returns true if success.
+func (m *Myself) TryRelay(nodes []*Node) bool {
+	for _, n := range nodes {
+		origin := "http://" + m.ip
+		url := "ws://" + n.Nodestr + "/request_relay/" + m.toNode().toxstring()
+		err := relay.HandleClient(url, origin, m.serveHTTP, func(r *http.Request) {
+			//nothing to do for now
+		})
+		if err != nil {
+			log.Println(err)
+		} else {
+			m.mutex.Lock()
+			m.relayServer = n
+			m.mutex.Unlock()
+			return true
+		}
+	}
+	return false
+}
+
+//proxyURL returns url for proxy if relayed.
+func (m *Myself) proxyURL(path string) string {
+	if m.relayServer == nil {
+		return path
+	}
+	return m.relayServer.Nodestr + "/proxy/" + path
 }
 
 //NodeCfg is a global stuf for Node struct. it must be set before using it.
@@ -227,7 +267,7 @@ func (n *Node) toxstring() string {
 }
 
 //Talk talks with n with the message and returns data.
-func (n *Node) Talk(message string) ([]string, error) {
+func (n *Node) Talk(message string, proxy bool) ([]string, error) {
 	const defaultTimeout = time.Minute // Seconds; Timeout for TCP
 
 	if !strings.HasPrefix(message, "/") {
@@ -238,19 +278,21 @@ func (n *Node) Talk(message string) ([]string, error) {
 		log.Println(err)
 		return nil, err
 	}
-
-	message = "http://" + n.Nodestr + message
-	log.Println("Talk:", message)
-	res, err := n.urlopen(message, defaultTimeout)
+	msg := "http://" + n.Nodestr + message
+	if proxy {
+		msg = "http://" + n.Myself.proxyURL(n.Nodestr+message)
+	}
+	log.Println("Talk:", msg)
+	res, err := n.urlopen(msg, defaultTimeout)
 	if err != nil {
-		log.Println(message, err)
+		log.Println(msg, err)
 	}
 	return res, err
 }
 
 //Ping pings to n and return response.
 func (n *Node) Ping() (string, error) {
-	res, err := n.Talk("/ping")
+	res, err := n.Talk("/ping", false)
 	if err != nil {
 		log.Println("/ping", n.Nodestr, err)
 		return "", err
@@ -278,7 +320,7 @@ func (n *Node) join() (*Node, error) {
 		err := errors.New(fmt.Sprintln(n.Nodestr, "is not allowd"))
 		return nil, err
 	}
-	res, err := n.Talk("/join/" + n.Myself.toxstring())
+	res, err := n.Talk("/join/"+n.Myself.toxstring(), true)
 	if err != nil {
 		return nil, err
 	}
@@ -305,7 +347,7 @@ func (n *Node) join() (*Node, error) {
 
 //getNode requests n to pass me another node info and returns another node.
 func (n *Node) getNode() (*Node, error) {
-	res, err := n.Talk("/node")
+	res, err := n.Talk("/node", false)
 	if err != nil {
 		err := errors.New(fmt.Sprintln("/node", n.Nodestr, "error"))
 		return nil, err
@@ -315,7 +357,7 @@ func (n *Node) getNode() (*Node, error) {
 
 //bye says goodbye to n and returns true if success.
 func (n *Node) bye() bool {
-	res, err := n.Talk("/bye/" + n.Myself.Nodestr())
+	res, err := n.Talk("/bye/"+n.Myself.Nodestr(), true)
 	if err != nil {
 		log.Println("/bye", n.Nodestr, "error")
 		return false

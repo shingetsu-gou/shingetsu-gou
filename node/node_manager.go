@@ -345,7 +345,7 @@ func (lt *Manager) Initialize() {
 	}
 	wg.Wait()
 	if lt.ListLen() == 0 {
-		lt.Myself.setConnection(port0)
+		lt.Myself.setPort0(true)
 	}
 	if lt.ListLen() == 0 {
 		for _, n := range pingOK {
@@ -404,7 +404,7 @@ func (lt *Manager) TellUpdate(datfile string, stamp int64, id string, node *Node
 	ns = ns.Extend(lt.Random(ns, updateNodes))
 	log.Println("telling #", len(ns))
 	for _, n := range ns {
-		_, err := n.Talk(msg)
+		_, err := n.Talk(msg, true)
 		if err != nil {
 			log.Println(err)
 		}
@@ -506,7 +506,7 @@ func (lt *Manager) EachNodes(datfile string, nodes []*Node, fn func(*Node) bool)
 	return found
 }
 
-//Rejoin adds nodes in searchlist if ping is ok and len(nodelist)<defaultNodes
+//Rejoin adds nodes in searchlist to nodelist if ping is ok and len(nodelist)<defaultNodes
 //and doesn't have it's node.
 //if ping is ng, removes node from searchlist.
 func (lt *Manager) Rejoin() {
@@ -529,9 +529,7 @@ func (lt *Manager) Rejoin() {
 			lt.appendToList(n)
 		}
 	}
-	if lt.ListLen() <= 1 {
-		log.Println("Warning: Few linked nodes")
-	}
+	log.Println("# of nodelist", lt.ListLen())
 }
 
 //PingAll pings to all nodes in nodelist.

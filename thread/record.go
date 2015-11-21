@@ -498,7 +498,7 @@ func (r *Record) BodyString() string {
 //GetData gets records from node n and checks its is same as stamp and id in args.
 //save recs if success. returns errSpam or errGet.
 func (r *Record) GetData(n *node.Node) error {
-	res, err := n.Talk(fmt.Sprintf("/get/%s/%d/%s", r.Datfile, r.Stamp, r.ID))
+	res, err := n.Talk(fmt.Sprintf("/get/%s/%d/%s", r.Datfile, r.Stamp, r.ID), false)
 	if len(res) == 0 {
 		err = errors.New("no response")
 	}

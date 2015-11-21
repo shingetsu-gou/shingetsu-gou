@@ -30,6 +30,7 @@ package thread
 
 import (
 	"log"
+	"os"
 	"sort"
 	"strconv"
 	"strings"
@@ -53,6 +54,7 @@ func IsInUpdateRange(nstamp int64) bool {
 
 //RecentListConfig is confi for Recentlist struct.
 type RecentListConfig struct {
+	HeavyMoon         bool
 	RecentRange       int64
 	TagSize           int
 	Recent            string
@@ -122,6 +124,13 @@ func (r *RecentList) Append(rec *Record) {
 	r.mutex.Lock()
 	defer r.mutex.Unlock()
 	r.infos = append(r.infos, &rec.RecordHead)
+	if r.HeavyMoon {
+		if ca := NewCache(rec.Datfile); !ca.Exists() {
+			if err := os.Mkdir(ca.Datpath(), 0755); err != nil {
+				log.Fatal(err)
+			}
+		}
+	}
 	r.isDirty = true
 }
 
@@ -201,11 +210,11 @@ func (r *RecentList) Sync() {
 //tags are shuffled and truncated to tagsize and stored to sugtags in cache.
 //also source nodes are stored into lookuptable.
 //also tags which Recentlist doen't have in sugtagtable are truncated
-func (r *RecentList) Getall() {
+func (r *RecentList) Getall(all bool) {
 	const searchNodes = 5
 
 	var begin int64
-	if r.RecentRange > 0 {
+	if r.RecentRange > 0 && !all {
 		begin = time.Now().Unix() - r.RecentRange
 	}
 	nodes := r.NodeManager.Random(nil, searchNodes)
@@ -216,7 +225,7 @@ func (r *RecentList) Getall() {
 			defer wg.Done()
 			var res []string
 			var err error
-			res, err = n.Talk("/recent/" + strconv.FormatInt(begin, 10) + "-")
+			res, err = n.Talk("/recent/"+strconv.FormatInt(begin, 10)+"-", false)
 			if err != nil {
 				r.NodeManager.RemoveFromAllTable(n)
 				log.Println(err)

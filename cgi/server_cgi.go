@@ -35,6 +35,8 @@ import (
 	"log"
 	"net"
 	"net/http"
+	"net/http/httputil"
+	"net/url"
 	"regexp"
 	"strconv"
 	"strings"
@@ -64,17 +66,86 @@ func ServerSetup(s *LoggingServeMux, enableRelay bool) {
 	s.RegistCompressHandler(ServerURL+"/recent/", doRecent)
 	s.RegistCompressHandler(ServerURL+"/", doMotd)
 	if enableRelay {
-		s.Handle(ServerURL+"/relay/", websocket.Handler(websocketRelay))
+		s.RegistCompressHandler(ServerURL+"/proxy/", doProxy)
+		s.RegistCompressHandler(ServerURL+"/relay/", doRelay)
+		s.Handle(ServerURL+"/request_relay/", websocket.Handler(websocketRelay))
 	}
 }
 
+//doRelay relays url to websocket.
+//e.g. accept http://relay.com:8000/server.cgi/relay/client.com:8000/server.cgi/join/other.com:8000+server.cgi
+func doRelay(w http.ResponseWriter, r *http.Request) {
+	reg := regexp.MustCompile("^" + ServerURL + `/relay/(([^/]+/[^/]*).*)`)
+	m := reg.FindStringSubmatch(r.URL.Path)
+	if m == nil || len(m) < 3 {
+		log.Println("invalid path", r.URL.Path)
+		return
+	}
+	backup := r.URL
+	var err error
+	r.URL, err = url.ParseRequestURI("http://" + m[1])
+	if err != nil {
+		log.Println(err)
+		return
+	}
+	relay.HandleServer(m[2], w, r, func(res *relay.ResponseWriter) bool {
+		return true
+	})
+	r.URL = backup
+}
+
+//doProxy does proxiy  ,
+//e.g. accept http://relay.com:8000/server.cgi/proxy/other.com:8000/server.cgi/join/client.com:8000+server.cgi
+//and proxy to http://other.com:8000/server.cgi/join/client.com:8000+server.cgi
+//path format of proxy url must be /*/*/[join|bye|update]/* not to be abused.
+func doProxy(w http.ResponseWriter, r *http.Request) {
+	host, _, err := net.SplitHostPort(r.RemoteAddr)
+	if err != nil {
+		log.Println(err)
+		return
+	}
+	if !relay.IsAccepted(host) {
+		log.Println(host, "is not accepted")
+		return
+	}
+	reg := regexp.MustCompile("^" + ServerURL + "/proxy/(.*)$")
+	m := reg.FindStringSubmatch(r.URL.Path)
+	if m == nil || len(m) < 2 {
+		log.Println("invalid path", r.URL.Path)
+		return
+	}
+	u, err := url.ParseRequestURI("http://" + m[1])
+	if err != nil {
+		log.Println(err)
+		return
+	}
+	cmd := strings.Split(u.Path, "/")
+	if len(cmd) != 4 {
+		log.Println("invalid path", u.Path)
+		return
+	}
+	if !strings.HasPrefix(cmd[1], "join") && !strings.HasPrefix(cmd[1], "bye") && !strings.HasPrefix(cmd[1], "update") {
+		log.Println("path is not for join ,bye and update", cmd[1])
+		return
+	}
+	rp := &httputil.ReverseProxy{
+		Director: func(req *http.Request) {
+			req.URL = u
+		},
+	}
+	rp.ServeHTTP(w, r)
+}
+
+//websocketRelay accepts websocket relay.
+//e.g. accept url http://relay.com:8000/server.cgin/request_relay/client.com:8000+server.cgi
+//and client node=client.com:8000/server.cgi
 func websocketRelay(ws *websocket.Conn) {
 	s, err := newServerCGI(nil, ws.Request())
 	if err != nil {
 		log.Println(err)
 		return
 	}
-	host, path, port := s.extractHost("relay")
+	host, path, port := s.extractHost("request_relay")
 	host = s.remoteIP(host)
 	if host == "" {
 		return
@@ -83,7 +154,7 @@ func websocketRelay(ws *websocket.Conn) {
 	if err != nil || !n.IsAllowed() {
 		return
 	}
-	relay.StartServe(host, ws)
+	relay.StartServe(n.Nodestr, ws)
 }
 
 //doPing just resopnse PONG with remote addr.

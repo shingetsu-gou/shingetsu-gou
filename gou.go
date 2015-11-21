@@ -66,6 +66,9 @@ func expandAssets(fileDir, templateDir, docroot string) {
 		log.Fatal(err)
 	}
 	for _, fname := range dir {
+		if fname == "message-ja.txt" || fname == "message-en.txt" {
+			continue
+		}
 		fnameDisk := path.Join(fileDir, fname)
 		fnameDisk = filepath.FromSlash(fnameDisk)
 		if util.IsFile(fnameDisk) {

@@ -355,14 +355,14 @@ func FromSJIS(b string) string {
 
 //miscURL returns url for embeding for nicovideo, images.
 func miscURL(url string) string {
-	reg := regexp.MustCompile("http://www.nicovideo.jp/watch/([a-z0-9]+)")
-	id := reg.FindStringSubmatch(url)
+	reg1 := regexp.MustCompile("http://www.nicovideo.jp/watch/([a-z0-9]+)")
+	id := reg1.FindStringSubmatch(url)
 	if len(id) > 1 {
 		return `	<script type="text/javascript" src="http://ext.nicovideo.jp/thumb_watch/` + id[1] + `"></script>`
 	}
 
-	reg = regexp.MustCompile("https?://github.com/([^/]+)/([^/]+)")
-	id = reg.FindStringSubmatch(url)
+	reg2 := regexp.MustCompile("https?://github.com/([^/]+)/([^/]+)")
+	id = reg2.FindStringSubmatch(url)
 	if len(id) > 2 {
 		return `<div class="github-card" data-user="` + id[1] + `" data-repo="` + id[2] + `"></div>
 <script src="http://cdn.jsdelivr.net/github-cards/latest/widget.js"></script>`

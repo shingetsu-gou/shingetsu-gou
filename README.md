@@ -23,7 +23,7 @@ tl;dr
 
 ## 朔から移行
 1.  [ここ](https://github.com/shingetsu-gou/shingetsu-gou/releases)から自分のOSの実行バイナリダウンロード、展開
-2. 合を実行するディレクトリに実行ファイル(shingetsu-gou)と、朔のcacheディレクトリとfileディレクトリをコピー（朔のcache/fileディレクトリは別に残しておくことを推奨します）
+2. 合を実行するディレクトリに実行ファイル(shingetsu-gou)と、朔のcacheディレクトリとmessage-*.txtを除くfileディレクトリをコピー（朔のcache/fileディレクトリは別に残しておくことを推奨します）
 3. ./shingetsu-gouで実行
 
 ## 合のキャッシュを朔で使う（朔に戻る）

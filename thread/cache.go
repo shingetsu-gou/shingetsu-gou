@@ -321,12 +321,17 @@ func (c *Cache) Exists() bool {
 //if no records exist in cache, uses head
 //return true if gotten records>0
 func (c *Cache) getWithRange(n *node.Node) bool {
-	now := time.Now().Unix()
+	var now int64
+	if rec := c.RecentList.Newest(c.Datfile); rec != nil {
+		now = rec.Stamp
+	} else {
+		now = time.Now().Unix()
+	}
 	begin := now - c.GetRange
-	if c.GetRange == 0 {
+	if c.GetRange == 0 || begin < 0 {
 		begin = 0
 	}
-	res, err := n.Talk(fmt.Sprintf("/get/%s/%d-", c.Datfile, begin))
+	res, err := n.Talk(fmt.Sprintf("/get/%s/%d-", c.Datfile, begin), false)
 	if err != nil {
 		return false
 	}

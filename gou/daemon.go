@@ -53,13 +53,13 @@ import (
 	"github.com/shingetsu-gou/shingetsu-gou/util"
 )
 
-func initPackages(cfg *Config, version string) (*node.Manager, *thread.RecentList) {
+func initPackages(cfg *Config, version string, serveHTTP http.HandlerFunc) (*node.Manager, *thread.RecentList, *node.Myself) {
 	externalPort := cfg.DefaultPort
 	if cfg.EnableNAT {
 		externalPort = setUPnP(cfg.DefaultPort)
 	}
 
-	myself := node.NewMyself(externalPort, cgi.ServerURL, cfg.ServerName)
+	myself := node.NewMyself(externalPort, cgi.ServerURL, cfg.ServerName, serveHTTP)
 
 	defaultInitNode := []string{
 		"node.shingetsu.info:8000/server.cgi",
@@ -99,6 +99,7 @@ func initPackages(cfg *Config, version string) (*node.Manager, *thread.RecentLis
 		Fmutex:  fmutex,
 	})
 	recentList := thread.NewRecentList(&thread.RecentListConfig{
+		HeavyMoon:         cfg.HeavyMoon,
 		RecentRange:       cfg.RecentRange,
 		TagSize:           cfg.TagSize,
 		Recent:            cfg.Recent(),
@@ -201,7 +202,7 @@ func initPackages(cfg *Config, version string) (*node.Manager, *thread.RecentLis
 		UpdateQue:            updateQue,
 	}
 	datakeyTable.Load()
-	return nodeManager, recentList
+	return nodeManager, recentList, myself
 
 }
 
@@ -244,8 +245,8 @@ func StartDaemon(cfg *Config, version string) {
 		WriteTimeout:   3 * time.Minute,
 		MaxHeaderBytes: 1 << 20,
 	}
-	nm, rl := initPackages(cfg, version)
-	go cron(nm, rl, cfg.HeavyMoon)
+	nm, rl, myself := initPackages(cfg, version, sm.ServeHTTP)
+	go cron(nm, rl, cfg.HeavyMoon, myself)
 
 	cgi.AdminSetup(sm)
 	cgi.ServerSetup(sm, cfg.EnableRelay)
@@ -297,7 +298,7 @@ func handleRoot(docroot string) func(http.ResponseWriter, *http.Request) {
 //Sakurifice makes cache be compatible with saku.
 //i.e. makes body dir ,attach dir and dat.stat in under cache dir.
 func Sakurifice(cfg *Config) {
-	initPackages(cfg, "")
+	initPackages(cfg, "", nil)
 	f := filepath.Join(cfg.RunDir, "tag.txt")
 	if !util.IsFile(f) {
 		writeFile(f, []byte{})
