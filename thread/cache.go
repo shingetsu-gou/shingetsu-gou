@@ -321,13 +321,10 @@ func (c *Cache) Exists() bool {
 //if no records exist in cache, uses head
 //return true if gotten records>0
 func (c *Cache) getWithRange(n *node.Node) bool {
-	var now int64
+	begin := time.Now().Unix() - c.GetRange
 	if rec := c.RecentList.Newest(c.Datfile); rec != nil {
-		now = rec.Stamp
-	} else {
-		now = time.Now().Unix()
+		begin = rec.Stamp - c.GetRange
 	}
-	begin := now - c.GetRange
 	if c.GetRange == 0 || begin < 0 {
 		begin = 0
 	}
@@ -335,7 +332,7 @@ func (c *Cache) getWithRange(n *node.Node) bool {
 	if err != nil {
 		return false
 	}
-	count, err := c.checkData(res, -1, "", begin, now)
+	count, err := c.checkData(res, -1, "", begin, time.Now().Unix())
 	if err == nil || count > 0 {
 		log.Println(c.Datfile, count, "records were saved")
 	}

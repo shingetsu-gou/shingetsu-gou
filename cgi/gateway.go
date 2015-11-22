@@ -43,6 +43,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/russross/blackfriday"
 	"github.com/shingetsu-gou/shingetsu-gou/thread"
 	"github.com/shingetsu-gou/shingetsu-gou/util"
 
@@ -465,6 +466,12 @@ func (c *cgi) resAnchor(id, appli string, title string, absuri bool) string {
 
 //htmlFormat converts plain text to html , including converting link string to <a href="link">.
 func (c *cgi) htmlFormat(plain, appli string, title string, absuri bool) string {
+	if strings.HasPrefix(plain, "@markdown") {
+		plain = strings.Replace(plain, "<br>", "\n", -1)
+		plain = strings.Replace(plain, "&lt;", "<", -1)
+		plain = strings.Replace(plain, "&gt;", ">", -1)
+		return string(blackfriday.MarkdownCommon([]byte(plain[len("@markdown"):])))
+	}
 	buf := strings.Replace(plain, "<br>", "\n", -1)
 	buf = strings.Replace(buf, "\t", "        ", -1)
 

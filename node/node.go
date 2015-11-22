@@ -113,7 +113,6 @@ func (m *Myself) toNode() *Node {
 	if err != nil {
 		log.Fatal(err)
 	}
-	log.Println(n)
 	return n
 }
 
@@ -185,6 +184,7 @@ func (m *Myself) TryRelay(manager *Manager) {
 				}
 			}
 			if !success {
+				log.Println("cannot find relay server,sleeping...")
 				time.Sleep(10 * time.Minute)
 			}
 		}
