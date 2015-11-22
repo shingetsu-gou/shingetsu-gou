@@ -114,5 +114,5 @@ alloc_mem<>allocated memory
 totalalloc_mem<>total allocated memory
 connection_status<>connection
 port0<>cannot post due to one-way connection
-relayed<>relay server:
+relayed<>using relay server
 opened<>full connection

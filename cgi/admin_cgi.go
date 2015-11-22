@@ -136,7 +136,7 @@ func printStatus(w http.ResponseWriter, r *http.Request) {
 		port0 = a.m["port0"]
 	}
 	if a.Myself.IsRelayed() {
-		port0 = a.m["relayed"] + a.Myself.RelayServer()
+		port0 = a.m["relayed"] + "(" + a.Myself.RelayServer() + ")"
 	}
 
 	s := map[string]string{
