@@ -158,15 +158,21 @@ func (m *Myself) TryRelay(manager *Manager) {
 				n, _ := newNode("192.168.1.23:8000/server.cgi")
 				nodes = append(nodes, n)
 			*/
+			success := false
 			for _, n := range nodes {
+				if n.cannotRelay {
+					continue
+				}
 				origin := "http://" + m.ip
 				url := "ws://" + n.Nodestr + "/request_relay/"
 				err := relay.HandleClient(url, origin, m.serveHTTP, closed, func(r *http.Request) {
 					//nothing to do for now
 				})
 				if err != nil {
+					n.cannotRelay = true
 					log.Println(err)
 				} else {
+					success = true
 					m.mutex.Lock()
 					/*
 						n, err = MakeNode("123.230.131.165", "/server.cgi", 8000)
@@ -177,6 +183,9 @@ func (m *Myself) TryRelay(manager *Manager) {
 					<-closed
 					m.relayServer = nil
 				}
+			}
+			if !success {
+				time.Sleep(10 * time.Minute)
 			}
 		}
 	}()
@@ -190,9 +199,9 @@ func (m *Myself) proxyURL(path string) string {
 		return path
 	}
 	/*
-	ssss, err := MakeNode("192.168.1.23", "/server.cgi", 8000)
-	log.Println(err)
-	return ssss.Nodestr + "/proxy/" + path
+		ssss, err := MakeNode("192.168.1.23", "/server.cgi", 8000)
+		log.Println(err)
+		return ssss.Nodestr + "/proxy/" + path
 	*/
 	return m.relayServer.Nodestr + "/proxy/" + path
 }
@@ -211,7 +220,8 @@ type NodeConfig struct {
 //Node represents node info.
 type Node struct {
 	*NodeConfig
-	Nodestr string
+	Nodestr     string
+	cannotRelay bool
 }
 
 //NewNode checks nodestr format and returns node obj.

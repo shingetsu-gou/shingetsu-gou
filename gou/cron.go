@@ -45,10 +45,10 @@ func cron(nodeManager *node.Manager, recentList *thread.RecentList, heavymoon bo
 		longCycle  = time.Hour
 	)
 	nodeManager.Initialize()
-	doSync(nodeManager, recentList, heavymoon, true)
 	if myself.IsPort0() {
 		myself.TryRelay(nodeManager)
 	}
+	doSync(nodeManager, recentList, heavymoon, true)
 
 	go func() {
 		for {
