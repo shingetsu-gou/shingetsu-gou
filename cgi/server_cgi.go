@@ -54,7 +54,7 @@ import (
 const ServerURL = "/server.cgi"
 
 //ServerSetup setups handlers for server.cgi
-func ServerSetup(s *LoggingServeMux, enableRelay bool) {
+func ServerSetup(s *LoggingServeMux, relaynum int) {
 	s.RegistCompressHandler(ServerURL+"/ping", doPing)
 	s.RegistCompressHandler(ServerURL+"/node", doNode)
 	s.RegistCompressHandler(ServerURL+"/join/", doJoin)
@@ -65,10 +65,10 @@ func ServerSetup(s *LoggingServeMux, enableRelay bool) {
 	s.RegistCompressHandler(ServerURL+"/update/", doUpdate)
 	s.RegistCompressHandler(ServerURL+"/recent/", doRecent)
 	s.RegistCompressHandler(ServerURL+"/", doMotd)
-	if enableRelay {
+	if relaynum > 0 {
 		s.RegistCompressHandler(ServerURL+"/proxy/", doProxy)
 		s.HandleFunc(ServerURL+"/relay/", doRelay)
-		s.Handle(ServerURL+"/request_relay/", websocket.Handler(websocketRelay))
+		s.Handle(ServerURL+"/request_relay/", websocket.Handler(websocketRelay(relaynum)))
 	}
 }
 
@@ -163,28 +163,34 @@ func validPath(path string) bool {
 
 //websocketRelay accepts websocket relay.
 //e.g. accept url http://relay.com:8000/server.cgin/request_relay/
-func websocketRelay(ws *websocket.Conn) {
-	host, port, err := net.SplitHostPort(ws.Request().RemoteAddr)
-	if err != nil {
-		log.Println(err)
-		return
+func websocketRelay(relaynum int) func(*websocket.Conn) {
+	return func(ws *websocket.Conn) {
+		if n := relay.Count(); int(n) >= relaynum {
+			log.Println("num of relays", n, "is over", relaynum)
+			return
+		}
+		host, port, err := net.SplitHostPort(ws.Request().RemoteAddr)
+		if err != nil {
+			log.Println(err)
+			return
+		}
+		p, err := strconv.Atoi(port)
+		if err != nil {
+			log.Println(err)
+			return
+		}
+		n, err := node.MakeNode(host, "/server.cgi", p)
+		if err != nil {
+			log.Println(err)
+			return
+		}
+		if !n.IsAllowed() {
+			log.Println(n, "is not allowed")
+			return
+		}
+		log.Println(host, "is accepted.")
+		relay.StartServe(host, ws)
 	}
-	p, err := strconv.Atoi(port)
-	if err != nil {
-		log.Println(err)
-		return
-	}
-	n, err := node.MakeNode(host, "/server.cgi", p)
-	if err != nil {
-		log.Println(err)
-		return
-	}
-	if !n.IsAllowed() {
-		log.Println(n, "is not allowed")
-		return
-	}
-	log.Println(host, "is accepted.")
-	relay.StartServe(host, ws)
 }
 
 //doPing just resopnse PONG with remote addr.

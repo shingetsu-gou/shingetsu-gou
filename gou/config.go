@@ -121,7 +121,7 @@ type Config struct {
 	EnableProf           bool
 	HeavyMoon            bool
 	EnableEmbed          bool
-	EnableRelay          bool
+	RelayNumber          int
 	// asis, md5, sha1, sha224, sha256, sha384, or sha512
 	//	cache_hash_method = "asis"
 	//others are not implemented for gou for now.
@@ -175,7 +175,7 @@ func (c *Config) initVariables(i *ini.File) {
 	c.EnableProf = getBoolValue(i, "Gateway", "enable_prof", false)
 	c.HeavyMoon = getBoolValue(i, "Gateway", "moonlight", false)
 	c.EnableEmbed = getBoolValue(i, "Gateway", "enable_embed", true)
-	c.EnableRelay = getBoolValue(i, "Gateway", "enable_relay", true)
+	c.RelayNumber = getIntValue(i, "Gateway", "relay_number", 5)
 	c.LogDir = getPathValue(i, "Path", "log_dir", "./log") //path from cwd
 	c.ThreadPageSize = getIntValue(i, "Application Thread", "page_size", 50)
 	c.DefaultThumbnailSize = getStringValue(i, "Application Thread", "thumbnail_size", "")
