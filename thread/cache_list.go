@@ -197,15 +197,9 @@ func (c *CacheList) load() {
 
 //Getall reload all records in cache in cachelist from network.
 func (c *CacheList) Getall() {
-	var wg sync.WaitGroup
 	for _, ca := range c.Caches {
-		wg.Add(1)
-		go func(ca *Cache) {
-			defer wg.Done()
-			ca.GetCache()
-		}(ca)
+		ca.GetCache(false)
 	}
-	wg.Wait()
 }
 
 //Search reloads records in Caches in cachelist

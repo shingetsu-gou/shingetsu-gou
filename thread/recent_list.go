@@ -30,7 +30,6 @@ package thread
 
 import (
 	"log"
-	"os"
 	"sort"
 	"strconv"
 	"strings"
@@ -126,9 +125,7 @@ func (r *RecentList) Append(rec *Record) {
 	r.infos = append(r.infos, &rec.RecordHead)
 	if r.HeavyMoon {
 		if ca := NewCache(rec.Datfile); !ca.Exists() {
-			if err := os.Mkdir(ca.Datpath(), 0755); err != nil {
-				log.Fatal(err)
-			}
+			ca.SetupDirectories()
 		}
 	}
 	r.isDirty = true

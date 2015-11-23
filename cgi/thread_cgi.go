@@ -263,11 +263,11 @@ func (t *threadCGI) printTag(ca *thread.Cache) {
 func (t *threadCGI) printThreadHead(path, id string, page int, ca *thread.Cache, rss string) error {
 	switch {
 	case ca.HasRecord():
-		ca.GetCache()
+		ca.GetCache(true)
 	case t.checkGetCache():
 		ca.SetupDirectories()
 		if t.req.FormValue("search_new_file") == "" {
-			ca.GetCache()
+			ca.GetCache(true)
 		}
 	default:
 		t.print404(nil, id)
@@ -547,7 +547,7 @@ func (t *threadCGI) printAttach(datfile, id string, stamp int64, thumbnailSize, 
 	switch {
 	case ca.HasRecord():
 	case t.checkGetCache():
-		ca.GetCache()
+		ca.GetCache(true)
 	default:
 		t.print404(ca, "")
 		return

@@ -461,7 +461,7 @@ func (lt *Manager) Sync() {
 //EachNodes checks one allowed nodes which selected randomly from nodes which has the datfile record and run fn.
 //if not found,n is removed from lookuptable. also if not pingable  removes n from searchlist and cache c.
 //if found, n is added to lookuptable.
-func (lt *Manager) EachNodes(datfile string, nodes []*Node, fn func(*Node) bool) bool {
+func (lt *Manager) EachNodes(datfile string, nodes []*Node, background bool, fn func(*Node) bool) bool {
 	const searchDepth = 5 // Search node size
 	done := make(chan struct{}, searchDepth+1)
 	var ns Slice
@@ -496,11 +496,15 @@ func (lt *Manager) EachNodes(datfile string, nodes []*Node, fn func(*Node) bool)
 			lt.RemoveFromTable(datfile, n)
 		}(n)
 	}
-	go func() {
+	if background {
+		go func() {
+			wg.Wait()
+			done <- struct{}{}
+		}()
+		<-done
+	} else {
 		wg.Wait()
-		done <- struct{}{}
-	}()
-	<-done
+	}
 	mutex.RLock()
 	defer mutex.RUnlock()
 	return found

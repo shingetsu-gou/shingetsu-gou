@@ -47,7 +47,7 @@ import (
 //Myself contains my node info.
 type Myself struct {
 	ip          string
-	Port        int
+	Port        *int32
 	Path        string
 	ServerName  string
 	port0       bool
@@ -57,7 +57,7 @@ type Myself struct {
 }
 
 //NewMyself returns Myself obj.
-func NewMyself(port int, path string, serverName string, serveHTTP http.HandlerFunc) *Myself {
+func NewMyself(port *int32, path string, serverName string, serveHTTP http.HandlerFunc) *Myself {
 	return &Myself{
 		Port:       port,
 		Path:       path,
@@ -91,7 +91,8 @@ func (m *Myself) setPort0(port0 bool) {
 func (m *Myself) IPPortPath() *Node {
 	m.mutex.RLock()
 	defer m.mutex.RUnlock()
-	n, err := MakeNode(m.ip, m.Path, m.Port)
+	port := int(*m.Port)
+	n, err := MakeNode(m.ip, m.Path, port)
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -109,7 +110,7 @@ func (m *Myself) toNode() *Node {
 	if m.relayServer != nil {
 		serverName = m.relayServer.Nodestr + "/relay/" + serverName
 	}
-	n, err := newNode(fmt.Sprintf("%s:%d%s", serverName, m.Port, m.Path))
+	n, err := newNode(fmt.Sprintf("%s:%d%s", serverName, *m.Port, m.Path))
 	if err != nil {
 		log.Fatal(err)
 	}

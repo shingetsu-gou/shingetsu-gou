@@ -213,11 +213,7 @@ func (m *mchCGI) threadApp(board, datkey string) {
 	i := data.ReadInfo()
 
 	if m.checkGetCache() {
-		if data.Exists() || i.Len == 0 {
-			data.GetCache()
-		} else {
-			go data.GetCache()
-		}
+		data.GetCache(true)
 	}
 
 	if !data.Exists() {

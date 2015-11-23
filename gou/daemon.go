@@ -54,9 +54,10 @@ import (
 )
 
 func initPackages(cfg *Config, version string, serveHTTP http.HandlerFunc) (*node.Manager, *thread.RecentList, *node.Myself) {
-	externalPort := cfg.DefaultPort
+	dp := int32(cfg.DefaultPort)
+	externalPort := &dp
 	if cfg.EnableNAT {
-		externalPort = setUPnP(cfg.DefaultPort)
+		externalPort = setUPnP(dp)
 	}
 
 	myself := node.NewMyself(externalPort, cgi.ServerURL, cfg.ServerName, serveHTTP)
@@ -208,19 +209,19 @@ func initPackages(cfg *Config, version string, serveHTTP http.HandlerFunc) (*nod
 
 //setUPnP gets external port by upnp and return external port.
 //returns defaultPort if failed.
-func setUPnP(defaultPort int) int {
+func setUPnP(defaultPort int32) *int32 {
 	nt, err := nat.NewNetStatus()
 	if err != nil {
 		log.Println(err)
 	} else {
-		m, err := nt.LoopPortMapping("tcp", defaultPort, "shingetsu-gou", 10*time.Minute)
+		m, err := nt.LoopPortMapping("tcp", int(defaultPort), "shingetsu-gou", 10*time.Minute)
 		if err != nil {
 			log.Println(err)
 		} else {
 			return m.ExternalPort
 		}
 	}
-	return defaultPort
+	return &defaultPort
 }
 
 //StartDaemon setups saves pid, start cron job and a http server.
