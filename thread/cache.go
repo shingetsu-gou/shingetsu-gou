@@ -324,9 +324,7 @@ func (c *Cache) Exists() bool {
 	return util.IsDir(c.Datpath())
 }
 
-//headWithRange gets records with range using node n and adds to cache after checking them.
-//if no records exist in cache, uses head
-//return true if gotten records>0
+//headWithRange checks node n has records with range and adds records which should be downloaded to downloadmanager.
 func (c *Cache) headWithRange(n *node.Node, dm *DownloadManager) bool {
 	begin := time.Now().Unix() - c.GetRange
 	if rec := c.RecentList.Newest(c.Datfile); rec != nil {
@@ -336,17 +334,7 @@ func (c *Cache) headWithRange(n *node.Node, dm *DownloadManager) bool {
 		begin = 0
 	}
 	res, err := n.Talk(fmt.Sprintf("/head/%s/%d-", c.Datfile, begin), false, nil)
-	if err != nil {
-		return false
-	}
-	if len(res) == 0 {
-		ress, errr := n.Talk(fmt.Sprintf("/have/%s", c.Datfile), false, nil)
-		if errr != nil {
-			return false
-		}
-		if len(ress) > 0 && ress[0] == "YES" {
-			return true
-		}
+	if err != nil || len(res) == 0 {
 		return false
 	}
 	dm.Set(res, n)
@@ -357,10 +345,11 @@ func (c *Cache) headWithRange(n *node.Node, dm *DownloadManager) bool {
 //if no records exist in cache, uses head
 //return true if gotten records>0
 func (c *Cache) getWithRange(n *node.Node, dm *DownloadManager) bool {
+	got := false
 	for {
 		from, to := dm.Get(n)
 		if from <= 0 {
-			return true
+			return got
 		}
 
 		var okcount int
@@ -377,12 +366,9 @@ func (c *Cache) getWithRange(n *node.Node, dm *DownloadManager) bool {
 		}
 		dm.Finished(n, true)
 		log.Println(c.Datfile, okcount, "records were saved from", n.Nodestr)
+		got = okcount > 0
 	}
 }
-
-//EachNodes checks one allowed nodes which selected randomly from nodes which has the datfile record and run fn.
-//if not found,n is removed from lookuptable. also if not pingable  removes n from searchlist and cache c.
-//if found, n is added to lookuptable.
 
 //GetCache checks  nodes in lookuptable have the cache.
 //if found gets records.
@@ -399,7 +385,10 @@ func (c *Cache) GetCache(background bool) bool {
 		go func(n *node.Node) {
 			defer wg.Done()
 			if !c.headWithRange(n, dm) {
-				c.NodeManager.RemoveFromTable(c.Datfile, n)
+				ress, errr := n.Talk(fmt.Sprintf("/have/%s", c.Datfile), false, nil)
+				if errr != nil || len(ress) == 0 || ress[0] != "YES" {
+					c.NodeManager.RemoveFromTable(c.Datfile, n)
+				}
 				return
 			}
 			if c.getWithRange(n, dm) {
