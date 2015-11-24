@@ -222,7 +222,7 @@ func (r *RecentList) Getall(all bool) {
 			defer wg.Done()
 			var res []string
 			var err error
-			res, err = n.Talk("/recent/"+strconv.FormatInt(begin, 10)+"-", false)
+			res, err = n.Talk("/recent/"+strconv.FormatInt(begin, 10)+"-", false, nil)
 			if err != nil {
 				r.NodeManager.RemoveFromAllTable(n)
 				log.Println(err)

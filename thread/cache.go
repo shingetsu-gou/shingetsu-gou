@@ -35,6 +35,7 @@ import (
 	"log"
 	"os"
 	"path"
+	"sort"
 	"strconv"
 	"strings"
 	"sync"
@@ -218,9 +219,23 @@ func (c *Cache) ReadInfo() *CacheInfo {
 	return ci
 }
 
+//LoadAllRecords loads and returns record maps from the disk including removed.
+func (c *Cache) LoadAllRecords() RecordMap {
+	recs := c.loadRecords("record")
+	for k, v := range c.loadRecords("removed") {
+		recs[k] = v
+	}
+	return recs
+}
+
 //LoadRecords loads and returns record maps from the disk .
 func (c *Cache) LoadRecords() RecordMap {
-	r := path.Join(c.Datpath(), "record")
+	return c.loadRecords("record")
+}
+
+//loadRecords loads and returns record maps on path.
+func (c *Cache) loadRecords(rpath string) RecordMap {
+	r := path.Join(c.Datpath(), rpath)
 	if !util.IsDir(r) {
 		return nil
 	}
@@ -275,29 +290,21 @@ func (c *Cache) SetupDirectories() {
 	}
 }
 
-//checkData makes records from res and checks its records meets condisions of args.
+//checkData makes a record from res and checks its records meets condisions of args.
 //adds the rec to cache if meets conditions.
 //if spam or big data, remove the rec from disk.
 //returns count of added records to the cache and spam/getting error.
-func (c *Cache) checkData(res []string, stamp int64, id string, begin, end int64) (int, error) {
-	var err error
-	count := 0
-	for _, i := range res {
-		r := NewRecord(c.Datfile, "")
-		if errr := r.parse(i); errr != nil {
-			err = errGet
-			continue
-		}
-		if r.Exists() || r.Removed() {
-			continue
-		}
-		r.Sync()
-		err = r.checkData(begin, end)
-		if err == nil {
-			count++
-		}
+func (c *Cache) checkData(res string, stamp int64, id string, begin, end int64) error {
+	r := NewRecord(c.Datfile, "")
+	if errr := r.parse(res); errr != nil {
+		return errGet
+
 	}
-	return count, err
+	if r.Exists() || r.Removed() {
+		return nil
+	}
+	r.Sync()
+	return r.checkData(begin, end)
 }
 
 //Remove Remove all files and dirs of cache.
@@ -317,10 +324,10 @@ func (c *Cache) Exists() bool {
 	return util.IsDir(c.Datpath())
 }
 
-//getWithRange gets records with range using node n and adds to cache after checking them.
+//headWithRange gets records with range using node n and adds to cache after checking them.
 //if no records exist in cache, uses head
 //return true if gotten records>0
-func (c *Cache) getWithRange(n *node.Node) bool {
+func (c *Cache) headWithRange(n *node.Node, dm *DownloadManager) bool {
 	begin := time.Now().Unix() - c.GetRange
 	if rec := c.RecentList.Newest(c.Datfile); rec != nil {
 		begin = rec.Stamp - c.GetRange
@@ -328,31 +335,96 @@ func (c *Cache) getWithRange(n *node.Node) bool {
 	if c.GetRange == 0 || begin < 0 {
 		begin = 0
 	}
-	res, err := n.Talk(fmt.Sprintf("/get/%s/%d-", c.Datfile, begin), false)
+	res, err := n.Talk(fmt.Sprintf("/head/%s/%d-", c.Datfile, begin), false, nil)
 	if err != nil {
 		return false
 	}
-	count, err := c.checkData(res, -1, "", begin, time.Now().Unix())
-	if err == nil || count > 0 {
-		log.Println(c.Datfile, count, "records were saved")
-	}
-	have := len(res) > 0
-	if !have {
-		res, err := n.Talk(fmt.Sprintf("/have/%s", c.Datfile), false)
-		if err != nil {
+	if len(res) == 0 {
+		ress, errr := n.Talk(fmt.Sprintf("/have/%s", c.Datfile), false, nil)
+		if errr != nil {
 			return false
 		}
-		if len(res) > 0 && res[0] == "YES" {
-			have = true
+		if len(ress) > 0 && ress[0] == "YES" {
+			return true
 		}
 	}
-	return have
+	dm.Set(res, n)
+	return true
 }
+
+//getWithRange gets records with range using node n and adds to cache after checking them.
+//if no records exist in cache, uses head
+//return true if gotten records>0
+func (c *Cache) getWithRange(n *node.Node, dm *DownloadManager) bool {
+	for {
+		from, to := dm.Get(n)
+		if from <= 0 {
+			return true
+		}
+
+		var okcount int
+		_, err := n.Talk(fmt.Sprintf("/get/%s/%d-%d", c.Datfile, from, to), false, func(res string) error {
+			err := c.checkData(res, -1, "", from, to)
+			if err == nil {
+				okcount++
+			}
+			return nil
+		})
+		if err != nil {
+			dm.Finished(n, false)
+			return false
+		}
+		dm.Finished(n, true)
+		log.Println(c.Datfile, okcount, "records were saved from", n.Nodestr)
+	}
+}
+
+//EachNodes checks one allowed nodes which selected randomly from nodes which has the datfile record and run fn.
+//if not found,n is removed from lookuptable. also if not pingable  removes n from searchlist and cache c.
+//if found, n is added to lookuptable.
 
 //GetCache checks  nodes in lookuptable have the cache.
 //if found gets records.
 func (c *Cache) GetCache(background bool) bool {
-	return c.NodeManager.EachNodes(c.Datfile, nil, background, c.getWithRange)
+	const searchDepth = 5 // Search node size
+	ns := c.NodeManager.NodesForGet(c.Datfile, searchDepth)
+	found := false
+	done := make(chan struct{}, searchDepth+1)
+	var wg sync.WaitGroup
+	var mutex sync.RWMutex
+	dm := NewDownloadManger(c.LoadAllRecords())
+	for _, n := range ns {
+		wg.Add(1)
+		go func(n *node.Node) {
+			defer wg.Done()
+			if !c.headWithRange(n, dm) {
+				c.NodeManager.RemoveFromTable(c.Datfile, n)
+				return
+			}
+			if c.getWithRange(n, dm) {
+				c.NodeManager.AppendToTable(c.Datfile, n)
+				c.NodeManager.Sync()
+				mutex.Lock()
+				found = true
+				mutex.Unlock()
+				done <- struct{}{}
+				return
+			}
+			c.NodeManager.RemoveFromTable(c.Datfile, n)
+		}(n)
+	}
+	if background {
+		go func() {
+			wg.Wait()
+			done <- struct{}{}
+		}()
+		<-done
+	} else {
+		wg.Wait()
+	}
+	mutex.RLock()
+	defer mutex.RUnlock()
+	return found
 }
 
 //Gettitle returns title part if *_*.
@@ -380,4 +452,119 @@ func (c *Cache) GetContents() []string {
 		}
 	}
 	return contents
+}
+
+//targetRec represents target records for downloading.
+type targetRec struct {
+	node        node.Slice
+	downloading *node.Node
+	finished    bool
+	count       int
+	stamp       int64
+}
+
+//TargetRecSlice represents slice of targetRec
+type TargetRecSlice []*targetRec
+
+//Len returns length of TargetRecSlice
+func (t TargetRecSlice) Len() int {
+	return len(t)
+}
+
+//Swap swaps the location of TargetRecSlice
+func (t TargetRecSlice) Swap(i, j int) {
+	t[i], t[j] = t[j], t[i]
+}
+
+//Len returns true if stamp of targetRec[i] is less.
+func (t TargetRecSlice) Less(i, j int) bool {
+	return t[i].stamp < t[j].stamp
+}
+
+//DownloadManager manages download range of records.
+type DownloadManager struct {
+	recs  map[string]*targetRec
+	mutex sync.RWMutex
+}
+
+//NewDownloadManger sets recs as finished recs and returns DownloadManager obj.
+func NewDownloadManger(recs RecordMap) *DownloadManager {
+	dm := &DownloadManager{
+		recs: make(map[string]*targetRec),
+	}
+	for k := range recs {
+		dm.recs[k] = &targetRec{
+			finished: true,
+		}
+	}
+	return dm
+}
+
+//Set sets res as targets n is holding.
+func (dm *DownloadManager) Set(res []string, n *node.Node) {
+	for _, r := range res {
+		s := strings.Split(r, "<>")
+		if len(s) != 2 {
+			log.Println("format is illegal", s)
+			continue
+		}
+		recstr := s[0] + "_" + s[1]
+		stamp, err := strconv.ParseInt(s[0], 10, 64)
+		if err != nil {
+			log.Println(err)
+			continue
+		}
+		dm.mutex.Lock()
+		if rec, exist := dm.recs[recstr]; exist {
+			if !rec.finished {
+				rec.node = append(rec.node, n)
+			}
+		} else {
+			dm.recs[recstr] = &targetRec{
+				node:  []*node.Node{n},
+				stamp: stamp,
+			}
+		}
+		dm.mutex.Unlock()
+	}
+}
+
+//Get returns begin and end stamp to be gotten for node n.
+func (dm *DownloadManager) Get(n *node.Node) (int64, int64) {
+	dm.mutex.Lock()
+	defer dm.mutex.Unlock()
+	var s TargetRecSlice
+	for _, rec := range dm.recs {
+		if rec.node.Has(n) && !rec.finished && rec.downloading == nil && rec.count < 5 {
+			s = append(s, rec)
+		}
+	}
+	if len(s) == 0 {
+		return -1, -1
+	}
+	sort.Sort(sort.Reverse(s))
+	begin := len(s) - 1
+	if len(s) > 5 {
+		begin = len(s) / 2
+	}
+	for i := 0; i <= begin; i++ {
+		s[i].downloading = n
+	}
+	return s[begin].stamp, s[0].stamp
+}
+
+//Finished set records n is downloading as finished.
+func (dm *DownloadManager) Finished(n *node.Node, success bool) {
+	dm.mutex.Lock()
+	defer dm.mutex.Unlock()
+	for _, rec := range dm.recs {
+		if rec.downloading != nil && rec.downloading.Equals(n) {
+			if success {
+				rec.finished = true
+				continue
+			}
+			rec.count++
+			rec.downloading = nil
+		}
+	}
 }

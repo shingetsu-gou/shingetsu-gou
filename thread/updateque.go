@@ -97,21 +97,13 @@ func (u *UpdateQue) doUpdateNode(rec *Record, n *node.Node) bool {
 
 	ca := NewCache(rec.Datfile)
 	var err error
-	switch {
-	case !ca.Exists(), n == nil:
+	if !ca.Exists() || n == nil {
 		log.Println("no cache, only broadcast updates.")
 		u.NodeManager.TellUpdate(ca.Datfile, rec.Stamp, rec.ID, n)
 		return true
-	case ca.HasRecord():
-		log.Println("cache and records exists, get data from node n.")
-		err = rec.GetData(n)
-	default:
-		log.Println("cache exists ,but no records. get data with range.")
-		ca.getWithRange(n)
-		if flagGot := (rec.Removed() || rec.Exists()); !flagGot {
-			err = errGet
-		}
 	}
+	log.Println("cache exists. get record from node n.")
+	err = rec.GetData(n)
 	switch err {
 	case errGet:
 		log.Println("could not get")

@@ -321,12 +321,15 @@ func (lt *Manager) moreNodes() {
 func (lt *Manager) Initialize(rundir string) {
 	var confile string
 	if rundir != "" {
-		confile := filepath.Join(rundir, "connection.dat")
+		confile = filepath.Join(rundir, "connection.dat")
 		c, err := ioutil.ReadFile(confile)
 		if err != nil {
 			log.Println(err)
 		}
-		if string(c) == "uPnP" {
+		s := string(c)
+		s = strings.Trim(s, "\r\n")
+		if s	 == "uPnP" {
+			log.Println("using uPnP as prevous.")
 			lt.Myself.useUPnP()
 		}
 	}
@@ -356,12 +359,12 @@ func (lt *Manager) Initialize(rundir string) {
 			return "failed"
 		},
 	}
-	var con string
+	con := "default"
 	for _, f := range fn {
 		if ok, pingOK := lt.initialize(); !ok {
 			con = f(pingOK)
 		} else {
-			log.Println("success to join")
+			log.Println("success to join by", con)
 			break
 		}
 	}
@@ -451,7 +454,7 @@ func (lt *Manager) TellUpdate(datfile string, stamp int64, id string, node *Node
 	ns = ns.Extend(lt.Random(ns, updateNodes))
 	log.Println("telling #", len(ns))
 	for _, n := range ns {
-		_, err := n.Talk(msg, true)
+		_, err := n.Talk(msg, true, nil)
 		if err != nil {
 			log.Println(err)
 		}
@@ -505,56 +508,22 @@ func (lt *Manager) Sync() {
 	}
 }
 
-//EachNodes checks one allowed nodes which selected randomly from nodes which has the datfile record and run fn.
-//if not found,n is removed from lookuptable. also if not pingable  removes n from searchlist and cache c.
-//if found, n is added to lookuptable.
-func (lt *Manager) EachNodes(datfile string, nodes []*Node, background bool, fn func(*Node) bool) bool {
-	const searchDepth = 5 // Search node size
-	done := make(chan struct{}, searchDepth+1)
-	var ns Slice
-	ns = ns.Extend(nodes)
+//NodesForGet returns nodes which has datfile cache , and that extends nodes to #searchDepth .
+func (lt *Manager) NodesForGet(datfile string, searchDepth int) Slice {
+	var ns, ns2 Slice
 	ns = ns.Extend(lt.Get(datfile, nil))
 	ns = ns.Extend(lt.Get("", nil))
-	if ns.Len() < searchDepth {
-		ns = ns.Extend(lt.Random(ns, searchDepth-ns.Len()))
-	}
-	if ns.Len() > searchDepth {
-		ns = ns[:searchDepth]
-	}
-	found := false
-	var wg sync.WaitGroup
-	var mutex sync.RWMutex
+	ns = ns.Extend(lt.Random(ns, 0))
+
 	for _, n := range ns {
-		if n.equals(lt.Myself.toNode()) || !n.IsAllowed() {
-			continue
+		if !n.Equals(lt.Myself.toNode()) && n.IsAllowed() {
+			ns2 = append(ns2, n)
 		}
-		wg.Add(1)
-		go func(n *Node) {
-			defer wg.Done()
-			if fn(n) {
-				lt.AppendToTable(datfile, n)
-				lt.Sync()
-				mutex.Lock()
-				found = true
-				mutex.Unlock()
-				done <- struct{}{}
-				return
-			}
-			lt.RemoveFromTable(datfile, n)
-		}(n)
 	}
-	if background {
-		go func() {
-			wg.Wait()
-			done <- struct{}{}
-		}()
-		<-done
-	} else {
-		wg.Wait()
+	if ns2.Len() > searchDepth {
+		ns2 = ns2[:searchDepth]
 	}
-	mutex.RLock()
-	defer mutex.RUnlock()
-	return found
+	return ns2
 }
 
 //Rejoin adds nodes in searchlist to nodelist if ping is ok and len(nodelist)<defaultNodes

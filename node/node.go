@@ -280,7 +280,7 @@ func newNode(nodestr string) (*Node, error) {
 }
 
 //urlopen retrievs html data from url
-func (n *Node) urlopen(url string, timeout time.Duration) ([]string, error) {
+func (n *Node) urlopen(url string, timeout time.Duration, fn func(string) error) error {
 	ua := "shinGETsuPlus/0.8alpha (Gou/" + n.Version + ")"
 
 	req, err := http.NewRequest("GET", url, nil)
@@ -302,18 +302,16 @@ func (n *Node) urlopen(url string, timeout time.Duration) ([]string, error) {
 	resp, err := client.Do(req)
 	if err != nil {
 		log.Println(err)
-		return nil, err
+		return err
 	}
-	var lines []string
 	err = util.EachIOLine(resp.Body, func(line string, i int) error {
-		lines = append(lines, line)
-		return nil
+		return fn(line)
 	})
-	return lines, err
+	return err
 }
 
-//equals return true is Nodestr is equal.
-func (n *Node) equals(nn *Node) bool {
+//Equals return true is Nodestr is equal.
+func (n *Node) Equals(nn *Node) bool {
 	if nn == nil {
 		return false
 	}
@@ -332,8 +330,15 @@ func (n *Node) toxstring() string {
 }
 
 //Talk talks with n with the message and returns data.
-func (n *Node) Talk(message string, proxy bool) ([]string, error) {
+func (n *Node) Talk(message string, proxy bool, fn func(string) error) ([]string, error) {
 	const defaultTimeout = time.Minute // Seconds; Timeout for TCP
+	var res []string
+	if fn == nil {
+		fn = func(line string) error {
+			res = append(res, line)
+			return nil
+		}
+	}
 
 	if !strings.HasPrefix(message, "/") {
 		message = "/" + message
@@ -348,7 +353,7 @@ func (n *Node) Talk(message string, proxy bool) ([]string, error) {
 		msg = "http://" + n.Myself.proxyURL(n.Nodestr+message)
 	}
 	log.Println("Talk:", msg)
-	res, err := n.urlopen(msg, defaultTimeout)
+	err := n.urlopen(msg, defaultTimeout, fn)
 	if err != nil {
 		log.Println(msg, err)
 	}
@@ -357,7 +362,7 @@ func (n *Node) Talk(message string, proxy bool) ([]string, error) {
 
 //Ping pings to n and return response.
 func (n *Node) Ping() (string, error) {
-	res, err := n.Talk("/ping", false)
+	res, err := n.Talk("/ping", false, nil)
 	if err != nil {
 		log.Println("/ping", n.Nodestr, err)
 		return "", err
@@ -385,7 +390,7 @@ func (n *Node) join() (*Node, error) {
 		err := errors.New(fmt.Sprintln(n.Nodestr, "is not allowd"))
 		return nil, err
 	}
-	res, err := n.Talk("/join/"+n.Myself.toxstring(), true)
+	res, err := n.Talk("/join/"+n.Myself.toxstring(), true, nil)
 	if err != nil {
 		return nil, err
 	}
@@ -412,7 +417,7 @@ func (n *Node) join() (*Node, error) {
 
 //getNode requests n to pass me another node info and returns another node.
 func (n *Node) getNode() (*Node, error) {
-	res, err := n.Talk("/node", false)
+	res, err := n.Talk("/node", false, nil)
 	if err != nil {
 		err := errors.New(fmt.Sprintln("/node", n.Nodestr, "error"))
 		return nil, err
@@ -422,7 +427,7 @@ func (n *Node) getNode() (*Node, error) {
 
 //bye says goodbye to n and returns true if success.
 func (n *Node) bye() bool {
-	res, err := n.Talk("/bye/"+n.Myself.Nodestr(), true)
+	res, err := n.Talk("/bye/"+n.Myself.Nodestr(), true, nil)
 	if err != nil {
 		log.Println("/bye", n.Nodestr, "error")
 		return false
@@ -441,6 +446,11 @@ func (ns Slice) Len() int {
 //Swap swaps nodes order.
 func (ns Slice) Swap(i, j int) {
 	ns[i], ns[j] = ns[j], ns[i]
+}
+
+//Has returns true if ns has n.
+func (ns Slice) Has(n *Node) bool {
+	return util.HasString(ns.getNodestrSlice(), n.Nodestr)
 }
 
 //getNodestrSlice returns slice of Nodestr of nodes.

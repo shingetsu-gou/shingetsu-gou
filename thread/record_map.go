@@ -116,7 +116,7 @@ func (r recordHeads) has(rec *RecordHead) bool {
 	return false
 }
 
-//RecordMap is a map key=datfile, value=record.
+//RecordMap is a map key=stamp_id, value=record.
 type RecordMap map[string]*Record
 
 //Get returns records which hav key=i.
