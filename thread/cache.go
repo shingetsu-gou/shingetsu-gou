@@ -336,7 +336,17 @@ func (c *Cache) getWithRange(n *node.Node) bool {
 	if err == nil || count > 0 {
 		log.Println(c.Datfile, count, "records were saved")
 	}
-	return len(res) > 0
+	have := len(res) > 0
+	if !have {
+		res, err := n.Talk(fmt.Sprintf("/have/%s", c.Datfile), false)
+		if err != nil {
+			return false
+		}
+		if len(res) > 0 && res[0] == "YES" {
+			have = true
+		}
+	}
+	return have
 }
 
 //GetCache checks  nodes in lookuptable have the cache.

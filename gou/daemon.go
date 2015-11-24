@@ -45,7 +45,6 @@ import (
 
 	"golang.org/x/net/netutil"
 
-	"github.com/shingetsu-gou/go-nat"
 	"github.com/shingetsu-gou/shingetsu-gou/cgi"
 	"github.com/shingetsu-gou/shingetsu-gou/mch"
 	"github.com/shingetsu-gou/shingetsu-gou/node"
@@ -54,13 +53,7 @@ import (
 )
 
 func initPackages(cfg *Config, version string, serveHTTP http.HandlerFunc) (*node.Manager, *thread.RecentList, *node.Myself) {
-	dp := int32(cfg.DefaultPort)
-	externalPort := &dp
-	if cfg.EnableNAT {
-		externalPort = setUPnP(dp)
-	}
-
-	myself := node.NewMyself(externalPort, cgi.ServerURL, cfg.ServerName, serveHTTP)
+	myself := node.NewMyself(cfg.DefaultPort, cgi.ServerURL, cfg.ServerName, serveHTTP, cfg.EnableNAT)
 
 	defaultInitNode := []string{
 		"node.shingetsu.info:8000/server.cgi",
@@ -207,23 +200,6 @@ func initPackages(cfg *Config, version string, serveHTTP http.HandlerFunc) (*nod
 
 }
 
-//setUPnP gets external port by upnp and return external port.
-//returns defaultPort if failed.
-func setUPnP(defaultPort int32) *int32 {
-	nt, err := nat.NewNetStatus()
-	if err != nil {
-		log.Println(err)
-	} else {
-		m, err := nt.LoopPortMapping("tcp", int(defaultPort), "shingetsu-gou", 10*time.Minute)
-		if err != nil {
-			log.Println(err)
-		} else {
-			return m.ExternalPort
-		}
-	}
-	return &defaultPort
-}
-
 //StartDaemon setups saves pid, start cron job and a http server.
 func StartDaemon(cfg *Config, version string) {
 	p := os.Getpid()
@@ -247,7 +223,7 @@ func StartDaemon(cfg *Config, version string) {
 		MaxHeaderBytes: 1 << 20,
 	}
 	nm, rl, myself := initPackages(cfg, version, sm.ServeHTTP)
-	go cron(nm, rl, cfg.HeavyMoon, myself)
+	go cron(nm, rl, cfg.HeavyMoon, myself, cfg.RunDir)
 
 	cgi.AdminSetup(sm)
 	cgi.ServerSetup(sm, cfg.RelayNumber)

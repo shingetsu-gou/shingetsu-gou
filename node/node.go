@@ -40,30 +40,44 @@ import (
 	"sync"
 	"time"
 
+	"github.com/shingetsu-gou/go-nat"
 	"github.com/shingetsu-gou/http-relay"
 	"github.com/shingetsu-gou/shingetsu-gou/util"
 )
 
 //Myself contains my node info.
 type Myself struct {
-	ip          string
-	Port        *int32
-	Path        string
-	ServerName  string
-	port0       bool
-	relayServer *Node
-	serveHTTP   http.HandlerFunc
-	mutex       sync.RWMutex
+	ip           string
+	internalPort int
+	externalPort *int32
+	Path         string
+	ServerName   string
+	relayServer  *Node
+	serveHTTP    http.HandlerFunc
+	mutex        sync.RWMutex
+	enableNAT    bool
+	port0        bool
 }
 
 //NewMyself returns Myself obj.
-func NewMyself(port *int32, path string, serverName string, serveHTTP http.HandlerFunc) *Myself {
+func NewMyself(internalPort int, path string, serverName string, serveHTTP http.HandlerFunc, enableNAT bool) *Myself {
+	p := int32(internalPort)
 	return &Myself{
-		Port:       port,
-		Path:       path,
-		ServerName: serverName,
-		serveHTTP:  serveHTTP,
+		internalPort: internalPort,
+		externalPort: &p,
+		Path:         path,
+		ServerName:   serverName,
+		serveHTTP:    serveHTTP,
+		enableNAT:    enableNAT,
 	}
+}
+
+//resetPort sets externalPort to internalPort.
+func (m *Myself) resetPort() {
+	m.mutex.Lock()
+	defer m.mutex.Unlock()
+	p := int32(m.internalPort)
+	m.externalPort = &p
 }
 
 //IsRelayed returns true is relayed.
@@ -91,7 +105,7 @@ func (m *Myself) setPort0(port0 bool) {
 func (m *Myself) IPPortPath() *Node {
 	m.mutex.RLock()
 	defer m.mutex.RUnlock()
-	port := int(*m.Port)
+	port := int(*m.externalPort)
 	n, err := MakeNode(m.ip, m.Path, port)
 	if err != nil {
 		log.Fatal(err)
@@ -110,7 +124,7 @@ func (m *Myself) toNode() *Node {
 	if m.relayServer != nil {
 		serverName = m.relayServer.Nodestr + "/relay/" + serverName
 	}
-	n, err := newNode(fmt.Sprintf("%s:%d%s", serverName, *m.Port, m.Path))
+	n, err := newNode(fmt.Sprintf("%s:%d%s", serverName, *m.externalPort, m.Path))
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -147,9 +161,9 @@ func (m *Myself) RelayServer() string {
 	return m.relayServer.Nodestr
 }
 
-//TryRelay tries to relay myself for each nodes.
+//tryRelay tries to relay myself for each nodes.
 //This returns true if success.
-func (m *Myself) TryRelay(manager *Manager) {
+func (m *Myself) tryRelay(manager *Manager) {
 	go func() {
 		closed := make(chan struct{})
 		for {
@@ -205,6 +219,25 @@ func (m *Myself) proxyURL(path string) string {
 		return ssss.Nodestr + "/proxy/" + path
 	*/
 	return m.relayServer.Nodestr + "/proxy/" + path
+}
+
+//useUPnP gets external port by upnp and return external port.
+//returns defaultPort if failed.
+func (m *Myself) useUPnP() {
+	if !m.enableNAT {
+		return
+	}
+	nt, err := nat.NewNetStatus()
+	if err != nil {
+		log.Println(err)
+	} else {
+		ma, err := nt.LoopPortMapping("tcp", m.internalPort, "shingetsu-gou", 10*time.Minute)
+		if err != nil {
+			log.Println(err)
+		} else {
+			m.externalPort = ma.ExternalPort
+		}
+	}
 }
 
 //NodeCfg is a global stuf for Node struct. it must be set before using it.

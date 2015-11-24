@@ -29,8 +29,10 @@
 package node
 
 import (
+	"io/ioutil"
 	"log"
 	"math/rand"
+	"path/filepath"
 	"strconv"
 	"strings"
 	"sync"
@@ -316,10 +318,62 @@ func (lt *Manager) moreNodes() {
 
 //Initialize pings one of initNode except myself and added it if success,
 //and get another node info from each nodes in nodelist.
-func (lt *Manager) Initialize() {
-	if lt.ListLen() > defaultNodes {
-		return
+func (lt *Manager) Initialize(rundir string) {
+	var confile string
+	if rundir != "" {
+		confile := filepath.Join(rundir, "connection.dat")
+		c, err := ioutil.ReadFile(confile)
+		if err != nil {
+			log.Println(err)
+		}
+		if string(c) == "uPnP" {
+			lt.Myself.useUPnP()
+		}
 	}
+	fn := []func([]*Node) string{
+		func(pingOK []*Node) string {
+			log.Println("trying defaultport")
+			lt.Myself.resetPort()
+			return "opened"
+		},
+		func(pingOK []*Node) string {
+			log.Println("trying uPnP")
+			lt.Myself.useUPnP()
+			return "uPnP"
+		},
+		func(pingOK []*Node) string {
+			log.Println("trying relayed")
+			lt.Myself.resetPort()
+			lt.Myself.setPort0(true)
+			lt.Myself.tryRelay(lt)
+			return "relayed"
+		},
+		func(pingOK []*Node) string {
+			log.Println("failed to join")
+			for _, n := range pingOK {
+				lt.appendToList(n)
+			}
+			return "failed"
+		},
+	}
+	var con string
+	for _, f := range fn {
+		if ok, pingOK := lt.initialize(); !ok {
+			con = f(pingOK)
+		} else {
+			log.Println("success to join")
+			break
+		}
+	}
+	if con != "" && confile != "" {
+		err := ioutil.WriteFile(confile, []byte(con), 0644)
+		if err != nil {
+			log.Println(err)
+		}
+	}
+}
+
+func (lt *Manager) initialize() (bool, []*Node) {
 	inodes := lt.Random(nil, defaultNodes)
 	for _, i := range lt.InitNode.GetData() {
 		nn, err := newNode(i)
@@ -344,18 +398,11 @@ func (lt *Manager) Initialize() {
 		}(inode)
 	}
 	wg.Wait()
-	if lt.ListLen() == 0 {
-		lt.Myself.setPort0(true)
-	}
-	if lt.ListLen() == 0 {
-		for _, n := range pingOK {
-			lt.appendToList(n)
-		}
-	}
 	if lt.ListLen() > 0 {
 		lt.moreNodes()
 	}
 	log.Println("# of nodelist:", lt.ListLen())
+	return lt.ListLen() > 0, pingOK
 }
 
 //Join tells n to join and adds n to nodelist if welcomed.
