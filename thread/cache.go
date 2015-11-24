@@ -347,6 +347,7 @@ func (c *Cache) headWithRange(n *node.Node, dm *DownloadManager) bool {
 		if len(ress) > 0 && ress[0] == "YES" {
 			return true
 		}
+		return false
 	}
 	dm.Set(res, n)
 	return true
