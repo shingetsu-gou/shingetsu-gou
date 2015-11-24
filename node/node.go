@@ -177,9 +177,8 @@ func (m *Myself) tryRelay(manager *Manager) {
 				if n.cannotRelay {
 					continue
 				}
-				origin := "http://" + m.ip
 				url := "ws://" + n.Nodestr + "/request_relay/"
-				err := relay.HandleClient(url, origin, m.serveHTTP, closed, func(r *http.Request) {
+				err := relay.HandleClient(url, m.serveHTTP, closed, func(r *http.Request) {
 					//nothing to do for now
 				})
 				if err != nil {
