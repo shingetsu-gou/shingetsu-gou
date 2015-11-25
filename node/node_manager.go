@@ -328,7 +328,7 @@ func (lt *Manager) Initialize(rundir string) {
 		}
 		s := string(c)
 		s = strings.Trim(s, "\r\n")
-		if s	 == "uPnP" {
+		if s == "uPnP" {
 			log.Println("using uPnP as prevous.")
 			lt.Myself.useUPnP()
 		}

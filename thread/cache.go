@@ -46,9 +46,8 @@ import (
 )
 
 var (
-	cacheMap = make(map[string]sync.Pool)
-	errSpam  = errors.New("this is spam")
-	errGet   = errors.New("cannot get data")
+	errSpam = errors.New("this is spam")
+	errGet  = errors.New("cannot get data")
 	//CacheCfg is config for Cache struct.it must be set before using it.
 	CacheCfg *CacheConfig
 )
@@ -90,19 +89,11 @@ func NewCache(datfile string) *Cache {
 	if CacheCfg == nil {
 		log.Fatal("must set CacheCfg")
 	}
-	p, exist := cacheMap[datfile]
-	if !exist {
-		p.New = func() interface{} {
-			c := &Cache{
-				Datfile:     datfile,
-				CacheConfig: CacheCfg,
-			}
-			c.tags = loadTagslice(path.Join(c.Datpath(), "tag.txt"))
-			return c
-		}
+	c := &Cache{
+		Datfile:     datfile,
+		CacheConfig: CacheCfg,
 	}
-	c := p.Get().(*Cache)
-	p.Put(c)
+	c.tags = loadTagslice(path.Join(c.Datpath(), "tag.txt"))
 	return c
 }
 
@@ -334,7 +325,17 @@ func (c *Cache) headWithRange(n *node.Node, dm *DownloadManager) bool {
 		begin = 0
 	}
 	res, err := n.Talk(fmt.Sprintf("/head/%s/%d-", c.Datfile, begin), false, nil)
-	if err != nil || len(res) == 0 {
+	if err != nil {
+		return false
+	}
+	if len(res) == 0 {
+		ress, errr := n.Talk(fmt.Sprintf("/have/%s", c.Datfile), false, nil)
+		if errr != nil || len(ress) == 0 || ress[0] != "YES" {
+			c.NodeManager.RemoveFromTable(c.Datfile, n)
+		} else {
+			c.NodeManager.AppendToTable(c.Datfile, n)
+			c.NodeManager.Sync()
+		}
 		return false
 	}
 	dm.Set(res, n)
@@ -379,16 +380,12 @@ func (c *Cache) GetCache(background bool) bool {
 	done := make(chan struct{}, searchDepth+1)
 	var wg sync.WaitGroup
 	var mutex sync.RWMutex
-	dm := NewDownloadManger(c.LoadAllRecords())
+	dm := NewDownloadManger(c)
 	for _, n := range ns {
 		wg.Add(1)
 		go func(n *node.Node) {
 			defer wg.Done()
 			if !c.headWithRange(n, dm) {
-				ress, errr := n.Talk(fmt.Sprintf("/have/%s", c.Datfile), false, nil)
-				if errr != nil || len(ress) == 0 || ress[0] != "YES" {
-					c.NodeManager.RemoveFromTable(c.Datfile, n)
-				}
 				return
 			}
 			if c.getWithRange(n, dm) {
@@ -408,7 +405,17 @@ func (c *Cache) GetCache(background bool) bool {
 			wg.Wait()
 			done <- struct{}{}
 		}()
-		<-done
+	b:
+		for {
+			select {
+			case <-done:
+				break b
+			case <-time.After(3 * time.Second):
+				if c.HasRecord() {
+					break b
+				}
+			}
+		}
 	} else {
 		wg.Wait()
 	}
@@ -471,16 +478,25 @@ func (t TargetRecSlice) Less(i, j int) bool {
 	return t[i].stamp < t[j].stamp
 }
 
+var managers = make(map[string]*DownloadManager)
+
 //DownloadManager manages download range of records.
 type DownloadManager struct {
-	recs  map[string]*targetRec
-	mutex sync.RWMutex
+	datfile string
+	recs    map[string]*targetRec
+	mutex   sync.RWMutex
 }
 
 //NewDownloadManger sets recs as finished recs and returns DownloadManager obj.
-func NewDownloadManger(recs RecordMap) *DownloadManager {
+func NewDownloadManger(ca *Cache) *DownloadManager {
+	if d, exist := managers[ca.Datfile]; exist {
+		log.Println(ca.Datfile, "is downloading")
+		return d
+	}
+	recs := ca.LoadAllRecords()
 	dm := &DownloadManager{
-		recs: make(map[string]*targetRec),
+		datfile: ca.Datfile,
+		recs:    make(map[string]*targetRec),
 	}
 	for k := range recs {
 		dm.recs[k] = &targetRec{
@@ -532,6 +548,7 @@ func (dm *DownloadManager) Get(n *node.Node) (int64, int64) {
 	if len(s) == 0 {
 		return -1, -1
 	}
+	managers[dm.datfile] = dm
 	sort.Sort(sort.Reverse(s))
 	begin := len(s) - 1
 	if len(s) > 5 {
@@ -547,14 +564,22 @@ func (dm *DownloadManager) Get(n *node.Node) (int64, int64) {
 func (dm *DownloadManager) Finished(n *node.Node, success bool) {
 	dm.mutex.Lock()
 	defer dm.mutex.Unlock()
+	finished := true
 	for _, rec := range dm.recs {
 		if rec.downloading != nil && rec.downloading.Equals(n) {
 			if success {
 				rec.finished = true
-				continue
+			} else {
+				rec.count++
+				rec.downloading = nil
 			}
-			rec.count++
-			rec.downloading = nil
 		}
+		if !rec.finished {
+			finished = false
+		}
+	}
+	if finished {
+		log.Println(dm.datfile, ":finished downloading")
+		delete(managers, dm.datfile)
 	}
 }
