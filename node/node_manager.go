@@ -302,7 +302,7 @@ func (lt *Manager) moreNodes() {
 		nn := all[no]
 		newN, err := nn.getNode()
 		if err == nil {
-			if lt.Myself.IsPort0() || lt.Join(newN) {
+			if (lt.Myself.GetStatus() == Port0 && !lt.Myself.IsRelayed()) || lt.Join(newN) {
 				all = append(all, newN)
 				lt.appendToList(newN)
 			}
@@ -333,42 +333,48 @@ func (lt *Manager) Initialize(rundir string) {
 			lt.Myself.useUPnP()
 		}
 	}
-	fn := []func([]*Node) string{
-		func(pingOK []*Node) string {
+	fn := []func([]*Node) (string, int){
+		func(pingOK []*Node) (string, int) {
 			log.Println("trying defaultport")
 			lt.Myself.resetPort()
-			return "opened"
+			return "opened", Normal
 		},
-		func(pingOK []*Node) string {
+		func(pingOK []*Node) (string, int) {
 			log.Println("trying uPnP")
 			lt.Myself.useUPnP()
-			return "uPnP"
+			return "uPnP", Normal
 		},
-		func(pingOK []*Node) string {
+		func(pingOK []*Node) (string, int) {
 			log.Println("trying relayed")
 			lt.Myself.resetPort()
-			lt.Myself.setPort0(true)
-			lt.Myself.tryRelay(lt)
-			return "relayed"
+			ns := lt.Random(nil, 1)
+			if len(ns) > 0 {
+				nss := ns[0].getherNodes()
+				log.Println("trying to connect relay server #", len(nss))
+				lt.Myself.tryRelay(nss)
+			}
+			return "relayed", Port0
 		},
-		func(pingOK []*Node) string {
+		func(pingOK []*Node) (string, int) {
 			log.Println("failed to join")
 			for _, n := range pingOK {
 				lt.appendToList(n)
 			}
-			return "failed"
+			return "failed", Port0
 		},
 	}
 	con := "default"
+	stat := Normal
 	for _, f := range fn {
 		if ok, pingOK := lt.initialize(); !ok {
-			con = f(pingOK)
+			con, stat = f(pingOK)
 		} else {
 			log.Println("success to join by", con)
 			break
 		}
 	}
 	if con != "" && confile != "" {
+		lt.Myself.setStatus(stat)
 		err := ioutil.WriteFile(confile, []byte(con), 0644)
 		if err != nil {
 			log.Println(err)

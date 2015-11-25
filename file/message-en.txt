@@ -116,3 +116,4 @@ connection_status<>connection
 port0<>cannot post due to one-way connection
 relayed<>using relay server
 opened<>full connection
+disconnected<>disconnected

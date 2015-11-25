@@ -131,12 +131,18 @@ func printStatus(w http.ResponseWriter, r *http.Request) {
 	var mem runtime.MemStats
 	runtime.ReadMemStats(&mem)
 
-	port0 := a.m["opened"]
-	if a.Myself.IsPort0() {
-		port0 = a.m["port0"]
-	}
-	if a.Myself.IsRelayed() {
-		port0 = a.m["relayed"] + "(" + a.Myself.RelayServer() + ")"
+	var port0 string
+	switch a.Myself.GetStatus() {
+	case node.Normal:
+		port0 = a.m["opened"]
+	case node.Port0:
+		if !a.Myself.IsRelayed() {
+			port0 = a.m["port0"]
+		} else {
+			port0 = a.m["relayed"] + "(" + a.Myself.RelayServer() + ")"
+		}
+	case node.Disconnected:
+		port0 = a.m["disconnected"]
 	}
 
 	s := map[string]string{

@@ -45,6 +45,12 @@ import (
 	"github.com/shingetsu-gou/shingetsu-gou/util"
 )
 
+const (
+	Disconnected = iota
+	Port0
+	Normal
+)
+
 //Myself contains my node info.
 type Myself struct {
 	ip           string
@@ -56,7 +62,7 @@ type Myself struct {
 	serveHTTP    http.HandlerFunc
 	mutex        sync.RWMutex
 	enableNAT    bool
-	port0        bool
+	status       int
 }
 
 //NewMyself returns Myself obj.
@@ -84,20 +90,20 @@ func (m *Myself) resetPort() {
 func (m *Myself) IsRelayed() bool {
 	m.mutex.RLock()
 	defer m.mutex.RUnlock()
-	return m.port0 && m.relayServer != nil
+	return m.status == Port0 && m.relayServer != nil
 }
 
-//IsPort0 returns port0 or not.
-func (m *Myself) IsPort0() bool {
+//GetStatus returns status.
+func (m *Myself) GetStatus() int {
 	m.mutex.RLock()
 	defer m.mutex.RUnlock()
-	return m.port0 && m.relayServer == nil
+	return m.status
 }
 
-//setPort0 set to be behind NAT(port0).
-func (m *Myself) setPort0(port0 bool) {
+//setStatus set connection status.
+func (m *Myself) setStatus(stat int) {
 	m.mutex.Lock()
-	m.port0 = port0
+	m.status = stat
 	m.mutex.Unlock()
 }
 
@@ -163,11 +169,10 @@ func (m *Myself) RelayServer() string {
 
 //tryRelay tries to relay myself for each nodes.
 //This returns true if success.
-func (m *Myself) tryRelay(manager *Manager) {
+func (m *Myself) tryRelay(nodes []*Node) {
 	go func() {
 		closed := make(chan struct{})
 		for {
-			nodes := manager.Random(nil, 0)
 			/*
 				n, _ := newNode("192.168.1.23:8000/server.cgi")
 				nodes = append(nodes, n)
@@ -177,6 +182,7 @@ func (m *Myself) tryRelay(manager *Manager) {
 				if n.cannotRelay {
 					continue
 				}
+				log.Println("trying to connect to relay server", n.Nodestr)
 				url := "ws://" + n.Nodestr + "/request_relay/"
 				err := relay.HandleClient(url, m.serveHTTP, closed, func(r *http.Request) {
 					//nothing to do for now
@@ -222,13 +228,14 @@ func (m *Myself) proxyURL(path string) string {
 
 //useUPnP gets external port by upnp and return external port.
 //returns defaultPort if failed.
-func (m *Myself) useUPnP() {
+func (m *Myself) useUPnP() bool {
 	if !m.enableNAT {
-		return
+		return false
 	}
 	nt, err := nat.NewNetStatus()
 	if err != nil {
 		log.Println(err)
+		return false
 	} else {
 		ma, err := nt.LoopPortMapping("tcp", m.internalPort, "shingetsu-gou", 10*time.Minute)
 		if err != nil {
@@ -236,6 +243,7 @@ func (m *Myself) useUPnP() {
 		} else {
 			m.externalPort = ma.ExternalPort
 		}
+		return true
 	}
 }
 
@@ -433,6 +441,40 @@ func (n *Node) bye() bool {
 		return false
 	}
 	return len(res) > 0 && (res[0] == "BYEBYE")
+}
+
+//getherNodes gethers nodes from n.
+func (n *Node) getherNodes() []*Node {
+	ns := map[string]*Node{
+		n.Nodestr: n,
+	}
+	for i := 0; i < 10; i++ {
+		var mutex sync.Mutex
+		var wg sync.WaitGroup
+		for _, nn := range ns {
+			wg.Add(1)
+			go func(nn *Node) {
+				defer wg.Done()
+				newN, err := nn.getNode()
+				if err != nil {
+					log.Println(err)
+					return
+				}
+				mutex.Lock()
+				ns[newN.Nodestr] = newN
+				mutex.Unlock()
+			}(nn)
+		}
+		log.Println(i)
+		wg.Wait()
+	}
+	nss := make([]*Node, len(ns))
+	var i int
+	for _, nn := range ns {
+		nss[i] = nn
+		i++
+	}
+	return nss
 }
 
 //Slice is slice of node.
