@@ -34,13 +34,17 @@ tl;dr
 
 ## Overview
 
-Gou（[合](https://ja.wikipedia.org/wiki/%E5%90%88_%28%E5%A4%A9%E6%96%87%29)) is an _unofficial_ clone of P2P anonymous BBS shinGETsu [saku](https://github.com/shingetsu/saku) in golang.
+Gou（[合](https://ja.wikipedia.org/wiki/%E5%90%88_%28%E5%A4%A9%E6%96%87%29)) is a clone of P2P anonymous BBS shinGETsu [saku](https://github.com/shingetsu/saku) in golang.
 
+shinGETsu is the union of thread float style bulletin board systems (BBS) with running on some servers. Some boards (threads) share data using P2P (peer-to-peer) technology. You can download the software to manage your server.
+
+Refer [here](http://www.shingetsu.info/) for more details about shinGETsu.
+
+
+## Where does the name _Gou_ come from?
 The word "Gou(合)" means [conjunction](https://en.wikipedia.org/wiki/Astrological_aspect) in Japanese, when an aspect is an angle the planets make to each other in the horoscope.
 
 Yeah, the sun and moon are in conjunction during the new moon(shingetsu:新月, saku:朔）.
-
-Refer [here](http://www.shingetsu.info/) for more details about shinGETsu.
 
 
 ## Feature
@@ -52,6 +56,7 @@ Refer [here](http://www.shingetsu.info/) for more details about shinGETsu.
 3. Portable because there is only one binary file for each platforms and no need to prepare runtime. 
    Just download and click one binary to run.
 4. (should be) faster than saku (?).
+5. Relaying by websocket for NAT users (testing now).
 
 ## Platform
   * MacOS darwin/Plan9 on i386
