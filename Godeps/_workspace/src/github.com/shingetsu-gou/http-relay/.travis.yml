@@ -1,0 +1,24 @@
+language: go
+
+go:
+  - 1.4
+  - 1.5
+
+before_install:
+- go get github.com/axw/gocov/gocov
+- go get github.com/alecthomas/gometalinter
+- go get github.com/mattn/goveralls
+- go get github.com/laher/goxc
+- if ! go get code.google.com/p/go.tools/cmd/cover; then go get golang.org/x/tools/cmd/cover; fi
+- export PATH=$PATH:$GOPATH/bin
+- gometalinter --install --update
+
+script:
+- go test -v -covermode=count -coverprofile=coverage.out
+#- ! gometalinter --deadline=1000s ./... 2>&1 | read
+
+after_script:
+- goveralls -coverprofile=coverage.out -service=travis-ci
+- gometalinter -e bindata --deadline=1000s ./...
+
+
