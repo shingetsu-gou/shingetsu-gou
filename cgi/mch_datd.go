@@ -208,17 +208,22 @@ func (m *mchCGI) threadApp(board, datkey string) {
 	if err != nil {
 		m.wr.WriteHeader(404)
 		fmt.Fprintf(m.wr, "404 Not Found")
+		return
 	}
 	data := thread.NewCache(key)
 	i := data.ReadInfo()
 
 	if m.checkGetCache() {
+		if m.isAdmin() {
+			data.SetupDirectories()
+		}
 		data.GetCache(true)
 	}
 
 	if !data.Exists() {
 		m.wr.WriteHeader(404)
 		fmt.Fprintf(m.wr, "404 Not Found")
+		return
 	}
 	thread := m.DatakeyTable.MakeDat(data, board, m.req.Host)
 	str := strings.Join(thread, "\n")
