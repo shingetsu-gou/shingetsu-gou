@@ -468,5 +468,4 @@ func (a *adminCGI) printSearchResult(query string) {
 	}
 	sort.Sort(sort.Reverse(thread.NewSortByStamp(result, false)))
 	a.printIndexList(result, "", true, false)
-	a.footer(nil)
 }

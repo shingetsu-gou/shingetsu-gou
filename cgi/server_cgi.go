@@ -175,7 +175,11 @@ func websocketRelay(relaynum int) func(w http.ResponseWriter, r *http.Request) {
 			log.Println("num of relays", n, "is over", relaynum)
 			return
 		}
-		host := ws.RemoteAddr().String()
+		host, _, err := net.SplitHostPort(ws.RemoteAddr().String())
+		if err != nil {
+			log.Println(err)
+			return
+		}
 		log.Println("websocket client:", host)
 		n, err := node.MakeNode(host, "/server.cgi", 8000)
 		if err != nil {

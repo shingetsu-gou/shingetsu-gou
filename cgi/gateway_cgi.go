@@ -482,7 +482,7 @@ func (g *gatewayCGI) printIndex(doChange bool) {
 	}
 	title := g.m["index"]
 	if g.filter != "" {
-		title = fmt.Sprintf("%s : %s", g.m["str"], g.filter)
+		title = fmt.Sprintf("%s : %s", g.m["string"], g.filter)
 	}
 	g.header(title, "", nil, true)
 	g.printParagraph("desc_" + str)

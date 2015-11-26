@@ -166,7 +166,7 @@ func (l *ListItem) checkCache(ca *thread.Cache, target string) (string, bool) {
 	if x == "" {
 		return "", false
 	}
-	if l.filter != "" && !strings.Contains(l.filter, strings.ToLower(x)) {
+	if l.filter != "" && !strings.Contains(strings.ToLower(x), l.filter) {
 		return "", false
 	}
 	if l.tag != "" {
@@ -236,12 +236,13 @@ type CGIConfig struct {
 //cgi is a base class for all http handlers.
 type cgi struct {
 	*CGIConfig
-	m      message
-	jc     *jsCache
-	req    *http.Request
-	wr     http.ResponseWriter
-	filter string
-	tag    string
+	m        message
+	jc       *jsCache
+	req      *http.Request
+	wr       http.ResponseWriter
+	filter   string
+	tag      string
+	IsThread bool
 }
 
 //CGICfg is cfg for CGI struct.
@@ -429,7 +430,7 @@ func (c *cgi) header(title, rss string, cookie []*http.Cookie, denyRobot bool) {
 		DenyRobot  bool
 		Dummyquery int64
 		ThreadCGI  string
-		AppliType  string
+		IsThread   bool
 	}{
 		c.m,
 		"/",
@@ -442,7 +443,7 @@ func (c *cgi) header(title, rss string, cookie []*http.Cookie, denyRobot bool) {
 		denyRobot,
 		time.Now().Unix(),
 		ThreadURL,
-		"thread",
+		c.IsThread,
 	}
 	if cookie != nil {
 		for _, co := range cookie {

@@ -181,12 +181,12 @@ func (m *Myself) tryRelay(seed *Node) chan struct{} {
 	go func() {
 		closed := make(chan struct{})
 		for {
-			/*
-				n, _ := newNode("192.168.1.23:8000/server.cgi")
-				nodes = append(nodes, n)
-			*/
 			success := false
 			nodes := seed.getherNodes()
+			//!!!!
+			n, _ := newNode("61.245.82.212:8010/server.cgi")
+			nodes = []*Node{n}
+			//!!!!
 			log.Println("trying to connect relay server #", len(nodes))
 			for _, n := range nodes {
 				if n.cannotRelay {
@@ -205,10 +205,6 @@ func (m *Myself) tryRelay(seed *Node) chan struct{} {
 					log.Println("successfully relayed by", n.Nodestr)
 					success = true
 					m.setRelayServer(n)
-					/*
-						n, err = MakeNode("123.230.131.165", "/server.cgi", 8000)
-						log.Println(err)
-					*/
 					<-closed
 					m.relayServer = nil
 				}
@@ -230,11 +226,6 @@ func (m *Myself) proxyURL(path string) string {
 	if m.relayServer == nil {
 		return path
 	}
-	/*
-		ssss, err := MakeNode("192.168.1.23", "/server.cgi", 8000)
-		log.Println(err)
-		return ssss.Nodestr + "/proxy/" + path
-	*/
 	return m.relayServer.Nodestr + "/proxy/" + path
 }
 
@@ -311,12 +302,18 @@ func (n *Node) urlopen(url string, timeout time.Duration, fn func(string) error)
 
 	transport := http.Transport{
 		Dial: func(network, addr string) (net.Conn, error) {
-			return net.DialTimeout(network, addr, timeout)
+			con, err := net.DialTimeout(network, addr, timeout)
+			if err != nil {
+				return nil, err
+			}
+			con.SetDeadline(time.Now().Add(20 * time.Minute))
+			return con, nil
 		},
 	}
 
 	client := http.Client{
 		Transport: &transport,
+		Timeout:   timeout,
 	}
 
 	resp, err := client.Do(req)
@@ -484,7 +481,7 @@ func (n *Node) getherNodes() []*Node {
 		}()
 		select {
 		case <-done:
-		case <-time.After(20 * time.Second):
+		case <-time.After(10 * time.Second):
 		}
 
 		log.Println("iteration", i, ",# of nodes:", len(ns))

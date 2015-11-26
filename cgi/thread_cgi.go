@@ -156,6 +156,7 @@ func newThreadCGI(w http.ResponseWriter, r *http.Request) (threadCGI, error) {
 		t.print403()
 		return t, errors.New("visitor now allowed")
 	}
+	t.IsThread = true
 	return t, nil
 }
 

@@ -332,7 +332,7 @@ func (lt *Manager) Initialize(rundir string) {
 		if s == "uPnP" {
 			log.Println("using uPnP as prevous.")
 			lt.Myself.useUPnP()
-			con := "uPnP"
+			con = "uPnP"
 		}
 	}
 	fn := []func([]*Node) (string, int){
@@ -349,10 +349,11 @@ func (lt *Manager) Initialize(rundir string) {
 		func(pingOK []*Node) (string, int) {
 			log.Println("trying relayed")
 			lt.Myself.resetPort()
-			ns := lt.Random(nil, 1)
-			if len(ns) > 0 {
-				<-lt.Myself.tryRelay(ns[0])
+			seed, err := newNode(lt.InitNode.GetData()[0])
+			if err!=nil{
+				log.Fatal(err)
 			}
+			<-lt.Myself.tryRelay(seed)
 			return "relayed", Port0
 		},
 		func(pingOK []*Node) (string, int) {
