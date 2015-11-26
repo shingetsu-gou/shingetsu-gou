@@ -137,6 +137,13 @@ func (m *Myself) toNode() *Node {
 	return n
 }
 
+//setRelayServer set relayserver.
+func (m *Myself) setRelayServer(server *Node) {
+	m.mutex.Lock()
+	defer m.mutex.Unlock()
+	m.relayServer = server
+}
+
 //Nodestr returns nodestr.
 func (m *Myself) Nodestr() string {
 	m.mutex.RLock()
@@ -169,7 +176,8 @@ func (m *Myself) RelayServer() string {
 
 //tryRelay tries to relay myself for each nodes.
 //This returns true if success.
-func (m *Myself) tryRelay(nodes []*Node) {
+func (m *Myself) tryRelay(seed *Node) chan struct{} {
+	connected := make(chan struct{})
 	go func() {
 		closed := make(chan struct{})
 		for {
@@ -178,6 +186,8 @@ func (m *Myself) tryRelay(nodes []*Node) {
 				nodes = append(nodes, n)
 			*/
 			success := false
+			nodes := seed.getherNodes()
+			log.Println("trying to connect relay server #", len(nodes))
 			for _, n := range nodes {
 				if n.cannotRelay {
 					continue
@@ -191,24 +201,26 @@ func (m *Myself) tryRelay(nodes []*Node) {
 					n.cannotRelay = true
 					log.Println(err)
 				} else {
+					connected <- struct{}{}
+					log.Println("successfully relayed by", n.Nodestr)
 					success = true
-					m.mutex.Lock()
+					m.setRelayServer(n)
 					/*
 						n, err = MakeNode("123.230.131.165", "/server.cgi", 8000)
 						log.Println(err)
 					*/
-					m.relayServer = n
-					m.mutex.Unlock()
 					<-closed
 					m.relayServer = nil
 				}
 			}
+			connected <- struct{}{}
 			if !success {
 				log.Println("cannot find relay server,sleeping...")
 				time.Sleep(10 * time.Minute)
 			}
 		}
 	}()
+	return connected
 }
 
 //proxyURL returns url for proxy if relayed.
@@ -465,8 +477,17 @@ func (n *Node) getherNodes() []*Node {
 				mutex.Unlock()
 			}(nn)
 		}
-		log.Println(i)
-		wg.Wait()
+		done := make(chan struct{})
+		go func() {
+			wg.Wait()
+			done <- struct{}{}
+		}()
+		select {
+		case <-done:
+		case <-time.After(20 * time.Second):
+		}
+
+		log.Println("iteration", i, ",# of nodes:", len(ns))
 	}
 	nss := make([]*Node, len(ns))
 	var i int

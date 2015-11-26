@@ -320,6 +320,7 @@ func (lt *Manager) moreNodes() {
 //and get another node info from each nodes in nodelist.
 func (lt *Manager) Initialize(rundir string) {
 	var confile string
+	con := "opened"
 	if rundir != "" {
 		confile = filepath.Join(rundir, "connection.dat")
 		c, err := ioutil.ReadFile(confile)
@@ -331,6 +332,7 @@ func (lt *Manager) Initialize(rundir string) {
 		if s == "uPnP" {
 			log.Println("using uPnP as prevous.")
 			lt.Myself.useUPnP()
+			con := "uPnP"
 		}
 	}
 	fn := []func([]*Node) (string, int){
@@ -349,21 +351,19 @@ func (lt *Manager) Initialize(rundir string) {
 			lt.Myself.resetPort()
 			ns := lt.Random(nil, 1)
 			if len(ns) > 0 {
-				nss := ns[0].getherNodes()
-				log.Println("trying to connect relay server #", len(nss))
-				lt.Myself.tryRelay(nss)
+				<-lt.Myself.tryRelay(ns[0])
 			}
 			return "relayed", Port0
 		},
 		func(pingOK []*Node) (string, int) {
 			log.Println("failed to join")
+			lt.Myself.setRelayServer(nil)
 			for _, n := range pingOK {
 				lt.appendToList(n)
 			}
 			return "failed", Port0
 		},
 	}
-	con := "default"
 	stat := Normal
 	for _, f := range fn {
 		if ok, pingOK := lt.initialize(); !ok {
@@ -373,7 +373,7 @@ func (lt *Manager) Initialize(rundir string) {
 			break
 		}
 	}
-	if con != "" && confile != "" {
+	if confile != "" {
 		lt.Myself.setStatus(stat)
 		err := ioutil.WriteFile(confile, []byte(con), 0644)
 		if err != nil {
