@@ -151,7 +151,7 @@ func NewConfig() *Config {
 //initVariables initializes some global and map vars.
 func (c *Config) initVariables(i *ini.File) {
 	c.DefaultPort = getIntValue(i, "Network", "port", 8000)
-	c.MaxConnection = getIntValue(i, "Network", "max_connection", 20)
+	c.MaxConnection = getIntValue(i, "Network", "max_connection", 100)
 	c.Docroot = getPathValue(i, "Path", "docroot", "./www")                                       //path from cwd
 	c.RunDir = getRelativePathValue(i, "Path", "run_dir", "../run", c.Docroot)                    //path from docroot
 	c.FileDir = getRelativePathValue(i, "Path", "file_dir", "../file", c.Docroot)                 //path from docroot

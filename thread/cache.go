@@ -400,7 +400,9 @@ func (c *Cache) GetCache(background bool) bool {
 			c.NodeManager.RemoveFromTable(c.Datfile, n)
 		}(n)
 	}
-	if background {
+	switch {
+	case c.RecentList.Newest(c.Datfile).Stamp == c.ReadInfo().Stamp:
+	case background:
 		go func() {
 			wg.Wait()
 			done <- struct{}{}
@@ -416,7 +418,7 @@ func (c *Cache) GetCache(background bool) bool {
 				}
 			}
 		}
-	} else {
+	default:
 		wg.Wait()
 	}
 	mutex.RLock()
