@@ -78,7 +78,7 @@ are required to compile.
     $ mkdir src
     $ mkdir bin
     $ mkdir pkg
-    $ exoprt GOPATH=`pwd`
+    $ export GOPATH=`pwd`
     $ go get github.com/shingetsu-gou/shingetsu-gou
 	
 Or you can download executable binaries from [here](https://github.com/shingetsu-gou/shingetsu-gou/releases).
