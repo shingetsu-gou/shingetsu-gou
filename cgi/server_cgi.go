@@ -42,7 +42,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/gorilla/websocket"
+	"golang.org/x/net/websocket"
 
 	"github.com/shingetsu-gou/http-relay"
 	"github.com/shingetsu-gou/shingetsu-gou/node"
@@ -68,7 +68,7 @@ func ServerSetup(s *LoggingServeMux, relaynum int) {
 	if relaynum > 0 {
 		s.RegistCompressHandler(ServerURL+"/proxy/", doProxy)
 		s.HandleFunc(ServerURL+"/relay/", doRelay)
-		s.HandleFunc(ServerURL+"/request_relay/", websocketRelay(relaynum))
+		s.Handle(ServerURL+"/request_relay/", websocket.Handler(websocketRelay(relaynum)))
 	}
 }
 
@@ -163,25 +163,24 @@ func validPath(path string) bool {
 
 //websocketRelay accepts websocket relay.
 //e.g. accept url http://relay.com:8000/server.cgin/request_relay/
-func websocketRelay(relaynum int) func(w http.ResponseWriter, r *http.Request) {
-	return func(w http.ResponseWriter, r *http.Request) {
-		ug := websocket.Upgrader{}
-		ws, err := ug.Upgrade(w, r, nil)
-		if err != nil {
-			log.Print("upgrade:", err)
-			return
-		}
+func websocketRelay(relaynum int) func(*websocket.Conn) {
+	return func(ws *websocket.Conn) {
 		if n := relay.Count(); int(n) >= relaynum {
 			log.Println("num of relays", n, "is over", relaynum)
 			return
 		}
-		host, _, err := net.SplitHostPort(ws.RemoteAddr().String())
+		host, port, err := net.SplitHostPort(ws.Request().RemoteAddr)
 		if err != nil {
 			log.Println(err)
 			return
 		}
-		log.Println("websocket client:", host)
-		n, err := node.MakeNode(host, "/server.cgi", 8000)
+		p, err := strconv.Atoi(port)
+		if err != nil {
+			log.Println(err)
+			return
+		}
+		log.Println("websocket client:", host, port)
+		n, err := node.MakeNode(host, "/server.cgi", p)
 		if err != nil {
 			log.Println(err)
 			return

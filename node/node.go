@@ -46,8 +46,11 @@ import (
 )
 
 const (
+	//Disconnected represents mynode is disconnected.
 	Disconnected = iota
+	//Port0 represents mynode is behind NAT.
 	Port0
+	//Normal represents mynode is open to network.
 	Normal
 )
 
@@ -184,8 +187,8 @@ func (m *Myself) tryRelay(seed *Node) chan struct{} {
 			success := false
 			nodes := seed.getherNodes()
 			//!!!!
-			n, _ := newNode("61.245.82.212:8010/server.cgi")
-			nodes = []*Node{n}
+			//			n, _ := newNode("123.230.150.106:8010/server.cgi")
+			//			nodes = []*Node{n}
 			//!!!!
 			log.Println("trying to connect relay server #", len(nodes))
 			for _, n := range nodes {
@@ -193,8 +196,9 @@ func (m *Myself) tryRelay(seed *Node) chan struct{} {
 					continue
 				}
 				log.Println("trying to connect to relay server", n.Nodestr)
+				origin := "http://" + m.ip
 				url := "ws://" + n.Nodestr + "/request_relay/"
-				err := relay.HandleClient(url, m.serveHTTP, closed, func(r *http.Request) {
+				err := relay.HandleClient(url, origin, m.serveHTTP, closed, func(r *http.Request) {
 					//nothing to do for now
 				})
 				if err != nil {
@@ -202,6 +206,8 @@ func (m *Myself) tryRelay(seed *Node) chan struct{} {
 					log.Println(err)
 				} else {
 					connected <- struct{}{}
+					close(connected)
+					connected = nil
 					log.Println("successfully relayed by", n.Nodestr)
 					success = true
 					m.setRelayServer(n)
@@ -209,7 +215,9 @@ func (m *Myself) tryRelay(seed *Node) chan struct{} {
 					m.relayServer = nil
 				}
 			}
-			connected <- struct{}{}
+			if connected != nil {
+				connected <- struct{}{}
+			}
 			if !success {
 				log.Println("cannot find relay server,sleeping...")
 				time.Sleep(10 * time.Minute)
@@ -239,15 +247,14 @@ func (m *Myself) useUPnP() bool {
 	if err != nil {
 		log.Println(err)
 		return false
-	} else {
-		ma, err := nt.LoopPortMapping("tcp", m.internalPort, "shingetsu-gou", 10*time.Minute)
-		if err != nil {
-			log.Println(err)
-		} else {
-			m.externalPort = ma.ExternalPort
-		}
-		return true
 	}
+	ma, err := nt.LoopPortMapping("tcp", m.internalPort, "shingetsu-gou", 10*time.Minute)
+	if err != nil {
+		log.Println(err)
+	} else {
+		m.externalPort = ma.ExternalPort
+	}
+	return true
 }
 
 //NodeCfg is a global stuf for Node struct. it must be set before using it.
@@ -302,12 +309,12 @@ func (n *Node) urlopen(url string, timeout time.Duration, fn func(string) error)
 
 	transport := http.Transport{
 		Dial: func(network, addr string) (net.Conn, error) {
-			con, err := net.DialTimeout(network, addr, timeout)
-			if err != nil {
-				return nil, err
+			con, errr := net.DialTimeout(network, addr, timeout)
+			if errr != nil {
+				return nil, errr
 			}
-			con.SetDeadline(time.Now().Add(20 * time.Minute))
-			return con, nil
+			errr = con.SetDeadline(time.Now().Add(20 * time.Minute))
+			return con, errr
 		},
 	}
 
@@ -444,7 +451,7 @@ func (n *Node) getNode() (*Node, error) {
 
 //bye says goodbye to n and returns true if success.
 func (n *Node) bye() bool {
-	res, err := n.Talk("/bye/"+n.Myself.Nodestr(), true, nil)
+	res, err := n.Talk("/bye/"+n.Myself.toxstring(), true, nil)
 	if err != nil {
 		log.Println("/bye", n.Nodestr, "error")
 		return false

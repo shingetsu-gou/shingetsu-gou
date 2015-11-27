@@ -350,7 +350,7 @@ func (lt *Manager) Initialize(rundir string) {
 			log.Println("trying relayed")
 			lt.Myself.resetPort()
 			seed, err := newNode(lt.InitNode.GetData()[0])
-			if err!=nil{
+			if err != nil {
 				log.Fatal(err)
 			}
 			<-lt.Myself.tryRelay(seed)

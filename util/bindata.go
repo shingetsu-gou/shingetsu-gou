@@ -81,11 +81,11 @@ import (
 	"compress/gzip"
 	"fmt"
 	"io"
-	"strings"
-	"os"
-	"time"
 	"io/ioutil"
+	"os"
 	"path/filepath"
+	"strings"
+	"time"
 )
 
 func bindataRead(data []byte, name string) ([]byte, error) {
@@ -114,9 +114,9 @@ type asset struct {
 }
 
 type bindataFileInfo struct {
-	name string
-	size int64
-	mode os.FileMode
+	name    string
+	size    int64
+	mode    os.FileMode
 	modTime time.Time
 }
 
@@ -155,7 +155,7 @@ func www00defaultCss() (*asset, error) {
 	}
 
 	info := bindataFileInfo{name: "www/00default.css", size: 1328, mode: os.FileMode(420), modTime: time.Unix(1443148418, 0)}
-	a := &asset{bytes: bytes, info:  info}
+	a := &asset{bytes: bytes, info: info}
 	return a, nil
 }
 
@@ -175,7 +175,7 @@ func www00initializeJs() (*asset, error) {
 	}
 
 	info := bindataFileInfo{name: "www/00initialize.js", size: 2257, mode: os.FileMode(420), modTime: time.Unix(1443148418, 0)}
-	a := &asset{bytes: bytes, info:  info}
+	a := &asset{bytes: bytes, info: info}
 	return a, nil
 }
 
@@ -195,7 +195,7 @@ func www20jumpJs() (*asset, error) {
 	}
 
 	info := bindataFileInfo{name: "www/20jump.js", size: 1876, mode: os.FileMode(420), modTime: time.Unix(1443148418, 0)}
-	a := &asset{bytes: bytes, info:  info}
+	a := &asset{bytes: bytes, info: info}
 	return a, nil
 }
 
@@ -215,7 +215,7 @@ func www20lazyimgJs() (*asset, error) {
 	}
 
 	info := bindataFileInfo{name: "www/20lazyimg.js", size: 612, mode: os.FileMode(420), modTime: time.Unix(1443148418, 0)}
-	a := &asset{bytes: bytes, info:  info}
+	a := &asset{bytes: bytes, info: info}
 	return a, nil
 }
 
@@ -235,7 +235,7 @@ func www20localtimeJs() (*asset, error) {
 	}
 
 	info := bindataFileInfo{name: "www/20localtime.js", size: 927, mode: os.FileMode(420), modTime: time.Unix(1443148418, 0)}
-	a := &asset{bytes: bytes, info:  info}
+	a := &asset{bytes: bytes, info: info}
 	return a, nil
 }
 
@@ -255,7 +255,7 @@ func www20popupJs() (*asset, error) {
 	}
 
 	info := bindataFileInfo{name: "www/20popup.js", size: 4287, mode: os.FileMode(420), modTime: time.Unix(1443148418, 0)}
-	a := &asset{bytes: bytes, info:  info}
+	a := &asset{bytes: bytes, info: info}
 	return a, nil
 }
 
@@ -275,7 +275,7 @@ func www20responceJs() (*asset, error) {
 	}
 
 	info := bindataFileInfo{name: "www/20responce.js", size: 1810, mode: os.FileMode(420), modTime: time.Unix(1443148418, 0)}
-	a := &asset{bytes: bytes, info:  info}
+	a := &asset{bytes: bytes, info: info}
 	return a, nil
 }
 
@@ -295,7 +295,7 @@ func www20tageditJs() (*asset, error) {
 	}
 
 	info := bindataFileInfo{name: "www/20tagedit.js", size: 2241, mode: os.FileMode(420), modTime: time.Unix(1443148418, 0)}
-	a := &asset{bytes: bytes, info:  info}
+	a := &asset{bytes: bytes, info: info}
 	return a, nil
 }
 
@@ -315,7 +315,7 @@ func www20textareaJs() (*asset, error) {
 	}
 
 	info := bindataFileInfo{name: "www/20textarea.js", size: 4778, mode: os.FileMode(420), modTime: time.Unix(1443148418, 0)}
-	a := &asset{bytes: bytes, info:  info}
+	a := &asset{bytes: bytes, info: info}
 	return a, nil
 }
 
@@ -335,7 +335,7 @@ func www21resanchorJs() (*asset, error) {
 	}
 
 	info := bindataFileInfo{name: "www/21resanchor.js", size: 7246, mode: os.FileMode(420), modTime: time.Unix(1443148418, 0)}
-	a := &asset{bytes: bytes, info:  info}
+	a := &asset{bytes: bytes, info: info}
 	return a, nil
 }
 
@@ -355,7 +355,7 @@ func www40recformJs() (*asset, error) {
 	}
 
 	info := bindataFileInfo{name: "www/40recform.js", size: 2844, mode: os.FileMode(420), modTime: time.Unix(1443148418, 0)}
-	a := &asset{bytes: bytes, info:  info}
+	a := &asset{bytes: bytes, info: info}
 	return a, nil
 }
 
@@ -375,7 +375,7 @@ func www41postadvancedJs() (*asset, error) {
 	}
 
 	info := bindataFileInfo{name: "www/41postadvanced.js", size: 1329, mode: os.FileMode(420), modTime: time.Unix(1443148418, 0)}
-	a := &asset{bytes: bytes, info:  info}
+	a := &asset{bytes: bytes, info: info}
 	return a, nil
 }
 
@@ -395,7 +395,7 @@ func wwwArazuki_sakuPng() (*asset, error) {
 	}
 
 	info := bindataFileInfo{name: "www/arazuki_saku.png", size: 64530, mode: os.FileMode(420), modTime: time.Unix(1447626738, 0)}
-	a := &asset{bytes: bytes, info:  info}
+	a := &asset{bytes: bytes, info: info}
 	return a, nil
 }
 
@@ -415,7 +415,7 @@ func wwwBootstrapCssBootstrapMinCss() (*asset, error) {
 	}
 
 	info := bindataFileInfo{name: "www/bootstrap/css/bootstrap.min.css", size: 99961, mode: os.FileMode(420), modTime: time.Unix(1443148418, 0)}
-	a := &asset{bytes: bytes, info:  info}
+	a := &asset{bytes: bytes, info: info}
 	return a, nil
 }
 
@@ -435,7 +435,7 @@ func wwwBootstrapFontsGlyphiconsHalflingsRegularEot() (*asset, error) {
 	}
 
 	info := bindataFileInfo{name: "www/bootstrap/fonts/glyphicons-halflings-regular.eot", size: 20335, mode: os.FileMode(420), modTime: time.Unix(1443148418, 0)}
-	a := &asset{bytes: bytes, info:  info}
+	a := &asset{bytes: bytes, info: info}
 	return a, nil
 }
 
@@ -455,7 +455,7 @@ func wwwBootstrapFontsGlyphiconsHalflingsRegularSvg() (*asset, error) {
 	}
 
 	info := bindataFileInfo{name: "www/bootstrap/fonts/glyphicons-halflings-regular.svg", size: 62927, mode: os.FileMode(420), modTime: time.Unix(1443148418, 0)}
-	a := &asset{bytes: bytes, info:  info}
+	a := &asset{bytes: bytes, info: info}
 	return a, nil
 }
 
@@ -475,7 +475,7 @@ func wwwBootstrapFontsGlyphiconsHalflingsRegularTtf() (*asset, error) {
 	}
 
 	info := bindataFileInfo{name: "www/bootstrap/fonts/glyphicons-halflings-regular.ttf", size: 41280, mode: os.FileMode(420), modTime: time.Unix(1443148418, 0)}
-	a := &asset{bytes: bytes, info:  info}
+	a := &asset{bytes: bytes, info: info}
 	return a, nil
 }
 
@@ -495,7 +495,7 @@ func wwwBootstrapFontsGlyphiconsHalflingsRegularWoff() (*asset, error) {
 	}
 
 	info := bindataFileInfo{name: "www/bootstrap/fonts/glyphicons-halflings-regular.woff", size: 23320, mode: os.FileMode(420), modTime: time.Unix(1443148418, 0)}
-	a := &asset{bytes: bytes, info:  info}
+	a := &asset{bytes: bytes, info: info}
 	return a, nil
 }
 
@@ -515,7 +515,7 @@ func wwwBootstrapJsBootstrapMinJs() (*asset, error) {
 	}
 
 	info := bindataFileInfo{name: "www/bootstrap/js/bootstrap.min.js", size: 29110, mode: os.FileMode(420), modTime: time.Unix(1443148418, 0)}
-	a := &asset{bytes: bytes, info:  info}
+	a := &asset{bytes: bytes, info: info}
 	return a, nil
 }
 
@@ -535,7 +535,7 @@ func wwwExtensions20imgpopupJs() (*asset, error) {
 	}
 
 	info := bindataFileInfo{name: "www/extensions/20imgpopup.js", size: 1323, mode: os.FileMode(420), modTime: time.Unix(1443148418, 0)}
-	a := &asset{bytes: bytes, info:  info}
+	a := &asset{bytes: bytes, info: info}
 	return a, nil
 }
 
@@ -555,7 +555,7 @@ func wwwExtensions20imgspoilerJs() (*asset, error) {
 	}
 
 	info := bindataFileInfo{name: "www/extensions/20imgspoiler.js", size: 443, mode: os.FileMode(420), modTime: time.Unix(1443148418, 0)}
-	a := &asset{bytes: bytes, info:  info}
+	a := &asset{bytes: bytes, info: info}
 	return a, nil
 }
 
@@ -575,7 +575,7 @@ func wwwExtensions20localtimeJs() (*asset, error) {
 	}
 
 	info := bindataFileInfo{name: "www/extensions/20localtime.js", size: 1444, mode: os.FileMode(420), modTime: time.Unix(1443148418, 0)}
-	a := &asset{bytes: bytes, info:  info}
+	a := &asset{bytes: bytes, info: info}
 	return a, nil
 }
 
@@ -595,7 +595,7 @@ func wwwExtensions30addlinksJs() (*asset, error) {
 	}
 
 	info := bindataFileInfo{name: "www/extensions/30addlinks.js", size: 4465, mode: os.FileMode(420), modTime: time.Unix(1443148418, 0)}
-	a := &asset{bytes: bytes, info:  info}
+	a := &asset{bytes: bytes, info: info}
 	return a, nil
 }
 
@@ -615,7 +615,7 @@ func wwwExtensions30adminJs() (*asset, error) {
 	}
 
 	info := bindataFileInfo{name: "www/extensions/30admin.js", size: 782, mode: os.FileMode(420), modTime: time.Unix(1443148418, 0)}
-	a := &asset{bytes: bytes, info:  info}
+	a := &asset{bytes: bytes, info: info}
 	return a, nil
 }
 
@@ -635,7 +635,7 @@ func wwwExtensions30filenameJs() (*asset, error) {
 	}
 
 	info := bindataFileInfo{name: "www/extensions/30filename.js", size: 641, mode: os.FileMode(420), modTime: time.Unix(1443148418, 0)}
-	a := &asset{bytes: bytes, info:  info}
+	a := &asset{bytes: bytes, info: info}
 	return a, nil
 }
 
@@ -655,7 +655,7 @@ func wwwExtensions30filterlinkJs() (*asset, error) {
 	}
 
 	info := bindataFileInfo{name: "www/extensions/30filterlink.js", size: 2181, mode: os.FileMode(420), modTime: time.Unix(1443148418, 0)}
-	a := &asset{bytes: bytes, info:  info}
+	a := &asset{bytes: bytes, info: info}
 	return a, nil
 }
 
@@ -675,7 +675,7 @@ func wwwExtensions30idresJs() (*asset, error) {
 	}
 
 	info := bindataFileInfo{name: "www/extensions/30idres.js", size: 7398, mode: os.FileMode(420), modTime: time.Unix(1443148418, 0)}
-	a := &asset{bytes: bytes, info:  info}
+	a := &asset{bytes: bytes, info: info}
 	return a, nil
 }
 
@@ -695,7 +695,7 @@ func wwwExtensions30ytplayerJs() (*asset, error) {
 	}
 
 	info := bindataFileInfo{name: "www/extensions/30ytplayer.js", size: 9299, mode: os.FileMode(420), modTime: time.Unix(1443148418, 0)}
-	a := &asset{bytes: bytes, info:  info}
+	a := &asset{bytes: bytes, info: info}
 	return a, nil
 }
 
@@ -715,7 +715,7 @@ func wwwExtensions40incfilterJs() (*asset, error) {
 	}
 
 	info := bindataFileInfo{name: "www/extensions/40incfilter.js", size: 1964, mode: os.FileMode(420), modTime: time.Unix(1443148418, 0)}
-	a := &asset{bytes: bytes, info:  info}
+	a := &asset{bytes: bytes, info: info}
 	return a, nil
 }
 
@@ -735,7 +735,7 @@ func wwwExtensions40textareaJs() (*asset, error) {
 	}
 
 	info := bindataFileInfo{name: "www/extensions/40textarea.js", size: 3269, mode: os.FileMode(420), modTime: time.Unix(1443148418, 0)}
-	a := &asset{bytes: bytes, info:  info}
+	a := &asset{bytes: bytes, info: info}
 	return a, nil
 }
 
@@ -755,7 +755,7 @@ func wwwExtensionsReadme() (*asset, error) {
 	}
 
 	info := bindataFileInfo{name: "www/extensions/README", size: 124, mode: os.FileMode(420), modTime: time.Unix(1443148418, 0)}
-	a := &asset{bytes: bytes, info:  info}
+	a := &asset{bytes: bytes, info: info}
 	return a, nil
 }
 
@@ -775,7 +775,7 @@ func wwwFaviconIco() (*asset, error) {
 	}
 
 	info := bindataFileInfo{name: "www/favicon.ico", size: 1406, mode: os.FileMode(420), modTime: time.Unix(1443148418, 0)}
-	a := &asset{bytes: bytes, info:  info}
+	a := &asset{bytes: bytes, info: info}
 	return a, nil
 }
 
@@ -795,7 +795,7 @@ func wwwGouPng() (*asset, error) {
 	}
 
 	info := bindataFileInfo{name: "www/gou.png", size: 22703, mode: os.FileMode(420), modTime: time.Unix(1443136276, 0)}
-	a := &asset{bytes: bytes, info:  info}
+	a := &asset{bytes: bytes, info: info}
 	return a, nil
 }
 
@@ -815,7 +815,7 @@ func wwwJqueryMitLicenseTxt() (*asset, error) {
 	}
 
 	info := bindataFileInfo{name: "www/jquery/MIT-LICENSE.txt", size: 1099, mode: os.FileMode(420), modTime: time.Unix(1443148418, 0)}
-	a := &asset{bytes: bytes, info:  info}
+	a := &asset{bytes: bytes, info: info}
 	return a, nil
 }
 
@@ -835,7 +835,7 @@ func wwwJqueryJqueryLazyMinJs() (*asset, error) {
 	}
 
 	info := bindataFileInfo{name: "www/jquery/jquery.lazy.min.js", size: 2763, mode: os.FileMode(420), modTime: time.Unix(1443148418, 0)}
-	a := &asset{bytes: bytes, info:  info}
+	a := &asset{bytes: bytes, info: info}
 	return a, nil
 }
 
@@ -855,7 +855,7 @@ func wwwJqueryJqueryMinJs() (*asset, error) {
 	}
 
 	info := bindataFileInfo{name: "www/jquery/jquery.min.js", size: 84245, mode: os.FileMode(420), modTime: time.Unix(1443148418, 0)}
-	a := &asset{bytes: bytes, info:  info}
+	a := &asset{bytes: bytes, info: info}
 	return a, nil
 }
 
@@ -875,7 +875,7 @@ func wwwJquerySpoilerAuthorsTxt() (*asset, error) {
 	}
 
 	info := bindataFileInfo{name: "www/jquery/spoiler/authors.txt", size: 226, mode: os.FileMode(420), modTime: time.Unix(1443148418, 0)}
-	a := &asset{bytes: bytes, info:  info}
+	a := &asset{bytes: bytes, info: info}
 	return a, nil
 }
 
@@ -895,7 +895,7 @@ func wwwJquerySpoilerSpoilerMinJs() (*asset, error) {
 	}
 
 	info := bindataFileInfo{name: "www/jquery/spoiler/spoiler.min.js", size: 2333, mode: os.FileMode(420), modTime: time.Unix(1443148418, 0)}
-	a := &asset{bytes: bytes, info:  info}
+	a := &asset{bytes: bytes, info: info}
 	return a, nil
 }
 
@@ -915,7 +915,7 @@ func wwwRss1Xsl() (*asset, error) {
 	}
 
 	info := bindataFileInfo{name: "www/rss1.xsl", size: 1342, mode: os.FileMode(420), modTime: time.Unix(1443148418, 0)}
-	a := &asset{bytes: bytes, info:  info}
+	a := &asset{bytes: bytes, info: info}
 	return a, nil
 }
 
@@ -935,7 +935,7 @@ func wwwXGif() (*asset, error) {
 	}
 
 	info := bindataFileInfo{name: "www/x.gif", size: 43, mode: os.FileMode(420), modTime: time.Unix(1443148418, 0)}
-	a := &asset{bytes: bytes, info:  info}
+	a := &asset{bytes: bytes, info: info}
 	return a, nil
 }
 
@@ -955,7 +955,7 @@ func fileInitnodeTxt() (*asset, error) {
 	}
 
 	info := bindataFileInfo{name: "file/initnode.txt", size: 146, mode: os.FileMode(420), modTime: time.Unix(1448508811, 0)}
-	a := &asset{bytes: bytes, info:  info}
+	a := &asset{bytes: bytes, info: info}
 	return a, nil
 }
 
@@ -975,7 +975,7 @@ func fileMessageEnTxt() (*asset, error) {
 	}
 
 	info := bindataFileInfo{name: "file/message-en.txt", size: 2757, mode: os.FileMode(420), modTime: time.Unix(1448454022, 0)}
-	a := &asset{bytes: bytes, info:  info}
+	a := &asset{bytes: bytes, info: info}
 	return a, nil
 }
 
@@ -995,7 +995,7 @@ func fileMessageJaTxt() (*asset, error) {
 	}
 
 	info := bindataFileInfo{name: "file/message-ja.txt", size: 3877, mode: os.FileMode(420), modTime: time.Unix(1448454010, 0)}
-	a := &asset{bytes: bytes, info:  info}
+	a := &asset{bytes: bytes, info: info}
 	return a, nil
 }
 
@@ -1015,7 +1015,7 @@ func fileMotdTxt() (*asset, error) {
 	}
 
 	info := bindataFileInfo{name: "file/motd.txt", size: 1662, mode: os.FileMode(420), modTime: time.Unix(1447729110, 0)}
-	a := &asset{bytes: bytes, info:  info}
+	a := &asset{bytes: bytes, info: info}
 	return a, nil
 }
 
@@ -1035,7 +1035,7 @@ func fileNode_allowTxt() (*asset, error) {
 	}
 
 	info := bindataFileInfo{name: "file/node_allow.txt", size: 262, mode: os.FileMode(420), modTime: time.Unix(1447729110, 0)}
-	a := &asset{bytes: bytes, info:  info}
+	a := &asset{bytes: bytes, info: info}
 	return a, nil
 }
 
@@ -1055,7 +1055,7 @@ func fileNode_denyTxt() (*asset, error) {
 	}
 
 	info := bindataFileInfo{name: "file/node_deny.txt", size: 303, mode: os.FileMode(420), modTime: time.Unix(1448088593, 0)}
-	a := &asset{bytes: bytes, info:  info}
+	a := &asset{bytes: bytes, info: info}
 	return a, nil
 }
 
@@ -1075,7 +1075,7 @@ func fileSakuIni() (*asset, error) {
 	}
 
 	info := bindataFileInfo{name: "file/saku.ini", size: 172, mode: os.FileMode(420), modTime: time.Unix(1448511123, 0)}
-	a := &asset{bytes: bytes, info:  info}
+	a := &asset{bytes: bytes, info: info}
 	return a, nil
 }
 
@@ -1095,7 +1095,7 @@ func fileSpamTxt() (*asset, error) {
 	}
 
 	info := bindataFileInfo{name: "file/spam.txt", size: 649, mode: os.FileMode(420), modTime: time.Unix(1447729110, 0)}
-	a := &asset{bytes: bytes, info:  info}
+	a := &asset{bytes: bytes, info: info}
 	return a, nil
 }
 
@@ -1115,7 +1115,7 @@ func gou_template2ch_errorTxt() (*asset, error) {
 	}
 
 	info := bindataFileInfo{name: "gou_template/2ch_error.txt", size: 493, mode: os.FileMode(420), modTime: time.Unix(1446535756, 0)}
-	a := &asset{bytes: bytes, info:  info}
+	a := &asset{bytes: bytes, info: info}
 	return a, nil
 }
 
@@ -1135,7 +1135,7 @@ func gou_templateDelete_fileTxt() (*asset, error) {
 	}
 
 	info := bindataFileInfo{name: "gou_template/delete_file.txt", size: 822, mode: os.FileMode(420), modTime: time.Unix(1446810916, 0)}
-	a := &asset{bytes: bytes, info:  info}
+	a := &asset{bytes: bytes, info: info}
 	return a, nil
 }
 
@@ -1155,7 +1155,7 @@ func gou_templateDelete_recordTxt() (*asset, error) {
 	}
 
 	info := bindataFileInfo{name: "gou_template/delete_record.txt", size: 1779, mode: os.FileMode(420), modTime: time.Unix(1446535756, 0)}
-	a := &asset{bytes: bytes, info:  info}
+	a := &asset{bytes: bytes, info: info}
 	return a, nil
 }
 
@@ -1175,7 +1175,7 @@ func gou_templateEdit_tagTxt() (*asset, error) {
 	}
 
 	info := bindataFileInfo{name: "gou_template/edit_tag.txt", size: 953, mode: os.FileMode(420), modTime: time.Unix(1446535756, 0)}
-	a := &asset{bytes: bytes, info:  info}
+	a := &asset{bytes: bytes, info: info}
 	return a, nil
 }
 
@@ -1195,7 +1195,7 @@ func gou_templateFooterTxt() (*asset, error) {
 	}
 
 	info := bindataFileInfo{name: "gou_template/footer.txt", size: 419, mode: os.FileMode(420), modTime: time.Unix(1446968405, 0)}
-	a := &asset{bytes: bytes, info:  info}
+	a := &asset{bytes: bytes, info: info}
 	return a, nil
 }
 
@@ -1215,7 +1215,7 @@ func gou_templateGateway_linkTxt() (*asset, error) {
 	}
 
 	info := bindataFileInfo{name: "gou_template/gateway_link.txt", size: 270, mode: os.FileMode(420), modTime: time.Unix(1446535756, 0)}
-	a := &asset{bytes: bytes, info:  info}
+	a := &asset{bytes: bytes, info: info}
 	return a, nil
 }
 
@@ -1235,7 +1235,7 @@ func gou_templateHeaderTxt() (*asset, error) {
 	}
 
 	info := bindataFileInfo{name: "gou_template/header.txt", size: 1965, mode: os.FileMode(420), modTime: time.Unix(1448517558, 0)}
-	a := &asset{bytes: bytes, info:  info}
+	a := &asset{bytes: bytes, info: info}
 	return a, nil
 }
 
@@ -1255,7 +1255,7 @@ func gou_templateIndex_listTxt() (*asset, error) {
 	}
 
 	info := bindataFileInfo{name: "gou_template/index_list.txt", size: 1930, mode: os.FileMode(420), modTime: time.Unix(1447728949, 0)}
-	a := &asset{bytes: bytes, info:  info}
+	a := &asset{bytes: bytes, info: info}
 	return a, nil
 }
 
@@ -1275,7 +1275,7 @@ func gou_templateJumpTxt() (*asset, error) {
 	}
 
 	info := bindataFileInfo{name: "gou_template/jump.txt", size: 252, mode: os.FileMode(420), modTime: time.Unix(1446535756, 0)}
-	a := &asset{bytes: bytes, info:  info}
+	a := &asset{bytes: bytes, info: info}
 	return a, nil
 }
 
@@ -1295,7 +1295,7 @@ func gou_templateList_itemTxt() (*asset, error) {
 	}
 
 	info := bindataFileInfo{name: "gou_template/list_item.txt", size: 1007, mode: os.FileMode(420), modTime: time.Unix(1447403809, 0)}
-	a := &asset{bytes: bytes, info:  info}
+	a := &asset{bytes: bytes, info: info}
 	return a, nil
 }
 
@@ -1315,7 +1315,7 @@ func gou_templateMenubarTxt() (*asset, error) {
 	}
 
 	info := bindataFileInfo{name: "gou_template/menubar.txt", size: 635, mode: os.FileMode(420), modTime: time.Unix(1446535756, 0)}
-	a := &asset{bytes: bytes, info:  info}
+	a := &asset{bytes: bytes, info: info}
 	return a, nil
 }
 
@@ -1335,7 +1335,7 @@ func gou_templateNew_element_formTxt() (*asset, error) {
 	}
 
 	info := bindataFileInfo{name: "gou_template/new_element_form.txt", size: 1298, mode: os.FileMode(420), modTime: time.Unix(1447596358, 0)}
-	a := &asset{bytes: bytes, info:  info}
+	a := &asset{bytes: bytes, info: info}
 	return a, nil
 }
 
@@ -1355,7 +1355,7 @@ func gou_templatePage_naviTxt() (*asset, error) {
 	}
 
 	info := bindataFileInfo{name: "gou_template/page_navi.txt", size: 937, mode: os.FileMode(420), modTime: time.Unix(1446535756, 0)}
-	a := &asset{bytes: bytes, info:  info}
+	a := &asset{bytes: bytes, info: info}
 	return a, nil
 }
 
@@ -1375,7 +1375,7 @@ func gou_templateParagraphTxt() (*asset, error) {
 	}
 
 	info := bindataFileInfo{name: "gou_template/paragraph.txt", size: 108, mode: os.FileMode(420), modTime: time.Unix(1446535756, 0)}
-	a := &asset{bytes: bytes, info:  info}
+	a := &asset{bytes: bytes, info: info}
 	return a, nil
 }
 
@@ -1395,7 +1395,7 @@ func gou_templatePost_formTxt() (*asset, error) {
 	}
 
 	info := bindataFileInfo{name: "gou_template/post_form.txt", size: 3152, mode: os.FileMode(420), modTime: time.Unix(1446535756, 0)}
-	a := &asset{bytes: bytes, info:  info}
+	a := &asset{bytes: bytes, info: info}
 	return a, nil
 }
 
@@ -1415,7 +1415,7 @@ func gou_templateRecordTxt() (*asset, error) {
 	}
 
 	info := bindataFileInfo{name: "gou_template/record.txt", size: 1786, mode: os.FileMode(420), modTime: time.Unix(1446535756, 0)}
-	a := &asset{bytes: bytes, info:  info}
+	a := &asset{bytes: bytes, info: info}
 	return a, nil
 }
 
@@ -1435,7 +1435,7 @@ func gou_templateRemove_file_formTxt() (*asset, error) {
 	}
 
 	info := bindataFileInfo{name: "gou_template/remove_file_form.txt", size: 563, mode: os.FileMode(420), modTime: time.Unix(1446535756, 0)}
-	a := &asset{bytes: bytes, info:  info}
+	a := &asset{bytes: bytes, info: info}
 	return a, nil
 }
 
@@ -1455,7 +1455,7 @@ func gou_templateRss1Txt() (*asset, error) {
 	}
 
 	info := bindataFileInfo{name: "gou_template/rss1.txt", size: 1268, mode: os.FileMode(420), modTime: time.Unix(1446535756, 0)}
-	a := &asset{bytes: bytes, info:  info}
+	a := &asset{bytes: bytes, info: info}
 	return a, nil
 }
 
@@ -1475,7 +1475,7 @@ func gou_templateSearch_formTxt() (*asset, error) {
 	}
 
 	info := bindataFileInfo{name: "gou_template/search_form.txt", size: 277, mode: os.FileMode(420), modTime: time.Unix(1446535756, 0)}
-	a := &asset{bytes: bytes, info:  info}
+	a := &asset{bytes: bytes, info: info}
 	return a, nil
 }
 
@@ -1495,7 +1495,7 @@ func gou_templateStatusTxt() (*asset, error) {
 	}
 
 	info := bindataFileInfo{name: "gou_template/status.txt", size: 409, mode: os.FileMode(420), modTime: time.Unix(1446535756, 0)}
-	a := &asset{bytes: bytes, info:  info}
+	a := &asset{bytes: bytes, info: info}
 	return a, nil
 }
 
@@ -1515,7 +1515,7 @@ func gou_templateThread_bottomTxt() (*asset, error) {
 	}
 
 	info := bindataFileInfo{name: "gou_template/thread_bottom.txt", size: 273, mode: os.FileMode(420), modTime: time.Unix(1446535756, 0)}
-	a := &asset{bytes: bytes, info:  info}
+	a := &asset{bytes: bytes, info: info}
 	return a, nil
 }
 
@@ -1535,7 +1535,7 @@ func gou_templateThread_tagsTxt() (*asset, error) {
 	}
 
 	info := bindataFileInfo{name: "gou_template/thread_tags.txt", size: 410, mode: os.FileMode(420), modTime: time.Unix(1446535756, 0)}
-	a := &asset{bytes: bytes, info:  info}
+	a := &asset{bytes: bytes, info: info}
 	return a, nil
 }
 
@@ -1555,7 +1555,7 @@ func gou_templateThread_topTxt() (*asset, error) {
 	}
 
 	info := bindataFileInfo{name: "gou_template/thread_top.txt", size: 814, mode: os.FileMode(420), modTime: time.Unix(1446535756, 0)}
-	a := &asset{bytes: bytes, info:  info}
+	a := &asset{bytes: bytes, info: info}
 	return a, nil
 }
 
@@ -1575,7 +1575,7 @@ func gou_templateTopTxt() (*asset, error) {
 	}
 
 	info := bindataFileInfo{name: "gou_template/top.txt", size: 1692, mode: os.FileMode(420), modTime: time.Unix(1447626501, 0)}
-	a := &asset{bytes: bytes, info:  info}
+	a := &asset{bytes: bytes, info: info}
 	return a, nil
 }
 
@@ -1598,7 +1598,7 @@ func Asset(name string) ([]byte, error) {
 // It simplifies safe initialization of global variables.
 func MustAsset(name string) []byte {
 	a, err := Asset(name)
-	if (err != nil) {
+	if err != nil {
 		panic("asset: Asset(" + name + "): " + err.Error())
 	}
 
@@ -1631,78 +1631,78 @@ func AssetNames() []string {
 
 // _bindata is a table, holding each asset generator, mapped to its name.
 var _bindata = map[string]func() (*asset, error){
-	"www/00default.css": www00defaultCss,
-	"www/00initialize.js": www00initializeJs,
-	"www/20jump.js": www20jumpJs,
-	"www/20lazyimg.js": www20lazyimgJs,
-	"www/20localtime.js": www20localtimeJs,
-	"www/20popup.js": www20popupJs,
-	"www/20responce.js": www20responceJs,
-	"www/20tagedit.js": www20tageditJs,
-	"www/20textarea.js": www20textareaJs,
-	"www/21resanchor.js": www21resanchorJs,
-	"www/40recform.js": www40recformJs,
-	"www/41postadvanced.js": www41postadvancedJs,
-	"www/arazuki_saku.png": wwwArazuki_sakuPng,
-	"www/bootstrap/css/bootstrap.min.css": wwwBootstrapCssBootstrapMinCss,
-	"www/bootstrap/fonts/glyphicons-halflings-regular.eot": wwwBootstrapFontsGlyphiconsHalflingsRegularEot,
-	"www/bootstrap/fonts/glyphicons-halflings-regular.svg": wwwBootstrapFontsGlyphiconsHalflingsRegularSvg,
-	"www/bootstrap/fonts/glyphicons-halflings-regular.ttf": wwwBootstrapFontsGlyphiconsHalflingsRegularTtf,
+	"www/00default.css":                                     www00defaultCss,
+	"www/00initialize.js":                                   www00initializeJs,
+	"www/20jump.js":                                         www20jumpJs,
+	"www/20lazyimg.js":                                      www20lazyimgJs,
+	"www/20localtime.js":                                    www20localtimeJs,
+	"www/20popup.js":                                        www20popupJs,
+	"www/20responce.js":                                     www20responceJs,
+	"www/20tagedit.js":                                      www20tageditJs,
+	"www/20textarea.js":                                     www20textareaJs,
+	"www/21resanchor.js":                                    www21resanchorJs,
+	"www/40recform.js":                                      www40recformJs,
+	"www/41postadvanced.js":                                 www41postadvancedJs,
+	"www/arazuki_saku.png":                                  wwwArazuki_sakuPng,
+	"www/bootstrap/css/bootstrap.min.css":                   wwwBootstrapCssBootstrapMinCss,
+	"www/bootstrap/fonts/glyphicons-halflings-regular.eot":  wwwBootstrapFontsGlyphiconsHalflingsRegularEot,
+	"www/bootstrap/fonts/glyphicons-halflings-regular.svg":  wwwBootstrapFontsGlyphiconsHalflingsRegularSvg,
+	"www/bootstrap/fonts/glyphicons-halflings-regular.ttf":  wwwBootstrapFontsGlyphiconsHalflingsRegularTtf,
 	"www/bootstrap/fonts/glyphicons-halflings-regular.woff": wwwBootstrapFontsGlyphiconsHalflingsRegularWoff,
-	"www/bootstrap/js/bootstrap.min.js": wwwBootstrapJsBootstrapMinJs,
-	"www/extensions/20imgpopup.js": wwwExtensions20imgpopupJs,
-	"www/extensions/20imgspoiler.js": wwwExtensions20imgspoilerJs,
-	"www/extensions/20localtime.js": wwwExtensions20localtimeJs,
-	"www/extensions/30addlinks.js": wwwExtensions30addlinksJs,
-	"www/extensions/30admin.js": wwwExtensions30adminJs,
-	"www/extensions/30filename.js": wwwExtensions30filenameJs,
-	"www/extensions/30filterlink.js": wwwExtensions30filterlinkJs,
-	"www/extensions/30idres.js": wwwExtensions30idresJs,
-	"www/extensions/30ytplayer.js": wwwExtensions30ytplayerJs,
-	"www/extensions/40incfilter.js": wwwExtensions40incfilterJs,
-	"www/extensions/40textarea.js": wwwExtensions40textareaJs,
-	"www/extensions/README": wwwExtensionsReadme,
-	"www/favicon.ico": wwwFaviconIco,
-	"www/gou.png": wwwGouPng,
-	"www/jquery/MIT-LICENSE.txt": wwwJqueryMitLicenseTxt,
-	"www/jquery/jquery.lazy.min.js": wwwJqueryJqueryLazyMinJs,
-	"www/jquery/jquery.min.js": wwwJqueryJqueryMinJs,
-	"www/jquery/spoiler/authors.txt": wwwJquerySpoilerAuthorsTxt,
-	"www/jquery/spoiler/spoiler.min.js": wwwJquerySpoilerSpoilerMinJs,
-	"www/rss1.xsl": wwwRss1Xsl,
-	"www/x.gif": wwwXGif,
-	"file/initnode.txt": fileInitnodeTxt,
-	"file/message-en.txt": fileMessageEnTxt,
-	"file/message-ja.txt": fileMessageJaTxt,
-	"file/motd.txt": fileMotdTxt,
-	"file/node_allow.txt": fileNode_allowTxt,
-	"file/node_deny.txt": fileNode_denyTxt,
-	"file/saku.ini": fileSakuIni,
-	"file/spam.txt": fileSpamTxt,
-	"gou_template/2ch_error.txt": gou_template2ch_errorTxt,
-	"gou_template/delete_file.txt": gou_templateDelete_fileTxt,
-	"gou_template/delete_record.txt": gou_templateDelete_recordTxt,
-	"gou_template/edit_tag.txt": gou_templateEdit_tagTxt,
-	"gou_template/footer.txt": gou_templateFooterTxt,
-	"gou_template/gateway_link.txt": gou_templateGateway_linkTxt,
-	"gou_template/header.txt": gou_templateHeaderTxt,
-	"gou_template/index_list.txt": gou_templateIndex_listTxt,
-	"gou_template/jump.txt": gou_templateJumpTxt,
-	"gou_template/list_item.txt": gou_templateList_itemTxt,
-	"gou_template/menubar.txt": gou_templateMenubarTxt,
-	"gou_template/new_element_form.txt": gou_templateNew_element_formTxt,
-	"gou_template/page_navi.txt": gou_templatePage_naviTxt,
-	"gou_template/paragraph.txt": gou_templateParagraphTxt,
-	"gou_template/post_form.txt": gou_templatePost_formTxt,
-	"gou_template/record.txt": gou_templateRecordTxt,
-	"gou_template/remove_file_form.txt": gou_templateRemove_file_formTxt,
-	"gou_template/rss1.txt": gou_templateRss1Txt,
-	"gou_template/search_form.txt": gou_templateSearch_formTxt,
-	"gou_template/status.txt": gou_templateStatusTxt,
-	"gou_template/thread_bottom.txt": gou_templateThread_bottomTxt,
-	"gou_template/thread_tags.txt": gou_templateThread_tagsTxt,
-	"gou_template/thread_top.txt": gou_templateThread_topTxt,
-	"gou_template/top.txt": gou_templateTopTxt,
+	"www/bootstrap/js/bootstrap.min.js":                     wwwBootstrapJsBootstrapMinJs,
+	"www/extensions/20imgpopup.js":                          wwwExtensions20imgpopupJs,
+	"www/extensions/20imgspoiler.js":                        wwwExtensions20imgspoilerJs,
+	"www/extensions/20localtime.js":                         wwwExtensions20localtimeJs,
+	"www/extensions/30addlinks.js":                          wwwExtensions30addlinksJs,
+	"www/extensions/30admin.js":                             wwwExtensions30adminJs,
+	"www/extensions/30filename.js":                          wwwExtensions30filenameJs,
+	"www/extensions/30filterlink.js":                        wwwExtensions30filterlinkJs,
+	"www/extensions/30idres.js":                             wwwExtensions30idresJs,
+	"www/extensions/30ytplayer.js":                          wwwExtensions30ytplayerJs,
+	"www/extensions/40incfilter.js":                         wwwExtensions40incfilterJs,
+	"www/extensions/40textarea.js":                          wwwExtensions40textareaJs,
+	"www/extensions/README":                                 wwwExtensionsReadme,
+	"www/favicon.ico":                                       wwwFaviconIco,
+	"www/gou.png":                                           wwwGouPng,
+	"www/jquery/MIT-LICENSE.txt":                            wwwJqueryMitLicenseTxt,
+	"www/jquery/jquery.lazy.min.js":                         wwwJqueryJqueryLazyMinJs,
+	"www/jquery/jquery.min.js":                              wwwJqueryJqueryMinJs,
+	"www/jquery/spoiler/authors.txt":                        wwwJquerySpoilerAuthorsTxt,
+	"www/jquery/spoiler/spoiler.min.js":                     wwwJquerySpoilerSpoilerMinJs,
+	"www/rss1.xsl":                                          wwwRss1Xsl,
+	"www/x.gif":                                             wwwXGif,
+	"file/initnode.txt":                                     fileInitnodeTxt,
+	"file/message-en.txt":                                   fileMessageEnTxt,
+	"file/message-ja.txt":                                   fileMessageJaTxt,
+	"file/motd.txt":                                         fileMotdTxt,
+	"file/node_allow.txt":                                   fileNode_allowTxt,
+	"file/node_deny.txt":                                    fileNode_denyTxt,
+	"file/saku.ini":                                         fileSakuIni,
+	"file/spam.txt":                                         fileSpamTxt,
+	"gou_template/2ch_error.txt":                            gou_template2ch_errorTxt,
+	"gou_template/delete_file.txt":                          gou_templateDelete_fileTxt,
+	"gou_template/delete_record.txt":                        gou_templateDelete_recordTxt,
+	"gou_template/edit_tag.txt":                             gou_templateEdit_tagTxt,
+	"gou_template/footer.txt":                               gou_templateFooterTxt,
+	"gou_template/gateway_link.txt":                         gou_templateGateway_linkTxt,
+	"gou_template/header.txt":                               gou_templateHeaderTxt,
+	"gou_template/index_list.txt":                           gou_templateIndex_listTxt,
+	"gou_template/jump.txt":                                 gou_templateJumpTxt,
+	"gou_template/list_item.txt":                            gou_templateList_itemTxt,
+	"gou_template/menubar.txt":                              gou_templateMenubarTxt,
+	"gou_template/new_element_form.txt":                     gou_templateNew_element_formTxt,
+	"gou_template/page_navi.txt":                            gou_templatePage_naviTxt,
+	"gou_template/paragraph.txt":                            gou_templateParagraphTxt,
+	"gou_template/post_form.txt":                            gou_templatePost_formTxt,
+	"gou_template/record.txt":                               gou_templateRecordTxt,
+	"gou_template/remove_file_form.txt":                     gou_templateRemove_file_formTxt,
+	"gou_template/rss1.txt":                                 gou_templateRss1Txt,
+	"gou_template/search_form.txt":                          gou_templateSearch_formTxt,
+	"gou_template/status.txt":                               gou_templateStatusTxt,
+	"gou_template/thread_bottom.txt":                        gou_templateThread_bottomTxt,
+	"gou_template/thread_tags.txt":                          gou_templateThread_tagsTxt,
+	"gou_template/thread_top.txt":                           gou_templateThread_topTxt,
+	"gou_template/top.txt":                                  gou_templateTopTxt,
 }
 
 // AssetDir returns the file names below a certain
@@ -1741,220 +1741,148 @@ func AssetDir(name string) ([]string, error) {
 }
 
 type bintree struct {
-	Func func() (*asset, error)
+	Func     func() (*asset, error)
 	Children map[string]*bintree
 }
+
 var _bintree = &bintree{nil, map[string]*bintree{
-	"file": &bintree{nil, map[string]*bintree{
-		"initnode.txt": &bintree{fileInitnodeTxt, map[string]*bintree{
-		}},
-		"message-en.txt": &bintree{fileMessageEnTxt, map[string]*bintree{
-		}},
-		"message-ja.txt": &bintree{fileMessageJaTxt, map[string]*bintree{
-		}},
-		"motd.txt": &bintree{fileMotdTxt, map[string]*bintree{
-		}},
-		"node_allow.txt": &bintree{fileNode_allowTxt, map[string]*bintree{
-		}},
-		"node_deny.txt": &bintree{fileNode_denyTxt, map[string]*bintree{
-		}},
-		"saku.ini": &bintree{fileSakuIni, map[string]*bintree{
-		}},
-		"spam.txt": &bintree{fileSpamTxt, map[string]*bintree{
-		}},
+	"file": {nil, map[string]*bintree{
+		"initnode.txt":   {fileInitnodeTxt, map[string]*bintree{}},
+		"message-en.txt": {fileMessageEnTxt, map[string]*bintree{}},
+		"message-ja.txt": {fileMessageJaTxt, map[string]*bintree{}},
+		"motd.txt":       {fileMotdTxt, map[string]*bintree{}},
+		"node_allow.txt": {fileNode_allowTxt, map[string]*bintree{}},
+		"node_deny.txt":  {fileNode_denyTxt, map[string]*bintree{}},
+		"saku.ini":       {fileSakuIni, map[string]*bintree{}},
+		"spam.txt":       {fileSpamTxt, map[string]*bintree{}},
 	}},
-	"gou_template": &bintree{nil, map[string]*bintree{
-		"2ch_error.txt": &bintree{gou_template2ch_errorTxt, map[string]*bintree{
-		}},
-		"delete_file.txt": &bintree{gou_templateDelete_fileTxt, map[string]*bintree{
-		}},
-		"delete_record.txt": &bintree{gou_templateDelete_recordTxt, map[string]*bintree{
-		}},
-		"edit_tag.txt": &bintree{gou_templateEdit_tagTxt, map[string]*bintree{
-		}},
-		"footer.txt": &bintree{gou_templateFooterTxt, map[string]*bintree{
-		}},
-		"gateway_link.txt": &bintree{gou_templateGateway_linkTxt, map[string]*bintree{
-		}},
-		"header.txt": &bintree{gou_templateHeaderTxt, map[string]*bintree{
-		}},
-		"index_list.txt": &bintree{gou_templateIndex_listTxt, map[string]*bintree{
-		}},
-		"jump.txt": &bintree{gou_templateJumpTxt, map[string]*bintree{
-		}},
-		"list_item.txt": &bintree{gou_templateList_itemTxt, map[string]*bintree{
-		}},
-		"menubar.txt": &bintree{gou_templateMenubarTxt, map[string]*bintree{
-		}},
-		"new_element_form.txt": &bintree{gou_templateNew_element_formTxt, map[string]*bintree{
-		}},
-		"page_navi.txt": &bintree{gou_templatePage_naviTxt, map[string]*bintree{
-		}},
-		"paragraph.txt": &bintree{gou_templateParagraphTxt, map[string]*bintree{
-		}},
-		"post_form.txt": &bintree{gou_templatePost_formTxt, map[string]*bintree{
-		}},
-		"record.txt": &bintree{gou_templateRecordTxt, map[string]*bintree{
-		}},
-		"remove_file_form.txt": &bintree{gou_templateRemove_file_formTxt, map[string]*bintree{
-		}},
-		"rss1.txt": &bintree{gou_templateRss1Txt, map[string]*bintree{
-		}},
-		"search_form.txt": &bintree{gou_templateSearch_formTxt, map[string]*bintree{
-		}},
-		"status.txt": &bintree{gou_templateStatusTxt, map[string]*bintree{
-		}},
-		"thread_bottom.txt": &bintree{gou_templateThread_bottomTxt, map[string]*bintree{
-		}},
-		"thread_tags.txt": &bintree{gou_templateThread_tagsTxt, map[string]*bintree{
-		}},
-		"thread_top.txt": &bintree{gou_templateThread_topTxt, map[string]*bintree{
-		}},
-		"top.txt": &bintree{gou_templateTopTxt, map[string]*bintree{
-		}},
+	"gou_template": {nil, map[string]*bintree{
+		"2ch_error.txt":        {gou_template2ch_errorTxt, map[string]*bintree{}},
+		"delete_file.txt":      {gou_templateDelete_fileTxt, map[string]*bintree{}},
+		"delete_record.txt":    {gou_templateDelete_recordTxt, map[string]*bintree{}},
+		"edit_tag.txt":         {gou_templateEdit_tagTxt, map[string]*bintree{}},
+		"footer.txt":           {gou_templateFooterTxt, map[string]*bintree{}},
+		"gateway_link.txt":     {gou_templateGateway_linkTxt, map[string]*bintree{}},
+		"header.txt":           {gou_templateHeaderTxt, map[string]*bintree{}},
+		"index_list.txt":       {gou_templateIndex_listTxt, map[string]*bintree{}},
+		"jump.txt":             {gou_templateJumpTxt, map[string]*bintree{}},
+		"list_item.txt":        {gou_templateList_itemTxt, map[string]*bintree{}},
+		"menubar.txt":          {gou_templateMenubarTxt, map[string]*bintree{}},
+		"new_element_form.txt": {gou_templateNew_element_formTxt, map[string]*bintree{}},
+		"page_navi.txt":        {gou_templatePage_naviTxt, map[string]*bintree{}},
+		"paragraph.txt":        {gou_templateParagraphTxt, map[string]*bintree{}},
+		"post_form.txt":        {gou_templatePost_formTxt, map[string]*bintree{}},
+		"record.txt":           {gou_templateRecordTxt, map[string]*bintree{}},
+		"remove_file_form.txt": {gou_templateRemove_file_formTxt, map[string]*bintree{}},
+		"rss1.txt":             {gou_templateRss1Txt, map[string]*bintree{}},
+		"search_form.txt":      {gou_templateSearch_formTxt, map[string]*bintree{}},
+		"status.txt":           {gou_templateStatusTxt, map[string]*bintree{}},
+		"thread_bottom.txt":    {gou_templateThread_bottomTxt, map[string]*bintree{}},
+		"thread_tags.txt":      {gou_templateThread_tagsTxt, map[string]*bintree{}},
+		"thread_top.txt":       {gou_templateThread_topTxt, map[string]*bintree{}},
+		"top.txt":              {gou_templateTopTxt, map[string]*bintree{}},
 	}},
-	"www": &bintree{nil, map[string]*bintree{
-		"00default.css": &bintree{www00defaultCss, map[string]*bintree{
-		}},
-		"00initialize.js": &bintree{www00initializeJs, map[string]*bintree{
-		}},
-		"20jump.js": &bintree{www20jumpJs, map[string]*bintree{
-		}},
-		"20lazyimg.js": &bintree{www20lazyimgJs, map[string]*bintree{
-		}},
-		"20localtime.js": &bintree{www20localtimeJs, map[string]*bintree{
-		}},
-		"20popup.js": &bintree{www20popupJs, map[string]*bintree{
-		}},
-		"20responce.js": &bintree{www20responceJs, map[string]*bintree{
-		}},
-		"20tagedit.js": &bintree{www20tageditJs, map[string]*bintree{
-		}},
-		"20textarea.js": &bintree{www20textareaJs, map[string]*bintree{
-		}},
-		"21resanchor.js": &bintree{www21resanchorJs, map[string]*bintree{
-		}},
-		"40recform.js": &bintree{www40recformJs, map[string]*bintree{
-		}},
-		"41postadvanced.js": &bintree{www41postadvancedJs, map[string]*bintree{
-		}},
-		"arazuki_saku.png": &bintree{wwwArazuki_sakuPng, map[string]*bintree{
-		}},
-		"bootstrap": &bintree{nil, map[string]*bintree{
-			"css": &bintree{nil, map[string]*bintree{
-				"bootstrap.min.css": &bintree{wwwBootstrapCssBootstrapMinCss, map[string]*bintree{
-				}},
+	"www": {nil, map[string]*bintree{
+		"00default.css":     {www00defaultCss, map[string]*bintree{}},
+		"00initialize.js":   {www00initializeJs, map[string]*bintree{}},
+		"20jump.js":         {www20jumpJs, map[string]*bintree{}},
+		"20lazyimg.js":      {www20lazyimgJs, map[string]*bintree{}},
+		"20localtime.js":    {www20localtimeJs, map[string]*bintree{}},
+		"20popup.js":        {www20popupJs, map[string]*bintree{}},
+		"20responce.js":     {www20responceJs, map[string]*bintree{}},
+		"20tagedit.js":      {www20tageditJs, map[string]*bintree{}},
+		"20textarea.js":     {www20textareaJs, map[string]*bintree{}},
+		"21resanchor.js":    {www21resanchorJs, map[string]*bintree{}},
+		"40recform.js":      {www40recformJs, map[string]*bintree{}},
+		"41postadvanced.js": {www41postadvancedJs, map[string]*bintree{}},
+		"arazuki_saku.png":  {wwwArazuki_sakuPng, map[string]*bintree{}},
+		"bootstrap": {nil, map[string]*bintree{
+			"css": {nil, map[string]*bintree{
+				"bootstrap.min.css": {wwwBootstrapCssBootstrapMinCss, map[string]*bintree{}},
 			}},
-			"fonts": &bintree{nil, map[string]*bintree{
-				"glyphicons-halflings-regular.eot": &bintree{wwwBootstrapFontsGlyphiconsHalflingsRegularEot, map[string]*bintree{
-				}},
-				"glyphicons-halflings-regular.svg": &bintree{wwwBootstrapFontsGlyphiconsHalflingsRegularSvg, map[string]*bintree{
-				}},
-				"glyphicons-halflings-regular.ttf": &bintree{wwwBootstrapFontsGlyphiconsHalflingsRegularTtf, map[string]*bintree{
-				}},
-				"glyphicons-halflings-regular.woff": &bintree{wwwBootstrapFontsGlyphiconsHalflingsRegularWoff, map[string]*bintree{
-				}},
+			"fonts": {nil, map[string]*bintree{
+				"glyphicons-halflings-regular.eot":  {wwwBootstrapFontsGlyphiconsHalflingsRegularEot, map[string]*bintree{}},
+				"glyphicons-halflings-regular.svg":  {wwwBootstrapFontsGlyphiconsHalflingsRegularSvg, map[string]*bintree{}},
+				"glyphicons-halflings-regular.ttf":  {wwwBootstrapFontsGlyphiconsHalflingsRegularTtf, map[string]*bintree{}},
+				"glyphicons-halflings-regular.woff": {wwwBootstrapFontsGlyphiconsHalflingsRegularWoff, map[string]*bintree{}},
 			}},
-			"js": &bintree{nil, map[string]*bintree{
-				"bootstrap.min.js": &bintree{wwwBootstrapJsBootstrapMinJs, map[string]*bintree{
-				}},
+			"js": {nil, map[string]*bintree{
+				"bootstrap.min.js": {wwwBootstrapJsBootstrapMinJs, map[string]*bintree{}},
 			}},
 		}},
-		"extensions": &bintree{nil, map[string]*bintree{
-			"20imgpopup.js": &bintree{wwwExtensions20imgpopupJs, map[string]*bintree{
-			}},
-			"20imgspoiler.js": &bintree{wwwExtensions20imgspoilerJs, map[string]*bintree{
-			}},
-			"20localtime.js": &bintree{wwwExtensions20localtimeJs, map[string]*bintree{
-			}},
-			"30addlinks.js": &bintree{wwwExtensions30addlinksJs, map[string]*bintree{
-			}},
-			"30admin.js": &bintree{wwwExtensions30adminJs, map[string]*bintree{
-			}},
-			"30filename.js": &bintree{wwwExtensions30filenameJs, map[string]*bintree{
-			}},
-			"30filterlink.js": &bintree{wwwExtensions30filterlinkJs, map[string]*bintree{
-			}},
-			"30idres.js": &bintree{wwwExtensions30idresJs, map[string]*bintree{
-			}},
-			"30ytplayer.js": &bintree{wwwExtensions30ytplayerJs, map[string]*bintree{
-			}},
-			"40incfilter.js": &bintree{wwwExtensions40incfilterJs, map[string]*bintree{
-			}},
-			"40textarea.js": &bintree{wwwExtensions40textareaJs, map[string]*bintree{
-			}},
-			"README": &bintree{wwwExtensionsReadme, map[string]*bintree{
+		"extensions": {nil, map[string]*bintree{
+			"20imgpopup.js":   {wwwExtensions20imgpopupJs, map[string]*bintree{}},
+			"20imgspoiler.js": {wwwExtensions20imgspoilerJs, map[string]*bintree{}},
+			"20localtime.js":  {wwwExtensions20localtimeJs, map[string]*bintree{}},
+			"30addlinks.js":   {wwwExtensions30addlinksJs, map[string]*bintree{}},
+			"30admin.js":      {wwwExtensions30adminJs, map[string]*bintree{}},
+			"30filename.js":   {wwwExtensions30filenameJs, map[string]*bintree{}},
+			"30filterlink.js": {wwwExtensions30filterlinkJs, map[string]*bintree{}},
+			"30idres.js":      {wwwExtensions30idresJs, map[string]*bintree{}},
+			"30ytplayer.js":   {wwwExtensions30ytplayerJs, map[string]*bintree{}},
+			"40incfilter.js":  {wwwExtensions40incfilterJs, map[string]*bintree{}},
+			"40textarea.js":   {wwwExtensions40textareaJs, map[string]*bintree{}},
+			"README":          {wwwExtensionsReadme, map[string]*bintree{}},
+		}},
+		"favicon.ico": {wwwFaviconIco, map[string]*bintree{}},
+		"gou.png":     {wwwGouPng, map[string]*bintree{}},
+		"jquery": {nil, map[string]*bintree{
+			"MIT-LICENSE.txt":    {wwwJqueryMitLicenseTxt, map[string]*bintree{}},
+			"jquery.lazy.min.js": {wwwJqueryJqueryLazyMinJs, map[string]*bintree{}},
+			"jquery.min.js":      {wwwJqueryJqueryMinJs, map[string]*bintree{}},
+			"spoiler": {nil, map[string]*bintree{
+				"authors.txt":    {wwwJquerySpoilerAuthorsTxt, map[string]*bintree{}},
+				"spoiler.min.js": {wwwJquerySpoilerSpoilerMinJs, map[string]*bintree{}},
 			}},
 		}},
-		"favicon.ico": &bintree{wwwFaviconIco, map[string]*bintree{
-		}},
-		"gou.png": &bintree{wwwGouPng, map[string]*bintree{
-		}},
-		"jquery": &bintree{nil, map[string]*bintree{
-			"MIT-LICENSE.txt": &bintree{wwwJqueryMitLicenseTxt, map[string]*bintree{
-			}},
-			"jquery.lazy.min.js": &bintree{wwwJqueryJqueryLazyMinJs, map[string]*bintree{
-			}},
-			"jquery.min.js": &bintree{wwwJqueryJqueryMinJs, map[string]*bintree{
-			}},
-			"spoiler": &bintree{nil, map[string]*bintree{
-				"authors.txt": &bintree{wwwJquerySpoilerAuthorsTxt, map[string]*bintree{
-				}},
-				"spoiler.min.js": &bintree{wwwJquerySpoilerSpoilerMinJs, map[string]*bintree{
-				}},
-			}},
-		}},
-		"rss1.xsl": &bintree{wwwRss1Xsl, map[string]*bintree{
-		}},
-		"x.gif": &bintree{wwwXGif, map[string]*bintree{
-		}},
+		"rss1.xsl": {wwwRss1Xsl, map[string]*bintree{}},
+		"x.gif":    {wwwXGif, map[string]*bintree{}},
 	}},
 }}
 
 // RestoreAsset restores an asset under the given directory
 func RestoreAsset(dir, name string) error {
-        data, err := Asset(name)
-        if err != nil {
-                return err
-        }
-        info, err := AssetInfo(name)
-        if err != nil {
-                return err
-        }
-        err = os.MkdirAll(_filePath(dir, filepath.Dir(name)), os.FileMode(0755))
-        if err != nil {
-                return err
-        }
-        err = ioutil.WriteFile(_filePath(dir, name), data, info.Mode())
-        if err != nil {
-                return err
-        }
-        err = os.Chtimes(_filePath(dir, name), info.ModTime(), info.ModTime())
-        if err != nil {
-                return err
-        }
-        return nil
+	data, err := Asset(name)
+	if err != nil {
+		return err
+	}
+	info, err := AssetInfo(name)
+	if err != nil {
+		return err
+	}
+	err = os.MkdirAll(_filePath(dir, filepath.Dir(name)), os.FileMode(0755))
+	if err != nil {
+		return err
+	}
+	err = ioutil.WriteFile(_filePath(dir, name), data, info.Mode())
+	if err != nil {
+		return err
+	}
+	err = os.Chtimes(_filePath(dir, name), info.ModTime(), info.ModTime())
+	if err != nil {
+		return err
+	}
+	return nil
 }
 
 // RestoreAssets restores an asset under the given directory recursively
 func RestoreAssets(dir, name string) error {
-        children, err := AssetDir(name)
-        // File
-        if err != nil {
-                return RestoreAsset(dir, name)
-        }
-        // Dir
-        for _, child := range children {
-                err = RestoreAssets(dir, filepath.Join(name, child))
-                if err != nil {
-                        return err
-                }
-        }
-        return nil
+	children, err := AssetDir(name)
+	// File
+	if err != nil {
+		return RestoreAsset(dir, name)
+	}
+	// Dir
+	for _, child := range children {
+		err = RestoreAssets(dir, filepath.Join(name, child))
+		if err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 func _filePath(dir, name string) string {
-        cannonicalName := strings.Replace(name, "\\", "/", -1)
-        return filepath.Join(append([]string{dir}, strings.Split(cannonicalName, "/")...)...)
+	cannonicalName := strings.Replace(name, "\\", "/", -1)
+	return filepath.Join(append([]string{dir}, strings.Split(cannonicalName, "/")...)...)
 }
-

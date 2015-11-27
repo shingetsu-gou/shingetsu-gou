@@ -338,6 +338,8 @@ func (c *Cache) headWithRange(n *node.Node, dm *DownloadManager) bool {
 		}
 		return false
 	}
+	c.NodeManager.AppendToTable(c.Datfile, n)
+	c.NodeManager.Sync()
 	dm.Set(res, n)
 	return true
 }
@@ -389,17 +391,21 @@ func (c *Cache) GetCache(background bool) bool {
 				return
 			}
 			if c.getWithRange(n, dm) {
-				c.NodeManager.AppendToTable(c.Datfile, n)
-				c.NodeManager.Sync()
 				mutex.Lock()
 				found = true
 				mutex.Unlock()
 				done <- struct{}{}
 				return
 			}
-			c.NodeManager.RemoveFromTable(c.Datfile, n)
 		}(n)
 	}
+	c.waitFor(background, done, &wg)
+	mutex.RLock()
+	defer mutex.RUnlock()
+	return found
+}
+
+func (c *Cache) waitFor(background bool, done chan struct{}, wg *sync.WaitGroup) {
 	switch {
 	case c.RecentList.Newest(c.Datfile).Stamp == c.ReadInfo().Stamp:
 	case background:
@@ -421,9 +427,6 @@ func (c *Cache) GetCache(background bool) bool {
 	default:
 		wg.Wait()
 	}
-	mutex.RLock()
-	defer mutex.RUnlock()
-	return found
 }
 
 //Gettitle returns title part if *_*.
