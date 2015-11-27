@@ -264,7 +264,11 @@ func (t *threadCGI) printTag(ca *thread.Cache) {
 func (t *threadCGI) printThreadHead(path, id string, page int, ca *thread.Cache, rss string) error {
 	switch {
 	case ca.HasRecord():
-		ca.GetCache(true)
+		if !t.isBot() {
+			ca.GetCache(true)
+		} else {
+			log.Println("bot detected, not get cache")
+		}
 	case t.checkGetCache():
 		ca.SetupDirectories()
 		if t.req.FormValue("search_new_file") == "" {

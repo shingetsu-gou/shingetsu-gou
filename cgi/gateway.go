@@ -677,21 +677,26 @@ func (c *cgi) printNewElementForm() {
 	c.Htemplate.RenderTemplate("new_element_form", s, c.wr)
 }
 
-//checkGetCache return true
-//if visitor is firend or admin and user-agent is not robot.
-func (c *cgi) checkGetCache() bool {
+//isBot returns true if client is bot.
+func (c *cgi) isBot() bool {
 	robots := []string{
 		"Google", "bot", "Yahoo", "archiver", "Wget", "Crawler", "Yeti", "Baidu",
-	}
-
-	if !c.hasAuth() {
-		return false
 	}
 	agent := c.req.Header.Get("User-Agent")
 	for _, robot := range robots {
 		if strings.Contains(agent, robot) {
-			return false
+			return true
 		}
 	}
-	return true
+	return false
+}
+
+//checkGetCache return true
+//if visitor is firend or admin and user-agent is not robot.
+func (c *cgi) checkGetCache() bool {
+
+	if !c.hasAuth() {
+		return false
+	}
+	return !c.isBot()
 }
