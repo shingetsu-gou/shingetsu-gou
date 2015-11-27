@@ -680,21 +680,18 @@ func (c *cgi) printNewElementForm() {
 //checkGetCache return true
 //if visitor is firend or admin and user-agent is not robot.
 func (c *cgi) checkGetCache() bool {
-	const (
-		robot = "Google|bot|Yahoo|archiver|Wget|Crawler|Yeti|Baidu"
-	)
+	robots := []string{
+		"Google", "bot", "Yahoo", "archiver", "Wget", "Crawler", "Yeti", "Baidu",
+	}
 
 	if !c.hasAuth() {
 		return false
 	}
 	agent := c.req.Header.Get("User-Agent")
-	reg, err := regexp.Compile(robot)
-	if err != nil {
-		log.Println(err)
-		return true
-	}
-	if reg.MatchString(agent) {
-		return false
+	for _, robot := range robots {
+		if strings.Contains(agent, robot) {
+			return false
+		}
 	}
 	return true
 }
