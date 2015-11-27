@@ -500,6 +500,10 @@ func (c *cgi) htmlFormat(plain, appli string, title string, absuri bool) string 
 		id := regg.ReplaceAllString(str, "$2")
 		return regg.ReplaceAllString(str, c.resAnchor(id, appli, title, absuri)+"$1$2</a>")
 	})
+	reg3 := regexp.MustCompile(`(:[a-z0-9_]+:)`)
+	buf = reg3.ReplaceAllStringFunc(buf, func(str string) string {
+		return util.Emoji(str)
+	})
 	reg2 := regexp.MustCompile(`\[\[([^<>]+?)\]\]`)
 	tmp := reg2.ReplaceAllStringFunc(buf, func(str string) string {
 		bl := c.bracketLink(str[2:len(str)-2], appli, absuri)

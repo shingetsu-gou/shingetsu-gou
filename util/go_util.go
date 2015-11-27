@@ -55,19 +55,24 @@ import (
 
 //provider represents oembed provider.
 type provider struct {
-	ProviderName   string `json:"provider_name"`
 	ProviderURL    string `json:"provider_url"`
 	regProviderURL *regexp.Regexp
 	Endpoints      []*struct {
 		Schemes    []string
 		regSchemes []*regexp.Regexp
 		URL        string
-		Discovery  bool
 	}
+}
+
+type emoji struct {
+	Unicode      string
+	Shortname    string
+	AliasesAscii []string `json:"aliases_ascii"`
 }
 
 //prov is oembed providers from oembed_providers.go
 var prov []*provider
+var emojis map[string]*emoji
 
 //init loads oembed providers in json.
 func init() {
@@ -82,6 +87,14 @@ func init() {
 				e.regSchemes[i] = regexp.MustCompile(s + ".*")
 			}
 		}
+	}
+
+	js, err := Asset("www/emoji.json")
+	if err != nil {
+		log.Fatal(err)
+	}
+	if err := json.Unmarshal(js, &emojis); err != nil {
+		log.Fatal(err)
 	}
 }
 
@@ -440,4 +453,23 @@ func EmbedURL(url string) string {
 //HasExt returns true if fname has prefix and not secret.
 func HasExt(fname, suffix string) bool {
 	return strings.HasSuffix(fname, "."+suffix) && (!strings.HasPrefix(fname, ".") || strings.HasPrefix(fname, "_"))
+}
+
+//Emoji converts :hoe: to a png pic link.
+func Emoji(str string) string {
+	for _, v := range emojis {
+		match := false
+		if str == v.Shortname {
+			match = true
+		}
+		for _, alias := range v.AliasesAscii {
+			if str == alias {
+				match = true
+			}
+		}
+		if match {
+			return `<img height="25" src="http://cdn.jsdelivr.net/emojione/assets/png/` + v.Unicode + `.png">`
+		}
+	}
+	return str
 }
