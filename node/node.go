@@ -391,7 +391,7 @@ func (n *Node) Ping() (string, error) {
 		log.Println("/ping", n.Nodestr, err)
 		return "", err
 	}
-	if res[0] == "PONG" && len(res) == 2 {
+	if len(res) == 2 && res[0] == "PONG" {
 		log.Println("ponged,i am", res[1])
 		n.Myself.setIP(res[1])
 		return res[1], nil

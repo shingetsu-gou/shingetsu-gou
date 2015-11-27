@@ -111,6 +111,7 @@ func searchMessage(acceptLanguage, filedir string) message {
 	}
 	lang = append(lang, defaultLanguage)
 	for _, l := range lang {
+		log.Println("lang=", l)
 		slang := strings.Split(l, "-")[0]
 		for _, j := range []string{l, slang} {
 			if m := newMessage(filedir, "message-"+j+".txt"); m != nil {
