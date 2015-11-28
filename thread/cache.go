@@ -406,8 +406,9 @@ func (c *Cache) GetCache(background bool) bool {
 }
 
 func (c *Cache) waitFor(background bool, done chan struct{}, wg *sync.WaitGroup) {
+	newest := c.RecentList.Newest(c.Datfile)
 	switch {
-	case c.RecentList.Newest(c.Datfile).Stamp == c.ReadInfo().Stamp:
+	case newest != nil && (newest.Stamp == c.ReadInfo().Stamp):
 	case background:
 		go func() {
 			wg.Wait()
