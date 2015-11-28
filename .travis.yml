@@ -7,7 +7,7 @@ go:
 env:
   global:
     - secure: "VcYaGIZXbzyc1mwYk0PHiFrg84xP6ItXpuA129iGaqKotYFdNuCeeS05apLEqBv/MNohgDybvvzqNrvUCjL4DL66fSQjxkVDq2WyT504i6ITZQ9S5KOU1aXLCAkhc4MYYHew7jJlo8wHFh70c3fErXUq/QrrG0mrCY7a9q7BvwR6W71nHjzN/pzojZd4HjYv1wDg6uvFVzpK/NQBHhYO+RGRERV9xlWqyIRhTMV8zU25jxH8OTg/aYnkUsNL7jINE27Y73DAowmuUrQ0jRhCmwq2N1CzBYAc8gjcoEKMceYYGO5mW1UCovfR1GjnK21pJM+FdfUjJ6CUgQrbAJgdCWdPnc+Lm/cZ6ICCuevJGdfBUvaDHcN7EIy7sLYwY00GCdhZP401n1wBDLizLxgINlk9E/hQ/dYhGLlOwdg0GNhaz/b3FpaeS9an9iSbO050xqtEJNZpiSoaKY7xkDD06P9q6j0fVau6YpGJnpFN+FTqd4F57XKccHEj02mSqHqiCgl+tivVpyJuzEes/rfUePCxqRzuuptq1Ak32U7rn7PwD4uhdYyLOPNy3+S/GOYSHl8n53ZKMtn0hFaNNlahjxzEwnqdq7OzDmTcs6I5+eHpCFs2rSGRpusLge1afKiNGCLh8AsuaB2nSJWP0O+ezzEg+c/v1SMm0p/8lwLUtXQ="
-    - PACKAGE_VERSION: unstable
+    - PACKAGE_VERSION: 0.0.9
 
 gobuild_args: -ldflags "-X main.version ${PACKAGE_VERSION}"
 
