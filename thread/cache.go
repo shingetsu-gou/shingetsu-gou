@@ -552,6 +552,7 @@ func (dm *DownloadManager) Get(n *node.Node) (int64, int64) {
 		}
 	}
 	if len(s) == 0 {
+		dm.checkFinished()
 		return -1, -1
 	}
 	managers[dm.datfile] = dm
@@ -566,19 +567,11 @@ func (dm *DownloadManager) Get(n *node.Node) (int64, int64) {
 	return s[begin].stamp, s[0].stamp
 }
 
-//Finished set records n is downloading as finished.
-func (dm *DownloadManager) Finished(n *node.Node, success bool) {
-	dm.mutex.Lock()
-	defer dm.mutex.Unlock()
+func (dm *DownloadManager) checkFinished() {
 	finished := true
 	for _, rec := range dm.recs {
-		if rec.downloading != nil && rec.downloading.Equals(n) {
-			if success {
-				rec.finished = true
-			} else {
-				rec.count++
-				rec.downloading = nil
-			}
+		if rec.count >= 5 {
+			rec.finished = true
 		}
 		if !rec.finished {
 			finished = false
@@ -589,4 +582,21 @@ func (dm *DownloadManager) Finished(n *node.Node, success bool) {
 		managers[dm.datfile] = nil
 		delete(managers, dm.datfile)
 	}
+}
+
+//Finished set records n is downloading as finished.
+func (dm *DownloadManager) Finished(n *node.Node, success bool) {
+	dm.mutex.Lock()
+	defer dm.mutex.Unlock()
+	for _, rec := range dm.recs {
+		if rec.downloading != nil && rec.downloading.Equals(n) {
+			if success {
+				rec.finished = true
+			} else {
+				rec.count++
+			}
+			rec.downloading = nil
+		}
+	}
+	dm.checkFinished()
 }
