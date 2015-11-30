@@ -586,6 +586,7 @@ func (dm *DownloadManager) Finished(n *node.Node, success bool) {
 	}
 	if finished {
 		log.Println(dm.datfile, ":finished downloading")
+		managers[dm.datfile] = nil
 		delete(managers, dm.datfile)
 	}
 }
