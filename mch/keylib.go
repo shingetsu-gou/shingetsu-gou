@@ -134,6 +134,7 @@ func (d *DatakeyTable) setFromCache(ca *thread.Cache) {
 		d.mutex.RUnlock()
 		return
 	}
+	d.mutex.RUnlock()
 	var firstStamp int64
 	if !ca.HasRecord() {
 		firstStamp = ca.RecentStamp()
@@ -146,12 +147,13 @@ func (d *DatakeyTable) setFromCache(ca *thread.Cache) {
 		firstStamp = time.Now().Add(-24 * time.Hour).Unix()
 	}
 	for {
+		d.mutex.RLock()
+		defer d.mutex.RUnlock()
 		if _, exist := d.datakey2filekey[firstStamp]; !exist {
 			break
 		}
 		firstStamp++
 	}
-	d.mutex.RUnlock()
 	d.setEntry(firstStamp, ca.Datfile)
 }
 

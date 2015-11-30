@@ -270,7 +270,7 @@ func (m *Myself) connectionString() string {
 
 //CheckConnection checks connection scheme which mynode can use.
 func (m *Myself) CheckConnection(initnodes []string) {
-	ns := mustNewNoes(initnodes)
+	ns := mustNewNodes(initnodes)
 	for _, i := range ns {
 		if _, err := i.Ping(); err == nil {
 			break
@@ -355,7 +355,7 @@ type Node struct {
 }
 
 //mustNewNodes makes node slice from names.
-func mustNewNoes(names []string) []*Node {
+func mustNewNodes(names []string) []*Node {
 	ns := make([]*Node, len(names))
 	for i, nn := range names {
 		nn, err := newNode(nn)
