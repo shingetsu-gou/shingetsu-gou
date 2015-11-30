@@ -80,6 +80,48 @@ func (u *UpdateQue) deleteOldUpdated() {
 	}
 }
 
+//RecordChannel is for informing record was gotten.
+type RecordChannel struct {
+	*RecordHead
+	Ch    chan struct{}
+	mutex sync.RWMutex
+}
+
+//regist registers record to RecordChannel.
+func (r *RecordChannel) register(h *RecordHead) {
+	r.mutex.Lock()
+	defer r.mutex.Unlock()
+	if r.Ch == nil {
+		r.Ch = make(chan struct{})
+	}
+	r.RecordHead = h
+}
+
+//Inform call channel if specifiedd condition is met.
+func (r *RecordChannel) Inform(datfile, id string, begin, end int64) {
+	r.mutex.Lock()
+	if r.RecordHead != nil && r.Datfile == datfile && begin <= r.Stamp && r.Stamp <= end && r.ID == id {
+		r.RecordHead = nil
+		r.mutex.Unlock()
+		r.Ch <- struct{}{}
+		return
+	}
+	r.mutex.Unlock()
+}
+
+//wait waits for channel or 1 minutex.
+func (r *RecordChannel) wait() bool {
+	select {
+	case <-r.Ch:
+		return true
+	case <-time.After(time.Minute):
+		return false
+	}
+}
+
+//UpdatedRecord is concerned record.
+var UpdatedRecord RecordChannel
+
 //doUpdateNode broadcast and get data for each new records.
 //if can get data (even if spam) return true, if fails to get, return false.
 //if no fail, broadcast updates to node in cache and added n to nodelist and searchlist.
@@ -98,8 +140,18 @@ func (u *UpdateQue) doUpdateNode(rec *Record, n *node.Node) bool {
 	ca := NewCache(rec.Datfile)
 	var err error
 	if !ca.Exists() || n == nil {
-		log.Println("no cache, only broadcast updates.")
+		log.Println("no cache or updates by myself, broadcast updates.")
+		UpdatedRecord.register(&rec.RecordHead)
 		u.NodeManager.TellUpdate(ca.Datfile, rec.Stamp, rec.ID, n)
+		if UpdatedRecord.wait() {
+			log.Println(rec.ID, "was gotten")
+		} else {
+			log.Println(rec.ID, "was NOT gotten, will call updates later")
+			go func() {
+				time.Sleep(10 * time.Minute)
+				u.UpdateNodes(rec, n)
+			}()
+		}
 		return true
 	}
 	log.Println("cache exists. get record from node n.")

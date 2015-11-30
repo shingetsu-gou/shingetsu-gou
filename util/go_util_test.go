@@ -43,10 +43,10 @@ func TestEmbedURL(t *testing.T) {
 		t.Fatal("cannot get embed url")
 	}
 	log.Println(FileDecode("thread_383245333345333333383339414545373036"))
-	h,err:=hex.DecodeString("82E33E333839AEE706")
-	if err!=nil{
+	h, err := hex.DecodeString("82E33E333839AEE706")
+	if err != nil {
 		t.Fatal(err)
 	}
 	log.Println(string(h))
-	
+
 }

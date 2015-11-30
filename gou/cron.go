@@ -41,22 +41,22 @@ var running bool
 //cron runs cron, and update everything if it is after specified cycle.
 func cron(nodeManager *node.Manager, recentList *thread.RecentList, heavymoon bool, myself *node.Myself, rundir string) {
 	const (
-		shortCycle = 20 * time.Minute // Seconds; Access client.cgi
+		shortCycle = 10 * time.Minute
 		longCycle  = time.Hour
 	)
-	nodeManager.Initialize(rundir)
-	doSync(nodeManager, recentList, heavymoon, true)
 
 	go func() {
+		getall := true
 		for {
-			<-time.After(shortCycle)
 			log.Println("short cycle cron started")
-			nodeManager.PingAll()
-			nodeManager.Initialize("")
+			myself.CheckConnection(nodeManager.InitNode.GetData())
+			nodeManager.Initialize()
 			nodeManager.Sync()
 			nodeManager.Rejoin()
-			doSync(nodeManager, recentList, heavymoon, false)
+			doSync(nodeManager, recentList, heavymoon, getall)
 			log.Println("short cycle cron finished")
+			getall = false
+			<-time.After(shortCycle)
 		}
 	}()
 	go func() {

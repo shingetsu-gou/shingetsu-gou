@@ -48,8 +48,10 @@ import (
 const (
 	//Disconnected represents mynode is disconnected.
 	Disconnected = iota
-	//Port0 represents mynode is behind NAT.
+	//Port0 represents mynode is behind NAT and not opened.
 	Port0
+	//UPnP represents mynode is opned by uPnP.
+	UPnP
 	//Normal represents mynode is open to network.
 	Normal
 )
@@ -87,6 +89,8 @@ func (m *Myself) resetPort() {
 	defer m.mutex.Unlock()
 	p := int32(m.internalPort)
 	m.externalPort = &p
+	m.ServerName = ""
+	m.status = Disconnected
 }
 
 //IsRelayed returns true is relayed.
@@ -174,57 +178,46 @@ func (m *Myself) setIP(ip string) {
 
 //RelayServer returns nodestr of relay server.
 func (m *Myself) RelayServer() string {
+	m.mutex.RLock()
+	defer m.mutex.RUnlock()
+	if m.relayServer == nil {
+		return ""
+	}
 	return m.relayServer.Nodestr
 }
 
 //tryRelay tries to relay myself for each nodes.
 //This returns true if success.
-func (m *Myself) tryRelay(seed *Node) chan struct{} {
-	connected := make(chan struct{})
-	go func() {
-		closed := make(chan struct{})
-		for {
-			success := false
-			nodes := seed.getherNodes()
-			//!!!!
-			//			n, _ := newNode("123.230.150.106:8010/server.cgi")
-			//			nodes = []*Node{n}
-			//!!!!
-			log.Println("trying to connect relay server #", len(nodes))
-			for _, n := range nodes {
-				if n.cannotRelay {
-					continue
-				}
-				log.Println("trying to connect to relay server", n.Nodestr)
-				origin := "http://" + m.ip
-				url := "ws://" + n.Nodestr + "/request_relay/"
-				err := relay.HandleClient(url, origin, m.serveHTTP, closed, func(r *http.Request) {
-					//nothing to do for now
-				})
-				if err != nil {
-					n.cannotRelay = true
-					log.Println(err)
-				} else {
-					connected <- struct{}{}
-					close(connected)
-					connected = nil
-					log.Println("successfully relayed by", n.Nodestr)
-					success = true
-					m.setRelayServer(n)
-					<-closed
-					m.relayServer = nil
-				}
-			}
-			if connected != nil {
-				connected <- struct{}{}
-			}
-			if !success {
-				log.Println("cannot find relay server,sleeping...")
-				time.Sleep(10 * time.Minute)
-			}
+func (m *Myself) tryRelay(seed *Node) bool {
+	nodes := seed.getherNodes()
+	//!!!!
+	//						n, _ := newNode("123.230.131.248:8010/server.cgi")
+	//						nodes = []*Node{n}
+	//!!!!
+	log.Println("trying to connect relay server #", len(nodes))
+	closed := make(chan struct{})
+	for _, n := range nodes {
+		log.Println("trying to connect to relay server", n.Nodestr)
+		origin := "http://" + m.ip
+		url := "ws://" + n.Nodestr + "/request_relay/"
+		err := relay.HandleClient(url, origin, m.serveHTTP, closed, func(r *http.Request) {
+			//nothing to do for now
+		})
+		if err != nil {
+			log.Println(err)
+			continue
 		}
-	}()
-	return connected
+		log.Println("successfully relayed by", n.Nodestr)
+		m.setRelayServer(n)
+		go func() {
+			<-closed
+			log.Println("relay was closed")
+			m.setRelayServer(nil)
+		}()
+		return true
+	}
+	m.setRelayServer(nil)
+	return false
 }
 
 //proxyURL returns url for proxy if relayed.
@@ -251,10 +244,97 @@ func (m *Myself) useUPnP() bool {
 	ma, err := nt.LoopPortMapping("tcp", m.internalPort, "shingetsu-gou", 10*time.Minute)
 	if err != nil {
 		log.Println(err)
-	} else {
-		m.externalPort = ma.ExternalPort
+		return false
 	}
+	m.externalPort = ma.ExternalPort
 	return true
+}
+
+func (m *Myself) connectionString() string {
+	switch m.GetStatus() {
+	case UPnP:
+		return "uPnP"
+	case Port0:
+		if m.RelayServer() == "" {
+			return "failed"
+		}
+		return "relayed"
+	case Normal:
+		return "normal"
+	case Disconnected:
+		return "disconnected"
+
+	}
+	return ""
+}
+
+//CheckConnection checks connection scheme which mynode can use.
+func (m *Myself) CheckConnection(initnodes []string) {
+	ns := mustNewNoes(initnodes)
+	for _, i := range ns {
+		if _, err := i.Ping(); err == nil {
+			break
+		}
+	}
+	fn := []func() int{
+		func() int {
+			log.Println("trying defaultport")
+			m.resetPort()
+			return Normal
+		},
+		func() int {
+			log.Println("trying uPnP")
+			if !m.useUPnP() {
+				return -1
+			}
+			return UPnP
+		},
+		func() int {
+			log.Println("trying relayed")
+			m.resetPort()
+			if !m.tryRelay(ns[0]) {
+				return -1
+			}
+			return Port0
+		},
+		func() int {
+			log.Println("failed to join")
+			m.setRelayServer(nil)
+			return Port0
+		},
+	}
+
+	var mutex sync.Mutex
+	var wg sync.WaitGroup
+	ok := false
+	stat := m.GetStatus()
+	for _, f := range fn {
+		if stat != -1 {
+			for _, i := range ns {
+				wg.Add(1)
+				go func(i *Node) {
+					defer wg.Done()
+					if _, err := i.join(); err == nil {
+						mutex.Lock()
+						ok = true
+						mutex.Unlock()
+					}
+				}(i)
+			}
+			wg.Wait()
+			if ok {
+				break
+			}
+		}
+		stat = f()
+	}
+
+	if ok && stat == Disconnected {
+		stat = Normal
+	}
+	m.setStatus(stat)
+	con := m.connectionString()
+	log.Println("openned", con)
 }
 
 //NodeCfg is a global stuf for Node struct. it must be set before using it.
@@ -271,8 +351,20 @@ type NodeConfig struct {
 //Node represents node info.
 type Node struct {
 	*NodeConfig
-	Nodestr     string
-	cannotRelay bool
+	Nodestr string
+}
+
+//mustNewNodes makes node slice from names.
+func mustNewNoes(names []string) []*Node {
+	ns := make([]*Node, len(names))
+	for i, nn := range names {
+		nn, err := newNode(nn)
+		if err != nil {
+			log.Fatal(err)
+		}
+		ns[i] = nn
+	}
+	return ns
 }
 
 //NewNode checks nodestr format and returns node obj.
@@ -418,7 +510,7 @@ func (n *Node) join() (*Node, error) {
 	if err != nil {
 		return nil, err
 	}
-	log.Println("response of join:", res)
+	log.Println(n.Nodestr, "response of join:", res)
 	switch len(res) {
 	case 0:
 		return nil, errors.New("illegal response")
@@ -445,6 +537,9 @@ func (n *Node) getNode() (*Node, error) {
 	if err != nil {
 		err := errors.New(fmt.Sprintln("/node", n.Nodestr, "error"))
 		return nil, err
+	}
+	if len(res) == 0 {
+		return nil, errors.New("no response")
 	}
 	return newNode(res[0])
 }
@@ -488,7 +583,7 @@ func (n *Node) getherNodes() []*Node {
 		}()
 		select {
 		case <-done:
-		case <-time.After(10 * time.Second):
+		case <-time.After(5 * time.Second):
 		}
 
 		log.Println("iteration", i, ",# of nodes:", len(ns))

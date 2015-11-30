@@ -67,7 +67,7 @@ type provider struct {
 type emoji struct {
 	Unicode      string
 	Shortname    string
-	AliasesAscii []string `json:"aliases_ascii"`
+	AliasesASCII []string `json:"aliases_ascii"`
 }
 
 //prov is oembed providers from oembed_providers.go
@@ -462,7 +462,7 @@ func Emoji(str string) string {
 		if str == v.Shortname {
 			match = true
 		}
-		for _, alias := range v.AliasesAscii {
+		for _, alias := range v.AliasesASCII {
 			if str == alias {
 				match = true
 			}

@@ -211,20 +211,18 @@ func (m *mchCGI) threadApp(board, datkey string) {
 		return
 	}
 	data := thread.NewCache(key)
-	i := data.ReadInfo()
-
-	if m.checkGetCache() {
-		if m.isAdmin() {
-			data.SetupDirectories()
-		}
-		data.GetCache(true)
-	}
 
 	if !data.Exists() {
 		m.wr.WriteHeader(404)
 		fmt.Fprintf(m.wr, "404 Not Found")
 		return
 	}
+
+	if m.checkGetCache() {
+		data.GetCache(true)
+	}
+
+	i := data.ReadInfo()
 	thread := m.DatakeyTable.MakeDat(data, board, m.req.Host)
 	str := strings.Join(thread, "\n")
 	m.serveContent("a.txt", time.Unix(i.Stamp, 0), str)

@@ -66,7 +66,7 @@ func ServerSetup(s *LoggingServeMux, relaynum int) {
 	s.RegistCompressHandler(ServerURL+"/recent/", doRecent)
 	s.RegistCompressHandler(ServerURL+"/", doMotd)
 	if relaynum > 0 {
-		s.RegistCompressHandler(ServerURL+"/proxy/", doProxy)
+		s.HandleFunc(ServerURL+"/proxy/", doProxy)
 		s.HandleFunc(ServerURL+"/relay/", doRelay)
 		s.Handle(ServerURL+"/request_relay/", websocket.Handler(websocketRelay(relaynum)))
 	}
@@ -417,6 +417,9 @@ func doGetHead(w http.ResponseWriter, r *http.Request) {
 				fmt.Fprintln(s.wr, strings.Replace(r.Idstr(), "_", "<>", -1))
 			}
 		}
+	}
+	if method == "get" {
+		thread.UpdatedRecord.Inform(datfile, id, begin, end)
 	}
 }
 

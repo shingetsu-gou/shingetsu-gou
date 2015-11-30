@@ -135,6 +135,8 @@ func printStatus(w http.ResponseWriter, r *http.Request) {
 	switch a.Myself.GetStatus() {
 	case node.Normal:
 		port0 = a.m["opened"]
+	case node.UPnP:
+		port0 = "UPnP"
 	case node.Port0:
 		if !a.Myself.IsRelayed() {
 			port0 = a.m["port0"]

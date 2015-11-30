@@ -29,10 +29,8 @@
 package node
 
 import (
-	"io/ioutil"
 	"log"
 	"math/rand"
-	"path/filepath"
 	"strconv"
 	"strings"
 	"sync"
@@ -318,72 +316,7 @@ func (lt *Manager) moreNodes() {
 
 //Initialize pings one of initNode except myself and added it if success,
 //and get another node info from each nodes in nodelist.
-func (lt *Manager) Initialize(rundir string) {
-	var confile string
-	con := "opened"
-	if rundir != "" {
-		confile = filepath.Join(rundir, "connection.dat")
-		c, err := ioutil.ReadFile(confile)
-		if err != nil {
-			log.Println(err)
-		}
-		s := string(c)
-		s = strings.Trim(s, "\r\n")
-		if s == "uPnP" {
-			log.Println("using uPnP as prevous.")
-			lt.Myself.useUPnP()
-			con = "uPnP"
-		}
-	}
-	fn := []func([]*Node) (string, int){
-		func(pingOK []*Node) (string, int) {
-			log.Println("trying defaultport")
-			lt.Myself.resetPort()
-			return "opened", Normal
-		},
-		func(pingOK []*Node) (string, int) {
-			log.Println("trying uPnP")
-			lt.Myself.useUPnP()
-			return "uPnP", Normal
-		},
-		func(pingOK []*Node) (string, int) {
-			log.Println("trying relayed")
-			lt.Myself.resetPort()
-			seed, err := newNode(lt.InitNode.GetData()[0])
-			if err != nil {
-				log.Fatal(err)
-			}
-			<-lt.Myself.tryRelay(seed)
-			return "relayed", Port0
-		},
-		func(pingOK []*Node) (string, int) {
-			log.Println("failed to join")
-			lt.Myself.setRelayServer(nil)
-			for _, n := range pingOK {
-				lt.appendToList(n)
-			}
-			return "failed", Port0
-		},
-	}
-	stat := Normal
-	for _, f := range fn {
-		if ok, pingOK := lt.initialize(); !ok {
-			con, stat = f(pingOK)
-		} else {
-			log.Println("success to join by", con)
-			break
-		}
-	}
-	if confile != "" {
-		lt.Myself.setStatus(stat)
-		err := ioutil.WriteFile(confile, []byte(con), 0644)
-		if err != nil {
-			log.Println(err)
-		}
-	}
-}
-
-func (lt *Manager) initialize() (bool, []*Node) {
+func (lt *Manager) Initialize() {
 	inodes := lt.Random(nil, defaultNodes)
 	for _, i := range lt.InitNode.GetData() {
 		nn, err := newNode(i)
@@ -412,7 +345,11 @@ func (lt *Manager) initialize() (bool, []*Node) {
 		lt.moreNodes()
 	}
 	log.Println("# of nodelist:", lt.ListLen())
-	return lt.ListLen() > 0, pingOK
+	if lt.ListLen() == 0 {
+		for _, p := range pingOK {
+			lt.appendToList(p)
+		}
+	}
 }
 
 //Join tells n to join and adds n to nodelist if welcomed.
@@ -557,32 +494,6 @@ func (lt *Manager) Rejoin() {
 		}
 	}
 	log.Println("# of nodelist", lt.ListLen())
-}
-
-//PingAll pings to all nodes in nodelist.
-//if ng, removes from nodelist.
-func (lt *Manager) PingAll() {
-	lt.mutex.RLock()
-	var ns Slice
-	for _, n := range lt.nodes[""] {
-		ns = append(ns, n)
-	}
-	lt.mutex.RUnlock()
-	var wg sync.WaitGroup
-	for _, n := range ns {
-		if n == nil {
-			lt.RemoveFromAllTable(n)
-			continue
-		}
-		wg.Add(1)
-		go func(n *Node) {
-			defer wg.Done()
-			if _, err := n.Ping(); err != nil {
-				lt.RemoveFromAllTable(n)
-			}
-		}(n)
-	}
-	wg.Wait()
 }
 
 //RejoinList joins all node in nodelist.
