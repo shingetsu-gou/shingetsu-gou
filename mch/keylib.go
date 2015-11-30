@@ -121,7 +121,7 @@ func (d *DatakeyTable) save() {
 
 //setEntry stores stamp/value.
 func (d *DatakeyTable) setEntry(stamp int64, filekey string) {
-	d.mutex.Lock()
+	d.mutex.Lock() //*
 	defer d.mutex.Unlock()
 	d.datakey2filekey[stamp] = filekey
 	d.filekey2datkey[filekey] = stamp
@@ -130,11 +130,11 @@ func (d *DatakeyTable) setEntry(stamp int64, filekey string) {
 //setFromCache adds cache.datfile/timestamp pair if not exists.
 func (d *DatakeyTable) setFromCache(ca *thread.Cache) {
 	d.mutex.RLock()
-	if _, exist := d.filekey2datkey[ca.Datfile]; exist {
-		d.mutex.RUnlock()
+	_, exist := d.filekey2datkey[ca.Datfile]
+	d.mutex.RUnlock()
+	if exist {
 		return
 	}
-	d.mutex.RUnlock()
 	var firstStamp int64
 	if !ca.HasRecord() {
 		firstStamp = ca.RecentStamp()
@@ -146,13 +146,10 @@ func (d *DatakeyTable) setFromCache(ca *thread.Cache) {
 	if firstStamp == 0 {
 		firstStamp = time.Now().Add(-24 * time.Hour).Unix()
 	}
-	for {
+	for exist := true; !exist; firstStamp++ {
 		d.mutex.RLock()
-		defer d.mutex.RUnlock()
-		if _, exist := d.datakey2filekey[firstStamp]; !exist {
-			break
-		}
-		firstStamp++
+		_, exist = d.datakey2filekey[firstStamp]
+		d.mutex.RUnlock()
 	}
 	d.setEntry(firstStamp, ca.Datfile)
 }
@@ -160,7 +157,7 @@ func (d *DatakeyTable) setFromCache(ca *thread.Cache) {
 //GetDatkey returns stamp from filekey.
 //if not found, tries to read from cache.
 func (d *DatakeyTable) GetDatkey(filekey string) (int64, error) {
-	d.mutex.RLock()
+	d.mutex.RLock() // *
 	if v, exist := d.filekey2datkey[filekey]; exist {
 		d.mutex.RUnlock()
 		return v, nil
