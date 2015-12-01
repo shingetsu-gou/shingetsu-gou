@@ -99,8 +99,8 @@ func setLogger(printLog, isSilent bool, logDir string) {
 
 	l := &lumberjack.Logger{
 		Filename:   path.Join(logDir, "gou.log"),
-		MaxSize:    1, // megabytes
-		MaxBackups: 2,
+		MaxSize:    5, // megabytes
+		MaxBackups: 10,
 		MaxAge:     28, //days
 	}
 	switch {

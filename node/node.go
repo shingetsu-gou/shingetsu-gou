@@ -309,6 +309,7 @@ func (m *Myself) CheckConnection(initnodes []string) {
 	ok := false
 	stat := m.GetStatus()
 	for _, f := range fn {
+		stat = f()
 		if stat != -1 {
 			for _, i := range ns {
 				wg.Add(1)
@@ -326,12 +327,8 @@ func (m *Myself) CheckConnection(initnodes []string) {
 				break
 			}
 		}
-		stat = f()
 	}
 
-	if ok && stat == Disconnected {
-		stat = Normal
-	}
 	m.setStatus(stat)
 	con := m.connectionString()
 	log.Println("openned", con)

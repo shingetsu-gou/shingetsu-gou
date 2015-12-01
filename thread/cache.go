@@ -407,27 +407,26 @@ func (c *Cache) GetCache(background bool) bool {
 
 func (c *Cache) waitFor(background bool, done chan struct{}, wg *sync.WaitGroup) {
 	newest := c.RecentList.Newest(c.Datfile)
-	switch {
-	case newest != nil && (newest.Stamp == c.ReadInfo().Stamp):
-	case background:
+	if background {
+		if newest != nil && (newest.Stamp == c.ReadInfo().Stamp) {
+			return
+		}
 		go func() {
 			wg.Wait()
 			done <- struct{}{}
 		}()
-	b:
 		for {
 			select {
 			case <-done:
-				break b
+				return
 			case <-time.After(3 * time.Second):
 				if c.HasRecord() {
-					break b
+					return
 				}
 			}
 		}
-	default:
-		wg.Wait()
 	}
+	wg.Wait()
 }
 
 //Gettitle returns title part if *_*.
@@ -568,6 +567,9 @@ func (dm *DownloadManager) Get(n *node.Node) (int64, int64) {
 }
 
 func (dm *DownloadManager) checkFinished() {
+	if _, exist := managers[dm.datfile]; !exist {
+		return
+	}
 	finished := true
 	for _, rec := range dm.recs {
 		if rec.count >= 5 {
