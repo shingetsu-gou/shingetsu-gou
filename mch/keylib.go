@@ -103,9 +103,9 @@ func (d *DatakeyTable) Load() {
 
 //save saves stamp<>value to the file.
 func (d *DatakeyTable) save() {
+	d.mutex.RLock()
 	str := make([]string, len(d.datakey2filekey))
 	i := 0
-	d.mutex.RLock()
 	for stamp, filekey := range d.datakey2filekey {
 		str[i] = fmt.Sprintf("%d<>%s", stamp, filekey)
 		i++
