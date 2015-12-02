@@ -530,3 +530,10 @@ func (r *Record) checkData(begin, end int64) error {
 	}
 	return nil
 }
+
+//InRange returns true if stamp  is in begin~end and idstr has id.
+func (r *Record) InRange(begin, end int64, id string) bool {
+	r.mutex.RLock()
+	defer r.mutex.RUnlock()
+	return begin <= r.Stamp && r.Stamp <= end && (id == "" || strings.HasSuffix(r.Idstr(), id))
+}

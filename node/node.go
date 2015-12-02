@@ -89,7 +89,7 @@ func (m *Myself) resetPort() {
 	defer m.mutex.Unlock()
 	p := int32(m.internalPort)
 	m.externalPort = &p
-	m.ServerName = ""
+	m.relayServer = nil
 	m.status = Disconnected
 }
 
@@ -188,8 +188,7 @@ func (m *Myself) RelayServer() string {
 
 //tryRelay tries to relay myself for each nodes.
 //This returns true if success.
-func (m *Myself) tryRelay(seed *Node) bool {
-	nodes := seed.getherNodes()
+func (m *Myself) tryRelay(nodes Slice) bool {
 	//!!!!
 	//						n, _ := newNode("123.230.131.248:8010/server.cgi")
 	//						nodes = []*Node{n}
@@ -197,6 +196,10 @@ func (m *Myself) tryRelay(seed *Node) bool {
 	log.Println("trying to connect relay server #", len(nodes))
 	closed := make(chan struct{})
 	for _, n := range nodes {
+		r := regexp.MustCompile(`/relay/[^/]*:\d+/`)
+		if r.MatchString(n.Nodestr) {
+			continue
+		}
 		log.Println("trying to connect to relay server", n.Nodestr)
 		origin := "http://" + m.ip
 		url := "ws://" + n.Nodestr + "/request_relay/"
@@ -209,6 +212,10 @@ func (m *Myself) tryRelay(seed *Node) bool {
 		}
 		log.Println("successfully relayed by", n.Nodestr)
 		m.setRelayServer(n)
+		if !nodes.checkOpenned() {
+			m.setRelayServer(nil)
+			continue
+		}
 		go func() {
 			<-closed
 			log.Println("relay was closed")
@@ -269,67 +276,49 @@ func (m *Myself) connectionString() string {
 }
 
 //CheckConnection checks connection scheme which mynode can use.
-func (m *Myself) CheckConnection(initnodes []string) {
-	ns := mustNewNodes(initnodes)
-	for _, i := range ns {
+func (m *Myself) CheckConnection(nodes Slice) {
+	for _, i := range nodes {
 		if _, err := i.Ping(); err == nil {
 			break
 		}
 	}
-	fn := []func() int{
-		func() int {
+
+	fn := []func(Slice) int{
+		func(ns Slice) int {
 			log.Println("trying defaultport")
 			m.resetPort()
-			return Normal
+			if ns.checkOpenned() {
+				return Normal
+			}
+			return -1
 		},
-		func() int {
+		func(ns Slice) int {
 			log.Println("trying uPnP")
 			if !m.useUPnP() {
 				return -1
 			}
 			return UPnP
 		},
-		func() int {
+		func(ns Slice) int {
 			log.Println("trying relayed")
 			m.resetPort()
-			if !m.tryRelay(ns[0]) {
+			if !m.tryRelay(nodes) {
 				return -1
 			}
 			return Port0
 		},
-		func() int {
+		func(ns Slice) int {
 			log.Println("failed to join")
 			m.setRelayServer(nil)
 			return Port0
 		},
 	}
-
-	var mutex sync.Mutex
-	var wg sync.WaitGroup
-	ok := false
-	stat := m.GetStatus()
 	for _, f := range fn {
-		stat = f()
-		if stat != -1 {
-			for _, i := range ns {
-				wg.Add(1)
-				go func(i *Node) {
-					defer wg.Done()
-					if _, err := i.join(); err == nil {
-						mutex.Lock()
-						ok = true
-						mutex.Unlock()
-					}
-				}(i)
-			}
-			wg.Wait()
-			if ok {
-				break
-			}
+		if stat := f(nodes); stat != -1 {
+			m.setStatus(stat)
+			break
 		}
 	}
-
-	m.setStatus(stat)
 	con := m.connectionString()
 	log.Println("openned", con)
 }
@@ -351,8 +340,8 @@ type Node struct {
 	Nodestr string
 }
 
-//mustNewNodes makes node slice from names.
-func mustNewNodes(names []string) []*Node {
+//MustNewNodes makes node slice from names.
+func MustNewNodes(names []string) []*Node {
 	ns := make([]*Node, len(names))
 	for i, nn := range names {
 		nn, err := newNode(nn)
@@ -551,8 +540,8 @@ func (n *Node) bye() bool {
 	return len(res) > 0 && (res[0] == "BYEBYE")
 }
 
-//getherNodes gethers nodes from n.
-func (n *Node) getherNodes() []*Node {
+//GetherNodes gethers nodes from n.
+func (n *Node) GetherNodes() []*Node {
 	ns := map[string]*Node{
 		n.Nodestr: n,
 	}
@@ -645,9 +634,28 @@ func (ns Slice) uniq() Slice {
 }
 
 //Extend make a new nodeslice including specified slices.
-func (ns Slice) Extend(a Slice) Slice {
-	nn := make([]*Node, ns.Len()+a.Len())
+func (ns Slice) extend(a Slice) Slice {
+	nn := make(Slice, ns.Len()+a.Len())
 	copy(nn, ns)
 	copy(nn[ns.Len():], a)
-	return nn
+	return nn.uniq()
+}
+
+func (ns Slice) checkOpenned() bool {
+	ok := false
+	var mutex sync.Mutex
+	var wg sync.WaitGroup
+	for j := 0; j < len(ns) && j < 10; j++ {
+		wg.Add(1)
+		go func(n *Node) {
+			defer wg.Done()
+			if _, err := n.join(); err == nil {
+				mutex.Lock()
+				ok = true
+				mutex.Unlock()
+			}
+		}(ns[j])
+	}
+	wg.Wait()
+	return ok
 }

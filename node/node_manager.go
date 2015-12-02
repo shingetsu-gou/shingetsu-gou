@@ -289,46 +289,17 @@ func (lt *Manager) RemoveFromAllTable(n *Node) bool {
 	return del
 }
 
-//moreNodes gets another node info from each nodes in nodelist.
-func (lt *Manager) moreNodes() {
-	const retry = 5 // Times; Common setting
-
-	no := 0
-	count := 0
-	all := lt.getAllNodes()
-	for lt.ListLen() < defaultNodes {
-		nn := all[no]
-		newN, err := nn.getNode()
-		if err == nil {
-			if (lt.Myself.GetStatus() == Port0 && !lt.Myself.IsRelayed()) || lt.Join(newN) {
-				all = append(all, newN)
-				lt.appendToList(newN)
-			}
-		}
-		if count++; count > retry {
-			count = 0
-			if no++; no >= len(all) {
-				return
-			}
-		}
-	}
-}
-
 //Initialize pings one of initNode except myself and added it if success,
 //and get another node info from each nodes in nodelist.
-func (lt *Manager) Initialize() {
-	inodes := lt.Random(nil, defaultNodes)
-	for _, i := range lt.InitNode.GetData() {
-		nn, err := newNode(i)
-		if err != nil {
-			continue
-		}
-		inodes = append(inodes, nn)
+func (lt *Manager) Initialize(allnodes Slice) {
+	inodes := allnodes
+	if len(allnodes) > defaultNodes {
+		inodes = inodes[:defaultNodes]
 	}
 	var wg sync.WaitGroup
 	pingOK := make([]*Node, 0, len(inodes))
 	var mutex sync.Mutex
-	for _, inode := range inodes {
+	for i := 0; i < len(inodes) && lt.ListLen() < defaultNodes; i++ {
 		wg.Add(1)
 		go func(inode *Node) {
 			defer wg.Done()
@@ -338,12 +309,10 @@ func (lt *Manager) Initialize() {
 				mutex.Unlock()
 				lt.Join(inode)
 			}
-		}(inode)
+		}(inodes[i])
 	}
 	wg.Wait()
-	if lt.ListLen() > 0 {
-		lt.moreNodes()
-	}
+
 	log.Println("# of nodelist:", lt.ListLen())
 	if lt.ListLen() == 0 {
 		for _, p := range pingOK {
@@ -394,8 +363,8 @@ func (lt *Manager) TellUpdate(datfile string, stamp int64, id string, node *Node
 	msg := strings.Join([]string{"/update", datfile, strconv.FormatInt(stamp, 10), id, tellstr}, "/")
 
 	ns := lt.Get(datfile, nil)
-	ns = ns.Extend(lt.Get("", nil))
-	ns = ns.Extend(lt.Random(ns, updateNodes))
+	ns = ns.extend(lt.Get("", nil))
+	ns = ns.extend(lt.Random(ns, updateNodes))
 	log.Println("telling #", len(ns))
 	for _, n := range ns {
 		_, err := n.Talk(msg, true, nil)
@@ -455,9 +424,9 @@ func (lt *Manager) Sync() {
 //NodesForGet returns nodes which has datfile cache , and that extends nodes to #searchDepth .
 func (lt *Manager) NodesForGet(datfile string, searchDepth int) Slice {
 	var ns, ns2 Slice
-	ns = ns.Extend(lt.Get(datfile, nil))
-	ns = ns.Extend(lt.Get("", nil))
-	ns = ns.Extend(lt.Random(ns, 0))
+	ns = ns.extend(lt.Get(datfile, nil))
+	ns = ns.extend(lt.Get("", nil))
+	ns = ns.extend(lt.Random(ns, 0))
 
 	for _, n := range ns {
 		if !n.Equals(lt.Myself.toNode()) && n.IsAllowed() {
@@ -468,48 +437,4 @@ func (lt *Manager) NodesForGet(datfile string, searchDepth int) Slice {
 		ns2 = ns2[:searchDepth]
 	}
 	return ns2
-}
-
-//Rejoin adds nodes in searchlist to nodelist if ping is ok and len(nodelist)<defaultNodes
-//and doesn't have it's node.
-//if ping is ng, removes node from searchlist.
-func (lt *Manager) Rejoin() {
-	all := lt.getAllNodes()
-	for _, n := range all {
-		if lt.ListLen() >= defaultNodes {
-			return
-		}
-		lt.mutex.RLock()
-		m := lt.nodes[""].toMap()
-		_, has := m[n.Nodestr]
-		lt.mutex.RUnlock()
-		if has {
-			continue
-		}
-		if _, err := n.Ping(); err == nil || !lt.Join(n) {
-			lt.RemoveFromAllTable(n)
-			lt.Sync()
-		} else {
-			lt.appendToList(n)
-		}
-	}
-	log.Println("# of nodelist", lt.ListLen())
-}
-
-//RejoinList joins all node in nodelist.
-func (lt *Manager) RejoinList() {
-	lt.mutex.RLock()
-	defer lt.mutex.RUnlock()
-	var wg sync.WaitGroup
-	for _, n := range lt.nodes[""] {
-		wg.Add(1)
-		go func(n *Node) {
-			defer wg.Done()
-			_, err := n.join()
-			if err != nil {
-				log.Println(err)
-			}
-		}(n)
-	}
-	wg.Wait()
 }

@@ -49,10 +49,14 @@ func cron(nodeManager *node.Manager, recentList *thread.RecentList, heavymoon bo
 		getall := true
 		for {
 			log.Println("short cycle cron started")
-			myself.CheckConnection(nodeManager.InitNode.GetData())
-			nodeManager.Initialize()
+			ns := node.MustNewNodes(nodeManager.InitNode.GetData())
+			if len(ns) == 0 {
+				log.Fatal("not init nodes")
+			}
+			nodes := ns[0].GetherNodes()
+			myself.CheckConnection(nodes)
+			nodeManager.Initialize(nodes)
 			nodeManager.Sync()
-			nodeManager.Rejoin()
 			doSync(nodeManager, recentList, heavymoon, getall)
 			log.Println("short cycle cron finished")
 			getall = false
@@ -80,11 +84,6 @@ func doSync(nodeManager *node.Manager, recentList *thread.RecentList, heavymoon 
 	if nodeManager.ListLen() == 0 {
 		return
 	}
-	log.Println("lookupTable.join start")
-	nodeManager.RejoinList()
-	nodeManager.Sync()
-	log.Println("lookupTable.join finished")
-
 	log.Println("recentList.getall start")
 	recentList.Getall(fullRecent)
 	log.Println("recentList.getall finished")

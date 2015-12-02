@@ -406,16 +406,16 @@ func doGetHead(w http.ResponseWriter, r *http.Request) {
 	begin, end, id := s.parseStamp(stamp, ca.ReadInfo().Stamp)
 	recs := ca.LoadRecords()
 	for _, r := range recs {
-		if begin <= r.Stamp && r.Stamp <= end && (id == "" || strings.HasSuffix(r.Idstr(), id)) {
+		if r.InRange(begin, end, id) {
 			if method == "get" {
-				err := r.Load()
-				if err != nil {
+				if err := r.Load(); err != nil {
 					log.Println(err)
+					continue
 				}
 				fmt.Fprintln(s.wr, r.Recstr())
-			} else {
-				fmt.Fprintln(s.wr, strings.Replace(r.Idstr(), "_", "<>", -1))
+				continue
 			}
+			fmt.Fprintln(s.wr, strings.Replace(r.Idstr(), "_", "<>", -1))
 		}
 	}
 	if method == "get" {
