@@ -32,6 +32,7 @@ import (
 	"log"
 	"time"
 
+	"github.com/shingetsu-gou/shingetsu-gou/mch"
 	"github.com/shingetsu-gou/shingetsu-gou/node"
 	"github.com/shingetsu-gou/shingetsu-gou/thread"
 )
@@ -39,7 +40,7 @@ import (
 var running bool
 
 //cron runs cron, and update everything if it is after specified cycle.
-func cron(nodeManager *node.Manager, recentList *thread.RecentList, heavymoon bool, myself *node.Myself, rundir string) {
+func cron(nodeManager *node.Manager, recentList *thread.RecentList, heavymoon bool, myself *node.Myself, table *mch.DatakeyTable) {
 	const (
 		shortCycle = 10 * time.Minute
 		longCycle  = time.Hour
@@ -58,6 +59,7 @@ func cron(nodeManager *node.Manager, recentList *thread.RecentList, heavymoon bo
 			nodeManager.Initialize(nodes)
 			nodeManager.Sync()
 			doSync(nodeManager, recentList, heavymoon, getall)
+			table.Load()
 			log.Println("short cycle cron finished")
 			getall = false
 			<-time.After(shortCycle)

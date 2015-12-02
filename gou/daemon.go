@@ -52,7 +52,7 @@ import (
 	"github.com/shingetsu-gou/shingetsu-gou/util"
 )
 
-func initPackages(cfg *Config, version string, serveHTTP http.HandlerFunc) (*node.Manager, *thread.RecentList, *node.Myself) {
+func initPackages(cfg *Config, version string, serveHTTP http.HandlerFunc) (*node.Manager, *thread.RecentList, *node.Myself, *mch.DatakeyTable) {
 	myself := node.NewMyself(cfg.DefaultPort, cgi.ServerURL, cfg.ServerName, serveHTTP, cfg.EnableNAT)
 
 	defaultInitNode := []string{
@@ -195,8 +195,7 @@ func initPackages(cfg *Config, version string, serveHTTP http.HandlerFunc) (*nod
 		Htemplate:            htemplate,
 		UpdateQue:            updateQue,
 	}
-	datakeyTable.Load()
-	return nodeManager, recentList, myself
+	return nodeManager, recentList, myself, datakeyTable
 
 }
 
@@ -222,8 +221,8 @@ func StartDaemon(cfg *Config, version string) {
 		WriteTimeout:   3 * time.Minute,
 		MaxHeaderBytes: 1 << 20,
 	}
-	nm, rl, myself := initPackages(cfg, version, sm.ServeHTTP)
-	go cron(nm, rl, cfg.HeavyMoon, myself, cfg.RunDir)
+	nm, rl, myself, dt := initPackages(cfg, version, sm.ServeHTTP)
+	go cron(nm, rl, cfg.HeavyMoon, myself, dt)
 
 	cgi.AdminSetup(sm)
 	cgi.ServerSetup(sm, cfg.RelayNumber)

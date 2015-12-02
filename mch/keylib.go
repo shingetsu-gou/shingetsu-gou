@@ -121,7 +121,7 @@ func (d *DatakeyTable) save() {
 
 //setEntry stores stamp/value.
 func (d *DatakeyTable) setEntry(stamp int64, filekey string) {
-	d.mutex.Lock() //*
+	d.mutex.Lock()
 	defer d.mutex.Unlock()
 	d.datakey2filekey[stamp] = filekey
 	d.filekey2datkey[filekey] = stamp
@@ -157,7 +157,7 @@ func (d *DatakeyTable) setFromCache(ca *thread.Cache) {
 //GetDatkey returns stamp from filekey.
 //if not found, tries to read from cache.
 func (d *DatakeyTable) GetDatkey(filekey string) (int64, error) {
-	d.mutex.RLock() // *
+	d.mutex.RLock()
 	if v, exist := d.filekey2datkey[filekey]; exist {
 		d.mutex.RUnlock()
 		return v, nil
