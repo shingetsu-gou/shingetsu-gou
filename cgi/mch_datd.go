@@ -36,7 +36,6 @@ import (
 	"log"
 	"net/http"
 	"regexp"
-	"sort"
 	"strconv"
 	"strings"
 	"time"
@@ -231,23 +230,7 @@ func (m *mchCGI) threadApp(board, datkey string) {
 //makeSubjectCachelist returns thread.Caches in all thread.Cache and in recentlist sorted by recent stamp.
 //if board is specified,  returns thread.Caches whose tagstr=board.
 func (m *mchCGI) makeSubjectCachelist(board string) []*thread.Cache {
-	cl := thread.NewCacheList()
-	seen := make([]string, cl.Len())
-	for i, c := range cl.Caches {
-		seen[i] = c.Datfile
-	}
-	for _, rec := range m.RecentList.GetRecords() {
-		if !util.HasString(seen, rec.Datfile) {
-			seen = append(seen, rec.Datfile)
-			c := thread.NewCache(rec.Datfile)
-			cl.Append(c)
-		}
-	}
-	var result []*thread.Cache
-	for _, c := range cl.Caches {
-		result = append(result, c)
-	}
-	sort.Sort(sort.Reverse(thread.NewSortByStamp(result, true)))
+	result := m.RecentList.MakeRecentCachelist()
 	if board == "" {
 		return result
 	}

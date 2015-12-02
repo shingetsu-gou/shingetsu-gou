@@ -66,7 +66,7 @@ type RecentListConfig struct {
 //gotten by /gateway.cgi/Recent
 type RecentList struct {
 	*RecentListConfig
-	infos   recordHeads
+	infos   map[string]recordHeads
 	isDirty bool
 	mutex   sync.RWMutex
 }
@@ -75,6 +75,7 @@ type RecentList struct {
 func NewRecentList(cfg *RecentListConfig) *RecentList {
 	r := &RecentList{
 		RecentListConfig: cfg,
+		infos:            make(map[string]recordHeads),
 	}
 	r.loadFile()
 	return r
@@ -88,7 +89,7 @@ func (r *RecentList) loadFile() {
 		if err == nil {
 			r.Fmutex.RUnlock()
 			r.mutex.Lock()
-			r.infos = append(r.infos, vr)
+			r.infos[vr.Datfile] = append(r.infos[vr.Datfile], vr)
 			r.isDirty = true
 			r.mutex.Unlock()
 			r.Fmutex.RLock()
@@ -107,7 +108,7 @@ func (r *RecentList) Newest(Datfile string) *RecordHead {
 	r.mutex.RLock()
 	defer r.mutex.RUnlock()
 	var rh *RecordHead
-	for _, v := range r.infos {
+	for _, v := range r.infos[Datfile] {
 		if v.Datfile == Datfile && (rh == nil || rh.Stamp < v.Stamp) {
 			rh = v
 		}
@@ -122,7 +123,7 @@ func (r *RecentList) Append(rec *Record) {
 	}
 	r.mutex.Lock()
 	defer r.mutex.Unlock()
-	r.infos = append(r.infos, &rec.RecordHead)
+	r.infos[rec.Datfile] = append(r.infos[rec.Datfile], &rec.RecordHead)
 	if r.HeavyMoon {
 		if ca := NewCache(rec.Datfile); !ca.Exists() {
 			ca.SetupDirectories()
@@ -135,7 +136,7 @@ func (r *RecentList) Append(rec *Record) {
 func (r *RecentList) find(rec *Record) int {
 	r.mutex.RLock()
 	defer r.mutex.RUnlock()
-	for i, v := range r.infos {
+	for i, v := range r.infos[rec.Datfile] {
 		if v.equals(&rec.RecordHead) {
 			return i
 		}
@@ -153,19 +154,21 @@ func (r *RecentList) remove(rec *Record) {
 	if l := r.find(rec); l != -1 {
 		r.mutex.Lock()
 		defer r.mutex.Unlock()
-		r.infos = append(r.infos[:l], r.infos[l+1:]...)
+		i := r.infos[rec.Datfile]
+		i, i[len(i)-1] = append(i[:l], i[l+1:]...), nil
 	}
 }
 
 //removeInfo removes info rec
 func (r *RecentList) removeInfo(rec *RecordHead) {
 	r.mutex.RLock()
-	for i, v := range r.infos {
+	for i, v := range r.infos[rec.Datfile] {
 		r.mutex.RUnlock()
 		if v.equals(rec) {
 			r.mutex.Lock()
 			defer r.mutex.Unlock()
-			r.infos, r.infos[len(r.infos)-1] = append(r.infos[:i], r.infos[i+1:]...), nil
+			in := r.infos[rec.Datfile]
+			in, in[len(r.infos)-1] = append(in[:i], in[i+1:]...), nil
 			return
 		}
 		r.mutex.RLock()
@@ -177,9 +180,11 @@ func (r *RecentList) removeInfo(rec *RecordHead) {
 func (r *RecentList) getRecstrSlice() []string {
 	r.mutex.RLock()
 	defer r.mutex.RUnlock()
-	result := make([]string, len(r.infos))
-	for i, v := range r.infos {
-		result[i] = v.Recstr()
+	var result []string
+	for _, vs := range r.infos {
+		for _, v := range vs {
+			result = append(result, v.Recstr())
+		}
 	}
 	return result
 }
@@ -187,12 +192,13 @@ func (r *RecentList) getRecstrSlice() []string {
 //Sync remove old records and save to the file.
 func (r *RecentList) Sync() {
 	r.mutex.Lock()
-	for i, rec := range r.infos {
-		if defaultUpdateRange > 0 && rec.Stamp+int64(defaultUpdateRange) < time.Now().Unix() {
-			r.infos, r.infos[len(r.infos)-1] = append(r.infos[:i], r.infos[i+1:]...), nil
+	for _, recs := range r.infos {
+		for i, rec := range recs {
+			if defaultUpdateRange > 0 && rec.Stamp+int64(defaultUpdateRange) < time.Now().Unix() {
+				recs, recs[len(recs)-1] = append(recs[:i], recs[i+1:]...), nil
+			}
 		}
 	}
-	sort.Sort(r.infos)
 	r.mutex.Unlock()
 	recstrSlice := r.getRecstrSlice()
 	r.Fmutex.Lock()
@@ -258,13 +264,9 @@ func (r *RecentList) Getall(all bool) {
 func (r *RecentList) MakeRecentCachelist() Caches {
 	r.mutex.RLock()
 	var cl Caches
-	var check []string
-	for _, rec := range r.infos {
-		if !util.HasString(check, rec.Datfile) {
-			ca := NewCache(rec.Datfile)
-			cl = append(cl, ca)
-			check = append(check, rec.Datfile)
-		}
+	for datfile := range r.infos {
+		ca := NewCache(datfile)
+		cl = append(cl, ca)
 	}
 	r.mutex.RUnlock()
 	sort.Sort(sort.Reverse(NewSortByStamp(cl, true)))
@@ -275,8 +277,12 @@ func (r *RecentList) MakeRecentCachelist() Caches {
 func (r *RecentList) GetRecords() []*RecordHead {
 	r.mutex.RLock()
 	defer r.mutex.RUnlock()
-	inf := make([]*RecordHead, len(r.infos))
-	copy(inf, r.infos)
+	var inf []*RecordHead
+	for _, recs := range r.infos {
+		for _, rec := range recs {
+			inf = append(inf, rec)
+		}
+	}
 	return inf
 }
 
