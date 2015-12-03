@@ -173,3 +173,13 @@ func (r RecordMap) removeRecords(limit int64, saveSize int) {
 		}
 	}
 }
+
+func parseHeadResponse(res []string) RecordMap {
+	m := make(RecordMap)
+	for _, r := range res {
+		if rec := makeRecord(r); rec != nil {
+			m[rec.Recstr()] = rec
+		}
+	}
+	return m	
+}

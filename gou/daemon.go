@@ -66,6 +66,7 @@ func initPackages(cfg *Config, version string, serveHTTP http.HandlerFunc) (*nod
 	nodeAllow := util.NewRegexpList(cfg.NodeAllowFile)
 	nodeDeny := util.NewRegexpList(cfg.NodeDenyFile)
 	initNode := util.NewConfList(cfg.InitnodeList, defaultInitNode)
+	followers := util.NewConfList(cfg.FollowList, nil)
 
 	//nodecfg must be first!
 	node.NodeCfg = &node.NodeConfig{
@@ -120,6 +121,7 @@ func initPackages(cfg *Config, version string, serveHTTP http.HandlerFunc) (*nod
 		UserTag:           userTag,
 		SuggestedTagTable: suggestedTagTable,
 		RecentList:        recentList,
+		Followers:         followers,
 		Fmutex:            fmutex,
 	}
 
@@ -222,6 +224,7 @@ func StartDaemon(cfg *Config, version string) {
 		MaxHeaderBytes: 1 << 20,
 	}
 	nm, rl, myself, dt := initPackages(cfg, version, sm.ServeHTTP)
+
 	go cron(nm, rl, cfg.HeavyMoon, myself, dt)
 
 	cgi.AdminSetup(sm)

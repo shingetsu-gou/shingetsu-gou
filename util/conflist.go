@@ -60,12 +60,24 @@ func NewConfList(path string, defaultList []string) *ConfList {
 	return r
 }
 
-//GetData retuns a coy of lines in the file.
+//GetData retuns a copy of lines in the file.
 func (r *ConfList) GetData() []string {
 	r.mutex.RLock()
 	defer r.mutex.RUnlock()
 	d := make([]string, len(r.data))
 	copy(d, r.data)
+	return d
+}
+
+//GetSplitData retuns a copy of splitted lines by ", " in the file.
+func (r *ConfList) GetSplitData() [][]string {
+	r.mutex.RLock()
+	defer r.mutex.RUnlock()
+	d := make([][]string, len(r.data))
+	for i, da := range r.data {
+		dd := strings.Split(da, ", ")
+		d[i] = dd
+	}
 	return d
 }
 

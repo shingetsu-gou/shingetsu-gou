@@ -102,6 +102,7 @@ type Config struct {
 	TemplateDir          string
 	SpamList             string
 	InitnodeList         string
+	FollowList           string
 	NodeAllowFile        string
 	NodeDenyFile         string
 	ReAdminStr           string
@@ -159,6 +160,7 @@ func (c *Config) initVariables(i *ini.File) {
 	c.TemplateDir = getRelativePathValue(i, "Path", "template_dir", "../gou_template", c.Docroot) //path from docroot
 	c.SpamList = getRelativePathValue(i, "Path", "spam_list", "../file/spam.txt", c.Docroot)
 	c.InitnodeList = getRelativePathValue(i, "Path", "initnode_list", "../file/initnode.txt", c.Docroot)
+	c.FollowList = getRelativePathValue(i, "Path", "follow_list", "../file/follow_list.txt", c.Docroot)
 	c.NodeAllowFile = getRelativePathValue(i, "Path", "node_allow", "../file/node_allow.txt", c.Docroot)
 	c.NodeDenyFile = getRelativePathValue(i, "Path", "node_deny", "../file/node_deny.txt", c.Docroot)
 	c.ReAdminStr = getStringValue(i, "Gateway", "admin", "^(127|\\[::1\\])")

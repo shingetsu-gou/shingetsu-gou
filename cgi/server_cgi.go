@@ -60,6 +60,7 @@ func ServerSetup(s *LoggingServeMux, relaynum int) {
 	s.RegistCompressHandler(ServerURL+"/join/", doJoin)
 	s.RegistCompressHandler(ServerURL+"/bye/", doBye)
 	s.RegistCompressHandler(ServerURL+"/have/", doHave)
+	s.RegistCompressHandler(ServerURL+"/removed/", doGetHead)
 	s.RegistCompressHandler(ServerURL+"/get/", doGetHead)
 	s.RegistCompressHandler(ServerURL+"/head/", doGetHead)
 	s.RegistCompressHandler(ServerURL+"/update/", doUpdate)
@@ -395,7 +396,7 @@ func doGetHead(w http.ResponseWriter, r *http.Request) {
 		log.Println(err)
 		return
 	}
-	reg := regexp.MustCompile("^(get|head)/([0-9A-Za-z_]+)/?([-0-9A-Za-z/]*)$")
+	reg := regexp.MustCompile("^(get|head|removed)/([0-9A-Za-z_]+)/?([-0-9A-Za-z/]*)$")
 	m := reg.FindStringSubmatch(s.path())
 	if m == nil {
 		log.Println("illegal url", s.path())
@@ -404,7 +405,12 @@ func doGetHead(w http.ResponseWriter, r *http.Request) {
 	method, datfile, stamp := m[1], m[2], m[3]
 	ca := thread.NewCache(datfile)
 	begin, end, id := s.parseStamp(stamp, ca.ReadInfo().Stamp)
-	recs := ca.LoadRecords()
+	var recs thread.RecordMap
+	if method == "removed" {
+		recs = ca.LoadRemovedRecords()
+	} else {
+		recs = ca.LoadRecords()
+	}
 	for _, r := range recs {
 		if r.InRange(begin, end, id) {
 			if method == "get" {

@@ -71,6 +71,7 @@ type CacheConfig struct {
 	UserTag           *UserTag
 	SuggestedTagTable *SuggestedTagTable
 	RecentList        *RecentList
+	Followers         *util.ConfList
 	Fmutex            *sync.RWMutex
 }
 
@@ -213,10 +214,15 @@ func (c *Cache) ReadInfo() *CacheInfo {
 //LoadAllRecords loads and returns record maps from the disk including removed.
 func (c *Cache) LoadAllRecords() RecordMap {
 	recs := c.loadRecords("record")
-	for k, v := range c.loadRecords("removed") {
+	for k, v := range c.LoadRemovedRecords() {
 		recs[k] = v
 	}
 	return recs
+}
+
+//LoadRemovedRecords loads and returns record maps from the disk .
+func (c *Cache) LoadRemovedRecords() RecordMap {
+	return c.loadRecords("removed")
 }
 
 //LoadRecords loads and returns record maps from the disk .
@@ -352,6 +358,7 @@ func (c *Cache) getWithRange(n *node.Node, dm *DownloadManager) bool {
 	for {
 		from, to := dm.Get(n)
 		if from <= 0 {
+			log.Println("!")
 			return got
 		}
 
@@ -408,13 +415,14 @@ func (c *Cache) GetCache(background bool) bool {
 func (c *Cache) waitFor(background bool, done chan struct{}, wg *sync.WaitGroup) {
 	newest := c.RecentList.Newest(c.Datfile)
 	if background {
+		go func() {
+			wg.Wait()
+			c.SyncRemoteRemoved()
+			done <- struct{}{}
+		}()
 		if newest != nil && (newest.Stamp == c.ReadInfo().Stamp) {
 			return
 		}
-		go func() {
-			wg.Wait()
-			done <- struct{}{}
-		}()
 		for {
 			select {
 			case <-done:
@@ -427,6 +435,7 @@ func (c *Cache) waitFor(background bool, done chan struct{}, wg *sync.WaitGroup)
 		}
 	}
 	wg.Wait()
+	c.SyncRemoteRemoved()
 }
 
 //Gettitle returns title part if *_*.
@@ -454,6 +463,41 @@ func (c *Cache) GetContents() []string {
 		}
 	}
 	return contents
+}
+
+//SyncRemoteRemoved gets removed records from followers
+//and removes these records.
+func (c *Cache) SyncRemoteRemoved() {
+	recs := make(RecordMap)
+	for _, ns := range c.Followers.GetSplitData() {
+		var recs1 RecordMap
+		for _, n := range node.MustNewNodes(ns) {
+			res, err := n.Talk("/removed/"+c.Datfile, false, nil)
+			if err != nil {
+				log.Println(err)
+				continue
+			}
+			r := parseHeadResponse(res)
+			if recs1 == nil {
+				recs1 = r
+				continue
+			}
+			for recstr := range r {
+				if _, exist := recs1[recstr]; !exist {
+					delete(recs1, recstr)
+				}
+			}
+		}
+		for k, v := range recs1 {
+			recs[k] = v
+		}
+	}
+	log.Println("removing", len(recs), "records from", c.Datfile)
+	for _, r := range recs {
+		if err := r.Remove(); err != nil {
+			log.Println(err)
+		}
+	}
 }
 
 //targetRec represents target records for downloading.
@@ -513,27 +557,17 @@ func NewDownloadManger(ca *Cache) *DownloadManager {
 
 //Set sets res as targets n is holding.
 func (dm *DownloadManager) Set(res []string, n *node.Node) {
-	for _, r := range res {
-		s := strings.Split(r, "<>")
-		if len(s) != 2 {
-			log.Println("format is illegal", s)
-			continue
-		}
-		recstr := s[0] + "_" + s[1]
-		stamp, err := strconv.ParseInt(s[0], 10, 64)
-		if err != nil {
-			log.Println(err)
-			continue
-		}
+	recs := parseHeadResponse(res)
+	for _, r := range recs {
 		dm.mutex.Lock()
-		if rec, exist := dm.recs[recstr]; exist {
+		if rec, exist := dm.recs[r.Recstr()]; exist {
 			if !rec.finished {
 				rec.node = append(rec.node, n)
 			}
 		} else {
-			dm.recs[recstr] = &targetRec{
+			dm.recs[r.Recstr()] = &targetRec{
 				node:  []*node.Node{n},
-				stamp: stamp,
+				stamp: r.Stamp,
 			}
 		}
 		dm.mutex.Unlock()
