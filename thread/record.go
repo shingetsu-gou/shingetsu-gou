@@ -53,8 +53,6 @@ var (
 //RecordConfig is the config for Record struct.
 type RecordConfig struct {
 	DefaultThumbnailSize string
-	CacheDir             string
-	Fmutex               *sync.RWMutex
 	CachedRule           *util.RegexpList
 	RecordLimit          int
 }
@@ -62,7 +60,7 @@ type RecordConfig struct {
 //Record represents one record.
 type Record struct {
 	*RecordConfig
-	RecordHead
+	*RecordHead
 	contents map[string]string
 	keyOrder []string
 	isLoaded bool
@@ -77,6 +75,7 @@ func NewRecord(datfile, idstr string) *Record {
 	}
 	r := &Record{
 		RecordConfig: RecordCfg,
+		RecordHead:   newRecordHead(),
 	}
 
 	var err error
@@ -170,40 +169,6 @@ func (r *Record) GetBodyValue(k string, def string) string {
 	return def
 }
 
-//path returns path for real file
-func (r *Record) path() string {
-	if r.Idstr() == "" || r.Datfile == "" {
-		return ""
-	}
-	return filepath.Join(r.CacheDir, r.dathash(), "record", r.Idstr())
-}
-
-//rmPath returns path for removed marker
-func (r *Record) rmPath() string {
-	if r.Idstr() == "" || r.Datfile == "" {
-		return ""
-	}
-	return filepath.Join(r.CacheDir, r.dathash(), "removed", r.Idstr())
-}
-
-//dathash returns the same string as Datfile if encoding=asis
-func (r *Record) dathash() string {
-	if r.Datfile == "" {
-		return ""
-	}
-	return util.FileHash(r.Datfile)
-}
-
-//Exists return true if record file exists.
-func (r *Record) Exists() bool {
-	return util.IsFile(r.path())
-}
-
-//Removed return true if record is removed (i.e. exists.in removed path)
-func (r *Record) Removed() bool {
-	return util.IsFile(r.rmPath())
-}
-
 //Recstr returns one line in the record file.
 func (r *Record) Recstr() string {
 	return fmt.Sprintf("%d<>%s<>%s", r.Stamp, r.ID, r.bodystr())
@@ -276,18 +241,6 @@ func (r *Record) size() int64 {
 		return 0
 	}
 	return s.Size()
-}
-
-//Remove moves the record file  to remove path
-func (r *Record) Remove() error {
-	r.Fmutex.Lock()
-	err := util.MoveFile(r.path(), r.rmPath())
-	r.Fmutex.Unlock()
-	if err != nil {
-		log.Println(err)
-		return err
-	}
-	return nil
 }
 
 //Load loads a record file and parses it.

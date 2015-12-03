@@ -123,7 +123,7 @@ func (r *RecentList) Append(rec *Record) {
 	}
 	r.mutex.Lock()
 	defer r.mutex.Unlock()
-	r.infos[rec.Datfile] = append(r.infos[rec.Datfile], &rec.RecordHead)
+	r.infos[rec.Datfile] = append(r.infos[rec.Datfile], rec.RecordHead)
 	if r.HeavyMoon {
 		if ca := NewCache(rec.Datfile); !ca.Exists() {
 			ca.SetupDirectories()
@@ -137,7 +137,7 @@ func (r *RecentList) find(rec *Record) int {
 	r.mutex.RLock()
 	defer r.mutex.RUnlock()
 	for i, v := range r.infos[rec.Datfile] {
-		if v.equals(&rec.RecordHead) {
+		if v.equals(rec.RecordHead) {
 			return i
 		}
 	}
@@ -154,8 +154,7 @@ func (r *RecentList) remove(rec *Record) {
 	if l := r.find(rec); l != -1 {
 		r.mutex.Lock()
 		defer r.mutex.Unlock()
-		i := r.infos[rec.Datfile]
-		i, i[len(i)-1] = append(i[:l], i[l+1:]...), nil
+		r.infos[rec.Datfile], r.infos[rec.Datfile][len(r.infos[rec.Datfile])-1] = append(r.infos[rec.Datfile][:l], r.infos[rec.Datfile][l+1:]...), nil
 	}
 }
 
@@ -167,8 +166,7 @@ func (r *RecentList) removeInfo(rec *RecordHead) {
 		if v.equals(rec) {
 			r.mutex.Lock()
 			defer r.mutex.Unlock()
-			in := r.infos[rec.Datfile]
-			in, in[len(r.infos)-1] = append(in[:i], in[i+1:]...), nil
+			r.infos[rec.Datfile], r.infos[rec.Datfile][len(r.infos[rec.Datfile])-1] = append(r.infos[rec.Datfile][:i], r.infos[rec.Datfile][i+1:]...), nil
 			return
 		}
 		r.mutex.RLock()

@@ -540,7 +540,6 @@ func (n *Node) bye() bool {
 	return len(res) > 0 && (res[0] == "BYEBYE")
 }
 
-
 //GetherNodes gethers nodes from n.
 func (n *Node) GetherNodes() []*Node {
 	ns := map[string]*Node{

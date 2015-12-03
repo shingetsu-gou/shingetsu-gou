@@ -141,7 +141,7 @@ func (u *UpdateQue) doUpdateNode(rec *Record, n *node.Node) bool {
 	var err error
 	if !ca.Exists() || n == nil {
 		log.Println("no cache or updates by myself, broadcast updates.")
-		UpdatedRecord.register(&rec.RecordHead)
+		UpdatedRecord.register(rec.RecordHead)
 		u.NodeManager.TellUpdate(ca.Datfile, rec.Stamp, rec.ID, n)
 		if UpdatedRecord.wait() {
 			log.Println(rec.ID, "was gotten")

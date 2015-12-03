@@ -33,23 +33,47 @@ import (
 	"errors"
 	"fmt"
 	"log"
+	"path/filepath"
 	"sort"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/shingetsu-gou/shingetsu-gou/util"
 )
 
+var (
+	//RecordHeadCfg is the config for Record struct.
+	//it must be set befor using.
+	RecordHeadCfg *RecordHeadConfig
+)
+
+//RecordHeadConfig is the config for RecordHead struct.
+type RecordHeadConfig struct {
+	Fmutex   *sync.RWMutex
+	CacheDir string
+}
+
 //RecordHead represents one line in updatelist/recentlist
 type RecordHead struct {
+	*RecordHeadConfig
 	Datfile string //cache file name
 	Stamp   int64  //unixtime
 	ID      string //md5(bodystr)
 }
 
+func newRecordHead() *RecordHead {
+	return &RecordHead{
+		RecordHeadConfig: RecordHeadCfg,
+	}
+}
+
 //newUpdateInfoFromLine parse one line in udpate/recent list and returns updateInfo obj.
 func newRecordHeadFromLine(line string) (*RecordHead, error) {
+	if RecordHeadCfg == nil {
+		log.Fatal("must set RecordHeadCfg")
+	}
 	strs := strings.Split(strings.TrimRight(line, "\n\r"), "<>")
 	if len(strs) < 3 || util.FileDecode(strs[2]) == "" || !strings.HasPrefix(strs[2], "thread") {
 		err := errors.New("illegal format")
@@ -57,8 +81,9 @@ func newRecordHeadFromLine(line string) (*RecordHead, error) {
 		return nil, err
 	}
 	u := &RecordHead{
-		ID:      strs[1],
-		Datfile: strs[2],
+		RecordHeadConfig: RecordHeadCfg,
+		ID:               strs[1],
+		Datfile:          strs[2],
 	}
 	var err error
 	u.Stamp, err = strconv.ParseInt(strs[0], 10, 64)
@@ -67,6 +92,52 @@ func newRecordHeadFromLine(line string) (*RecordHead, error) {
 		return nil, err
 	}
 	return u, nil
+}
+
+//path returns path for real file
+func (u *RecordHead) path() string {
+	if u.Idstr() == "" || u.Datfile == "" {
+		return ""
+	}
+	return filepath.Join(u.CacheDir, u.dathash(), "record", u.Idstr())
+}
+
+//rmPath returns path for removed marker
+func (u *RecordHead) rmPath() string {
+	if u.Idstr() == "" || u.Datfile == "" {
+		return ""
+	}
+	return filepath.Join(u.CacheDir, u.dathash(), "removed", u.Idstr())
+}
+
+//dathash returns the same string as Datfile if encoding=asis
+func (u *RecordHead) dathash() string {
+	if u.Datfile == "" {
+		return ""
+	}
+	return util.FileHash(u.Datfile)
+}
+
+//Exists return true if record file exists.
+func (u *RecordHead) Exists() bool {
+	return util.IsFile(u.path())
+}
+
+//Removed return true if record is removed (i.e. exists.in removed path)
+func (u *RecordHead) Removed() bool {
+	return util.IsFile(u.rmPath())
+}
+
+//Remove moves the record file  to remove path
+func (u *RecordHead) Remove() error {
+	u.Fmutex.Lock()
+	err := util.MoveFile(u.path(), u.rmPath())
+	u.Fmutex.Unlock()
+	if err != nil {
+		log.Println(err)
+		return err
+	}
+	return nil
 }
 
 //equals returns true if u=v
@@ -174,12 +245,25 @@ func (r RecordMap) removeRecords(limit int64, saveSize int) {
 	}
 }
 
-func parseHeadResponse(res []string) RecordMap {
-	m := make(RecordMap)
-	for _, r := range res {
-		if rec := makeRecord(r); rec != nil {
-			m[rec.Recstr()] = rec
+func parseHeadResponse(res []string, datfile string) map[string]*RecordHead {
+	m := make(map[string]*RecordHead)
+	for _, line := range res {
+		strs := strings.Split(strings.TrimRight(line, "\n\r"), "<>")
+		if len(strs) < 2 {
+			log.Println("illegal format")
+			return nil
 		}
+		u := &RecordHead{
+			ID:      strs[1],
+			Datfile: datfile,
+		}
+		var err error
+		u.Stamp, err = strconv.ParseInt(strs[0], 10, 64)
+		if err != nil {
+			log.Println(err)
+			return nil
+		}
+		m[u.Idstr()] = u
 	}
-	return m	
+	return m
 }

@@ -75,7 +75,10 @@ func initPackages(cfg *Config, version string, serveHTTP http.HandlerFunc) (*nod
 		NodeDeny:  nodeDeny,
 		Version:   version,
 	}
-
+	thread.RecordHeadCfg = &thread.RecordHeadConfig{
+		CacheDir: cfg.CacheDir,
+		Fmutex:   fmutex,
+	}
 	nodeManager := node.NewManager(&node.ManagerConfig{
 		Lookup:    cfg.Lookup(),
 		Fmutex:    fmutex,
@@ -145,8 +148,6 @@ func initPackages(cfg *Config, version string, serveHTTP http.HandlerFunc) (*nod
 
 	thread.RecordCfg = &thread.RecordConfig{
 		DefaultThumbnailSize: cfg.DefaultThumbnailSize,
-		CacheDir:             cfg.CacheDir,
-		Fmutex:               fmutex,
 		CachedRule:           cachedRule,
 		RecordLimit:          cfg.RecordLimit,
 	}

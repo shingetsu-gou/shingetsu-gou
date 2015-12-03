@@ -358,7 +358,6 @@ func (c *Cache) getWithRange(n *node.Node, dm *DownloadManager) bool {
 	for {
 		from, to := dm.Get(n)
 		if from <= 0 {
-			log.Println("!")
 			return got
 		}
 
@@ -468,22 +467,22 @@ func (c *Cache) GetContents() []string {
 //SyncRemoteRemoved gets removed records from followers
 //and removes these records.
 func (c *Cache) SyncRemoteRemoved() {
-	recs := make(RecordMap)
+	recs := make(map[string]*RecordHead)
 	for _, ns := range c.Followers.GetSplitData() {
-		var recs1 RecordMap
+		var recs1 map[string]*RecordHead
 		for _, n := range node.MustNewNodes(ns) {
 			res, err := n.Talk("/removed/"+c.Datfile, false, nil)
 			if err != nil {
 				log.Println(err)
 				continue
 			}
-			r := parseHeadResponse(res)
+			r := parseHeadResponse(res, c.Datfile)
 			if recs1 == nil {
 				recs1 = r
 				continue
 			}
-			for recstr := range r {
-				if _, exist := recs1[recstr]; !exist {
+			for recstr := range recs1 {
+				if _, exist := r[recstr]; !exist {
 					delete(recs1, recstr)
 				}
 			}
@@ -557,10 +556,10 @@ func NewDownloadManger(ca *Cache) *DownloadManager {
 
 //Set sets res as targets n is holding.
 func (dm *DownloadManager) Set(res []string, n *node.Node) {
-	recs := parseHeadResponse(res)
+	recs := parseHeadResponse(res, dm.datfile)
 	for _, r := range recs {
 		dm.mutex.Lock()
-		if rec, exist := dm.recs[r.Recstr()]; exist {
+		if rec, exist := dm.recs[r.Idstr()]; exist {
 			if !rec.finished {
 				rec.node = append(rec.node, n)
 			}
