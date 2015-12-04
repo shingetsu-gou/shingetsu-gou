@@ -254,8 +254,9 @@ func parseHeadResponse(res []string, datfile string) map[string]*RecordHead {
 			return nil
 		}
 		u := &RecordHead{
-			ID:      strs[1],
-			Datfile: datfile,
+			ID:               strs[1],
+			Datfile:          datfile,
+			RecordHeadConfig: RecordHeadCfg,
 		}
 		var err error
 		u.Stamp, err = strconv.ParseInt(strs[0], 10, 64)

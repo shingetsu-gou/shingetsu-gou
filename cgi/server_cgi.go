@@ -412,7 +412,6 @@ func doGetHead(w http.ResponseWriter, r *http.Request) {
 		recs = ca.LoadRecords()
 	}
 	for _, r := range recs {
-		log.Println(r.ID, r.Stamp, begin, end, id)
 		if r.InRange(begin, end, id) {
 			if method == "get" {
 				if err := r.Load(); err != nil {

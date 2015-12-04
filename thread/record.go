@@ -101,9 +101,10 @@ func (r *Record) CopyRecordHead() RecordHead {
 	r.mutex.RLock()
 	defer r.mutex.RUnlock()
 	return RecordHead{
-		Datfile: r.Datfile,
-		Stamp:   r.Stamp,
-		ID:      r.ID,
+		RecordHeadConfig: RecordHeadCfg,
+		Datfile:          r.Datfile,
+		Stamp:            r.Stamp,
+		ID:               r.ID,
 	}
 }
 
