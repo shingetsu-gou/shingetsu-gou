@@ -404,7 +404,7 @@ func doGetHead(w http.ResponseWriter, r *http.Request) {
 	}
 	method, datfile, stamp := m[1], m[2], m[3]
 	ca := thread.NewCache(datfile)
-	begin, end, id := s.parseStamp(stamp, ca.ReadInfo().Stamp)
+	begin, end, id := s.parseStamp(stamp, time.Now().Unix())
 	var recs thread.RecordMap
 	if method == "removed" {
 		recs = ca.LoadRemovedRecords()
@@ -412,6 +412,7 @@ func doGetHead(w http.ResponseWriter, r *http.Request) {
 		recs = ca.LoadRecords()
 	}
 	for _, r := range recs {
+		log.Println(r.ID, r.Stamp, begin, end, id)
 		if r.InRange(begin, end, id) {
 			if method == "get" {
 				if err := r.Load(); err != nil {
