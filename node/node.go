@@ -52,8 +52,10 @@ const (
 	Port0
 	//UPnP represents mynode is opned by uPnP.
 	UPnP
-	//Normal represents mynode is open to network.
+	//Normal represents port was opened manually.
 	Normal
+	//Relay represents relayed
+	Relay
 )
 
 //Myself contains my node info.
@@ -66,20 +68,32 @@ type Myself struct {
 	relayServer  *Node
 	serveHTTP    http.HandlerFunc
 	mutex        sync.RWMutex
-	enableNAT    bool
+	networkMode  int
 	status       int
 }
 
 //NewMyself returns Myself obj.
-func NewMyself(internalPort int, path string, serverName string, serveHTTP http.HandlerFunc, enableNAT bool) *Myself {
+func NewMyself(internalPort int, path string, serverName string, serveHTTP http.HandlerFunc, networkMode string) *Myself {
 	p := int32(internalPort)
+	var mode int
+	switch networkMode {
+	case "port_opened":
+		mode = Normal
+	case "upnp":
+		mode = UPnP
+	case "relay":
+		mode = Relay
+	default:
+		log.Fatal("cannot understand mode", networkMode)
+	}
+
 	return &Myself{
 		internalPort: internalPort,
 		externalPort: &p,
 		Path:         path,
 		ServerName:   serverName,
 		serveHTTP:    serveHTTP,
-		enableNAT:    enableNAT,
+		networkMode:  mode,
 	}
 }
 
@@ -166,14 +180,17 @@ func (m *Myself) toxstring() string {
 }
 
 //setIP set my IP.
-func (m *Myself) setIP(ip string) {
+func (m *Myself) setIP(ips string) {
 	m.mutex.Lock()
 	defer m.mutex.Unlock()
-	if ip := net.ParseIP(ip); ip == nil {
-		log.Println("ip", ip, "is illegal format")
+	var ip net.IP
+	if ip = net.ParseIP(ips); ip == nil {
+		log.Println("ip", ips, "is illegal format")
 		return
 	}
-	m.ip = ip
+	if nat.IsGlobalIP(ip) != "" {
+		m.ip = ips
+	}
 }
 
 //RelayServer returns nodestr of relay server.
@@ -240,9 +257,6 @@ func (m *Myself) proxyURL(path string) string {
 //useUPnP gets external port by upnp and return external port.
 //returns defaultPort if failed.
 func (m *Myself) useUPnP() bool {
-	if !m.enableNAT {
-		return false
-	}
 	nt, err := nat.NewNetStatus()
 	if err != nil {
 		log.Println(err)
@@ -275,49 +289,22 @@ func (m *Myself) connectionString() string {
 	return ""
 }
 
-//CheckConnection checks connection scheme which mynode can use.
-func (m *Myself) CheckConnection(nodes Slice) {
-	for _, i := range nodes {
-		if _, err := i.Ping(); err == nil {
-			break
-		}
+//InitConnection setups connection.
+func (m *Myself) InitConnection(nodes Slice) {
+	if m.GetStatus() == Normal || m.GetStatus() == UPnP {
+		return
 	}
-
-	fn := []func(Slice) int{
-		func(ns Slice) int {
-			log.Println("trying defaultport")
-			m.resetPort()
-			if ns.checkOpenned() {
-				return Normal
-			}
-			return -1
-		},
-		func(ns Slice) int {
-			log.Println("trying uPnP")
-			if !m.useUPnP() {
-				return -1
-			}
-			return UPnP
-		},
-		func(ns Slice) int {
-			log.Println("trying relayed")
-			m.resetPort()
-			if !m.tryRelay(nodes) {
-				return -1
-			}
-			return Port0
-		},
-		func(ns Slice) int {
-			log.Println("failed to join")
-			m.setRelayServer(nil)
-			return Port0
-		},
-	}
-	for _, f := range fn {
-		if stat := f(nodes); stat != -1 {
-			m.setStatus(stat)
-			break
+	switch m.networkMode {
+	case Normal:
+		m.resetPort()
+		m.setStatus(Normal)
+	case UPnP:
+		if m.useUPnP() {
+			m.setStatus(UPnP)
 		}
+	case Relay:
+		m.tryRelay(nodes)
+		m.setStatus(Port0)
 	}
 	con := m.connectionString()
 	log.Println("openned", con)

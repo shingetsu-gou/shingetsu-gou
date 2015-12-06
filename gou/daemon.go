@@ -53,11 +53,10 @@ import (
 )
 
 func initPackages(cfg *Config, version string, serveHTTP http.HandlerFunc) (*node.Manager, *thread.RecentList, *node.Myself, *mch.DatakeyTable) {
-	myself := node.NewMyself(cfg.DefaultPort, cgi.ServerURL, cfg.ServerName, serveHTTP, cfg.EnableNAT)
+	myself := node.NewMyself(cfg.DefaultPort, cgi.ServerURL, cfg.ServerName, serveHTTP, cfg.NetworkMode)
 
 	defaultInitNode := []string{
 		"node.shingetsu.info:8000/server.cgi",
-		"pushare.zenno.info:8000/server.cgi",
 	}
 	fmutex := &sync.RWMutex{}
 	htemplate := util.NewHtemplate(cfg.TemplateDir)

@@ -315,6 +315,7 @@ func (lt *Manager) Initialize(allnodes Slice) {
 
 	log.Println("# of nodelist:", lt.ListLen())
 	if lt.ListLen() == 0 {
+		lt.Myself.setStatus(Port0)
 		for _, p := range pingOK {
 			lt.appendToList(p)
 		}

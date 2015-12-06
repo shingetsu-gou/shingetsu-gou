@@ -44,6 +44,7 @@ import (
 
 	"golang.org/x/net/websocket"
 
+	"github.com/shingetsu-gou/go-nat"
 	"github.com/shingetsu-gou/http-relay"
 	"github.com/shingetsu-gou/shingetsu-gou/node"
 	"github.com/shingetsu-gou/shingetsu-gou/thread"
@@ -479,7 +480,20 @@ func (s *serverCGI) remoteIP(host string) string {
 		log.Println(err)
 		return ""
 	}
+	if !isGlobal(remoteAddr) {
+		log.Println(remoteAddr, "is local IP")
+		return ""
+	}
 	return remoteAddr
+}
+
+func isGlobal(remoteAddr string) bool {
+	ip := net.ParseIP(remoteAddr)
+	if ip == nil {
+		log.Println(remoteAddr,"has illegal format")
+		return false
+	}
+	return nat.IsGlobalIP(ip) != ""
 }
 
 //checkRemote returns remoteaddr

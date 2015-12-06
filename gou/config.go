@@ -87,6 +87,7 @@ func getPathValue(i *ini.File, section, key string, vdefault string) string {
 
 //Config contains params ini file.
 type Config struct {
+	NetworkMode          string //port_opened,relay,upnp
 	SaveRecord           int64
 	SaveSize             int // It is not seconds, but number.
 	GetRange             int64
@@ -117,7 +118,6 @@ type Config struct {
 	ThreadPageSize       int
 	DefaultThumbnailSize string
 	Enable2ch            bool
-	EnableNAT            bool //EnableNAT is enabled if you want to use nat.
 	ForceThumbnail       bool
 	EnableProf           bool
 	HeavyMoon            bool
@@ -152,6 +152,7 @@ func NewConfig() *Config {
 //initVariables initializes some global and map vars.
 func (c *Config) initVariables(i *ini.File) {
 	c.DefaultPort = getIntValue(i, "Network", "port", 8000)
+	c.NetworkMode = getStringValue(i, "Network", "mode", "port_opened") //port_opened,upnp,relay
 	c.MaxConnection = getIntValue(i, "Network", "max_connection", 100)
 	c.Docroot = getPathValue(i, "Path", "docroot", "./www")                                       //path from cwd
 	c.RunDir = getRelativePathValue(i, "Path", "run_dir", "../run", c.Docroot)                    //path from docroot
@@ -173,7 +174,6 @@ func (c *Config) initVariables(i *ini.File) {
 	c.RecentRange = getInt64Value(i, "Gateway", "recent_range", 31*24*60*60)
 	c.RecordLimit = getIntValue(i, "Gateway", "record_limit", 2048)
 	c.Enable2ch = getBoolValue(i, "Gateway", "enable_2ch", false)
-	c.EnableNAT = getBoolValue(i, "Gateway", "enable_nat", true)
 	c.EnableProf = getBoolValue(i, "Gateway", "enable_prof", false)
 	c.HeavyMoon = getBoolValue(i, "Gateway", "moonlight", false)
 	c.EnableEmbed = getBoolValue(i, "Gateway", "enable_embed", true)

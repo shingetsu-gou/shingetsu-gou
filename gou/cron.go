@@ -55,7 +55,7 @@ func cron(nodeManager *node.Manager, recentList *thread.RecentList, heavymoon bo
 				log.Fatal("not init nodes")
 			}
 			nodes := ns[0].GetherNodes()
-			myself.CheckConnection(nodes)
+			myself.InitConnection(nodes)
 			nodeManager.Initialize(nodes)
 			nodeManager.Sync()
 			doSync(nodeManager, recentList, heavymoon, getall)
