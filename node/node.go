@@ -368,7 +368,8 @@ func (n *Node) urlopen(url string, timeout time.Duration, fn func(string) error)
 
 	req, err := http.NewRequest("GET", url, nil)
 	if err != nil {
-		log.Fatal(err)
+		log.Println(err)
+		return err
 	}
 	req.Header.Set("User-Agent", ua)
 

@@ -143,8 +143,8 @@ func (u *UpdateQue) doUpdateNode(rec *Record, n *node.Node) bool {
 		log.Println("no cache or updates by myself, broadcast updates.")
 		UpdatedRecord.register(rec.RecordHead)
 		u.NodeManager.TellUpdate(ca.Datfile, rec.Stamp, rec.ID, n)
-		if UpdatedRecord.wait() {
-			log.Println(rec.ID, "was gotten")
+		if UpdatedRecord.wait() || n != nil {
+			log.Println(rec.ID, "was gotten or don't have the record")
 		} else {
 			log.Println(rec.ID, "was NOT gotten, will call updates later")
 			go func() {
