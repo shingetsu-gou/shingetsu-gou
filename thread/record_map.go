@@ -29,6 +29,7 @@
 package thread
 
 import (
+	"regexp"
 	"crypto/md5"
 	"errors"
 	"fmt"
@@ -74,12 +75,16 @@ func newRecordHeadFromLine(line string) (*RecordHead, error) {
 	if RecordHeadCfg == nil {
 		log.Fatal("must set RecordHeadCfg")
 	}
+	regnum:=regexp.MustCompile(`^\d+$`)
+	reghex:=regexp.MustCompile(`^[0-9a-z]+$`)
 	strs := strings.Split(strings.TrimRight(line, "\n\r"), "<>")
-	if len(strs) < 3 || util.FileDecode(strs[2]) == "" || !strings.HasPrefix(strs[2], "thread") {
+	if len(strs) < 3 || util.FileDecode(strs[2]) == "" || !strings.HasPrefix(strs[2], "thread") ||
+		!regnum.MatchString(strs[0]) || !reghex.MatchString(strs[1]) {
 		err := errors.New("illegal format")
 		log.Println(err)
 		return nil, err
 	}
+
 	u := &RecordHead{
 		RecordHeadConfig: RecordHeadCfg,
 		ID:               strs[1],

@@ -282,14 +282,14 @@ func (r *Record) ShortPubkey() string {
 //Build sets params in record from args and return id.
 func (r *Record) Build(stamp int64, body map[string]string, passwd string) string {
 	r.contents = make(map[string]string)
-	r.keyOrder = make([]string, len(body))
 	r.Stamp = stamp
-	i := 0
 	r.mutex.Lock()
 	for key, value := range body {
+		if value == "" {
+			continue
+		}
 		r.contents[key] = value
-		r.keyOrder[i] = key
-		i++
+		r.keyOrder = append(r.keyOrder, key)
 	}
 	r.mutex.Unlock()
 	if passwd != "" {

@@ -68,6 +68,7 @@ func newMessage(filedir, fname string) message {
 		if err != nil {
 			log.Println(err)
 		} else {
+			log.Println("loaded", file)
 			dat = dat1
 		}
 	}
