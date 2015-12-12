@@ -123,10 +123,12 @@ func makeRecord(line string) *Record {
 		return nil
 	}
 	idstr := buf[0] + "_" + buf[1]
-	if util.FileDecode(buf[2]) == "" || !strings.HasPrefix(buf[2], "thread_") {
+	dec := util.FileDecode(buf[2])
+	if dec == "" || !strings.HasPrefix(buf[2], "thread_") {
 		//		log.Println("illegal format",buf[2])
 		return nil
 	}
+	buf[2] = util.FileEncode("thread", dec)
 	vr := NewRecord(buf[2], idstr)
 	if vr == nil {
 		return nil
