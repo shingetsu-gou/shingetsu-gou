@@ -128,6 +128,9 @@ func makeRecord(line string) *Record {
 		return nil
 	}
 	vr := NewRecord(buf[2], idstr)
+	if vr == nil {
+		return nil
+	}
 	if err := vr.parse(line); err != nil {
 		log.Println(err)
 		return nil
