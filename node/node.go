@@ -291,6 +291,11 @@ func (m *Myself) connectionString() string {
 
 //InitConnection setups connection.
 func (m *Myself) InitConnection(nodes Slice) {
+	for _, i := range nodes {
+		if _, err := i.Ping(); err == nil {
+			break
+		}
+	}
 	if m.GetStatus() == Normal || m.GetStatus() == UPnP {
 		return
 	}
