@@ -29,6 +29,7 @@
 package cgi
 
 import (
+	"math"
 	"errors"
 	"fmt"
 	"io/ioutil"
@@ -405,7 +406,7 @@ func doGetHead(w http.ResponseWriter, r *http.Request) {
 	}
 	method, datfile, stamp := m[1], m[2], m[3]
 	ca := thread.NewCache(datfile)
-	begin, end, id := s.parseStamp(stamp, time.Now().Unix())
+	begin, end, id := s.parseStamp(stamp, math.MaxInt32)
 	var recs thread.RecordMap
 	if method == "removed" {
 		recs = ca.LoadRemovedRecords()
