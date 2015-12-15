@@ -350,7 +350,8 @@ func ToSJIS(b string) string {
 
 // convertSJIS converts an string (a valid UTF-8 string) to/from a ShiftJIS string
 func convertSJIS(b string, toSJIS bool) string {
-	t := japanese.ShiftJIS.NewDecoder()
+	var t transform.Transformer
+	t = japanese.ShiftJIS.NewDecoder()
 	if toSJIS {
 		t = japanese.ShiftJIS.NewEncoder()
 	}
