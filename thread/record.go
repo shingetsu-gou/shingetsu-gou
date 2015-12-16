@@ -468,6 +468,7 @@ func (r *Record) GetData(n *node.Node) error {
 	if err = r.parse(res[0]); err != nil {
 		return errGet
 	}
+	r.Sync()
 	return r.checkData(-1, -1)
 }
 
