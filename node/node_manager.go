@@ -123,9 +123,7 @@ func (lt *Manager) getAllNodes() Slice {
 	lt.mutex.RLock()
 	defer lt.mutex.RUnlock()
 	for _, v := range lt.nodes {
-		for _, node := range v {
-			n = append(n, node)
-		}
+		n = append(n, v...)
 	}
 	return n.uniq()
 }
@@ -203,7 +201,7 @@ func (lt *Manager) ReplaceNodeInList(n *Node) *Node {
 	}
 	var old *Node
 	if l >= defaultNodes {
-		old := lt.getFromList(0)
+		old = lt.getFromList(0)
 		lt.RemoveFromList(old)
 		old.bye()
 	}
@@ -368,7 +366,7 @@ func (lt *Manager) TellUpdate(datfile string, stamp int64, id string, node *Node
 	ns = ns.extend(lt.Random(ns, updateNodes))
 	log.Println("telling #", len(ns))
 	for _, n := range ns {
-		_, err := n.Talk(msg, true, nil)
+		_, err := n.Talk(msg, nil)
 		if err != nil {
 			log.Println(err)
 		}

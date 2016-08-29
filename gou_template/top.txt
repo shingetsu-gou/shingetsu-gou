@@ -15,7 +15,7 @@
   <li>{{.GatewayLink.Render .AdminCGI "search"}}</li>
   <li>{{.GatewayLink.Render .AdminCGI "status"}}</li>
 {{ end }}
-<li><a href="http://www.Shingetsu.Info/">{{.Message.site}}</a></li>
+<li><a href="http://www.shingetsu.info/">{{.Message.site}}</a></li>
 <li><a href="{{.GatewayCGI}}/motd">{{.Message.agreement}}</a></li>
 {{ if .MchURL }}
   <li><a href="{{.MchURL}}">{{.Message.mch}}</a></li>

@@ -138,11 +138,7 @@ func printStatus(w http.ResponseWriter, r *http.Request) {
 	case node.UPnP:
 		port0 = "UPnP"
 	case node.Port0:
-		if !a.Myself.IsRelayed() {
-			port0 = a.m["port0"]
-		} else {
-			port0 = a.m["relayed"] + "(" + a.Myself.RelayServer() + ")"
-		}
+		port0 = a.m["port0"]
 	case node.Disconnected:
 		port0 = a.m["disconnected"]
 	}

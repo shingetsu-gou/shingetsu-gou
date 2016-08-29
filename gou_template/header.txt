@@ -4,7 +4,7 @@
 {{define "header"}}
 <!DOCTYPE HTML>
 {{$root:=.}}
-<html xmlns="http://www.W3.Org/1999/xhtml"
+<html xmlns="http://www.w3.org/1999/xhtml"
   lang="{{.Message.lang}}" xml:lang="{{.Message.lang}}">
 <head>
   <meta http-equiv="content-type" content="text/html; charset=UTF-8" />
@@ -13,7 +13,7 @@
   <meta name="robots" content="NOINDEX" />
 {{ end }}
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <link rel="author" href="http://www.Shingetsu.Info/" />
+  <link rel="author" href="http://www.shingetsu.info/" />
   <link rel="contents" href="/" />
   <link rel="index" href="{{.RootPath}}gateway.cgi/index" />
   <script type="text/javascript" src="{{.RootPath}}jquery/jquery.min.js?{{.Dummyquery}}"></script>

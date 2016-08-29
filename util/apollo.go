@@ -165,10 +165,7 @@ func Verify(mesg, testsig, publicKey string) bool {
 	intSig := base64ToInt(testsig)
 	decrypted.Exp(intSig, rsaPublicE, n)
 
-	if decrypted.Cmp(&m) == 0 {
-		return true
-	}
-	return false
+	return decrypted.Cmp(&m) == 0
 }
 
 //CutKey cuts key to 11words.

@@ -1,8 +1,8 @@
 language: go
 
 go:
-  - 1.4
-  - 1.5
+  - 1.6
+  - 1.7
 
 env:
   global:
@@ -29,7 +29,7 @@ script:
 after_script:
 - goveralls -coverprofile=coverage.out -service=travis-ci
 - gometalinter -e bindata --deadline=1000s ./...
-- if  [ ${TRAVIS_GO_VERSION} == "1.5" ]; then
+- if  [ ${TRAVIS_GO_VERSION} == "1.7" ]; then
   goxc -wc default publish-github -owner=shingetsu-gou -repository="shingetsu-gou";
   cat .goxc.json;
   goxc -wlc default publish-github -apikey=${GITHUB_TOKEN};

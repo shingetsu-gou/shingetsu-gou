@@ -170,14 +170,14 @@ func (m *mchCGI) boardApp() {
 	if l == "" {
 		l = "ja"
 	}
-	message := searchMessage(l, m.FileDir)
+	msg := searchMessage(l, m.FileDir)
 	m.wr.Header().Set("Content-Type", "text/html; charset=Shift_JIS")
 	board := util.Escape(util.GetBoard(m.path()))
 	text := ""
 	if board != "" {
-		text = fmt.Sprintf("%s - %s - %s", message["logo"], message["description"], board)
+		text = fmt.Sprintf("%s - %s - %s", msg["logo"], msg["description"], board)
 	} else {
-		text = fmt.Sprintf("%s - %s", message["logo"], message["description"])
+		text = fmt.Sprintf("%s - %s", msg["logo"], msg["description"])
 	}
 
 	htmlStr := fmt.Sprintf(
@@ -223,7 +223,7 @@ func (m *mchCGI) threadApp(board, datkey string) {
 
 	i := data.ReadInfo()
 	thread := m.DatakeyTable.MakeDat(data, board, m.req.Host)
-	str := strings.Join(thread, "\n")
+	str := strings.Join(thread, "\n") + "\n"
 	m.serveContent("a.txt", time.Unix(i.Stamp, 0), str)
 }
 
@@ -254,7 +254,7 @@ func (m *mchCGI) subjectApp(board string) {
 	}
 	subject, lastStamp := m.makeSubject(boardName)
 	m.wr.Header().Set("Content-Type", "text/plain; charset=Shift_JIS")
-	m.serveContent("a.txt", time.Unix(lastStamp, 0), strings.Join(subject, "\n"))
+	m.serveContent("a.txt", time.Unix(lastStamp, 0), strings.Join(subject, "\n")+"\n")
 }
 
 //makeSubject makes subject.txt(list of records title) from thread.Caches with tag=board.
@@ -395,7 +395,7 @@ func (m *mchCGI) checkInfo(info map[string]string) string {
 //postCommentApp checks posted data and replaces >> links to html links,
 //and  saves it as record.
 func (m *mchCGI) postCommentApp() {
-	if m.req.Method != "POST" {
+	if m.req.Method != http.MethodPost {
 		m.wr.Header().Set("Content-Type", "text/plain")
 		m.wr.WriteHeader(404)
 		fmt.Fprintf(m.wr, "404 Not Found")

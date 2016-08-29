@@ -5,12 +5,10 @@
 {{$root:=.}}
 <li>
 {{ if and .IsAdmin .Remove }}
-  <label style="display:inline-block">
   <input type="checkbox" name="file" value="{{.Cache.Datfile}}" style="display:inline-block" />
 {{ end }}
   <span class="stamp" id="s{{.Cache.RecentStamp}}">{{localtime .Cache.RecentStamp}}</span>
 {{ if and .IsAdmin .Remove }}
-  </label>
 {{ end }}
 
 <a href="{{.ThreadURL}}/{{strEncode .Title}}{{.StrOpts}}">{{.Title}}</a>
@@ -23,11 +21,11 @@
   </span>
 {{ end }}
 {{ if .Sugtags}}
-  <span class="sugtags">
-  {{ range $tag:=.Sugtags }}
-    <a href="{{$root.GatewayCGI}}/{{$root.Target}}?tag={{strEncode $tag.Tagstr}}" class="tag">{{$tag.Tagstr}}</a>
-  {{ end }}
-  </span>
+<span class="sugtags">
+{{ range $tag:=.Sugtags }}
+<a href="{{$root.GatewayCGI}}/{{$root.Target}}?tag={{strEncode $tag.Tagstr}}" class="tag">{{$tag.Tagstr}}</a>
+{{ end }}
+</span>
 {{ end }}
 </li>
 {{end}}

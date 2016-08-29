@@ -330,12 +330,12 @@ func (c *Cache) headWithRange(n *node.Node, dm *DownloadManager) bool {
 	if c.GetRange == 0 || begin < 0 {
 		begin = 0
 	}
-	res, err := n.Talk(fmt.Sprintf("/head/%s/%d-", c.Datfile, begin), false, nil)
+	res, err := n.Talk(fmt.Sprintf("/head/%s/%d-", c.Datfile, begin), nil)
 	if err != nil {
 		return false
 	}
 	if len(res) == 0 {
-		ress, errr := n.Talk(fmt.Sprintf("/have/%s", c.Datfile), false, nil)
+		ress, errr := n.Talk(fmt.Sprintf("/have/%s", c.Datfile), nil)
 		if errr != nil || len(ress) == 0 || ress[0] != "YES" {
 			c.NodeManager.RemoveFromTable(c.Datfile, n)
 		} else {
@@ -362,7 +362,7 @@ func (c *Cache) getWithRange(n *node.Node, dm *DownloadManager) bool {
 		}
 
 		var okcount int
-		_, err := n.Talk(fmt.Sprintf("/get/%s/%d-%d", c.Datfile, from, to), false, func(res string) error {
+		_, err := n.Talk(fmt.Sprintf("/get/%s/%d-%d", c.Datfile, from, to), func(res string) error {
 			err := c.checkData(res, -1, "", from, to)
 			if err == nil {
 				okcount++
@@ -471,7 +471,7 @@ func (c *Cache) SyncRemoteRemoved() {
 	for _, ns := range c.Followers.GetSplitData() {
 		var recs1 map[string]*RecordHead
 		for _, n := range node.MustNewNodes(ns) {
-			res, err := n.Talk("/removed/"+c.Datfile, false, nil)
+			res, err := n.Talk("/removed/"+c.Datfile, nil)
 			if err != nil {
 				log.Println(err)
 				continue

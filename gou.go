@@ -45,7 +45,7 @@ import (
 	"github.com/shingetsu-gou/shingetsu-gou/util"
 )
 
-//Version is one of Gou. it shoud be overwritten when building on travis.
+//VERSION is one of Gou. it shoud be overwritten when building on travis.
 var VERSION = "unstable"
 
 func init() {

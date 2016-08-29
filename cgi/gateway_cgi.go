@@ -477,10 +477,12 @@ func (g *gatewayCGI) renderCSV(cl thread.Caches) {
 //id doChange threads are sorted by velocity.
 func (g *gatewayCGI) printIndex(doChange bool) {
 	str := "index"
+	title := g.m[str]
 	if doChange {
-		str = "changes"
+		str = "change"
+		title = g.m["changes"]
 	}
-	title := g.m["index"]
+
 	if g.filter != "" {
 		title = fmt.Sprintf("%s : %s", g.m["string"], g.filter)
 	}

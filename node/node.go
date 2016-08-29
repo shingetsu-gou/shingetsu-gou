@@ -41,7 +41,6 @@ import (
 	"time"
 
 	"github.com/shingetsu-gou/go-nat"
-	"github.com/shingetsu-gou/http-relay"
 	"github.com/shingetsu-gou/shingetsu-gou/util"
 )
 
@@ -54,8 +53,6 @@ const (
 	UPnP
 	//Normal represents port was opened manually.
 	Normal
-	//Relay represents relayed
-	Relay
 )
 
 //Myself contains my node info.
@@ -65,7 +62,6 @@ type Myself struct {
 	externalPort *int32
 	Path         string
 	ServerName   string
-	relayServer  *Node
 	serveHTTP    http.HandlerFunc
 	mutex        sync.RWMutex
 	networkMode  int
@@ -81,8 +77,6 @@ func NewMyself(internalPort int, path string, serverName string, serveHTTP http.
 		mode = Normal
 	case "upnp":
 		mode = UPnP
-	case "relay":
-		mode = Relay
 	default:
 		log.Fatal("cannot understand mode", networkMode)
 	}
@@ -103,15 +97,7 @@ func (m *Myself) resetPort() {
 	defer m.mutex.Unlock()
 	p := int32(m.internalPort)
 	m.externalPort = &p
-	m.relayServer = nil
 	m.status = Disconnected
-}
-
-//IsRelayed returns true is relayed.
-func (m *Myself) IsRelayed() bool {
-	m.mutex.RLock()
-	defer m.mutex.RUnlock()
-	return m.status == Port0 && m.relayServer != nil
 }
 
 //GetStatus returns status.
@@ -148,21 +134,12 @@ func (m *Myself) toNode() *Node {
 	if m.ServerName == "" {
 		serverName = m.ip
 	}
-	if m.relayServer != nil {
-		serverName = m.relayServer.Nodestr + "/relay/" + serverName
-	}
+
 	n, err := newNode(fmt.Sprintf("%s:%d%s", serverName, *m.externalPort, m.Path))
 	if err != nil {
 		log.Fatal(err)
 	}
 	return n
-}
-
-//setRelayServer set relayserver.
-func (m *Myself) setRelayServer(server *Node) {
-	m.mutex.Lock()
-	defer m.mutex.Unlock()
-	m.relayServer = server
 }
 
 //Nodestr returns nodestr.
@@ -193,67 +170,6 @@ func (m *Myself) setIP(ips string) {
 	}
 }
 
-//RelayServer returns nodestr of relay server.
-func (m *Myself) RelayServer() string {
-	m.mutex.RLock()
-	defer m.mutex.RUnlock()
-	if m.relayServer == nil {
-		return ""
-	}
-	return m.relayServer.Nodestr
-}
-
-//tryRelay tries to relay myself for each nodes.
-//This returns true if success.
-func (m *Myself) tryRelay(nodes Slice) bool {
-	//!!!!
-	//						n, _ := newNode("123.230.131.248:8010/server.cgi")
-	//						nodes = []*Node{n}
-	//!!!!
-	log.Println("trying to connect relay server #", len(nodes))
-	closed := make(chan struct{})
-	for _, n := range nodes {
-		r := regexp.MustCompile(`/relay/[^/]*:\d+/`)
-		if r.MatchString(n.Nodestr) {
-			continue
-		}
-		log.Println("trying to connect to relay server", n.Nodestr)
-		origin := "http://" + m.ip
-		url := "ws://" + n.Nodestr + "/request_relay/"
-		err := relay.HandleClient(url, origin, m.serveHTTP, closed, func(r *http.Request) {
-			//nothing to do for now
-		})
-		if err != nil {
-			log.Println(err)
-			continue
-		}
-		log.Println("successfully relayed by", n.Nodestr)
-		m.setRelayServer(n)
-		if !nodes.checkOpenned() {
-			m.setRelayServer(nil)
-			continue
-		}
-		go func() {
-			<-closed
-			log.Println("relay was closed")
-			m.setRelayServer(nil)
-		}()
-		return true
-	}
-	m.setRelayServer(nil)
-	return false
-}
-
-//proxyURL returns url for proxy if relayed.
-func (m *Myself) proxyURL(path string) string {
-	m.mutex.RLock()
-	defer m.mutex.RUnlock()
-	if m.relayServer == nil {
-		return path
-	}
-	return m.relayServer.Nodestr + "/proxy/" + path
-}
-
 //useUPnP gets external port by upnp and return external port.
 //returns defaultPort if failed.
 func (m *Myself) useUPnP() bool {
@@ -276,10 +192,7 @@ func (m *Myself) connectionString() string {
 	case UPnP:
 		return "uPnP"
 	case Port0:
-		if m.RelayServer() == "" {
-			return "failed"
-		}
-		return "relayed"
+		return "failed"
 	case Normal:
 		return "normal"
 	case Disconnected:
@@ -307,9 +220,6 @@ func (m *Myself) InitConnection(nodes Slice) {
 		if m.useUPnP() {
 			m.setStatus(UPnP)
 		}
-	case Relay:
-		m.tryRelay(nodes)
-		m.setStatus(Port0)
 	}
 	con := m.connectionString()
 	log.Println("openned", con)
@@ -357,8 +267,8 @@ func newNode(nodestr string) (*Node, error) {
 		return nil, err
 	}
 	if match, err := regexp.MatchString(`\d+/[^: ]+$`, nodestr); !match || err != nil {
-		err := errors.New(fmt.Sprintln("bad format", err, nodestr))
-		return nil, err
+		errr := errors.New(fmt.Sprintln("bad format", err, nodestr))
+		return nil, errr
 	}
 	n := &Node{
 		NodeConfig: NodeCfg,
@@ -369,7 +279,7 @@ func newNode(nodestr string) (*Node, error) {
 
 //urlopen retrievs html data from url
 func (n *Node) urlopen(url string, timeout time.Duration, fn func(string) error) error {
-	ua := "shinGETsuPlus/0.8alpha (Gou/" + n.Version + ")"
+	ua := "shinGETsuPlus/1.0alpha (Gou/" + n.Version + ")"
 
 	req, err := http.NewRequest("GET", url, nil)
 	if err != nil {
@@ -425,7 +335,7 @@ func (n *Node) toxstring() string {
 }
 
 //Talk talks with n with the message and returns data.
-func (n *Node) Talk(message string, proxy bool, fn func(string) error) ([]string, error) {
+func (n *Node) Talk(message string, fn func(string) error) ([]string, error) {
 	const defaultTimeout = time.Minute // Seconds; Timeout for TCP
 	var res []string
 	if fn == nil {
@@ -444,9 +354,7 @@ func (n *Node) Talk(message string, proxy bool, fn func(string) error) ([]string
 		return nil, err
 	}
 	msg := "http://" + n.Nodestr + message
-	if proxy {
-		msg = "http://" + n.Myself.proxyURL(n.Nodestr+message)
-	}
+
 	log.Println("Talk:", msg)
 	err := n.urlopen(msg, defaultTimeout, fn)
 	if err != nil {
@@ -457,7 +365,7 @@ func (n *Node) Talk(message string, proxy bool, fn func(string) error) ([]string
 
 //Ping pings to n and return response.
 func (n *Node) Ping() (string, error) {
-	res, err := n.Talk("/ping", false, nil)
+	res, err := n.Talk("/ping", nil)
 	if err != nil {
 		log.Println("/ping", n.Nodestr, err)
 		return "", err
@@ -485,7 +393,7 @@ func (n *Node) join() (*Node, error) {
 		err := errors.New(fmt.Sprintln(n.Nodestr, "is not allowd"))
 		return nil, err
 	}
-	res, err := n.Talk("/join/"+n.Myself.toxstring(), true, nil)
+	res, err := n.Talk("/join/"+n.Myself.toxstring(), nil)
 	if err != nil {
 		return nil, err
 	}
@@ -512,7 +420,7 @@ func (n *Node) join() (*Node, error) {
 
 //getNode requests n to pass me another node info and returns another node.
 func (n *Node) getNode() (*Node, error) {
-	res, err := n.Talk("/node", false, nil)
+	res, err := n.Talk("/node", nil)
 	if err != nil {
 		err := errors.New(fmt.Sprintln("/node", n.Nodestr, "error"))
 		return nil, err
@@ -525,7 +433,7 @@ func (n *Node) getNode() (*Node, error) {
 
 //bye says goodbye to n and returns true if success.
 func (n *Node) bye() bool {
-	res, err := n.Talk("/bye/"+n.Myself.toxstring(), true, nil)
+	res, err := n.Talk("/bye/"+n.Myself.toxstring(), nil)
 	if err != nil {
 		log.Println("/bye", n.Nodestr, "error")
 		return false

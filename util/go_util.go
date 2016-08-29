@@ -46,6 +46,7 @@ import (
 	"strconv"
 	"strings"
 
+	"golang.org/x/text/encoding"
 	"golang.org/x/text/encoding/japanese"
 	"golang.org/x/text/transform"
 
@@ -353,7 +354,8 @@ func convertSJIS(b string, toSJIS bool) string {
 	var t transform.Transformer
 	t = japanese.ShiftJIS.NewDecoder()
 	if toSJIS {
-		t = japanese.ShiftJIS.NewEncoder()
+		tt := japanese.ShiftJIS.NewEncoder()
+		t = encoding.ReplaceUnsupported(tt)
 	}
 	r, err := ioutil.ReadAll(transform.NewReader(bytes.NewReader([]byte(b)), t))
 	if err != nil {
@@ -405,9 +407,9 @@ func getJSON(url string) (map[string]interface{}, error) {
 		return nil, err
 	}
 	var m map[string]interface{}
-	if err := json.Unmarshal(js, &m); err != nil {
-		log.Print(err)
-		return nil, err
+	if errr := json.Unmarshal(js, &m); errr != nil {
+		log.Print(errr)
+		return nil, errr
 	}
 	return m, err
 }

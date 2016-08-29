@@ -40,6 +40,7 @@ import (
 	"mime"
 	"mime/multipart"
 	"net/http"
+	"net/url"
 	"path"
 	"regexp"
 	"strconv"
@@ -114,7 +115,12 @@ func printThread(w http.ResponseWriter, r *http.Request) {
 				return
 			}
 		}
-		a.printThread(m["path"], m["id"], page)
+		path, err := url.QueryUnescape(m["path"])
+		if err != nil {
+			log.Print(err)
+			return
+		}
+		a.printThread(path, m["id"], page)
 	}
 }
 
@@ -367,6 +373,7 @@ func (t *threadCGI) printThread(path, id string, nPage int) {
 		return
 	}
 	filePath := util.FileEncode("thread", path)
+	log.Print(filePath)
 	ca := thread.NewCache(filePath)
 	rss := GatewayURL + "/rss"
 	if t.printThreadHead(path, id, nPage, ca, rss) != nil {
