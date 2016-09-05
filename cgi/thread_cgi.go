@@ -49,35 +49,36 @@ import (
 
 	"github.com/gorilla/handlers"
 	"github.com/gorilla/mux"
+	"github.com/shingetsu-gou/shingetsu-gou/cfg"
+	"github.com/shingetsu-gou/shingetsu-gou/record"
 	"github.com/shingetsu-gou/shingetsu-gou/thread"
+	"github.com/shingetsu-gou/shingetsu-gou/thread/download"
+	"github.com/shingetsu-gou/shingetsu-gou/updateque"
 	"github.com/shingetsu-gou/shingetsu-gou/util"
 )
-
-//ThreadURL is the url to thread.cgi
-const ThreadURL = "/thread.cgi"
 
 //ThreadSetup setups handlers for thread.cgi
 func ThreadSetup(s *LoggingServeMux) {
 	rtr := mux.NewRouter()
 
-	registToRouter(rtr, ThreadURL+"/", printThreadIndex)
+	registToRouter(rtr, cfg.ThreadURL+"/", printThreadIndex)
 
-	reg := ThreadURL + "/{datfile:thread_[0-9A-F]+}/{id:[0-9a-f]{32}}/s{stamp:\\d+}.{thumbnailSize:\\d+x\\d+}.{suffix:.*}"
+	reg := cfg.ThreadURL + "/{datfile:thread_[0-9A-F]+}/{id:[0-9a-f]{32}}/s{stamp:\\d+}.{thumbnailSize:\\d+x\\d+}.{suffix:.*}"
 	registToRouter(rtr, reg, printAttach)
 
-	reg = ThreadURL + "/{datfile:thread_[0-9A-F]+}/{id:[0-9a-f]{32}}/{stamp:\\d+}.{suffix:.*}"
+	reg = cfg.ThreadURL + "/{datfile:thread_[0-9A-F]+}/{id:[0-9a-f]{32}}/{stamp:\\d+}.{suffix:.*}"
 	registToRouter(rtr, reg, printAttach)
 
-	reg = ThreadURL + "/{path:[^/]+}{end:/?$}"
+	reg = cfg.ThreadURL + "/{path:[^/]+}{end:/?$}"
 	registToRouter(rtr, reg, printThread)
 
-	reg = ThreadURL + "/{path:[^/]+}/{id:[0-9a-f]{8}}{end:$}"
+	reg = cfg.ThreadURL + "/{path:[^/]+}/{id:[0-9a-f]{8}}{end:$}"
 	registToRouter(rtr, reg, printThread)
 
-	reg = ThreadURL + "/{path:[^/]+}/p{page:[0-9]+}{end:$}"
+	reg = cfg.ThreadURL + "/{path:[^/]+}/p{page:[0-9]+}{end:$}"
 	registToRouter(rtr, reg, printThread)
 
-	s.Handle(ThreadURL+"/", handlers.CompressHandler(rtr))
+	s.Handle(cfg.ThreadURL+"/", handlers.CompressHandler(rtr))
 }
 
 //printThreadIndex adds records in multiform and redirect to its thread page.
@@ -124,34 +125,15 @@ func printThread(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-//ThreadCfg is config for threadCGI struct.
-//must set beforehand.
-var ThreadCfg *ThreadCGIConfig
-
-//ThreadCGIConfig is config for threadCGI struct.
-type ThreadCGIConfig struct {
-	ThreadPageSize       int
-	DefaultThumbnailSize string
-	RecordLimit          int
-	ForceThumbnail       bool
-	Htemplate            *util.Htemplate
-	UpdateQue            *thread.UpdateQue
-}
-
 //threadCGI is for thread.cgi.
 type threadCGI struct {
-	*ThreadCGIConfig
 	*cgi
 }
 
 //newThreadCGI returns threadCGI obj.
 func newThreadCGI(w http.ResponseWriter, r *http.Request) (threadCGI, error) {
-	if ThreadCfg == nil {
-		log.Fatal("must set ThreadCfg")
-	}
 	t := threadCGI{
-		ThreadCGIConfig: ThreadCfg,
-		cgi:             newCGI(w, r),
+		cgi: newCGI(w, r),
 	}
 
 	if t.cgi == nil {
@@ -168,7 +150,7 @@ func newThreadCGI(w http.ResponseWriter, r *http.Request) (threadCGI, error) {
 
 //printThreadIndex adds records in multiform and redirect to its thread page.
 func (t *threadCGI) printThreadIndex() {
-	err := t.req.ParseMultipartForm(int64(t.RecordLimit) << 10)
+	err := t.req.ParseMultipartForm(int64(cfg.RecordLimit) << 10)
 	if err != nil {
 		t.print404(nil, "")
 		return
@@ -184,7 +166,7 @@ func (t *threadCGI) printThreadIndex() {
 	}
 	datfile := t.req.FormValue("file")
 	title := util.StrEncode(util.FileDecode(datfile))
-	t.print302(ThreadURL + "/" + title + "#r" + id)
+	t.print302(cfg.ThreadURL + "/" + title + "#r" + id)
 }
 
 //setCookie set cookie access=now time,tmpaccess=access var.
@@ -195,7 +177,7 @@ func (t *threadCGI) setCookie(ca *thread.Cache, access string) []*http.Cookie {
 
 	c := http.Cookie{}
 	c.Expires = time.Now().Add(saveCookie)
-	c.Path = ThreadURL + "/" + util.StrEncode(util.FileDecode(ca.Datfile))
+	c.Path = cfg.ThreadURL + "/" + util.StrEncode(util.FileDecode(ca.Datfile))
 	c.Name = "access"
 	c.Value = strconv.FormatInt(time.Now().Unix(), 10)
 	if access == "" {
@@ -210,8 +192,8 @@ func (t *threadCGI) setCookie(ca *thread.Cache, access string) []*http.Cookie {
 //printPageNavi renders page_navi.txt, part for paging.
 func (t *threadCGI) printPageNavi(path string, page int, ca *thread.Cache, id string) {
 	len := ca.ReadInfo().Len
-	first := len / t.ThreadPageSize
-	if len%t.ThreadPageSize == 0 {
+	first := len / cfg.ThreadPageSize
+	if len%cfg.ThreadPageSize == 0 {
 		first++
 	}
 	pages := make([]int, first+1)
@@ -234,12 +216,12 @@ func (t *threadCGI) printPageNavi(path string, page int, ca *thread.Cache, id st
 		path,
 		id,
 		first,
-		ThreadURL,
+		cfg.ThreadURL,
 		t.m,
-		t.ThreadPageSize,
+		cfg.ThreadPageSize,
 		pages,
 	}
-	t.Htemplate.RenderTemplate("page_navi", s, t.wr)
+	tmpH.RenderTemplate("page_navi", s, t.wr)
 }
 
 //printTag renders thread_tags.txt , part for displayng tags.
@@ -258,12 +240,12 @@ func (t *threadCGI) printTag(ca *thread.Cache) {
 		ca.GetTagstrSlice(),
 		"tags",
 		"changes",
-		GatewayURL,
-		AdminURL,
+		cfg.GatewayURL,
+		cfg.AdminURL,
 		t.isAdmin(),
 		t.m,
 	}
-	t.Htemplate.RenderTemplate("thread_tags", s, t.wr)
+	tmpH.RenderTemplate("thread_tags", s, t.wr)
 }
 
 //printThreadHead renders head part of thread page with cookie.
@@ -271,14 +253,14 @@ func (t *threadCGI) printThreadHead(path, id string, page int, ca *thread.Cache,
 	switch {
 	case ca.HasRecord():
 		if !t.isBot() {
-			ca.GetCache(true)
+			download.GetCache(true, ca)
 		} else {
 			log.Println("bot detected, not get cache")
 		}
 	case t.checkGetCache():
 		ca.SetupDirectories()
 		if t.req.FormValue("search_new_file") == "" {
-			ca.GetCache(true)
+			download.GetCache(true, ca)
 		}
 	default:
 		t.print404(nil, id)
@@ -301,18 +283,18 @@ func (t *threadCGI) printThreadHead(path, id string, page int, ca *thread.Cache,
 
 //printThreadTop renders toppart of thread page.
 func (t *threadCGI) printThreadTop(path, id string, nPage int, ca *thread.Cache) {
-	var lastrec *thread.Record
+	var lastrec *record.Record
 	var resAnchor string
-	recs := ca.LoadRecords()
+	recs := ca.LoadRecords(thread.Alive)
 	ids := recs.Keys()
 	if ca.HasRecord() && nPage == 0 && id == "" && len(ids) > 0 {
 		lastrec = recs[ids[len(ids)-1]]
-		resAnchor = t.resAnchor(lastrec.ID[:8], ThreadURL, t.path(), false)
+		resAnchor = t.resAnchor(lastrec.ID[:8], cfg.ThreadURL, t.path(), false)
 	}
 	s := struct {
 		Path      string
 		Cache     *thread.Cache
-		Lastrec   *thread.Record
+		Lastrec   *record.Record
 		IsFriend  bool
 		IsAdmin   bool
 		Message   message
@@ -326,20 +308,20 @@ func (t *threadCGI) printThreadTop(path, id string, nPage int, ca *thread.Cache)
 		t.isFriend(),
 		t.isAdmin(),
 		t.m,
-		ThreadURL,
-		AdminURL,
+		cfg.ThreadURL,
+		cfg.AdminURL,
 		template.HTML(resAnchor),
 	}
-	t.Htemplate.RenderTemplate("thread_top", s, t.wr)
+	tmpH.RenderTemplate("thread_top", s, t.wr)
 }
 
 //printThreadBody renders body(records list) part of thread page with paging.
 func (t *threadCGI) printThreadBody(id string, nPage int, ca *thread.Cache) {
-	recs := ca.LoadRecords()
+	recs := ca.LoadRecords(thread.Alive)
 	ids := recs.Keys()
 	fmt.Fprintln(t.wr, "</p>\n<dl id=\"records\">")
-	from := len(ids) - t.ThreadPageSize*(nPage+1)
-	to := len(ids) - t.ThreadPageSize*(nPage)
+	from := len(ids) - cfg.ThreadPageSize*(nPage+1)
+	to := len(ids) - cfg.ThreadPageSize*(nPage)
 	if from < 0 {
 		from = 0
 	}
@@ -375,14 +357,13 @@ func (t *threadCGI) printThread(path, id string, nPage int) {
 	filePath := util.FileEncode("thread", path)
 	log.Print(filePath)
 	ca := thread.NewCache(filePath)
-	rss := GatewayURL + "/rss"
+	rss := cfg.GatewayURL + "/rss"
 	if t.printThreadHead(path, id, nPage, ca, rss) != nil {
 		return
 	}
 	tags := strings.Fields(strings.TrimSpace(t.req.FormValue("tag")))
 	if t.isAdmin() && len(tags) > 0 {
 		ca.AddTags(tags)
-		ca.SyncTag()
 	}
 	t.printTag(ca)
 	t.printThreadTop(path, id, nPage, ca)
@@ -398,7 +379,7 @@ func (t *threadCGI) printThread(path, id string, nPage int) {
 		ca,
 		t.m,
 	}
-	t.Htemplate.RenderTemplate("thread_bottom", ss, t.wr)
+	tmpH.RenderTemplate("thread_bottom", ss, t.wr)
 
 	if ca.HasRecord() {
 		t.printPageNavi(path, nPage, ca, id)
@@ -420,7 +401,7 @@ func (t *threadCGI) printThreadAjax(id string) {
 		return
 	}
 	fmt.Fprintln(t.wr, "<dl>")
-	recs := ca.LoadRecords()
+	recs := ca.LoadRecords(thread.Alive)
 	for _, rec := range recs {
 		if id == "" || rec.ID[:8] == id && rec.Load() == nil {
 			t.printRecord(ca, rec)
@@ -430,7 +411,7 @@ func (t *threadCGI) printThreadAjax(id string) {
 }
 
 //printRecord renders record.txt , with records in cache ca.
-func (t *threadCGI) printRecord(ca *thread.Cache, rec *thread.Record) {
+func (t *threadCGI) printRecord(ca *thread.Cache, rec *record.Record) {
 	thumbnailSize := ""
 	var suffix string
 	var attachSize int64
@@ -447,16 +428,16 @@ func (t *threadCGI) printRecord(ca *thread.Cache, rec *thread.Record) {
 			typ = "text/plain"
 		}
 		if util.IsValidImage(typ, attachFile) {
-			thumbnailSize = t.DefaultThumbnailSize
+			thumbnailSize = cfg.DefaultThumbnailSize
 		}
 	}
 	body := rec.GetBodyValue("body", "")
-	body = t.htmlFormat(body, ThreadURL, t.path(), false)
+	body = t.htmlFormat(body, cfg.ThreadURL, t.path(), false)
 	removeID := rec.GetBodyValue("remove_id", "")
 	if len(removeID) > 8 {
 		removeID = removeID[:8]
 	}
-	resAnchor := t.resAnchor(removeID, ThreadURL, t.path(), false)
+	resAnchor := t.resAnchor(removeID, cfg.ThreadURL, t.path(), false)
 
 	id8 := rec.ID
 	if len(id8) > 8 {
@@ -464,8 +445,8 @@ func (t *threadCGI) printRecord(ca *thread.Cache, rec *thread.Record) {
 	}
 	s := struct {
 		Datfile    string
-		Rec        *thread.Record
-		RecHead    thread.RecordHead
+		Rec        *record.Record
+		RecHead    record.Head
 		Sid        string
 		Path       string
 		AttachSize int64
@@ -480,20 +461,20 @@ func (t *threadCGI) printRecord(ca *thread.Cache, rec *thread.Record) {
 	}{
 		ca.Datfile,
 		rec,
-		rec.CopyRecordHead(),
+		rec.CopyHead(),
 		id8,
 		t.path(),
 		attachSize,
 		suffix,
 		template.HTML(body),
-		ThreadURL,
+		cfg.ThreadURL,
 		thumbnailSize,
 		t.isAdmin(),
 		removeID,
 		resAnchor,
 		t.m,
 	}
-	t.Htemplate.RenderTemplate("record", s, t.wr)
+	tmpH.RenderTemplate("record", s, t.wr)
 }
 
 //printPostForm renders post_form.txt,page for posting attached file.
@@ -513,17 +494,17 @@ func (t *threadCGI) printPostForm(ca *thread.Cache) {
 	}{
 		ca,
 		mimes,
-		t.RecordLimit * 3 >> 2,
+		cfg.RecordLimit * 3 >> 2,
 		t.isAdmin(),
 		t.m,
-		ThreadURL,
-		GatewayURL,
+		cfg.ThreadURL,
+		cfg.GatewayURL,
 	}
-	t.Htemplate.RenderTemplate("post_form", s, t.wr)
+	tmpH.RenderTemplate("post_form", s, t.wr)
 }
 
 //renderAttach render the content of attach file with content-type=typ.
-func (t *threadCGI) renderAttach(rec *thread.Record, suffix string, stamp int64, thumbnailSize string) {
+func (t *threadCGI) renderAttach(rec *record.Record, suffix string, stamp int64, thumbnailSize string) {
 	attachFile := rec.AttachPath(thumbnailSize)
 	if attachFile == "" {
 		return
@@ -543,7 +524,7 @@ func (t *threadCGI) renderAttach(rec *thread.Record, suffix string, stamp int64,
 		t.print404(nil, "")
 		return
 	}
-	if thumbnailSize != "" && (t.ForceThumbnail || thumbnailSize == t.DefaultThumbnailSize) {
+	if thumbnailSize != "" && (cfg.ForceThumbnail || thumbnailSize == cfg.DefaultThumbnailSize) {
 		decoded = util.MakeThumbnail(decoded, suffix, thumbnailSize)
 	}
 	_, err = t.wr.Write(decoded)
@@ -559,12 +540,12 @@ func (t *threadCGI) printAttach(datfile, id string, stamp int64, thumbnailSize, 
 	switch {
 	case ca.HasRecord():
 	case t.checkGetCache():
-		ca.GetCache(true)
+		download.GetCache(true, ca)
 	default:
 		t.print404(ca, "")
 		return
 	}
-	rec := thread.NewRecord(ca.Datfile, fmt.Sprintf("%d_%s", stamp, id))
+	rec := record.New(ca.Datfile, id, stamp)
 	if !rec.Exists() {
 		t.print404(ca, "")
 		return
@@ -612,7 +593,7 @@ func (t *threadCGI) guessSuffix(at *attached) string {
 
 //makeRecord builds and returns record with attached file.
 //if nobody render null_article page.
-func (t *threadCGI) makeRecord(at *attached, suffix string, ca *thread.Cache) *thread.Record {
+func (t *threadCGI) makeRecord(at *attached, suffix string, ca *thread.Cache) *record.Record {
 	body := make(map[string]string)
 	for _, name := range []string{"body", "base_stamp", "base_id", "name", "mail"} {
 		if value := t.req.FormValue(name); value != "" {
@@ -633,7 +614,7 @@ func (t *threadCGI) makeRecord(at *attached, suffix string, ca *thread.Cache) *t
 	if t.req.FormValue("error") != "" {
 		stamp = t.errorTime()
 	}
-	rec := thread.NewRecord(ca.Datfile, "")
+	rec := record.New(ca.Datfile, "", 0)
 	passwd := t.req.FormValue("passwd")
 	rec.Build(stamp, body, passwd)
 	return rec
@@ -655,7 +636,7 @@ func (t *threadCGI) doPost() string {
 	proxyClient := t.req.Header.Get("X_FORWARDED_FOR")
 	log.Printf("post %s/%d_%s from %s/%s\n", ca.Datfile, ca.ReadInfo().Stamp, rec.ID, t.req.RemoteAddr, proxyClient)
 
-	if len(rec.Recstr()) > t.RecordLimit<<10 {
+	if len(rec.Recstr()) > cfg.RecordLimit<<10 {
 		t.header(t.m["big_file"], "", nil, true)
 		t.footer(nil)
 		return ""
@@ -675,7 +656,7 @@ func (t *threadCGI) doPost() string {
 
 	if t.req.FormValue("dopost") != "" {
 		log.Println(rec.Datfile, rec.ID, "is queued")
-		go t.UpdateQue.UpdateNodes(rec, nil)
+		go updateque.UpdateNodes(rec, nil)
 	}
 
 	return rec.ID[:8]
@@ -691,7 +672,7 @@ type attached struct {
 //parseAttached reads attached file and returns attached obj.
 //if size>recordLimit renders error page.
 func (t *threadCGI) parseAttached() (*attached, error) {
-	err := t.req.ParseMultipartForm(int64(t.RecordLimit) << 10)
+	err := t.req.ParseMultipartForm(int64(cfg.RecordLimit) << 10)
 	if err != nil {
 		return nil, err
 	}
@@ -709,9 +690,9 @@ func (t *threadCGI) parseAttached() (*attached, error) {
 		log.Println(err)
 		return nil, err
 	}
-	var strAttach = make([]byte, t.RecordLimit<<10)
+	var strAttach = make([]byte, cfg.RecordLimit<<10)
 	s, err := f.Read(strAttach)
-	if s > t.RecordLimit<<10 {
+	if s > cfg.RecordLimit<<10 {
 		log.Println("attached file is too big")
 		t.header(t.m["big_file"], "", nil, true)
 		t.footer(nil)

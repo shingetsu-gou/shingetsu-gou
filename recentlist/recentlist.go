@@ -30,18 +30,17 @@ package recentlist
 
 import (
 	"log"
-	"sort"
 	"strconv"
 	"strings"
 	"sync"
 	"time"
 
 	"github.com/shingetsu-gou/shingetsu-gou/cfg"
+	"github.com/shingetsu-gou/shingetsu-gou/db"
 	"github.com/shingetsu-gou/shingetsu-gou/node"
 	"github.com/shingetsu-gou/shingetsu-gou/node/manager"
 	"github.com/shingetsu-gou/shingetsu-gou/record"
 	"github.com/shingetsu-gou/shingetsu-gou/tag/suggest"
-	"github.com/shingetsu-gou/shingetsu-gou/util"
 )
 
 const defaultUpdateRange = 24 * time.Hour // Seconds
@@ -57,144 +56,92 @@ func IsInUpdateRange(nstamp int64) bool {
 
 //RecentList represents records list udpated by remote host and
 //gotten by /gateway.cgi/Recent
-var infos = make(map[string]record.Heads)
-var isDirty bool
-var mutex sync.RWMutex
-
-//NewRecentList load the saved file and create a RecentList obj.
-func init() {
-	loadFile()
-}
-
-//loadFile reads recentlist from the file and add as records.
-func loadFile() {
-	cfg.Fmutex.RLock()
-	err := util.EachLine(cfg.Recent(), func(line string, i int) error {
-		vr, err := record.NewHeadFromLine(line)
-		if err == nil {
-			cfg.Fmutex.RUnlock()
-			mutex.Lock()
-			infos[vr.Datfile] = append(infos[vr.Datfile], vr)
-			isDirty = true
-			mutex.Unlock()
-			cfg.Fmutex.RLock()
-		}
-		return nil
-	})
-	cfg.Fmutex.RUnlock()
-	if err != nil {
-		log.Println(err)
-	}
-}
 
 func Datfiles() []string {
-	cfg.Fmutex.RLock()
-	defer cfg.Fmutex.RUnlock()
-	datfile := make([]string, len(infos))
-	i := 0
-	for df := range infos {
-		datfile[i] = df
-		i++
+	db.Mutex.RLock()
+	defer db.Mutex.RUnlock()
+	datfile, err := db.Strings("select Thread from recent group by Thread")
+	if err != nil {
+		log.Print(err)
+		return nil
 	}
 	return datfile
 }
 
 //Newest returns newest record of datfile in the list.
 //if not found returns nil.
-func Newest(Datfile string) *record.Head {
-	mutex.RLock()
-	defer mutex.RUnlock()
-	var rh *record.Head
-	for _, v := range infos[Datfile] {
-		if v.Datfile == Datfile && (rh == nil || rh.Stamp < v.Stamp) {
-			rh = v
-		}
+func Newest(datfile string) *record.Head {
+	db.Mutex.RLock()
+	defer db.Mutex.RUnlock()
+	rows, err := db.DB.Query("select * from recent  where Thread=? order by Stamp DESC", datfile)
+	defer rows.Close()
+	if err != nil {
+		log.Print(err)
+		return nil
 	}
-	return rh
+	if !rows.Next() {
+		return nil
+	}
+	r := record.Head{}
+	var id int
+	err = rows.Scan(&id, &r.Stamp, &r.ID, &r.Datfile)
+	if err != nil {
+		log.Print(err)
+		return nil
+	}
+	return &r
 }
 
 //Append add a infos generated from the record.
-func Append(rec *record.Record) {
-	if loc := find(rec); loc >= 0 {
+func Append(rec *record.Head) {
+	if find(rec) {
 		return
 	}
-	mutex.Lock()
-	defer mutex.Unlock()
-	infos[rec.Datfile] = append(infos[rec.Datfile], rec.Head)
-
-	isDirty = true
+	db.Mutex.Lock()
+	defer db.Mutex.Unlock()
+	_, err := db.DB.Exec("insert into recent(Stamp,Hash,Thread) values(?,?,?)", rec.Stamp, rec.ID, rec.Datfile)
+	if err != nil {
+		log.Print(err)
+	}
 }
 
 //find finds records and returns index. returns -1 if not found.
-func find(rec *record.Record) int {
-	mutex.RLock()
-	defer mutex.RUnlock()
-	for i, v := range infos[rec.Datfile] {
-		if v.Equals(rec.Head) {
-			return i
-		}
+func find(rec *record.Head) bool {
+	db.Mutex.RLock()
+	defer db.Mutex.RUnlock()
+	r, err := db.Int64("select count(*) from recent where Stamp=? and Hash=? and Thread=?", rec.Stamp, rec.ID, rec.Datfile)
+	if err != nil {
+		log.Println(err)
+		return false
 	}
-	return -1
+	return r > 0
 }
 
 //hasInfo returns true if has record r.
-func hasInfo(rec *record.Record) bool {
-	return find(rec) != -1
+func hasInfo(rec *record.Head) bool {
+	return find(rec)
 }
 
 //remove removes info which is same as record rec
-func remove(rec *record.Record) {
-	if l := find(rec); l != -1 {
-		mutex.Lock()
-		defer mutex.Unlock()
-		infos[rec.Datfile], infos[rec.Datfile][len(infos[rec.Datfile])-1] = append(infos[rec.Datfile][:l], infos[rec.Datfile][l+1:]...), nil
-	}
-}
-
-//removeInfo removes info rec
-func removeInfo(rec *record.Head) {
-	mutex.RLock()
-	for i, v := range infos[rec.Datfile] {
-		mutex.RUnlock()
-		if v.Equals(rec) {
-			mutex.Lock()
-			defer mutex.Unlock()
-			infos[rec.Datfile], infos[rec.Datfile][len(infos[rec.Datfile])-1] = append(infos[rec.Datfile][:i], infos[rec.Datfile][i+1:]...), nil
-			return
-		}
-		mutex.RLock()
-	}
-	mutex.RUnlock()
-}
-
-//getRecstrSlice returns slice of recstr string of infos.
-func getRecstrSlice() []string {
-	mutex.RLock()
-	defer mutex.RUnlock()
-	var result []string
-	for _, vs := range infos {
-		for _, v := range vs {
-			result = append(result, v.Recstr())
+func remove(rec *record.Head) {
+	if find(rec) {
+		db.Mutex.Lock()
+		defer db.Mutex.Unlock()
+		_, err := db.DB.Exec("delete from recent where Stamp=? and Hash=? and Thread=?", rec.Stamp, rec.ID, rec.Datfile)
+		if err != nil {
+			log.Println(err)
 		}
 	}
-	return result
 }
 
 //Sync remove old records and save to the file.
 func Sync() {
-	mutex.Lock()
-	for _, recs := range infos {
-		for i, rec := range recs {
-			if defaultUpdateRange > 0 && rec.Stamp+int64(defaultUpdateRange) < time.Now().Unix() {
-				recs, recs[len(recs)-1] = append(recs[:i], recs[i+1:]...), nil
-			}
-		}
+	if defaultUpdateRange <= 0 {
+		return
 	}
-	mutex.Unlock()
-	recstrSlice := getRecstrSlice()
-	cfg.Fmutex.Lock()
-	err := util.WriteSlice(cfg.Recent(), recstrSlice)
-	cfg.Fmutex.Unlock()
+	db.Mutex.Lock()
+	defer db.Mutex.Unlock()
+	_, err := db.DB.Exec("delete from recent where Stamp<? ", time.Now().Unix()-int64(defaultUpdateRange))
 	if err != nil {
 		log.Println(err)
 	}
@@ -230,35 +177,29 @@ func Getall(all bool) {
 				if rec == nil {
 					continue
 				}
-				Append(rec)
+				Append(rec.Head)
 				tags := strings.Fields(strings.TrimSpace(rec.GetBodyValue("tag", "")))
-				if len(tags) > cfg.TagSize {
-					util.Shuffle(sort.StringSlice(tags))
-					tags = tags[:cfg.TagSize]
-				}
 				if len(tags) > 0 {
 					suggest.AddString(rec.Datfile, tags)
 					manager.AppendToTable(rec.Datfile, n)
 				}
 			}
+			log.Println("added", len(res), "recent records from", n.Nodestr)
 		}(n)
 	}
 	wg.Wait()
 	Sync()
-	manager.Sync()
 	suggest.Prune(GetRecords())
-	suggest.Save()
 }
 
 //GetRecords copies and returns recorcds in recentlist.
 func GetRecords() []*record.Head {
-	mutex.RLock()
-	defer mutex.RUnlock()
-	var inf []*record.Head
-	for _, recs := range infos {
-		for _, rec := range recs {
-			inf = append(inf, rec)
-		}
+	db.Mutex.RLock()
+	defer db.Mutex.RUnlock()
+	inf, err := record.FromRecentDB("select * from recent")
+	if err != nil {
+		log.Print(err)
+		return nil
 	}
 	return inf
 }

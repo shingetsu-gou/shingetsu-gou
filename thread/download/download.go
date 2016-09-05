@@ -85,7 +85,7 @@ func NewDownloadManger(ca *thread.Cache) *DownloadManager {
 		log.Println(ca.Datfile, "is downloading")
 		return d
 	}
-	recs := ca.LoadAllRecords()
+	recs := ca.LoadRecords(thread.All)
 	dm := &DownloadManager{
 		datfile: ca.Datfile,
 		recs:    make(map[string]*targetRec),
@@ -199,12 +199,10 @@ func headWithRange(n *node.Node, c *thread.Cache, dm *DownloadManager) bool {
 			manager.RemoveFromTable(c.Datfile, n)
 		} else {
 			manager.AppendToTable(c.Datfile, n)
-			manager.Sync()
 		}
 		return false
 	}
 	manager.AppendToTable(c.Datfile, n)
-	manager.Sync()
 	dm.Set(res, n)
 	return true
 }
@@ -295,8 +293,8 @@ func waitFor(background bool, c *thread.Cache, done chan struct{}, wg *sync.Wait
 }
 
 //Getall reload all records in cache in cachelist from network.
-func Getall(c *thread.CacheList) {
-	for _, ca := range c.Caches {
+func Getall() {
+	for _, ca := range thread.AllCaches() {
 		GetCache(false, ca)
 	}
 }

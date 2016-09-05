@@ -37,30 +37,28 @@ import (
 	"os"
 	"path"
 	"path/filepath"
-	"strings"
 
 	"gopkg.in/natefinch/lumberjack.v2"
 
+	"github.com/shingetsu-gou/shingetsu-gou/cfg"
+	"github.com/shingetsu-gou/shingetsu-gou/db"
 	"github.com/shingetsu-gou/shingetsu-gou/gou"
 	"github.com/shingetsu-gou/shingetsu-gou/util"
 )
-
-//VERSION is one of Gou. it shoud be overwritten when building on travis.
-var VERSION = "unstable"
 
 func init() {
 	log.SetFlags(log.Ldate | log.Ltime | log.Lshortfile)
 	log.SetOutput(os.Stdout)
 
 	flag.Usage = func() {
-		fmt.Fprintf(os.Stderr, "P2P anonymous BBS shinGETsu Gou %s\n", VERSION)
+		fmt.Fprintf(os.Stderr, "P2P anonymous BBS shinGETsu Gou %s\n", cfg.Version)
 		fmt.Fprintf(os.Stderr, "%s <options>\n", os.Args[0])
 		flag.PrintDefaults()
 	}
 }
 
 //expandAssets expands files in /file in an Assets if not exist in disk.
-func expandAssets(fileDir, templateDir, docroot string) {
+func expandAssets() {
 	dir, err := util.AssetDir("file")
 	if err != nil {
 		log.Fatal(err)
@@ -69,7 +67,7 @@ func expandAssets(fileDir, templateDir, docroot string) {
 		if fname == "message-ja.txt" || fname == "message-en.txt" {
 			continue
 		}
-		fnameDisk := path.Join(fileDir, fname)
+		fnameDisk := path.Join(cfg.FileDir, fname)
 		fnameDisk = filepath.FromSlash(fnameDisk)
 		if util.IsFile(fnameDisk) {
 			continue
@@ -94,11 +92,11 @@ func expandAssets(fileDir, templateDir, docroot string) {
 }
 
 //setLogger setups logger. whici outputs nothing, or file , or file and stdout
-func setLogger(printLog, isSilent bool, logDir string) {
+func setLogger(printLog, isSilent bool) {
 	log.SetFlags(log.Ldate | log.Ltime | log.Lshortfile)
 
 	l := &lumberjack.Logger{
-		Filename:   path.Join(logDir, "gou.log"),
+		Filename:   path.Join(cfg.LogDir, "gou.log"),
 		MaxSize:    5, // megabytes
 		MaxBackups: 10,
 		MaxAge:     28, //days
@@ -108,18 +106,18 @@ func setLogger(printLog, isSilent bool, logDir string) {
 		fmt.Println("logging is discarded")
 		log.SetOutput(ioutil.Discard)
 	case printLog:
-		fmt.Println("outputs logs to stdout and ", logDir)
+		fmt.Println("outputs logs to stdout and ", cfg.LogDir)
 		m := io.MultiWriter(os.Stdout, l)
 		log.SetOutput(m)
 	default:
-		fmt.Println("output logs to ", logDir)
+		fmt.Println("output logs to ", cfg.LogDir)
 		log.SetOutput(l)
 	}
 }
 
 //setupDirectories makes necessary dirs.
-func setupDirectories(cfg *gou.Config) {
-	for _, j := range []string{cfg.RunDir, cfg.CacheDir, cfg.LogDir} {
+func setupDirectories() {
+	for _, j := range []string{cfg.RunDir, cfg.LogDir} {
 		if !util.IsDir(j) {
 			err := os.MkdirAll(j, 0755)
 			if err != nil {
@@ -131,20 +129,15 @@ func setupDirectories(cfg *gou.Config) {
 
 func main() {
 	fmt.Println("starting Gou...")
-	VERSION = strings.Trim(VERSION, "'")
-	cfg := gou.NewConfig()
-	var printLog, isSilent, sakurifice bool
+	var printLog, isSilent bool
 	flag.BoolVar(&printLog, "verbose", false, "print logs")
 	flag.BoolVar(&printLog, "v", false, "print logs")
 	flag.BoolVar(&isSilent, "silent", false, "suppress logs")
-	flag.BoolVar(&sakurifice, "sakurifice", false, "makes caches compatible with saku")
 	flag.Parse()
-	setupDirectories(cfg)
-	setLogger(printLog, isSilent, cfg.LogDir)
-	expandAssets(cfg.FileDir, cfg.TemplateDir, cfg.Docroot)
-	if sakurifice {
-		gou.Sakurifice(cfg)
-	} else {
-		gou.StartDaemon(cfg, VERSION)
-	}
+	setupDirectories()
+	setLogger(printLog, isSilent)
+	log.Println("********************starting Gou...******************")
+	expandAssets()
+	db.Setup()
+	gou.StartDaemon()
 }

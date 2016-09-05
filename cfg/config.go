@@ -29,18 +29,45 @@
 package cfg
 
 import (
+	"errors"
 	"log"
 	"os"
 	"os/user"
 	"path"
 	"path/filepath"
-	"sync"
 	"time"
 
 	"gopkg.in/ini.v1"
 )
 
-var NetworkMode string //port_opened,relay,upnp
+const (
+	//Disconnected represents mynode is disconnected.
+	Disconnected = iota
+	//Port0 represents mynode is behind NAT and not opened.
+	Port0
+	//UPnP represents mynode is opned by uPnP.
+	UPnP
+	//Normal represents port was opened manually.
+	Normal
+)
+
+const (
+	//AdminURL is the url to admin.cgi
+	AdminURL = "/admin.cgi"
+	//GatewayURL is the url to gateway.cgi
+	GatewayURL = "/gateway.cgi"
+	//ThreadURL is the url to thread.cgi
+	ThreadURL = "/thread.cgi"
+	//ServerURL is the url to server.cgi
+	ServerURL = "/server.cgi"
+)
+
+var (
+	ErrSpam = errors.New("this is spam")
+	ErrGet  = errors.New("cannot get data")
+)
+
+var NetworkMode int //port_opened,relay,upnp
 var SaveRecord int64
 var SaveSize int // It is not seconds, but number.
 var GetRange int64
@@ -52,11 +79,9 @@ var Docroot string
 var LogDir string
 var RunDir string
 var FileDir string
-var CacheDir string
 var TemplateDir string
 var SpamList string
 var InitnodeList string
-var FollowList string
 var NodeAllowFile string
 var NodeDenyFile string
 var ReAdminStr string
@@ -75,13 +100,10 @@ var ForceThumbnail bool
 var EnableProf bool
 var HeavyMoon bool
 var EnableEmbed bool
-var RelayNumber int
 
 // asis, md5, sha1, sha224, sha256, sha384, or sha512
 //	cache_hash_method = "asis"
 //others are not implemented for gou for now.
-
-var Fmutex = &sync.RWMutex{}
 
 //Version is one of Gou. it shoud be overwritten when building on travis.
 var Version = "unstable"
@@ -140,7 +162,7 @@ func init() {
 	i := ini.Empty()
 	for _, f := range files {
 		fs, err := os.Stat(f)
-		if err != nil && !fs.IsDir() {
+		if err == nil && !fs.IsDir() {
 			log.Println("loading config from", f)
 			if err := i.Append(f); err != nil {
 				log.Fatal("cannot load ini files", f, "ignored")
@@ -153,16 +175,23 @@ func init() {
 //initVariables initializes some global and map vars.
 func initVariables(i *ini.File) {
 	DefaultPort = getIntValue(i, "Network", "port", 8000)
-	NetworkMode = getStringValue(i, "Network", "mode", "port_opened") //port_opened,upnp,relay
+	networkModeStr := getStringValue(i, "Network", "mode", "port_opened") //port_opened,upnp,relay
+	switch networkModeStr {
+	case "port_opened":
+		NetworkMode = Normal
+	case "upnp":
+		NetworkMode = UPnP
+	default:
+		log.Fatal("cannot understand mode", networkModeStr)
+	}
+
 	MaxConnection = getIntValue(i, "Network", "max_connection", 100)
 	Docroot = getPathValue(i, "Path", "docroot", "./www")                                     //path from cwd
 	RunDir = getRelativePathValue(i, "Path", "run_dir", "../run", Docroot)                    //path from docroot
 	FileDir = getRelativePathValue(i, "Path", "file_dir", "../file", Docroot)                 //path from docroot
-	CacheDir = getRelativePathValue(i, "Path", "cache_dir", "../cache", Docroot)              //path from docroot
 	TemplateDir = getRelativePathValue(i, "Path", "template_dir", "../gou_template", Docroot) //path from docroot
 	SpamList = getRelativePathValue(i, "Path", "spam_list", "../file/spam.txt", Docroot)
 	InitnodeList = getRelativePathValue(i, "Path", "initnode_list", "../file/initnode.txt", Docroot)
-	FollowList = getRelativePathValue(i, "Path", "follow_list", "../file/follow_list.txt", Docroot)
 	NodeAllowFile = getRelativePathValue(i, "Path", "node_allow", "../file/node_allow.txt", Docroot)
 	NodeDenyFile = getRelativePathValue(i, "Path", "node_deny", "../file/node_deny.txt", Docroot)
 	ReAdminStr = getStringValue(i, "Gateway", "admin", "^(127|\\[::1\\])")
@@ -178,7 +207,6 @@ func initVariables(i *ini.File) {
 	EnableProf = getBoolValue(i, "Gateway", "enable_prof", false)
 	HeavyMoon = getBoolValue(i, "Gateway", "moonlight", false)
 	EnableEmbed = getBoolValue(i, "Gateway", "enable_embed", true)
-	RelayNumber = getIntValue(i, "Gateway", "relay_number", 5)
 	LogDir = getPathValue(i, "Path", "log_dir", "./log") //path from cwd
 	ThreadPageSize = getIntValue(i, "Application Thread", "page_size", 50)
 	DefaultThumbnailSize = getStringValue(i, "Application Thread", "thumbnail_size", "")
@@ -214,32 +242,7 @@ func Motd() string {
 	return FileDir + "/motd.txt"
 }
 
-//Recent returns path to recent.txt
-func Recent() string {
-	return RunDir + "/recent.txt"
-}
-
-//AdminSid returns path to sid.txt
-func AdminSid() string {
-	return RunDir + "/sid.txt"
-}
-
 //PID returns path to pid.txt
 func PID() string {
 	return RunDir + "/pid.txt"
-}
-
-//Lookup returns path to lookup.txt
-func Lookup() string {
-	return RunDir + "/lookup.txt"
-}
-
-//Sugtag returns path to sugtag.txt
-func Sugtag() string {
-	return RunDir + "/sugtag.txt"
-}
-
-//Datakey returns path to datakey.txt
-func Datakey() string {
-	return RunDir + "/datakey.txt"
 }

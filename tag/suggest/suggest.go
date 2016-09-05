@@ -30,110 +30,98 @@ package suggest
 
 import (
 	"log"
-	"sync"
 
 	"github.com/shingetsu-gou/shingetsu-gou/cfg"
+	"github.com/shingetsu-gou/shingetsu-gou/db"
 	"github.com/shingetsu-gou/shingetsu-gou/record"
 	"github.com/shingetsu-gou/shingetsu-gou/tag"
 	"github.com/shingetsu-gou/shingetsu-gou/util"
 )
 
-//SuggestedTagTable represents tags associated with datfile retrieved from network.
-var list = make(map[string]tag.Slice)
-var mutex sync.RWMutex
-
-//init makes SuggestedTagTable obj and read info from the file.
-func init() {
-	if !util.IsFile(cfg.Sugtag()) {
-		return
-	}
-	err := util.EachKeyValueLine(cfg.Sugtag(), func(k string, vs []string, i int) error {
-		list[k] = tag.NewSlice(vs)
-		return nil
-	})
-	if err != nil {
-		log.Fatal(err)
-	}
-}
-
-//Save saves Sugtaglists.
-func Save() {
-	m := make(map[string][]string)
-	mutex.RLock()
-	for k, v := range list {
-		s := v.GetTagstrSlice()
-		m[k] = s
-	}
-	mutex.RUnlock()
-	cfg.Fmutex.Lock()
-	err := util.WriteMap(cfg.Sugtag(), m)
-	cfg.Fmutex.Unlock()
-	if err != nil {
-		log.Println(err)
-	}
-}
-
 //Get returns copy of Slice associated with datfile or returns def if not exists.
 func Get(datfile string, def tag.Slice) tag.Slice {
-	mutex.RLock()
-	defer mutex.RUnlock()
-	if v, exist := list[datfile]; exist {
-		tags := make([]*tag.Tag, v.Len())
-		copy(tags, v)
-		return tag.Slice(tags)
+	db.Mutex.RLock()
+	defer db.Mutex.RUnlock()
+	r, err := db.Strings("select Tag from sugtag where Thread=?", datfile)
+	if err != nil {
+		log.Print(err)
+		return def
 	}
-	return def
+	tags := make([]*tag.Tag, len(r))
+	for i, rr := range r {
+		tags[i] = &tag.Tag{
+			Tagstr: rr,
+		}
+	}
+	if len(tags) > cfg.TagSize {
+		tags = tags[:cfg.TagSize]
+	}
+	return tag.Slice(tags)
 }
 
 //keys return datfile names of Sugtaglist.
 func keys() []string {
-	mutex.RLock()
-	defer mutex.RUnlock()
-	ary := make([]string, len(list))
-	i := 0
-	for k := range list {
-		ary[i] = k
-		i++
+	db.Mutex.RLock()
+	defer db.Mutex.RUnlock()
+	r, err := db.Strings("select Thread from sugtag group by Thread")
+	if err != nil {
+		log.Print(err)
+		return nil
 	}
-	return ary
+	return r
 }
 
 //AddString adds tags to datfile from tagstrings.
 func AddString(datfile string, vals []string) {
-	mutex.Lock()
-	defer mutex.Unlock()
-	list[datfile] = list[datfile].AddString(vals)
+	db.Mutex.Lock()
+	defer db.Mutex.Unlock()
+	for _, v := range vals {
+		if !tag.IsOK(v) {
+			continue
+		}
+		_, err := db.DB.Exec("insert into sugtag(Thread,Tag) values(?,?)", datfile, v)
+		if err != nil {
+			log.Print(err)
+		}
+	}
 }
 
 //HasTagstr return true if one of tags has tagstr
 func HasTagstr(datfile string, tagstr string) bool {
-	mutex.RLock()
-	defer mutex.RUnlock()
-	return list[datfile].HasTagstr(tagstr)
+	db.Mutex.RLock()
+	defer db.Mutex.RUnlock()
+	cnt, err := db.Int64("select count(*) from sugtag where Thread=? and Tag=?", datfile, tagstr)
+	if err != nil {
+		log.Print(err)
+		return false
+	}
+	return cnt > 0
 }
 
 //String return tagstr string of datfile.
 func String(datfile string) string {
-	mutex.RLock()
-	defer mutex.RUnlock()
-	return list[datfile].String()
+	ts := Get(datfile, nil)
+	if ts == nil {
+		return ""
+	}
+	return ts.String()
 }
 
 //Prune removes Sugtaglists which are not listed in recs,
 //or truncates its size to tagsize if listed.
 func Prune(recs []*record.Head) {
 	tmp := keys()
-	mutex.Lock()
-	defer mutex.Unlock()
 	for _, r := range recs {
 		if l := util.FindString(tmp, r.Datfile); l != -1 {
 			tmp = append(tmp[:l], tmp[l+1:]...)
 		}
-		if v, exist := list[r.Datfile]; exist {
-			v.Prune(cfg.TagSize)
-		}
 	}
+	db.Mutex.Lock()
+	defer db.Mutex.Unlock()
 	for _, datfile := range tmp {
-		delete(list, datfile)
+		_, err := db.DB.Exec("delete from sugtag where Thread=? ", datfile)
+		if err != nil {
+			log.Println(err)
+		}
 	}
 }

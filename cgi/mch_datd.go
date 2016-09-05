@@ -42,8 +42,13 @@ import (
 
 	"github.com/gorilla/handlers"
 	"github.com/gorilla/mux"
+	"github.com/shingetsu-gou/shingetsu-gou/cfg"
 	"github.com/shingetsu-gou/shingetsu-gou/mch"
+	"github.com/shingetsu-gou/shingetsu-gou/mch/keylib"
+	"github.com/shingetsu-gou/shingetsu-gou/record"
 	"github.com/shingetsu-gou/shingetsu-gou/thread"
+	"github.com/shingetsu-gou/shingetsu-gou/thread/download"
+	"github.com/shingetsu-gou/shingetsu-gou/updateque"
 	"github.com/shingetsu-gou/shingetsu-gou/util"
 )
 
@@ -119,33 +124,16 @@ func headApp(w http.ResponseWriter, r *http.Request) {
 	a.headApp()
 }
 
-//MchCfg is config for mchCGI struct.
-//mut be setted beforehand.
-var MchCfg *MchConfig
-
-//MchConfig is config for mchCGI struct.
-type MchConfig struct {
-	Motd         string
-	RecentList   *thread.RecentList
-	DatakeyTable *mch.DatakeyTable
-	UpdateQue    *thread.UpdateQue
-}
-
 //mchCGI is a class for renderring pages of 2ch interface .
 type mchCGI struct {
 	*cgi
-	*MchConfig
 }
 
 //newMchCGI returns mchCGI obj if visitor  is allowed.
 //if not allowed print 403.
 func newMchCGI(w http.ResponseWriter, r *http.Request) (mchCGI, error) {
-	if MchCfg == nil {
-		log.Fatal("must set MchCfg")
-	}
 	c := mchCGI{
-		cgi:       newCGI(w, r),
-		MchConfig: MchCfg,
+		cgi: newCGI(w, r),
 	}
 	if c.cgi == nil || !c.checkVisitor() {
 		w.WriteHeader(403)
@@ -170,7 +158,7 @@ func (m *mchCGI) boardApp() {
 	if l == "" {
 		l = "ja"
 	}
-	msg := searchMessage(l, m.FileDir)
+	msg := searchMessage(l, cfg.FileDir)
 	m.wr.Header().Set("Content-Type", "text/html; charset=Shift_JIS")
 	board := util.Escape(util.GetBoard(m.path()))
 	text := ""
@@ -203,7 +191,7 @@ func (m *mchCGI) threadApp(board, datkey string) {
 		log.Println(err)
 		return
 	}
-	key := m.DatakeyTable.GetFilekey(n)
+	key := keylib.GetFilekey(n)
 	if err != nil {
 		m.wr.WriteHeader(404)
 		fmt.Fprintf(m.wr, "404 Not Found")
@@ -218,11 +206,11 @@ func (m *mchCGI) threadApp(board, datkey string) {
 	}
 
 	if m.checkGetCache() {
-		data.GetCache(true)
+		download.GetCache(true, data)
 	}
 
 	i := data.ReadInfo()
-	thread := m.DatakeyTable.MakeDat(data, board, m.req.Host)
+	thread := keylib.MakeDat(data, board, m.req.Host)
 	str := strings.Join(thread, "\n") + "\n"
 	m.serveContent("a.txt", time.Unix(i.Stamp, 0), str)
 }
@@ -230,7 +218,7 @@ func (m *mchCGI) threadApp(board, datkey string) {
 //makeSubjectCachelist returns thread.Caches in all thread.Cache and in recentlist sorted by recent stamp.
 //if board is specified,  returns thread.Caches whose tagstr=board.
 func (m *mchCGI) makeSubjectCachelist(board string) []*thread.Cache {
-	result := m.RecentList.MakeRecentCachelist()
+	result := thread.MakeRecentCachelist()
 	if board == "" {
 		return result
 	}
@@ -271,7 +259,7 @@ func (m *mchCGI) makeSubject(board string) ([]string, int64) {
 		if lastStamp < i.Stamp {
 			lastStamp = i.Stamp
 		}
-		key, err := m.DatakeyTable.GetDatkey(c.Datfile)
+		key, err := keylib.GetDatkey(c.Datfile)
 		if err != nil {
 			log.Println(err)
 			continue
@@ -291,7 +279,7 @@ func (m *mchCGI) makeSubject(board string) ([]string, int64) {
 func (m *mchCGI) headApp() {
 	m.wr.Header().Set("Content-Type", "text/plain; charset=Shift_JIS")
 	var body string
-	err := util.EachLine(m.Motd, func(line string, i int) error {
+	err := util.EachLine(cfg.Motd(), func(line string, i int) error {
 		line = strings.TrimSpace(line)
 		body += line + "<br>\n"
 		return nil
@@ -316,7 +304,7 @@ func (m *mchCGI) postComment(threadKey, name, mail, body, passwd, tag string) er
 	recbody["mail"] = html.EscapeString(mail)
 
 	c := thread.NewCache(threadKey)
-	rec := thread.NewRecord(c.Datfile, "")
+	rec := record.New(c.Datfile, "", 0)
 	rec.Build(stamp, recbody, passwd)
 	if rec.IsSpam() {
 		return errSpamM
@@ -324,9 +312,8 @@ func (m *mchCGI) postComment(threadKey, name, mail, body, passwd, tag string) er
 	rec.Sync()
 	if tag != "" {
 		c.SetTags([]string{tag})
-		c.SyncTag()
 	}
-	go m.UpdateQue.UpdateNodes(rec, nil)
+	go updateque.UpdateNodes(rec, nil)
 	return nil
 }
 
@@ -334,7 +321,7 @@ func (m *mchCGI) postComment(threadKey, name, mail, body, passwd, tag string) er
 func (m *mchCGI) errorResp(msg string, info map[string]string) {
 	m.wr.Header().Set("Content-Type", "text/html; charset=Shift_JIS")
 	info["message"] = msg
-	m.Htemplate.RenderTemplate("2ch_error", info, m.wr)
+	tmpH.RenderTemplate("2ch_error", info, m.wr)
 }
 
 //getCP932 returns form value of key with cp932 code.
@@ -369,7 +356,7 @@ func (m *mchCGI) checkInfo(info map[string]string) string {
 			m.errorResp(err.Error(), info)
 			return ""
 		}
-		key = m.DatakeyTable.GetFilekey(n)
+		key = keylib.GetFilekey(n)
 	}
 
 	switch {

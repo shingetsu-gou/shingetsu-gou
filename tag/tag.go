@@ -28,8 +28,15 @@
 
 package tag
 
+import "strings"
+
 //Tag represents one tag.
 type Tag struct {
 	Tagstr string
 	weight int
+}
+
+//IsOK return true is val is ok.
+func IsOK(val string) bool {
+	return !strings.ContainsAny(val, "<>&")
 }

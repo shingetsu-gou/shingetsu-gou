@@ -51,7 +51,7 @@ var updated = make(map[[16]byte]time.Time)
 //removes the record from queue.
 func UpdateNodes(rec *record.Record, n *node.Node) {
 	if doUpdateNode(rec, n) {
-		recentlist.Append(rec)
+		recentlist.Append(rec.Head)
 		if cfg.HeavyMoon {
 			if ca := thread.NewCache(rec.Datfile); !ca.Exists() {
 				ca.SetupDirectories()

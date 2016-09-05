@@ -29,16 +29,12 @@
 package keylib
 
 import (
-	"errors"
 	"fmt"
 	"log"
 	"regexp"
-	"strconv"
-	"strings"
-	"sync"
 	"time"
 
-	"github.com/shingetsu-gou/shingetsu-gou/cfg"
+	"github.com/shingetsu-gou/shingetsu-gou/db"
 	"github.com/shingetsu-gou/shingetsu-gou/mch"
 	"github.com/shingetsu-gou/shingetsu-gou/recentlist"
 	"github.com/shingetsu-gou/shingetsu-gou/record"
@@ -46,94 +42,61 @@ import (
 	"github.com/shingetsu-gou/shingetsu-gou/util"
 )
 
-//DatakeyTable stores cache stamp and cache datfile name pair.
-var datakey2filekey = make(map[int64]string)
-var filekey2datkey = make(map[string]int64)
-var mutex sync.RWMutex
+func getThread(stamp int64) (string, error) {
+	var thread string
+	db.Mutex.RLock()
+	defer db.Mutex.RUnlock()
+	thread, err := db.String("select Thread from keylib where (Stamp=?)", stamp)
+	return thread, err
+}
 
-//loadInternal loads stamp/value from the file .
-func loadInternal() {
-	err := util.EachLine(cfg.Datakey(), func(line string, i int) error {
-		if line == "" {
-			return nil
-		}
-		dat := strings.Split(strings.TrimSpace(line), "<>")
-		stamp, err := strconv.ParseInt(dat[0], 10, 64)
-		if err != nil {
-			log.Println(err)
-			return nil
-		}
-		setEntry(stamp, dat[1])
-		return nil
-	})
-	if err != nil {
-		log.Println(err)
-	}
+func getTime(thread string) (int64, error) {
+	db.Mutex.RLock()
+	defer db.Mutex.RUnlock()
+	return db.Int64("select Stamp from keylib where (Thread=?)", thread)
 }
 
 //Load loads from the file, adds stamps/datfile pairs from cachelist and recentlist.
 //and saves to file.
 func Load() {
-	loadInternal()
-	for _, c := range thread.NewCacheList().Caches {
+	for _, c := range thread.AllCaches() {
 		setFromCache(c)
 	}
 	for _, rec := range recentlist.GetRecords() {
 		c := thread.NewCache(rec.Datfile)
 		setFromCache(c)
 	}
-	save()
-}
-
-//save saves stamp<>value to the file.
-func save() {
-	mutex.RLock()
-	str := make([]string, len(datakey2filekey))
-	i := 0
-	for stamp, filekey := range datakey2filekey {
-		str[i] = fmt.Sprintf("%d<>%s", stamp, filekey)
-		i++
-	}
-	mutex.RUnlock()
-	cfg.Fmutex.Lock()
-	err := util.WriteSlice(cfg.Datakey(), str)
-	cfg.Fmutex.Unlock()
-	if err != nil {
-		log.Println(err)
-	}
 }
 
 //setEntry stores stamp/value.
 func setEntry(stamp int64, filekey string) {
-	mutex.Lock()
-	defer mutex.Unlock()
-	datakey2filekey[stamp] = filekey
-	filekey2datkey[filekey] = stamp
+	db.Mutex.Lock()
+	defer db.Mutex.Unlock()
+	_, err := db.DB.Exec("insert into keylib(Stamp,Thread) values(?,?)", stamp, filekey)
+	if err != nil {
+		log.Print(err)
+	}
 }
 
 //setFromCache adds cache.datfile/timestamp pair if not exists.
 func setFromCache(ca *thread.Cache) {
-	mutex.RLock()
-	_, exist := filekey2datkey[ca.Datfile]
-	mutex.RUnlock()
-	if exist {
+	_, err := getTime(ca.Datfile)
+	if err == nil {
 		return
 	}
 	var firstStamp int64
 	if !ca.HasRecord() {
 		firstStamp = ca.RecentStamp()
 	} else {
-		if rec := ca.LoadRecords(); len(rec) > 0 {
+		if rec := ca.LoadRecords(thread.Alive); len(rec) > 0 {
 			firstStamp = rec[rec.Keys()[0]].Stamp
 		}
 	}
 	if firstStamp == 0 {
 		firstStamp = time.Now().Add(-24 * time.Hour).Unix()
 	}
-	for exist := true; !exist; firstStamp++ {
-		mutex.RLock()
-		_, exist = datakey2filekey[firstStamp]
-		mutex.RUnlock()
+	for err = nil; err != nil; firstStamp++ {
+		_, err = getThread(firstStamp)
 	}
 	setEntry(firstStamp, ca.Datfile)
 }
@@ -141,28 +104,19 @@ func setFromCache(ca *thread.Cache) {
 //GetDatkey returns stamp from filekey.
 //if not found, tries to read from cache.
 func GetDatkey(filekey string) (int64, error) {
-	mutex.RLock()
-	if v, exist := filekey2datkey[filekey]; exist {
-		mutex.RUnlock()
+	v, err := getTime(filekey)
+	if err == nil {
 		return v, nil
 	}
-	mutex.RUnlock()
 	c := thread.NewCache(filekey)
 	setFromCache(c)
-	save()
-	mutex.RLock()
-	defer mutex.RUnlock()
-	if v, exist := filekey2datkey[filekey]; exist {
-		return v, nil
-	}
-	return -1, errors.New(filekey + " not found")
+	return getTime(filekey)
 }
 
 //GetFilekey returns value from datkey(stamp).
 func GetFilekey(nDatkey int64) string {
-	mutex.RLock()
-	defer mutex.RUnlock()
-	if v, exist := datakey2filekey[nDatkey]; exist {
+	v, err := getThread(nDatkey)
+	if err == nil {
 		return v
 	}
 	return ""
@@ -223,7 +177,7 @@ func MakeBody(rec *record.Record, host, board string, table *mch.ResTable) strin
 
 //MakeDat makes dat lines of 2ch from cache.
 func MakeDat(ca *thread.Cache, board, host string) []string {
-	recs := ca.LoadRecords()
+	recs := ca.LoadRecords(thread.Alive)
 	dat := make([]string, len(recs))
 	table := mch.NewResTable(ca)
 

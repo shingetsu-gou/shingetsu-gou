@@ -31,16 +31,14 @@ package record
 import (
 	"errors"
 	"fmt"
-	"io/ioutil"
 	"log"
-	"os"
-	"path/filepath"
 	"regexp"
 	"strconv"
 	"strings"
 	"sync"
 
 	"github.com/shingetsu-gou/shingetsu-gou/cfg"
+	"github.com/shingetsu-gou/shingetsu-gou/db"
 	"github.com/shingetsu-gou/shingetsu-gou/node"
 	"github.com/shingetsu-gou/shingetsu-gou/util"
 )
@@ -56,29 +54,35 @@ type Record struct {
 	mutex    sync.RWMutex
 }
 
-//New parse idstr unixtime+"_"+md5(bodystr)), set stamp and id, and return record obj.
+//NewIDstr parse idstr unixtime+"_"+md5(bodystr)), set stamp and id, and return record obj.
 //if parse failes returns nil.
-func New(datfile, idstr string) *Record {
-	r := &Record{
-		Head: newHead(),
+func NewIDstr(datfile, idstr string) (*Record, error) {
+	if idstr == "" {
+		return New(datfile, "", 0), nil
 	}
-
+	buf := strings.Split(idstr, "_")
+	if len(buf) != 2 {
+		err := errors.New("bad format")
+		log.Println(idstr, ":bad format")
+		return nil, err
+	}
+	var stamp int64
 	var err error
-
-	r.Datfile = datfile
-	if idstr != "" {
-		buf := strings.Split(idstr, "_")
-		if len(buf) != 2 {
-			log.Println(idstr, ":bad format")
-			return nil
-		}
-		if r.Stamp, err = strconv.ParseInt(buf[0], 10, 64); err != nil {
-			log.Println(idstr, ":bad format")
-			return nil
-		}
-		r.ID = buf[1]
+	if stamp, err = strconv.ParseInt(buf[0], 10, 64); err != nil {
+		log.Println(idstr, ":bad format")
+		return nil, err
 	}
-	return r
+	return New(datfile, buf[1], stamp), nil
+}
+
+func New(datfile, id string, stamp int64) *Record {
+	return &Record{
+		Head: &Head{
+			Datfile: datfile,
+			Stamp:   stamp,
+			ID:      id,
+		},
+	}
 }
 
 //CopyHead copies and  returns Head.
@@ -113,8 +117,8 @@ func Make(line string) *Record {
 		return nil
 	}
 	buf[2] = util.FileEncode("thread", dec)
-	vr := New(buf[2], idstr)
-	if vr == nil {
+	vr, err := NewIDstr(buf[2], idstr)
+	if err != nil {
 		return nil
 	}
 	if err := vr.Parse(line); err != nil {
@@ -168,7 +172,6 @@ func (r *Record) Recstr() string {
 func (r *Record) Parse(recstr string) error {
 	r.mutex.Lock()
 	defer r.mutex.Unlock()
-
 	var err error
 	recstr = strings.TrimRight(recstr, "\r\n")
 	tmp := strings.Split(recstr, "<>")
@@ -221,24 +224,11 @@ func (r *Record) Parse(recstr string) error {
 	return nil
 }
 
-//size returns real file size of record.
-func (r *Record) size() int64 {
-	cfg.Fmutex.RLock()
-	defer cfg.Fmutex.RUnlock()
-	s, err := os.Stat(r.path())
-	if err != nil {
-		log.Println(err)
-		return 0
-	}
-	return s.Size()
-}
-
 //Load loads a record file and parses it.
 func (r *Record) Load() error {
 	r.mutex.RLock()
 	isLoaded := r.isLoaded
 	r.mutex.RUnlock()
-
 	if isLoaded {
 		return nil
 	}
@@ -250,14 +240,14 @@ func (r *Record) Load() error {
 		}
 		return errors.New("file not found")
 	}
-	cfg.Fmutex.RLock()
-	c, err := ioutil.ReadFile(r.path())
-	cfg.Fmutex.RUnlock()
+	db.Mutex.RLock()
+	defer db.Mutex.RUnlock()
+	body, err := db.String("select Body from record where Thread=? and Hash=? and Stamp=?", r.Datfile, r.ID, r.Stamp)
 	if err != nil {
 		log.Println(err)
 		return err
 	}
-	return r.Parse(string(c))
+	return r.Parse(fmt.Sprintf("%d<>%s<>%d", r.Stamp, r.ID, body))
 }
 
 //ShortPubkey returns short version of pubkey.
@@ -314,37 +304,36 @@ func (r *Record) md5check() bool {
 //AttachPath returns attach path
 //by creating path from args.
 func (r *Record) AttachPath(thumbnailSize string) string {
-	if r.path() == "" {
-		log.Println("null file name")
-		return ""
-	}
 	suffix := r.GetBodyValue("suffix", "")
 	if suffix == "" {
 		return ""
 	}
-	dir := filepath.Join(cfg.CacheDir, r.dathash(), "attach")
 	reg := regexp.MustCompile(`[^-_.A-Za-z0-9]`)
 	reg.ReplaceAllString(suffix, "")
 	if thumbnailSize != "" {
-		return filepath.Join(dir, "s"+r.Idstr()+"."+thumbnailSize+"."+suffix)
+		return "s" + r.Idstr() + "." + thumbnailSize + "." + suffix
 	}
-	return filepath.Join(dir, r.Idstr()+"."+suffix)
+	return r.Idstr() + "." + suffix
 }
 
 //Sync saves Recstr to the file. if attached file exists, saves it to attached path.
 //if signed, also saves body part.
 func (r *Record) Sync() {
-	if util.IsFile(r.rmPath()) {
+	db.Mutex.RLock()
+	cnt, err := db.Int64("select count(*) from record where Thread=? and Stamp=? and Hash=?",
+		r.Datfile, r.Stamp, r.ID)
+	db.Mutex.RUnlock()
+	if err != nil {
+		log.Print(err)
+	}
+	if cnt > 0 {
 		return
 	}
-	if !util.IsFile(r.path()) {
-		recstr := r.Recstr()
-		cfg.Fmutex.Lock()
-		err := util.WriteFile(r.path(), recstr+"\n")
-		cfg.Fmutex.Unlock()
-		if err != nil {
-			log.Println(err)
-		}
+	db.Mutex.Lock()
+	defer db.Mutex.Unlock()
+	_, err = db.DB.Exec("insert into record(Stamp,Hash,Thread,Body,Deleted) values(?,?,?,?,0)", r.Stamp, r.ID, r.Datfile, r.bodystr())
+	if err != nil {
+		log.Print(err)
 	}
 }
 

@@ -29,14 +29,9 @@
 package tag
 
 import (
-	"io/ioutil"
-	"log"
-	"os"
-	"path"
 	"sort"
 	"strings"
 
-	"github.com/shingetsu-gou/shingetsu-gou/cfg"
 	"github.com/shingetsu-gou/shingetsu-gou/util"
 )
 
@@ -67,22 +62,6 @@ func NewSlice(values []string) Slice {
 	return s
 }
 
-//Load load a file and returns Slice.
-func Load(path string) Slice {
-	var t Slice
-	if !util.IsFile(path) {
-		return t
-	}
-	err := util.EachLine(path, func(line string, i int) error {
-		t = append(t, &Tag{line, 0})
-		return nil
-	})
-	if err != nil {
-		log.Println(err)
-	}
-	return t
-}
-
 //GetTagstrSlice returns tagstr slice of tags.
 func (t Slice) GetTagstrSlice() []string {
 	result := make([]string, t.Len())
@@ -108,7 +87,7 @@ func (t Slice) Prune(size int) Slice {
 
 //checkAppend append tagstr=val tag if tagList doesn't have its tag.
 func (t Slice) checkAppend(val string) Slice {
-	if strings.ContainsAny(val, "<>&") || util.HasString(t.GetTagstrSlice(), val) {
+	if !IsOK(val) || util.HasString(t.GetTagstrSlice(), val) {
 		return t
 	}
 	return append(t, &Tag{val, 1})
@@ -130,34 +109,4 @@ func (t Slice) AddString(vals []string) Slice {
 		t = t.checkAppend(val)
 	}
 	return t
-}
-
-//Sync saves tagstr of tags to path.
-func (t Slice) Sync(path string) {
-	err := util.WriteSlice(path, t.GetTagstrSlice())
-	if err != nil {
-		log.Println(err)
-	}
-}
-
-//GetUserTag reads tags from the disk  if dirty and returns Slice.
-func GetUserTag() Slice {
-	cfg.Fmutex.RLock()
-	defer cfg.Fmutex.RUnlock()
-	var tags Slice
-	err := util.EachFiles(cfg.CacheDir, func(i os.FileInfo) error {
-		fname := path.Join(cfg.CacheDir, i.Name(), "tag.txt")
-		if i.IsDir() && util.IsFile(fname) {
-			t, err := ioutil.ReadFile(fname)
-			if err != nil {
-				return err
-			}
-			tags = tags.AddString(strings.Split(string(t), "\r\n"))
-		}
-		return nil
-	})
-	if err != nil {
-		log.Fatal(err)
-	}
-	return tags
 }

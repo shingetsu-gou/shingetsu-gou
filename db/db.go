@@ -30,95 +30,105 @@ package db
 
 import (
 	"database/sql"
-	"fmt"
 	"log"
+	"os"
 	"path"
 	"sync"
 
 	_ "github.com/mattn/go-sqlite3"
 	"github.com/shingetsu-gou/shingetsu-gou/cfg"
-	"gopkg.in/gorp.v1"
 )
+
+var tables = []string{
+	`CREATE TABLE "keylib" ("ID" integer not null primary key autoincrement, "Stamp" integer, "Thread" varchar(255) unique)`,
+	`CREATE TABLE "lookup" ("ID" integer not null primary key autoincrement, "Thread" varchar(255), "Addr" varchar(255), unique ("Addr", "Thread"))`,
+	`CREATE TABLE "recent" ("ID" integer not null primary key autoincrement, "Stamp" integer, "Hash" varchar(255), "Thread" varchar(255), unique ("Stamp", "Thread", "Hash"))`,
+	`CREATE TABLE "sugtag" ("ID" integer not null primary key autoincrement, "Thread" varchar(255), "Tag" varchar(255), unique ("Thread", "Tag"))`,
+	`CREATE TABLE "thread" ("ID" integer not null primary key autoincrement, "Thread" varchar(255) unique)`,
+	`CREATE TABLE "record" ("ID" integer not null primary key autoincrement, "Stamp" integer, "Hash" varchar(255), "Thread" varchar(255), "Body" varchar(255), "Deleted" integer, unique ("Stamp", "Hash", "Thread"))`,
+	`CREATE TABLE "usertag" ("ID" integer not null primary key autoincrement, "Thread" varchar(255), "Tag" varchar(255), unique ("Tag", "Thread"))`,
+}
 
 var Mutex = &sync.RWMutex{}
 
-type Keylib struct {
-	ID     int64
-	Time   int64
-	Thread string
-}
-
-type Lookup struct {
-	ID     int64
-	Thread string
-	Addr   string
-}
-
-type Recent struct {
-	ID     int64
-	Time   int64
-	Hash   string
-	Thread string
-}
-type Sugtag struct {
-	ID     int64
-	Thread string
-	Tag    string
-}
-type Thread struct {
-	ID     int64
-	Thread string
-}
-type UserTag struct {
-	ID     int64
-	Thread string
-	Tag    string
-}
-type Record struct {
-	ID      int64
-	Time    int64
-	Hash    string
-	Thread  string
-	Body    string
-	Deleted bool
-}
-
+/*
 func (r *Record) Recstr() string {
 	return fmt.Sprintf("%d<>%s<>%s", r.Time, r.Hash, r.Body)
 }
-
-var Map *gorp.DbMap
+func (r *Record) IDstr() string {
+	return fmt.Sprintf("%d_%s", r.Time, r.Hash)
+}
+*/
+var DB *sql.DB
 
 func Setup() {
-	// connect to db using standard Go database/sql API
-	// use whatever database/sql driver you wish
-	db, err := sql.Open("sqlite3", path.Join(cfg.RunDir, "gou.db"))
+	dbpath := path.Join(cfg.RunDir, "gou.db")
+
+	exist := false
+	if _, err := os.Stat(dbpath); err == nil {
+		exist = true
+	}
+
+	var err error
+	DB, err = sql.Open("sqlite3", dbpath)
 	if err != nil {
 		log.Fatal(err)
 	}
-
-	// construct a gorp DbMap
-	Map = &gorp.DbMap{Db: db, Dialect: gorp.SqliteDialect{}}
-
-	// add a table, setting the table name to 'posts' and
-	// specifying that the Id property is an auto incrementing PK
-	Map.AddTableWithName(Keylib{}, "keylib").SetKeys(true, "ID").ColMap("Thread").SetUnique(true)
-	Map.AddTableWithName(Lookup{}, "lookup").SetKeys(true, "ID").SetUniqueTogether("Addr", "Thread")
-	Map.AddTableWithName(Recent{}, "recent").SetKeys(true, "ID").SetUniqueTogether("Time", "Thread", "Hash")
-	Map.AddTableWithName(Sugtag{}, "sugtag").SetKeys(true, "ID").SetUniqueTogether("Thread", "Tag")
-	Map.AddTableWithName(Thread{}, "thread").SetKeys(true, "ID").ColMap("Thread").SetUnique(true)
-	Map.AddTableWithName(Record{}, "record").SetKeys(true, "ID").SetUniqueTogether("Time", "Hash", "Thread")
-	Map.AddTableWithName(UserTag{}, "usertag").SetKeys(true, "ID").SetUniqueTogether("Tag", "Thread")
-
-	// create the table. in a production system you'd generally
-	// use a migration tool, or create the tables via scripts
-	err = Map.CreateTablesIfNotExists()
+	if !exist {
+		for _, table := range tables {
+			if _, err = DB.Exec(table); err != nil {
+				log.Fatal(err)
+			}
+		}
+	}
+	_, err = DB.Exec("PRAGMA synchronous=OFF;")
 	if err != nil {
 		log.Fatal(err)
 	}
-	_, err = Map.Exec("PRAGMA synchronous=OFF;")
-	if err != nil {
-		log.Fatal(err)
-	}
+}
 
+func String(query string, args ...interface{}) (string, error) {
+	var str string
+	err := DB.QueryRow(query, args...).Scan(&str)
+	return str, err
+}
+
+func Strings(query string, args ...interface{}) ([]string, error) {
+	rows, err := DB.Query(query, args...)
+	if err != nil {
+		return nil, err
+	}
+	var result []string
+	for rows.Next() {
+		var str string
+		err = rows.Scan(&str)
+		if err != nil {
+			return nil, err
+		}
+		result = append(result, str)
+	}
+	return result, nil
+}
+
+func Int64(query string, args ...interface{}) (int64, error) {
+	var str int64
+	err := DB.QueryRow(query, args...).Scan(&str)
+	return str, err
+}
+
+func Int64s(query string, args ...interface{}) ([]int64, error) {
+	rows, err := DB.Query(query, args...)
+	if err != nil {
+		return nil, err
+	}
+	var result []int64
+	for rows.Next() {
+		var str int64
+		err = rows.Scan(&str)
+		if err != nil {
+			return nil, err
+		}
+		result = append(result, str)
+	}
+	return result, nil
 }

@@ -39,8 +39,8 @@ import (
 func Get() tag.Slice {
 	db.Mutex.RLock()
 	defer db.Mutex.RUnlock()
-	var r []string
-	if _, err := db.Map.Select(&r, "select  Tag from usertag"); err != nil {
+	r, err := db.Strings("select  Tag from usertag group by Tag")
+	if err != nil {
 		log.Print(err)
 		return nil
 	}
@@ -51,8 +51,8 @@ func Get() tag.Slice {
 func GetThread(thread string) tag.Slice {
 	db.Mutex.RLock()
 	defer db.Mutex.RUnlock()
-	var r []string
-	if _, err := db.Map.Select(&r, "select  Tag from usertag where thread=?", thread); err != nil {
+	r, err := db.Strings("select  Tag from usertag where thread=?", thread)
+	if err != nil {
 		log.Print(err)
 		return nil
 	}
@@ -63,12 +63,9 @@ func GetThread(thread string) tag.Slice {
 func Set(thread string, tag []string) {
 	db.Mutex.Lock()
 	defer db.Mutex.Unlock()
-	r := db.UserTag{
-		Thread: thread,
-	}
 	for _, t := range tag {
-		r.Tag = t
-		if err := db.Map.Insert(&r); err != nil {
+		_, err := db.DB.Exec("insert into usertag(Thread,Tag) values(?,?)", thread, t)
+		if err != nil {
 			log.Print(err)
 		}
 	}
@@ -76,15 +73,5 @@ func Set(thread string, tag []string) {
 
 //Set saves usertag.
 func SetTags(thread string, tag tag.Slice) {
-	db.Mutex.Lock()
-	defer db.Mutex.Unlock()
-	r := db.UserTag{
-		Thread: thread,
-	}
-	for _, t := range tag {
-		r.Tag = t.Tagstr
-		if err := db.Map.Insert(&r); err != nil {
-			log.Print(err)
-		}
-	}
+	Set(thread, tag.GetTagstrSlice())
 }

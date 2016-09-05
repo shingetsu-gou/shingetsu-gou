@@ -29,15 +29,39 @@
 package record
 
 import (
+	"fmt"
 	"log"
 	"sort"
-	"time"
 
-	"github.com/shingetsu-gou/shingetsu-gou/util"
+	"github.com/shingetsu-gou/shingetsu-gou/db"
 )
 
 //Map is a map key=stamp_id, value=record.
 type Map map[string]*Record
+
+func FromRecordDB(query string, args ...interface{}) (Map, error) {
+	db.Mutex.RLock()
+	defer db.Mutex.RUnlock()
+	rows, err := db.DB.Query(query, args...)
+	if err != nil {
+		return nil, err
+	}
+	recs := make(map[string]*Record)
+	for rows.Next() {
+		var id int
+		var stamp, del int64
+		var body, datfile, hash string
+		err = rows.Scan(&id, &stamp, &hash, &datfile, &body, &del)
+		if err != nil {
+			log.Print(err)
+			return nil, nil
+		}
+		idd := fmt.Sprintf("%d_%s", stamp, hash)
+		recs[idd] = New(datfile, hash, stamp)
+		recs[idd].Load()
+	}
+	return recs, nil
+}
 
 //Get returns records which hav key=i.
 //return def if not found.
@@ -58,38 +82,4 @@ func (r Map) Keys() []string {
 	}
 	sort.Strings(ks)
 	return ks
-}
-
-//RemoveRecords remove old records while remaing #saveSize records.
-//and also removes duplicates recs.
-func (r Map) RemoveRecords(limit int64, saveSize int) {
-	ids := r.Keys()
-	if saveSize < len(ids) {
-		ids = ids[:len(ids)-saveSize]
-		if limit > 0 {
-			for _, re := range ids {
-				if r[re].Stamp+limit < time.Now().Unix() {
-					err := r[re].Remove()
-					if err != nil {
-						log.Println(err)
-					}
-					delete(r, re)
-				}
-			}
-		}
-	}
-	once := make(map[string]struct{})
-	for k, rec := range r {
-		if util.IsFile(rec.path()) {
-			if _, exist := once[rec.ID]; exist {
-				err := rec.Remove()
-				if err != nil {
-					log.Println(err)
-				}
-				delete(r, k)
-			} else {
-				once[rec.ID] = struct{}{}
-			}
-		}
-	}
 }

@@ -36,9 +36,9 @@ import (
 	"sync"
 
 	"github.com/shingetsu-gou/shingetsu-gou/cfg"
+	"github.com/shingetsu-gou/shingetsu-gou/db"
 	"github.com/shingetsu-gou/shingetsu-gou/myself"
 	"github.com/shingetsu-gou/shingetsu-gou/node"
-	"github.com/shingetsu-gou/shingetsu-gou/util"
 )
 
 const (
@@ -47,41 +47,23 @@ const (
 )
 
 //Manager represents the map that maps datfile to it's source node list.
-var isDirty bool
-var nodes = make(map[string]node.Slice) //map[""] is nodelist
-var mutex sync.RWMutex
 
-//init read the file and returns NodeManager obj.
-func init() {
-	err := util.EachKeyValueLine(cfg.Lookup(), func(key string, value []string, i int) error {
-		var nl node.Slice
-		for _, v := range value {
-			if v == "" {
-				continue
-			}
-			nn, err := node.New(v)
-			if err != nil {
-				log.Println("line", i, "in lookup.txt,err=", err, v)
-				continue
-			}
-			nl = append(nl, nn)
-		}
-		nodes[key] = nl
+//getFromList returns one node  in the nodelist.
+func getFromList() *node.Node {
+	db.Mutex.RLock()
+	defer db.Mutex.RUnlock()
+	r, err := db.String("select  Addr from lookup where Thread=''")
+	if err != nil {
+		log.Print(err)
 		return nil
-	})
+	}
+
+	n, err := node.New(r)
 	if err != nil {
 		log.Println(err)
-	}
-}
-
-//getFromList returns number=n in the nodelist.
-func getFromList(n int) *node.Node {
-	mutex.RLock()
-	defer mutex.RUnlock()
-	if ListLen() == 0 {
 		return nil
 	}
-	return nodes[""][n]
+	return n
 }
 
 //NodeLen returns size of all nodes.
@@ -92,9 +74,19 @@ func NodeLen() int {
 
 //ListLen returns size of nodelist.
 func ListLen() int {
-	mutex.RLock()
-	defer mutex.RUnlock()
-	return len(nodes[""])
+	return listLen("")
+}
+
+func listLen(datfile string) int {
+	db.Mutex.RLock()
+	defer db.Mutex.RUnlock()
+	r, err := db.Int64("select count(*) from lookup where Thread=?", datfile)
+	if err != nil {
+		log.Print(err)
+		return 0
+	}
+
+	return int(r)
 }
 
 //GetNodestrSlice returns Nodestr of all nodes.
@@ -104,21 +96,36 @@ func GetNodestrSlice() []string {
 
 //getAllNodes returns all nodes in table.
 func getAllNodes() node.Slice {
-	var n node.Slice
-	mutex.RLock()
-	defer mutex.RUnlock()
-	for _, v := range nodes {
-		n = append(n, v...)
+	db.Mutex.RLock()
+	defer db.Mutex.RUnlock()
+	r, err := db.Strings("select  Addr from lookup group by Addr")
+	if err != nil {
+		log.Print(err)
+		return nil
 	}
-	return n.Uniq()
+	return node.NewSlice(r)
+}
+
+//Get returns rawnodelist associated with datfile
+//if not found returns def
+func Get(datfile string, def node.Slice) node.Slice {
+	str := GetNodestrSliceInTable(datfile)
+	if str == nil {
+		return def
+	}
+	return node.NewSlice(str)
 }
 
 //GetNodestrSliceInTable returns Nodestr slice of nodes associated datfile thread.
 func GetNodestrSliceInTable(datfile string) []string {
-	mutex.RLock()
-	defer mutex.RUnlock()
-	n := nodes[datfile]
-	return n.GetNodestrSlice()
+	db.Mutex.RLock()
+	defer db.Mutex.RUnlock()
+	r, err := db.Strings("select  Addr from lookup where Thread=?", datfile)
+	if err != nil {
+		log.Print(err)
+		return nil
+	}
+	return r
 }
 
 //Random selects # of min(all # of nodes,n) nodes randomly except exclude nodes.
@@ -148,15 +155,15 @@ func Random(exclude node.Slice, num int) []*node.Node {
 
 //AppendToTable add node n to table if it is allowd and list doesn't have it.
 func AppendToTable(datfile string, n *node.Node) {
-	mutex.RLock()
-	l := len(nodes[datfile])
-	mutex.RUnlock()
+	l := listLen(datfile)
 	if ((datfile != "" && l < shareNodes) || (datfile == "" && l < defaultNodes)) &&
 		n != nil && n.IsAllowed() && !hasNodeInTable(datfile, n) {
-		mutex.Lock()
-		isDirty = true
-		nodes[datfile] = append(nodes[datfile], n)
-		mutex.Unlock()
+		db.Mutex.Lock()
+		defer db.Mutex.Unlock()
+		_, err := db.DB.Exec("insert into lookup(Thread,Addr) values(?,?)", datfile, n.Nodestr)
+		if err != nil {
+			log.Println(err)
+		}
 	}
 }
 
@@ -178,15 +185,13 @@ func appendToList(n *node.Node) {
 //ReplaceNodeInList removes one node and say bye to the node and add n in nodelist.
 //if len(node)>defaultnode
 func ReplaceNodeInList(n *node.Node) *node.Node {
-	mutex.RLock()
-	l := len(nodes[""])
-	mutex.RUnlock()
+	l := ListLen()
 	if !n.IsAllowed() || hasNodeInTable("", n) {
 		return nil
 	}
 	var old *node.Node
 	if l >= defaultNodes {
-		old = getFromList(0)
+		old = getFromList()
 		RemoveFromList(old)
 		old.Bye()
 	}
@@ -206,50 +211,46 @@ func hasNode(n *node.Node) bool {
 
 //findNode returns datfile of node n, or -1 if not exist.
 func findNode(n *node.Node) []string {
-	mutex.RLock()
-	defer mutex.RUnlock()
-	var r []string
-	for k := range nodes {
-		if hasNodeInTable(k, n) {
-			r = append(r, k)
-		}
+	db.Mutex.RLock()
+	defer db.Mutex.RUnlock()
+	r, err := db.Strings("select  Thread from lookup where Addr=?", n.Nodestr)
+	if err != nil {
+		log.Print(err)
+		return nil
 	}
 	return r
 }
 
 //hasNodeInTable returns true if nodelist has n.
 func hasNodeInTable(datfile string, n *node.Node) bool {
-	return findNodeInTable(datfile, n) != -1
-}
-
-//findNode returns location of node n, or -1 if not exist.
-func findNodeInTable(datfile string, n *node.Node) int {
-	return util.FindString(GetNodestrSliceInTable(datfile), n.Nodestr)
+	db.Mutex.RLock()
+	defer db.Mutex.RUnlock()
+	r, err := db.Int64("select  count(*) from lookup where Addr=? and Thread=?", n.Nodestr, datfile)
+	if err != nil {
+		log.Print(err)
+		return false
+	}
+	return r != 0
 }
 
 //RemoveFromTable removes node n and return true if exists.
 //or returns false if not exists.
 func RemoveFromTable(datfile string, n *node.Node) bool {
-	mutex.Lock()
-	defer mutex.Unlock()
-	i := 0
-	if n != nil {
-		i = util.FindString(nodes[datfile].GetNodestrSlice(), n.Nodestr)
-	} else {
-		for ii, nn := range nodes[datfile] {
-			if nn == nil {
-				i = ii
-				break
-			}
-		}
+	if n == nil {
+		log.Println("n is nil")
+		return false
 	}
-	if i >= 0 {
-		ln := len(nodes[datfile])
-		nodes[datfile], nodes[datfile][ln-1] = append(nodes[datfile][:i], nodes[datfile][i+1:]...), nil
-		isDirty = true
-		return true
+	if !hasNodeInTable(datfile, n) {
+		return false
 	}
-	return false
+	db.Mutex.Lock()
+	defer db.Mutex.Unlock()
+	_, err := db.DB.Exec("delete from lookup where Thread=? and Addr=? ", datfile, n.Nodestr)
+	if err != nil {
+		log.Println(err)
+		return false
+	}
+	return true
 }
 
 //RemoveFromList removes node n from nodelist and return true if exists.
@@ -261,15 +262,14 @@ func RemoveFromList(n *node.Node) bool {
 //RemoveFromAllTable removes node n from all tables and return true if exists.
 //or returns false if not exists.
 func RemoveFromAllTable(n *node.Node) bool {
-	del := false
-	mutex.RLock()
-	for k := range nodes {
-		mutex.RUnlock()
-		del = del || RemoveFromTable(k, n)
-		mutex.RLock()
+	db.Mutex.Lock()
+	defer db.Mutex.Unlock()
+	_, err := db.DB.Exec("delete from lookup where  Addr=? ", n.Nodestr)
+	if err != nil {
+		log.Println(err)
+		return false
 	}
-	mutex.RUnlock()
-	return del
+	return true
 }
 
 //Initialize pings one of initNode except myself and added it if success,
@@ -354,53 +354,6 @@ func TellUpdate(datfile string, stamp int64, id string, n *node.Node) {
 		_, err := n.Talk(msg, nil)
 		if err != nil {
 			log.Println(err)
-		}
-	}
-}
-
-//Get returns rawnodelist associated with datfile
-//if not found returns def
-func Get(datfile string, def node.Slice) node.Slice {
-	mutex.RLock()
-	defer mutex.RUnlock()
-	if v, exist := nodes[datfile]; exist {
-		nodes := make([]*node.Node, v.Len())
-		copy(nodes, v)
-		return nodes
-	}
-	return def
-}
-
-//stringMap returns map of k=datfile, v=Nodestr of rawnodelist.
-func stringMap() map[string][]string {
-	mutex.RLock()
-	defer mutex.RUnlock()
-	result := make(map[string][]string)
-	for k, v := range nodes {
-		if k == "" {
-			continue
-		}
-		result[k] = v.GetNodestrSlice()
-	}
-	return result
-}
-
-//Sync saves  k=datfile, v=Nodestr map to the file.
-func Sync() {
-	mutex.RLock()
-	isDirtyB := isDirty
-	mutex.RUnlock()
-	if isDirtyB {
-		m := stringMap()
-		cfg.Fmutex.Lock()
-		defer cfg.Fmutex.Unlock()
-		err := util.WriteMap(cfg.Lookup(), m)
-		if err != nil {
-			log.Println(err)
-		} else {
-			mutex.Lock()
-			isDirty = false
-			mutex.Unlock()
 		}
 	}
 }

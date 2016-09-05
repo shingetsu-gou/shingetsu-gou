@@ -42,26 +42,27 @@ import (
 	"time"
 
 	"github.com/shingetsu-gou/go-nat"
+	"github.com/shingetsu-gou/shingetsu-gou/cfg"
 	"github.com/shingetsu-gou/shingetsu-gou/node"
+	"github.com/shingetsu-gou/shingetsu-gou/node/manager"
+	"github.com/shingetsu-gou/shingetsu-gou/recentlist"
+	"github.com/shingetsu-gou/shingetsu-gou/record"
 	"github.com/shingetsu-gou/shingetsu-gou/thread"
-	"github.com/shingetsu-gou/shingetsu-gou/util"
+	"github.com/shingetsu-gou/shingetsu-gou/updateque"
 )
 
-//ServerURL is the url to server.cgi
-const ServerURL = "/server.cgi"
-
 //ServerSetup setups handlers for server.cgi
-func ServerSetup(s *LoggingServeMux, relaynum int) {
-	s.RegistCompressHandler(ServerURL+"/ping", doPing)
-	s.RegistCompressHandler(ServerURL+"/node", doNode)
-	s.RegistCompressHandler(ServerURL+"/join/", doJoin)
-	s.RegistCompressHandler(ServerURL+"/bye/", doBye)
-	s.RegistCompressHandler(ServerURL+"/have/", doHave)
-	s.RegistCompressHandler(ServerURL+"/get/", doGetHead)
-	s.RegistCompressHandler(ServerURL+"/head/", doGetHead)
-	s.RegistCompressHandler(ServerURL+"/update/", doUpdate)
-	s.RegistCompressHandler(ServerURL+"/recent/", doRecent)
-	s.RegistCompressHandler(ServerURL+"/", doMotd)
+func ServerSetup(s *LoggingServeMux) {
+	s.RegistCompressHandler(cfg.ServerURL+"/ping", doPing)
+	s.RegistCompressHandler(cfg.ServerURL+"/node", doNode)
+	s.RegistCompressHandler(cfg.ServerURL+"/join/", doJoin)
+	s.RegistCompressHandler(cfg.ServerURL+"/bye/", doBye)
+	s.RegistCompressHandler(cfg.ServerURL+"/have/", doHave)
+	s.RegistCompressHandler(cfg.ServerURL+"/get/", doGetHead)
+	s.RegistCompressHandler(cfg.ServerURL+"/head/", doGetHead)
+	s.RegistCompressHandler(cfg.ServerURL+"/update/", doUpdate)
+	s.RegistCompressHandler(cfg.ServerURL+"/recent/", doRecent)
+	s.RegistCompressHandler(cfg.ServerURL+"/", doMotd)
 
 }
 
@@ -77,15 +78,10 @@ func doPing(w http.ResponseWriter, r *http.Request) {
 
 //doNode returns one of nodelist. if nodelist.len=0 returns one of initNode.
 func doNode(w http.ResponseWriter, r *http.Request) {
-	s, err := newServerCGI(w, r)
-	if err != nil {
-		log.Println(err)
-		return
-	}
-	if s.NodeManager.ListLen() > 0 {
-		fmt.Fprintln(w, s.NodeManager.GetNodestrSliceInTable("")[0])
+	if manager.ListLen() > 0 {
+		fmt.Fprintln(w, manager.GetNodestrSliceInTable("")[0])
 	} else {
-		fmt.Fprintln(w, s.InitNode.GetData()[0])
+		fmt.Fprintln(w, node.InitNode.GetData()[0])
 	}
 }
 
@@ -109,7 +105,7 @@ func doJoin(w http.ResponseWriter, r *http.Request) {
 	if _, err := n.Ping(); err != nil {
 		return
 	}
-	suggest := s.NodeManager.ReplaceNodeInList(n)
+	suggest := manager.ReplaceNodeInList(n)
 	if suggest == nil {
 		fmt.Fprintln(s.wr, "WELCOME")
 		return
@@ -131,7 +127,7 @@ func doBye(w http.ResponseWriter, r *http.Request) {
 	}
 	n, err := node.MakeNode(host, path, port)
 	if err == nil {
-		s.NodeManager.RemoveFromList(n)
+		manager.RemoveFromList(n)
 	}
 	fmt.Fprintln(s.wr, "BYEBYE")
 }
@@ -195,19 +191,18 @@ func doUpdate(w http.ResponseWriter, r *http.Request) {
 		log.Println("detects spam")
 		return
 	}
-	s.NodeManager.AppendToTable(datfile, n)
-	s.NodeManager.Sync()
+	manager.AppendToTable(datfile, n)
 	nstamp, err := strconv.ParseInt(stamp, 10, 64)
 	if err != nil {
 		log.Println(err)
 		return
 	}
 
-	if !thread.IsInUpdateRange(nstamp) {
+	if !recentlist.IsInUpdateRange(nstamp) {
 		return
 	}
-	rec := thread.NewRecord(datfile, stamp+"_"+id)
-	go s.UpdateQue.UpdateNodes(rec, n)
+	rec := record.New(datfile, id, nstamp)
+	go updateque.UpdateNodes(rec, n)
 	fmt.Fprintln(w, "OK")
 }
 
@@ -225,9 +220,9 @@ func doRecent(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	stamp := m[1]
-	last := time.Now().Unix() + s.RecentRange
+	last := time.Now().Unix() + cfg.RecentRange
 	begin, end, _ := s.parseStamp(stamp, last)
-	for _, i := range s.RecentList.GetRecords() {
+	for _, i := range recentlist.GetRecords() {
 		if begin > i.Stamp || i.Stamp > end {
 			continue
 		}
@@ -245,12 +240,7 @@ func doRecent(w http.ResponseWriter, r *http.Request) {
 
 //doMotd simply renders motd file.
 func doMotd(w http.ResponseWriter, r *http.Request) {
-	s, err := newServerCGI(w, r)
-	if err != nil {
-		log.Println(err)
-		return
-	}
-	f, err := ioutil.ReadFile(s.Motd)
+	f, err := ioutil.ReadFile(cfg.Motd())
 	if err != nil {
 		log.Println(err)
 		return
@@ -275,11 +265,11 @@ func doGetHead(w http.ResponseWriter, r *http.Request) {
 	method, datfile, stamp := m[1], m[2], m[3]
 	ca := thread.NewCache(datfile)
 	begin, end, id := s.parseStamp(stamp, math.MaxInt32)
-	var recs thread.RecordMap
+	var recs record.Map
 	if method == "removed" {
-		recs = ca.LoadRemovedRecords()
+		recs = ca.LoadRecords(thread.Removed)
 	} else {
-		recs = ca.LoadRecords()
+		recs = ca.LoadRecords(thread.Alive)
 	}
 	for _, r := range recs {
 		if r.InRange(begin, end, id) {
@@ -295,38 +285,19 @@ func doGetHead(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 	if method == "get" {
-		thread.UpdatedRecord.Inform(datfile, id, begin, end)
+		updateque.UpdatedRecord.Inform(datfile, id, begin, end)
 	}
-}
-
-//ServerCfg is config for serverCGI struct.
-//must set beforehand.
-var ServerCfg *ServerConfig
-
-//ServerConfig is config for serverCGI struct.
-type ServerConfig struct {
-	RecentRange int64
-	Motd        string
-	NodeManager *node.Manager
-	InitNode    *util.ConfList
-	UpdateQue   *thread.UpdateQue
-	RecentList  *thread.RecentList
 }
 
 //serverCGI is for server.cgi handler.
 type serverCGI struct {
-	*ServerConfig
 	*cgi
 }
 
 //newServerCGI set content-type to text and  returns serverCGI obj.
 func newServerCGI(w http.ResponseWriter, r *http.Request) (serverCGI, error) {
-	if ServerCfg == nil {
-		log.Fatal("must set ServerCfg")
-	}
 	c := serverCGI{
-		ServerConfig: ServerCfg,
-		cgi:          newCGI(w, r),
+		cgi: newCGI(w, r),
 	}
 	if c.cgi == nil {
 		return c, errors.New("cannot make CGI")

@@ -37,7 +37,7 @@ import (
 
 //ResTable maps id[:8] and its number.
 type ResTable struct {
-	id2num map[string]int
+	ID2num map[string]int
 	Num2id []string
 }
 
@@ -47,11 +47,11 @@ func NewResTable(ca *thread.Cache) *ResTable {
 		make(map[string]int),
 		make([]string, ca.ReadInfo().Len+1),
 	}
-	recs := ca.LoadRecords()
+	recs := ca.LoadRecords(thread.Alive)
 	for i, k := range recs.Keys() {
 		rec := recs.Get(k, nil)
 		r.Num2id[i+1] = rec.ID[:8]
-		r.id2num[rec.ID[:8]] = i + 1
+		r.ID2num[rec.ID[:8]] = i + 1
 	}
 	return r
 }
@@ -61,7 +61,7 @@ func (table *ResTable) MakeRSSAnchor(body string) string {
 	reg := regexp.MustCompile("&gt;&gt;([0-9a-f]{8})")
 	return reg.ReplaceAllStringFunc(body, func(str string) string {
 		id := reg.FindStringSubmatch(str)[1]
-		no := table.id2num[id]
+		no := table.ID2num[id]
 		return "&gt;&gt;" + strconv.Itoa(no)
 	})
 }

@@ -32,15 +32,20 @@ import (
 	"log"
 	"time"
 
-	"github.com/shingetsu-gou/shingetsu-gou/mch"
+	"github.com/shingetsu-gou/shingetsu-gou/cfg"
+	"github.com/shingetsu-gou/shingetsu-gou/mch/keylib"
+	"github.com/shingetsu-gou/shingetsu-gou/myself"
 	"github.com/shingetsu-gou/shingetsu-gou/node"
+	"github.com/shingetsu-gou/shingetsu-gou/node/manager"
+	"github.com/shingetsu-gou/shingetsu-gou/recentlist"
 	"github.com/shingetsu-gou/shingetsu-gou/thread"
+	"github.com/shingetsu-gou/shingetsu-gou/thread/download"
 )
 
 var running bool
 
 //cron runs cron, and update everything if it is after specified cycle.
-func cron(nodeManager *node.Manager, recentList *thread.RecentList, heavymoon bool, myself *node.Myself, table *mch.DatakeyTable) {
+func cron() {
 	const (
 		shortCycle = 10 * time.Minute
 		longCycle  = time.Hour
@@ -50,16 +55,20 @@ func cron(nodeManager *node.Manager, recentList *thread.RecentList, heavymoon bo
 		getall := true
 		for {
 			log.Println("short cycle cron started")
-			ns := node.MustNewNodes(nodeManager.InitNode.GetData())
+			ns := node.MustNew(node.InitNode.GetData())
 			if len(ns) == 0 {
 				log.Fatal("not init nodes")
 			}
 			nodes := ns[0].GetherNodes()
-			myself.InitConnection(nodes)
-			nodeManager.Initialize(nodes)
-			nodeManager.Sync()
-			doSync(nodeManager, recentList, heavymoon, getall)
-			table.Load()
+			for _, i := range nodes {
+				if _, err := i.Ping(); err == nil {
+					break
+				}
+			}
+			myself.ResetPort()
+			manager.Initialize(nodes)
+			doSync(getall)
+			keylib.Load()
 			log.Println("short cycle cron finished")
 			getall = false
 			<-time.After(shortCycle)
@@ -69,10 +78,9 @@ func cron(nodeManager *node.Manager, recentList *thread.RecentList, heavymoon bo
 		for {
 			<-time.After(longCycle)
 			log.Println("long cycle cron started")
-			recentList.Getall(true)
-			cl := thread.NewCacheList()
-			cl.CleanRecords()
-			cl.RemoveRemoved()
+			recentlist.Getall(true)
+			thread.CleanRecords()
+			thread.RemoveRemoved()
 			log.Println("long cycle cron finished")
 		}
 	}()
@@ -82,20 +90,19 @@ func cron(nodeManager *node.Manager, recentList *thread.RecentList, heavymoon bo
 //doSync checks nodes in the nodelist are alive, reloads cachelist, removes old removed files,
 //reloads all tags from cachelist,reload srecent list from nodes in search list,
 //and reloads cache info from files in the disk.
-func doSync(nodeManager *node.Manager, recentList *thread.RecentList, heavymoon bool, fullRecent bool) {
-	if nodeManager.ListLen() == 0 {
+func doSync(fullRecent bool) {
+	if manager.ListLen() == 0 {
 		return
 	}
 	log.Println("recentList.getall start")
-	recentList.Getall(fullRecent)
+	recentlist.Getall(fullRecent)
 	log.Println("recentList.getall finished")
 
-	if heavymoon && !running {
+	if cfg.HeavyMoon && !running {
 		running = true
 		go func() {
-			cl := thread.NewCacheList()
 			log.Println("cacheList.getall start")
-			cl.Getall()
+			download.Getall()
 			log.Println("cacheList.getall finished")
 			running = false
 		}()

@@ -40,213 +40,29 @@ import (
 	"sync"
 	"time"
 
-	"github.com/shingetsu-gou/go-nat"
+	"github.com/shingetsu-gou/shingetsu-gou/cfg"
+	"github.com/shingetsu-gou/shingetsu-gou/myself"
 	"github.com/shingetsu-gou/shingetsu-gou/util"
 )
 
-const (
-	//Disconnected represents mynode is disconnected.
-	Disconnected = iota
-	//Port0 represents mynode is behind NAT and not opened.
-	Port0
-	//UPnP represents mynode is opned by uPnP.
-	UPnP
-	//Normal represents port was opened manually.
-	Normal
-)
-
-//Myself contains my node info.
-type Myself struct {
-	ip           string
-	internalPort int
-	externalPort *int32
-	Path         string
-	ServerName   string
-	serveHTTP    http.HandlerFunc
-	mutex        sync.RWMutex
-	networkMode  int
-	status       int
+var defaultInitNode = []string{
+	"node.shingetsu.info:8000/server.cgi",
 }
 
-//NewMyself returns Myself obj.
-func NewMyself(internalPort int, path string, serverName string, serveHTTP http.HandlerFunc, networkMode string) *Myself {
-	p := int32(internalPort)
-	var mode int
-	switch networkMode {
-	case "port_opened":
-		mode = Normal
-	case "upnp":
-		mode = UPnP
-	default:
-		log.Fatal("cannot understand mode", networkMode)
-	}
-
-	return &Myself{
-		internalPort: internalPort,
-		externalPort: &p,
-		Path:         path,
-		ServerName:   serverName,
-		serveHTTP:    serveHTTP,
-		networkMode:  mode,
-	}
-}
-
-//resetPort sets externalPort to internalPort.
-func (m *Myself) resetPort() {
-	m.mutex.Lock()
-	defer m.mutex.Unlock()
-	p := int32(m.internalPort)
-	m.externalPort = &p
-	m.status = Disconnected
-}
-
-//GetStatus returns status.
-func (m *Myself) GetStatus() int {
-	m.mutex.RLock()
-	defer m.mutex.RUnlock()
-	return m.status
-}
-
-//setStatus set connection status.
-func (m *Myself) setStatus(stat int) {
-	m.mutex.Lock()
-	m.status = stat
-	m.mutex.Unlock()
-}
-
-//IPPortPath returns node ojb contains ip:port/path.
-func (m *Myself) IPPortPath() *Node {
-	m.mutex.RLock()
-	defer m.mutex.RUnlock()
-	port := int(*m.externalPort)
-	n, err := MakeNode(m.ip, m.Path, port)
-	if err != nil {
-		log.Fatal(err)
-	}
-	return n
-}
-
-//toNode converts myself to *Node.
-func (m *Myself) toNode() *Node {
-	m.mutex.RLock()
-	defer m.mutex.RUnlock()
-	serverName := m.ServerName
-	if m.ServerName == "" {
-		serverName = m.ip
-	}
-
-	n, err := newNode(fmt.Sprintf("%s:%d%s", serverName, *m.externalPort, m.Path))
-	if err != nil {
-		log.Fatal(err)
-	}
-	return n
-}
-
-//Nodestr returns nodestr.
-func (m *Myself) Nodestr() string {
-	m.mutex.RLock()
-	defer m.mutex.RUnlock()
-	return m.toNode().Nodestr
-}
-
-//toxstring returns /->+ nodestr.
-func (m *Myself) toxstring() string {
-	m.mutex.RLock()
-	defer m.mutex.RUnlock()
-	return m.toNode().toxstring()
-}
-
-//setIP set my IP.
-func (m *Myself) setIP(ips string) {
-	m.mutex.Lock()
-	defer m.mutex.Unlock()
-	var ip net.IP
-	if ip = net.ParseIP(ips); ip == nil {
-		log.Println("ip", ips, "is illegal format")
-		return
-	}
-	if nat.IsGlobalIP(ip) != "" {
-		m.ip = ips
-	}
-}
-
-//useUPnP gets external port by upnp and return external port.
-//returns defaultPort if failed.
-func (m *Myself) useUPnP() bool {
-	nt, err := nat.NewNetStatus()
-	if err != nil {
-		log.Println(err)
-		return false
-	}
-	ma, err := nt.LoopPortMapping("tcp", m.internalPort, "shingetsu-gou", 10*time.Minute)
-	if err != nil {
-		log.Println(err)
-		return false
-	}
-	m.externalPort = ma.ExternalPort
-	return true
-}
-
-func (m *Myself) connectionString() string {
-	switch m.GetStatus() {
-	case UPnP:
-		return "uPnP"
-	case Port0:
-		return "failed"
-	case Normal:
-		return "normal"
-	case Disconnected:
-		return "disconnected"
-
-	}
-	return ""
-}
-
-//InitConnection setups connection.
-func (m *Myself) InitConnection(nodes Slice) {
-	for _, i := range nodes {
-		if _, err := i.Ping(); err == nil {
-			break
-		}
-	}
-	if m.GetStatus() == Normal || m.GetStatus() == UPnP {
-		return
-	}
-	switch m.networkMode {
-	case Normal:
-		m.resetPort()
-		m.setStatus(Normal)
-	case UPnP:
-		if m.useUPnP() {
-			m.setStatus(UPnP)
-		}
-	}
-	con := m.connectionString()
-	log.Println("openned", con)
-}
-
-//NodeCfg is a global stuf for Node struct. it must be set before using it.
-var NodeCfg *NodeConfig
-
-//NodeConfig contains params for Node struct.
-type NodeConfig struct {
-	Myself    *Myself
-	NodeAllow *util.RegexpList
-	NodeDeny  *util.RegexpList
-	Version   string
-}
+var nodeAllow = util.NewRegexpList(cfg.NodeAllowFile)
+var nodeDeny = util.NewRegexpList(cfg.NodeDenyFile)
+var InitNode = util.NewConfList(cfg.InitnodeList, defaultInitNode)
 
 //Node represents node info.
 type Node struct {
-	*NodeConfig
 	Nodestr string
 }
 
-//MustNewNodes makes node slice from names.
-func MustNewNodes(names []string) []*Node {
+//MustNew makes node slice from names.
+func MustNew(names []string) []*Node {
 	ns := make([]*Node, len(names))
 	for i, nn := range names {
-		nn, err := newNode(nn)
+		nn, err := New(nn)
 		if err != nil {
 			log.Fatal(err)
 		}
@@ -255,11 +71,8 @@ func MustNewNodes(names []string) []*Node {
 	return ns
 }
 
-//NewNode checks nodestr format and returns node obj.
-func newNode(nodestr string) (*Node, error) {
-	if NodeCfg == nil {
-		log.Fatal("must set NodeCfg")
-	}
+//New checks nodestr format and returns node obj.
+func New(nodestr string) (*Node, error) {
 	nodestr = strings.TrimSpace(nodestr)
 	if nodestr == "" {
 		err := errors.New("nodestr is empty")
@@ -271,15 +84,14 @@ func newNode(nodestr string) (*Node, error) {
 		return nil, errr
 	}
 	n := &Node{
-		NodeConfig: NodeCfg,
-		Nodestr:    strings.Replace(nodestr, "+", "/", -1),
+		Nodestr: strings.Replace(nodestr, "+", "/", -1),
 	}
 	return n, nil
 }
 
 //urlopen retrievs html data from url
 func (n *Node) urlopen(url string, timeout time.Duration, fn func(string) error) error {
-	ua := "shinGETsuPlus/1.0alpha (Gou/" + n.Version + ")"
+	ua := "shinGETsuPlus/1.0alpha (Gou/" + cfg.Version + ")"
 
 	req, err := http.NewRequest("GET", url, nil)
 	if err != nil {
@@ -326,11 +138,11 @@ func (n *Node) Equals(nn *Node) bool {
 //MakeNode makes node from host info.
 func MakeNode(host, path string, port int) (*Node, error) {
 	nodestr := net.JoinHostPort(host, strconv.Itoa(port)) + strings.Replace(path, "+", "/", -1)
-	return newNode(nodestr)
+	return New(nodestr)
 }
 
-//toxstring covnerts Nodestr to saku node format.
-func (n *Node) toxstring() string {
+//Toxstring covnerts Nodestr to saku node format.
+func (n *Node) Toxstring() string {
 	return strings.Replace(n.Nodestr, "/", "+", -1)
 }
 
@@ -372,7 +184,7 @@ func (n *Node) Ping() (string, error) {
 	}
 	if len(res) == 2 && res[0] == "PONG" {
 		log.Println("ponged,i am", res[1])
-		n.Myself.setIP(res[1])
+		myself.SetIP(res[1])
 		return res[1], nil
 	}
 	log.Println("/ping", n.Nodestr, "error")
@@ -381,23 +193,23 @@ func (n *Node) Ping() (string, error) {
 
 //IsAllowed returns fase if n is not allowed and denied.
 func (n *Node) IsAllowed() bool {
-	if !n.NodeAllow.Check(n.Nodestr) && n.NodeDeny.Check(n.Nodestr) {
+	if !nodeAllow.Check(n.Nodestr) && nodeDeny.Check(n.Nodestr) {
 		return false
 	}
 	return true
 }
 
-//join requests n to join me and return true and other node name if success.
-func (n *Node) join() (*Node, error) {
+//Join requests n to Join me and return true and other node name if success.
+func (n *Node) Join() (*Node, error) {
 	if !n.IsAllowed() {
 		err := errors.New(fmt.Sprintln(n.Nodestr, "is not allowd"))
 		return nil, err
 	}
-	res, err := n.Talk("/join/"+n.Myself.toxstring(), nil)
+	res, err := n.Talk("/join/"+Me(true).Toxstring(), nil)
 	if err != nil {
 		return nil, err
 	}
-	log.Println(n.Nodestr, "response of join:", res)
+	log.Println(n.Nodestr, "response of Join:", res)
 	switch len(res) {
 	case 0:
 		return nil, errors.New("illegal response")
@@ -407,7 +219,7 @@ func (n *Node) join() (*Node, error) {
 		}
 		return nil, nil
 	}
-	nn, err := newNode(res[1])
+	nn, err := New(res[1])
 	if err != nil {
 		log.Println(err)
 		return nil, err
@@ -428,12 +240,12 @@ func (n *Node) getNode() (*Node, error) {
 	if len(res) == 0 {
 		return nil, errors.New("no response")
 	}
-	return newNode(res[0])
+	return New(res[0])
 }
 
-//bye says goodbye to n and returns true if success.
-func (n *Node) bye() bool {
-	res, err := n.Talk("/bye/"+n.Myself.toxstring(), nil)
+//Bye says goodBye to n and returns true if success.
+func (n *Node) Bye() bool {
+	res, err := n.Talk("/bye/"+Me(true).Toxstring(), nil)
 	if err != nil {
 		log.Println("/bye", n.Nodestr, "error")
 		return false
@@ -453,13 +265,13 @@ func (n *Node) GetherNodes() []*Node {
 			wg.Add(1)
 			go func(nn *Node) {
 				defer wg.Done()
-				newN, err := nn.getNode()
+				NewN, err := nn.getNode()
 				if err != nil {
 					log.Println(err)
 					return
 				}
 				mutex.Lock()
-				ns[newN.Nodestr] = newN
+				ns[NewN.Nodestr] = NewN
 				mutex.Unlock()
 			}(nn)
 		}
@@ -487,6 +299,20 @@ func (n *Node) GetherNodes() []*Node {
 //Slice is slice of node.
 type Slice []*Node
 
+//MustNew makes node slice from names.
+func NewSlice(names []string) Slice {
+	var ns Slice
+	for _, nn := range names {
+		nn, err := New(nn)
+		if err != nil {
+			log.Println(err)
+			continue
+		}
+		ns = append(ns, nn)
+	}
+	return ns
+}
+
 //Len returns size of nodes.
 func (ns Slice) Len() int {
 	return len(ns)
@@ -499,11 +325,11 @@ func (ns Slice) Swap(i, j int) {
 
 //Has returns true if ns has n.
 func (ns Slice) Has(n *Node) bool {
-	return util.HasString(ns.getNodestrSlice(), n.Nodestr)
+	return util.HasString(ns.GetNodestrSlice(), n.Nodestr)
 }
 
-//getNodestrSlice returns slice of Nodestr of nodes.
-func (ns Slice) getNodestrSlice() []string {
+//GetNodestrSlice returns slice of Nodestr of nodes.
+func (ns Slice) GetNodestrSlice() []string {
 	s := make([]string, ns.Len())
 	for i, v := range ns {
 		s[i] = v.Nodestr
@@ -511,8 +337,8 @@ func (ns Slice) getNodestrSlice() []string {
 	return s
 }
 
-//tomap returns map[nodestr]struct{}{} for searching a node.
-func (ns Slice) toMap() map[string]struct{} {
+//ToMap returns map[nodestr]struct{}{} for searching a node.
+func (ns Slice) ToMap() map[string]struct{} {
 	m := make(map[string]struct{})
 	for _, nn := range ns {
 		m[nn.Nodestr] = struct{}{}
@@ -520,8 +346,8 @@ func (ns Slice) toMap() map[string]struct{} {
 	return m
 }
 
-//uniq solidate the slice.
-func (ns Slice) uniq() Slice {
+//Uniq solidate the slice.
+func (ns Slice) Uniq() Slice {
 	m := make(map[string]struct{})
 	ret := make([]*Node, 0, ns.Len())
 
@@ -534,12 +360,12 @@ func (ns Slice) uniq() Slice {
 	return ret
 }
 
-//Extend make a new nodeslice including specified slices.
-func (ns Slice) extend(a Slice) Slice {
+//Extend make a New nodeslice including specified slices.
+func (ns Slice) Extend(a Slice) Slice {
 	nn := make(Slice, ns.Len()+a.Len())
 	copy(nn, ns)
 	copy(nn[ns.Len():], a)
-	return nn.uniq()
+	return nn.Uniq()
 }
 
 func (ns Slice) checkOpenned() bool {
@@ -550,7 +376,7 @@ func (ns Slice) checkOpenned() bool {
 		wg.Add(1)
 		go func(n *Node) {
 			defer wg.Done()
-			if _, err := n.join(); err == nil {
+			if _, err := n.Join(); err == nil {
 				mutex.Lock()
 				ok = true
 				mutex.Unlock()
@@ -559,4 +385,22 @@ func (ns Slice) checkOpenned() bool {
 	}
 	wg.Wait()
 	return ok
+}
+
+// Me converts myself to *Node.
+func Me(servernameIfExist bool) *Node {
+	ip, port := myself.GetIPPort()
+	var serverName string
+	if servernameIfExist {
+		serverName = cfg.ServerName
+	}
+	if serverName == "" {
+		serverName = ip
+	}
+
+	n, err := New(fmt.Sprintf("%s:%d%s", serverName, port, cfg.ServerURL))
+	if err != nil {
+		log.Fatal(err)
+	}
+	return n
 }

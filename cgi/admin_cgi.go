@@ -32,11 +32,9 @@ import (
 	"errors"
 	"fmt"
 	"html"
-	"io/ioutil"
 	"log"
 	"math/rand"
 	"net/http"
-	"os"
 	"regexp"
 	"runtime"
 	"sort"
@@ -44,25 +42,28 @@ import (
 	"strings"
 	"time"
 
+	"github.com/shingetsu-gou/shingetsu-gou/cfg"
+	"github.com/shingetsu-gou/shingetsu-gou/myself"
 	"github.com/shingetsu-gou/shingetsu-gou/node"
+	"github.com/shingetsu-gou/shingetsu-gou/node/manager"
+	"github.com/shingetsu-gou/shingetsu-gou/recentlist"
+	"github.com/shingetsu-gou/shingetsu-gou/record"
+	"github.com/shingetsu-gou/shingetsu-gou/tag"
+	"github.com/shingetsu-gou/shingetsu-gou/tag/suggest"
+	"github.com/shingetsu-gou/shingetsu-gou/tag/user"
 	"github.com/shingetsu-gou/shingetsu-gou/thread"
 	"github.com/shingetsu-gou/shingetsu-gou/util"
 )
 
-//AdminCfg is config for AdminCFG struct.
-//it must be setted before using.
-var AdminCfg *AdminCGIConfig
-
-//AdminURL is the url to admin.cgi
-const AdminURL = "/admin.cgi"
+var adminSID = ""
 
 //AdminSetup registers handlers for admin.cgi
 func AdminSetup(s *LoggingServeMux) {
-	s.RegistCompressHandler(AdminURL+"/status", printStatus)
-	s.RegistCompressHandler(AdminURL+"/edittag", printEdittag)
-	s.RegistCompressHandler(AdminURL+"/savetag", saveTagCGI)
-	s.RegistCompressHandler(AdminURL+"/search", printSearch)
-	s.RegistCompressHandler(AdminURL+"/", execCmd)
+	s.RegistCompressHandler(cfg.AdminURL+"/status", printStatus)
+	s.RegistCompressHandler(cfg.AdminURL+"/edittag", printEdittag)
+	s.RegistCompressHandler(cfg.AdminURL+"/savetag", saveTagCGI)
+	s.RegistCompressHandler(cfg.AdminURL+"/search", printSearch)
+	s.RegistCompressHandler(cfg.AdminURL+"/", execCmd)
 }
 
 //execCmd execute command specified cmd form.
@@ -119,10 +120,9 @@ func printStatus(w http.ResponseWriter, r *http.Request) {
 		log.Println()
 		return
 	}
-	cl := thread.NewCacheList()
 	records := 0
 	var size int64
-	for _, ca := range cl.Caches {
+	for _, ca := range thread.AllCaches() {
 		i := ca.ReadInfo()
 		records += i.Len
 		size += i.Size
@@ -132,30 +132,30 @@ func printStatus(w http.ResponseWriter, r *http.Request) {
 	runtime.ReadMemStats(&mem)
 
 	var port0 string
-	switch a.Myself.GetStatus() {
-	case node.Normal:
+	switch myself.GetStatus() {
+	case cfg.Normal:
 		port0 = a.m["opened"]
-	case node.UPnP:
+	case cfg.UPnP:
 		port0 = "UPnP"
-	case node.Port0:
+	case cfg.Port0:
 		port0 = a.m["port0"]
-	case node.Disconnected:
+	case cfg.Disconnected:
 		port0 = a.m["disconnected"]
 	}
 
 	s := map[string]string{
-		"known_nodes":       strconv.Itoa(a.NodeManager.NodeLen()),
-		"linked_nodes":      strconv.Itoa(a.NodeManager.ListLen()),
-		"files":             strconv.Itoa(cl.Len()),
+		"known_nodes":       strconv.Itoa(manager.NodeLen()),
+		"linked_nodes":      strconv.Itoa(manager.ListLen()),
+		"files":             strconv.Itoa(thread.Len()),
 		"records":           strconv.Itoa(records),
 		"cache_size":        fmt.Sprintf("%.1f%s", float64(size)/1024/1024, a.m["mb"]),
-		"self_node":         a.Myself.IPPortPath().Nodestr,
+		"self_node":         node.Me(false).Nodestr,
 		"alloc_mem":         fmt.Sprintf("%.1f%s", float64(mem.Alloc)/1024/1024, a.m["mb"]),
 		"connection_status": port0,
 	}
 	ns := map[string][]string{
-		"known_nodes":  a.NodeManager.GetNodestrSlice(),
-		"linked_nodes": a.NodeManager.GetNodestrSliceInTable(""),
+		"known_nodes":  manager.GetNodestrSlice(),
+		"linked_nodes": manager.GetNodestrSliceInTable(""),
 	}
 
 	d := struct {
@@ -168,7 +168,7 @@ func printStatus(w http.ResponseWriter, r *http.Request) {
 		a.m,
 	}
 	a.header(a.m["status"], "", nil, true)
-	a.Htemplate.RenderTemplate("status", d, a.wr)
+	tmpH.RenderTemplate("status", d, a.wr)
 	a.footer(nil)
 }
 
@@ -193,18 +193,18 @@ func printEdittag(w http.ResponseWriter, r *http.Request) {
 		AdminCGI string
 		Datfile  string
 		Tags     string
-		Sugtags  thread.Tagslice
-		Usertags thread.Tagslice
+		Sugtags  tag.Slice
+		Usertags tag.Slice
 	}{
 		a.m,
-		AdminURL,
+		cfg.AdminURL,
 		datfile,
 		ca.TagString(),
-		a.SuggestedTagTable.Get(ca.Datfile, nil),
-		a.UserTag.Get(),
+		suggest.Get(ca.Datfile, nil),
+		user.GetThread(ca.Datfile),
 	}
 	a.header(fmt.Sprintf("%s: %s", a.m["edit_tag"], strTitle), "", nil, true)
-	a.Htemplate.RenderTemplate("edit_tag", d, a.wr)
+	tmpH.RenderTemplate("edit_tag", d, a.wr)
 	a.footer(nil)
 }
 
@@ -226,43 +226,26 @@ func saveTagCGI(w http.ResponseWriter, r *http.Request) {
 	}
 	tl := strings.Fields(tags)
 	ca.SetTags(tl)
-	ca.SyncTag()
 	var next string
 	title := util.StrEncode(util.FileDecode(datfile))
 	if strings.HasPrefix(datfile, "thread_") {
-		next = ThreadURL + "/" + title
+		next = cfg.ThreadURL + "/" + title
 	} else {
 		next = "/"
 	}
 	a.print302(next)
 }
 
-//AdminCGIConfig is config for AdminCGI struct.
-type AdminCGIConfig struct {
-	AdminSID          string
-	NodeManager       *node.Manager
-	Htemplate         *util.Htemplate
-	UserTag           *thread.UserTag
-	SuggestedTagTable *thread.SuggestedTagTable
-	RecentList        *thread.RecentList
-	Myself            *node.Myself
-}
-
 //adminCGI is for admin.cgi handler.
 type adminCGI struct {
 	*cgi
-	*AdminCGIConfig
 }
 
 //newAdminCGI returns adminCGI obj if client is admin.
 //if not render 403.
 func newAdminCGI(w http.ResponseWriter, r *http.Request) (adminCGI, error) {
-	if AdminCfg == nil {
-		log.Fatal("must set adminConfig")
-	}
 	a := adminCGI{
-		AdminCGIConfig: AdminCfg,
-		cgi:            newCGI(w, r),
+		cgi: newCGI(w, r),
 	}
 	if a.cgi == nil {
 		return a, errors.New("cannot make cgi")
@@ -279,27 +262,16 @@ func (a *adminCGI) makeSid() string {
 	for i := 0; i < 4; i++ {
 		r += strconv.Itoa(rand.Int())
 	}
-	sid := util.MD5digest(r)
-	err := ioutil.WriteFile(a.AdminSID, []byte(sid+"\n"), 0755)
-	if err != nil {
-		log.Println(err)
-	}
-	return sid
+	adminSID = util.MD5digest(r)
+	return adminSID
 }
 
 //checkSid returns true if form value of "sid" == saved sid.
 func (a *adminCGI) checkSid() bool {
 	sid := a.req.FormValue("sid")
-	bsaved, err := ioutil.ReadFile(a.AdminSID)
-	if err != nil {
-		log.Println(err)
-		return false
-	}
-	saved := strings.TrimRight(string(bsaved), "\r\n")
-	if err := os.Remove(a.AdminSID); err != nil {
-		log.Println(err)
-	}
-	return sid == saved
+	r := (adminSID != "" && adminSID == sid)
+	adminSID = ""
+	return r
 }
 
 //DeleteRecord is for renderring confirmation to a delete record.
@@ -307,7 +279,7 @@ type DeleteRecord struct {
 	Message  message
 	AdminCGI string
 	Datfile  string
-	Records  []*thread.Record
+	Records  []*record.Record
 	Sid      string
 }
 
@@ -320,19 +292,23 @@ func (a *adminCGI) printDeleteRecord(rmFiles []string, records []string) {
 	}
 	datfile := rmFiles[0]
 	sid := a.makeSid()
-	recs := make([]*thread.Record, len(records))
+	recs := make([]*record.Record, len(records))
+	var err error
 	for i, v := range records {
-		recs[i] = thread.NewRecord(datfile, v)
+		recs[i], err = record.NewIDstr(datfile, v)
+		if err != nil {
+			log.Println(err)
+		}
 	}
 	d := DeleteRecord{
 		a.m,
-		AdminURL,
+		cfg.AdminURL,
 		datfile,
 		recs,
 		sid,
 	}
 	a.header(a.m["del_record"], "", nil, true)
-	a.Htemplate.RenderTemplate("delete_record", d, a.wr)
+	tmpH.RenderTemplate("delete_record", d, a.wr)
 	a.footer(nil)
 }
 
@@ -351,12 +327,12 @@ func (a *adminCGI) doDeleteRecord(rmFiles []string, records []string, dopost str
 	next := "/"
 	title := util.StrEncode(util.FileDecode(datfile))
 	if strings.HasPrefix(title, "thread_") {
-		next = ThreadURL + "/" + title
+		next = cfg.ThreadURL + "/" + title
 	}
 	ca := thread.NewCache(datfile)
 	for _, r := range records {
-		rec := thread.NewRecord(datfile, r)
-		if rec.Remove() == nil && dopost != "" {
+		rec, err := record.NewIDstr(datfile, r)
+		if err != nil || rec.Remove() == nil && dopost != "" {
 			a.postDeleteMessage(ca, rec)
 			a.print302(next)
 			return
@@ -367,7 +343,7 @@ func (a *adminCGI) doDeleteRecord(rmFiles []string, records []string, dopost str
 
 //postDeleteMessage tells others deletion of a record.
 //and adds to updateList and recentlist.
-func (a *adminCGI) postDeleteMessage(ca *thread.Cache, rec *thread.Record) {
+func (a *adminCGI) postDeleteMessage(ca *thread.Cache, rec *record.Record) {
 	stamp := time.Now().Unix()
 	body := make(map[string]string)
 	for _, key := range []string{"name", "body"} {
@@ -380,9 +356,9 @@ func (a *adminCGI) postDeleteMessage(ca *thread.Cache, rec *thread.Record) {
 	passwd := a.req.FormValue("passwd")
 	id := rec.Build(stamp, body, passwd)
 	rec.Sync()
-	a.RecentList.Append(rec)
-	a.RecentList.Sync()
-	go a.NodeManager.TellUpdate(ca.Datfile, stamp, id, nil)
+	recentlist.Append(rec.Head)
+	recentlist.Sync()
+	go manager.TellUpdate(ca.Datfile, stamp, id, nil)
 }
 
 //printDeleteFile renders the page for confirmation of deleting file.
@@ -402,12 +378,12 @@ func (a *adminCGI) printDeleteFile(files []string) {
 		Sid      string
 	}{
 		a.m,
-		AdminURL,
+		cfg.AdminURL,
 		cas,
 		sid,
 	}
 	a.header(a.m["del_file"], "", nil, true)
-	a.Htemplate.RenderTemplate("delete_file", d, a.wr)
+	tmpH.RenderTemplate("delete_file", d, a.wr)
 	a.footer(nil)
 }
 
@@ -424,7 +400,7 @@ func (a *adminCGI) doDeleteFile(files []string) {
 		ca := thread.NewCache(c)
 		ca.Remove()
 	}
-	a.print302(GatewayURL + "/" + "changes")
+	a.print302(cfg.GatewayURL + "/" + "changes")
 }
 
 //printSearchForm renders search_form.txt
@@ -435,10 +411,10 @@ func (a *adminCGI) printSearchForm(query string) {
 		Message  message
 	}{
 		query,
-		AdminURL,
+		cfg.AdminURL,
 		a.m,
 	}
-	a.Htemplate.RenderTemplate("search_form", d, a.wr)
+	tmpH.RenderTemplate("search_form", d, a.wr)
 }
 
 //printSearchResult renders cachelist that its datfile matches query.
@@ -448,19 +424,18 @@ func (a *adminCGI) printSearchResult(query string) {
 	a.header(title, "", nil, true)
 	a.printParagraph("desc_search")
 	a.printSearchForm(strQuery)
-	reg, err := regexp.Compile(html.EscapeString(query))
+	reg := html.EscapeString(query)
+	regg, err := regexp.Compile(reg)
 	if err != nil {
-		a.printParagraph("regexp_error")
-		a.footer(nil)
+		log.Println(err)
 		return
 	}
-	cl := thread.NewCacheList()
-	result := cl.Search(reg)
-	for _, i := range cl.Caches {
+	result := thread.Search(reg)
+	for _, i := range thread.AllCaches() {
 		if result.Has(i) {
 			continue
 		}
-		if reg.MatchString(util.FileDecode(i.Datfile)) {
+		if regg.MatchString(util.FileDecode(i.Datfile)) {
 			result = append(result, i)
 		}
 	}

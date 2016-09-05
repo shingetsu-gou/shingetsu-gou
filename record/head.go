@@ -33,12 +33,11 @@ import (
 	"errors"
 	"fmt"
 	"log"
-	"path/filepath"
 	"regexp"
 	"strconv"
 	"strings"
 
-	"github.com/shingetsu-gou/shingetsu-gou/cfg"
+	"github.com/shingetsu-gou/shingetsu-gou/db"
 	"github.com/shingetsu-gou/shingetsu-gou/util"
 )
 
@@ -47,6 +46,25 @@ type Head struct {
 	Datfile string //cache file name
 	Stamp   int64  //unixtime
 	ID      string //md5(bodystr)
+}
+
+func FromRecentDB(query string, args ...interface{}) ([]*Head, error) {
+	rows, err := db.DB.Query(query, args...)
+	if err != nil {
+		return nil, err
+	}
+	var h []*Head
+	for rows.Next() {
+		r := Head{}
+		var id int
+		err = rows.Scan(&id, &r.Stamp, &r.ID, &r.Datfile)
+		if err != nil {
+			log.Print(err)
+			return nil, nil
+		}
+		h = append(h, &r)
+	}
+	return h, nil
 }
 
 func newHead() *Head {
@@ -78,22 +96,6 @@ func NewHeadFromLine(line string) (*Head, error) {
 	return u, nil
 }
 
-//path returns path for real file
-func (u *Head) path() string {
-	if u.Idstr() == "" || u.Datfile == "" {
-		return ""
-	}
-	return filepath.Join(cfg.CacheDir, u.dathash(), "record", u.Idstr())
-}
-
-//rmPath returns path for removed marker
-func (u *Head) rmPath() string {
-	if u.Idstr() == "" || u.Datfile == "" {
-		return ""
-	}
-	return filepath.Join(cfg.CacheDir, u.dathash(), "removed", u.Idstr())
-}
-
 //dathash returns the same string as Datfile if encoding=asis
 func (u *Head) dathash() string {
 	if u.Datfile == "" {
@@ -104,19 +106,33 @@ func (u *Head) dathash() string {
 
 //Exists return true if record file exists.
 func (u *Head) Exists() bool {
-	return util.IsFile(u.path())
+	db.Mutex.RLock()
+	defer db.Mutex.RUnlock()
+	r, err := db.Int64("select count(*) from record where Thread=? and Hash=? and Stamp =?", u.Datfile, u.ID, u.Stamp)
+	if err != nil {
+		log.Print(err)
+		return false
+	}
+	return r > 0
 }
 
 //Removed return true if record is removed (i.e. exists.in removed path)
 func (u *Head) Removed() bool {
-	return util.IsFile(u.rmPath())
+	db.Mutex.RLock()
+	defer db.Mutex.RUnlock()
+	r, err := db.Int64("select count(*) from record where Thread=? and Hash=? and Stamp =? and Deleted=1", u.Datfile, u.ID, u.Stamp)
+	if err != nil {
+		log.Print(err)
+		return false
+	}
+	return r != 0
 }
 
 //Remove moves the record file  to remove path
 func (u *Head) Remove() error {
-	cfg.Fmutex.Lock()
-	err := util.MoveFile(u.path(), u.rmPath())
-	cfg.Fmutex.Unlock()
+	db.Mutex.Lock()
+	defer db.Mutex.Unlock()
+	_, err := db.DB.Exec("update record set Deleted=1 where Thread=? and Hash=? and Stamp =?", u.Datfile, u.ID, u.Stamp)
 	if err != nil {
 		log.Println(err)
 		return err

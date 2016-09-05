@@ -29,27 +29,19 @@
 package thread
 
 import (
-	"errors"
-	"fmt"
-	"io/ioutil"
 	"log"
-	"os"
-	"path"
-	"sort"
-	"strconv"
 	"strings"
 	"sync"
 	"time"
 
-	"github.com/shingetsu-gou/shingetsu-gou/node"
+	"github.com/shingetsu-gou/shingetsu-gou/cfg"
+	"github.com/shingetsu-gou/shingetsu-gou/db"
+	"github.com/shingetsu-gou/shingetsu-gou/recentlist"
+	"github.com/shingetsu-gou/shingetsu-gou/record"
+	"github.com/shingetsu-gou/shingetsu-gou/tag"
+	"github.com/shingetsu-gou/shingetsu-gou/tag/suggest"
+	"github.com/shingetsu-gou/shingetsu-gou/tag/user"
 	"github.com/shingetsu-gou/shingetsu-gou/util"
-)
-
-var (
-	errSpam = errors.New("this is spam")
-	errGet  = errors.New("cannot get data")
-	//CacheCfg is config for Cache struct.it must be set before using it.
-	CacheCfg *CacheConfig
 )
 
 //CacheInfo represents size/len/velocity of cache.
@@ -61,25 +53,10 @@ type CacheInfo struct {
 	Oldest   int64 //oldeest stamp
 }
 
-//CacheConfig is config for Cache struct.
-type CacheConfig struct {
-	CacheDir          string
-	RecordLimit       int
-	SyncRange         int64
-	GetRange          int64
-	NodeManager       *node.Manager
-	UserTag           *UserTag
-	SuggestedTagTable *SuggestedTagTable
-	RecentList        *RecentList
-	Followers         *util.ConfList
-	Fmutex            *sync.RWMutex
-}
-
 //Cache represents cache of one file.
 type Cache struct {
-	*CacheConfig
 	Datfile string
-	tags    Tagslice //made by the user
+	tags    tag.Slice //made by the user
 	mutex   sync.RWMutex
 }
 
@@ -87,29 +64,27 @@ type Cache struct {
 //it uses sync.pool to ensure that only one cache obj exists for one datfile.
 //and garbage collected when not used.
 func NewCache(datfile string) *Cache {
-	if CacheCfg == nil {
-		log.Fatal("must set CacheCfg")
-	}
 	c := &Cache{
-		Datfile:     datfile,
-		CacheConfig: CacheCfg,
+		Datfile: datfile,
+		tags:    user.GetThread(datfile),
 	}
-	c.tags = loadTagslice(path.Join(c.Datpath(), "tag.txt"))
 	return c
 }
 
 //AddTags add user tag list from vals.
 func (c *Cache) AddTags(vals []string) {
 	c.mutex.Lock()
-	defer c.mutex.Unlock()
-	c.tags = c.tags.addString(vals)
+	c.tags = c.tags.AddString(vals)
+	c.mutex.Unlock()
+	user.SetTags(c.Datfile, c.tags)
 }
 
 //SetTags sets user tag list from vals.
 func (c *Cache) SetTags(vals []string) {
 	c.mutex.Lock()
-	defer c.mutex.Unlock()
-	c.tags = newTagslice(vals)
+	c.tags = tag.NewSlice(vals)
+	c.mutex.Unlock()
+	user.Set(c.Datfile, vals)
 }
 
 //LenTags returns # of set user tag.
@@ -123,7 +98,7 @@ func (c *Cache) LenTags() int {
 func (c *Cache) TagString() string {
 	c.mutex.Lock()
 	defer c.mutex.Unlock()
-	return c.tags.string()
+	return c.tags.String()
 }
 
 //GetTagstrSlice returns tagstr slice of user tag.
@@ -134,12 +109,12 @@ func (c *Cache) GetTagstrSlice() []string {
 }
 
 //GetTags returns copy of usertags.
-func (c *Cache) GetTags() Tagslice {
+func (c *Cache) GetTags() tag.Slice {
 	c.mutex.RLock()
 	defer c.mutex.RUnlock()
-	ts := make([]*Tag, c.tags.Len())
+	ts := make([]*tag.Tag, c.tags.Len())
 	copy(ts, c.tags)
-	return Tagslice(ts)
+	return tag.Slice(ts)
 }
 
 //HasTagstr returns true if tag has tagstr.
@@ -151,7 +126,7 @@ func (c *Cache) HasTagstr(tagstr string) bool {
 
 //HasTag returns true if cache has tagstr=board tag in usertag or sugtag.
 func (c *Cache) HasTag(board string) bool {
-	if c.SuggestedTagTable.HasTagstr(c.Datfile, board) {
+	if suggest.HasTagstr(c.Datfile, board) {
 		return true
 	}
 	return c.HasTagstr(board)
@@ -162,279 +137,125 @@ func (c *Cache) dathash() string {
 	return util.FileHash(c.Datfile)
 }
 
-//Datpath returns real file path of this cache.
-func (c *Cache) Datpath() string {
-	return path.Join(c.CacheDir, c.dathash())
-}
-
-//RecentStamp  returns time of getting by /recent.
-func (c *Cache) RecentStamp() int64 {
-	n := c.RecentList.Newest(c.Datfile)
-	s := c.ReadInfo().Stamp
-	if n == nil || n.Stamp < s {
-		return s
-	}
-	return n.Stamp
-}
-
 //ReadInfo reads cache info from disk and returns #,velocity, and total size.
 func (c *Cache) ReadInfo() *CacheInfo {
-	c.Fmutex.RLock()
-	defer c.Fmutex.RUnlock()
+	db.Mutex.RLock()
+	defer db.Mutex.RUnlock()
 	ci := &CacheInfo{}
-	d := path.Join(c.Datpath(), "record")
-	if !util.IsDir(d) {
+	r, err := db.Int64s("select  Stamp from record  where Thread=? order by Stamp ", c.Datfile)
+	if err != nil {
+		log.Print(err)
 		return ci
 	}
-	err := util.EachFiles(d, func(dir os.FileInfo) error {
-		stamp, err := strconv.ParseInt(strings.Split(dir.Name(), "_")[0], 10, 64)
-		if err != nil {
-			log.Println(err)
-			return nil
-		}
-		if ci.Stamp < stamp {
-			ci.Stamp = stamp
-		}
-		if ci.Oldest == 0 || ci.Oldest > stamp {
-			ci.Oldest = stamp
-		}
-		if time.Unix(stamp, 0).After(time.Now().Add(-7 * 24 * time.Hour)) {
-			ci.Velocity++
-		}
-		ci.Size += dir.Size()
-		ci.Len++
-		return nil
-	})
-	if err != nil {
-		log.Fatal(err)
+	if len(r) == 0 {
+		return ci
 	}
+	ci.Stamp = r[len(r)-1]
+	ci.Oldest = r[0]
+	cnt, err := db.Int64("select count(*)  from record where Stamp>? and Thread=?",
+		time.Now().Add(-7*24*time.Hour).Second(), c.Datfile)
+	if err != nil {
+		log.Print(err)
+		return ci
+	}
+	ci.Velocity = int(cnt)
+	//sqlite3-specific cmd
+	cntt, err := db.Int64("select sum(length(Body))  from record where Thread=?", c.Datfile)
+	if err != nil {
+		log.Print(err)
+		return ci
+	}
+	ci.Size = cntt
 	return ci
 }
 
+const (
+	Alive   = 1
+	Removed = 2
+	All     = 3
+)
+
 //LoadAllRecords loads and returns record maps from the disk including removed.
-func (c *Cache) LoadAllRecords() RecordMap {
-	recs := c.loadRecords("record")
-	for k, v := range c.LoadRemovedRecords() {
-		recs[k] = v
+func (c *Cache) LoadRecords(kind int) record.Map {
+	var cond string
+	switch kind {
+	case Alive:
+		cond = "and Deleted=0"
+	case Removed:
+		cond = "and Deleted=1"
+	case All:
 	}
-	return recs
-}
-
-//LoadRemovedRecords loads and returns record maps from the disk .
-func (c *Cache) LoadRemovedRecords() RecordMap {
-	return c.loadRecords("removed")
-}
-
-//LoadRecords loads and returns record maps from the disk .
-func (c *Cache) LoadRecords() RecordMap {
-	return c.loadRecords("record")
-}
-
-//loadRecords loads and returns record maps on path.
-func (c *Cache) loadRecords(rpath string) RecordMap {
-	r := path.Join(c.Datpath(), rpath)
-	if !util.IsDir(r) {
-		return nil
-	}
-	if !c.Exists() {
-		return nil
-	}
-	recs := make(map[string]*Record)
-	c.Fmutex.RLock()
-	defer c.Fmutex.RUnlock()
-	err := util.EachFiles(r, func(f os.FileInfo) error {
-		recs[f.Name()] = NewRecord(c.Datfile, f.Name())
-		return nil
-	})
+	r, err := record.FromRecordDB("select  * from record where Thread=? "+cond, c.Datfile)
 	if err != nil {
-		log.Println(err, c.Datpath())
+		log.Print(err)
+		return nil
 	}
-	return RecordMap(recs)
-}
-
-//HasRecord return true if  cache has more than one records or removed records.
-func (c *Cache) HasRecord() bool {
-	c.Fmutex.RLock()
-	defer c.Fmutex.RUnlock()
-	f, err := ioutil.ReadDir(path.Join(c.Datpath(), "record"))
-	if err != nil {
-		return false
-	}
-	removed := path.Join(c.Datpath(), "removed")
-	d, err := ioutil.ReadDir(removed)
-	return len(f) > 0 || (err == nil && len(d) > 0)
-}
-
-//SyncTag saves usertags to files.
-func (c *Cache) SyncTag() {
-	c.Fmutex.Lock()
-	defer c.Fmutex.Unlock()
-	c.tags.sync(path.Join(c.Datpath(), "tag.txt"))
+	return r
 }
 
 //SetupDirectories make necessary dirs.
 func (c *Cache) SetupDirectories() {
-	c.Fmutex.Lock()
-	defer c.Fmutex.Unlock()
-	for _, d := range []string{"", "/record", "/removed"} {
-		di := path.Join(c.Datpath(), d)
-		if !util.IsDir(di) {
-			err := os.Mkdir(di, 0755)
-			if err != nil {
-				log.Fatal(err)
-			}
-		}
+	db.Mutex.Lock()
+	defer db.Mutex.Unlock()
+	_, err := db.DB.Exec("insert into thread(Thread) values(?)", c.Datfile)
+	if err != nil {
+		log.Print(err)
 	}
 }
 
-//checkData makes a record from res and checks its records meets condisions of args.
+//CheckData makes a record from res and checks its records meets condisions of args.
 //adds the rec to cache if meets conditions.
 //if spam or big data, remove the rec from disk.
 //returns count of added records to the cache and spam/getting error.
-func (c *Cache) checkData(res string, stamp int64, id string, begin, end int64) error {
-	r := NewRecord(c.Datfile, "")
-	if errr := r.parse(res); errr != nil {
-		return errGet
+func (c *Cache) CheckData(res string, stamp int64, id string, begin, end int64) error {
+	r := record.New(c.Datfile, "", 0)
+	if errr := r.Parse(res); errr != nil {
+		return cfg.ErrGet
 
 	}
 	if r.Exists() || r.Removed() {
 		return nil
 	}
 	r.Sync()
-	return r.checkData(begin, end)
+	return r.CheckData(begin, end)
 }
 
 //Remove Remove all files and dirs of cache.
 func (c *Cache) Remove() {
-	c.Fmutex.Lock()
-	defer c.Fmutex.Unlock()
-	err := os.RemoveAll(c.Datpath())
+	db.Mutex.Lock()
+	defer db.Mutex.Unlock()
+	_, err := db.DB.Exec("delete from record   Thread= ? order where", c.Datfile)
+	if err != nil {
+		log.Println(err)
+	}
+	_, err = db.DB.Exec("delete from thread   Thread= ? order where ", c.Datfile)
 	if err != nil {
 		log.Println(err)
 	}
 }
 
+//HasRecord return true if  cache has more than one records or removed records.
+func (c *Cache) HasRecord() bool {
+	db.Mutex.RLock()
+	defer db.Mutex.RUnlock()
+	cnt, err := db.Int64("select  count(*) from record where (Thread=? and Deleted=0)", c.Datfile)
+	if err != nil {
+		log.Print(err)
+		return false
+	}
+	return cnt > 0
+}
+
 //Exists return true is datapath exists.
 func (c *Cache) Exists() bool {
-	c.Fmutex.RLock()
-	defer c.Fmutex.RUnlock()
-	return util.IsDir(c.Datpath())
-}
-
-//headWithRange checks node n has records with range and adds records which should be downloaded to downloadmanager.
-func (c *Cache) headWithRange(n *node.Node, dm *DownloadManager) bool {
-	begin := time.Now().Unix() - c.GetRange
-	if rec := c.RecentList.Newest(c.Datfile); rec != nil {
-		begin = rec.Stamp - c.GetRange
-	}
-	if c.GetRange == 0 || begin < 0 {
-		begin = 0
-	}
-	res, err := n.Talk(fmt.Sprintf("/head/%s/%d-", c.Datfile, begin), nil)
+	db.Mutex.RLock()
+	defer db.Mutex.RUnlock()
+	cnt, err := db.Int64("select  count(*) from thread where Thread=?", c.Datfile)
 	if err != nil {
+		log.Print(err)
 		return false
 	}
-	if len(res) == 0 {
-		ress, errr := n.Talk(fmt.Sprintf("/have/%s", c.Datfile), nil)
-		if errr != nil || len(ress) == 0 || ress[0] != "YES" {
-			c.NodeManager.RemoveFromTable(c.Datfile, n)
-		} else {
-			c.NodeManager.AppendToTable(c.Datfile, n)
-			c.NodeManager.Sync()
-		}
-		return false
-	}
-	c.NodeManager.AppendToTable(c.Datfile, n)
-	c.NodeManager.Sync()
-	dm.Set(res, n)
-	return true
-}
-
-//getWithRange gets records with range using node n and adds to cache after checking them.
-//if no records exist in cache, uses head
-//return true if gotten records>0
-func (c *Cache) getWithRange(n *node.Node, dm *DownloadManager) bool {
-	got := false
-	for {
-		from, to := dm.Get(n)
-		if from <= 0 {
-			return got
-		}
-
-		var okcount int
-		_, err := n.Talk(fmt.Sprintf("/get/%s/%d-%d", c.Datfile, from, to), func(res string) error {
-			err := c.checkData(res, -1, "", from, to)
-			if err == nil {
-				okcount++
-			}
-			return nil
-		})
-		if err != nil {
-			dm.Finished(n, false)
-			return false
-		}
-		dm.Finished(n, true)
-		log.Println(c.Datfile, okcount, "records were saved from", n.Nodestr)
-		got = okcount > 0
-	}
-}
-
-//GetCache checks  nodes in lookuptable have the cache.
-//if found gets records.
-func (c *Cache) GetCache(background bool) bool {
-	const searchDepth = 5 // Search node size
-	ns := c.NodeManager.NodesForGet(c.Datfile, searchDepth)
-	found := false
-	done := make(chan struct{}, searchDepth+1)
-	var wg sync.WaitGroup
-	var mutex sync.RWMutex
-	dm := NewDownloadManger(c)
-	for _, n := range ns {
-		wg.Add(1)
-		go func(n *node.Node) {
-			defer wg.Done()
-			if !c.headWithRange(n, dm) {
-				return
-			}
-			if c.getWithRange(n, dm) {
-				mutex.Lock()
-				found = true
-				mutex.Unlock()
-				done <- struct{}{}
-				return
-			}
-		}(n)
-	}
-	c.waitFor(background, done, &wg)
-	mutex.RLock()
-	defer mutex.RUnlock()
-	return found
-}
-
-func (c *Cache) waitFor(background bool, done chan struct{}, wg *sync.WaitGroup) {
-	newest := c.RecentList.Newest(c.Datfile)
-	if background {
-		go func() {
-			wg.Wait()
-			c.SyncRemoteRemoved()
-			done <- struct{}{}
-		}()
-		if newest != nil && (newest.Stamp == c.ReadInfo().Stamp) {
-			return
-		}
-		for {
-			select {
-			case <-done:
-				return
-			case <-time.After(3 * time.Second):
-				if c.HasRecord() {
-					return
-				}
-			}
-		}
-	}
-	wg.Wait()
-	c.SyncRemoteRemoved()
+	return cnt > 0
 }
 
 //Gettitle returns title part if *_*.
@@ -449,14 +270,14 @@ func (c *Cache) Gettitle() string {
 //GetContents returns recstrs of cache.
 //len(recstrs) is <=2.
 func (c *Cache) GetContents() []string {
+	m, err := record.FromRecordDB("select * from record where Thread=? and Deleted=0", c.Datfile)
+	if err != nil {
+		log.Print(err)
+		return nil
+	}
 	contents := make([]string, 0, 2)
-	recs := c.LoadRecords()
-	for _, rec := range recs {
-		err := rec.Load()
-		if err != nil {
-			log.Println(err)
-		}
-		contents = append(contents, util.Escape(rec.Recstr()))
+	for _, tt := range m {
+		contents = append(contents, util.Escape(tt.Recstr()))
 		if len(contents) > 2 {
 			return contents
 		}
@@ -464,174 +285,23 @@ func (c *Cache) GetContents() []string {
 	return contents
 }
 
-//SyncRemoteRemoved gets removed records from followers
-//and removes these records.
-func (c *Cache) SyncRemoteRemoved() {
-	recs := make(map[string]*RecordHead)
-	for _, ns := range c.Followers.GetSplitData() {
-		var recs1 map[string]*RecordHead
-		for _, n := range node.MustNewNodes(ns) {
-			res, err := n.Talk("/removed/"+c.Datfile, nil)
-			if err != nil {
-				log.Println(err)
-				continue
-			}
-			r := parseHeadResponse(res, c.Datfile)
-			if recs1 == nil {
-				recs1 = r
-				continue
-			}
-			for recstr := range recs1 {
-				if _, exist := r[recstr]; !exist {
-					delete(recs1, recstr)
-				}
-			}
-		}
-		for k, v := range recs1 {
-			recs[k] = v
-		}
-	}
-	log.Println("removing", len(recs), "records from", c.Datfile)
-	for _, r := range recs {
-		if err := r.Remove(); err != nil {
-			log.Println(err)
+//CreateAllCachedirs creates all dirs in recentlist to be retrived when called recentlist.getall.
+//(heavymoon)
+func CreateAllCachedirs() {
+	for _, rh := range recentlist.GetRecords() {
+		ca := NewCache(rh.Datfile)
+		if !ca.Exists() {
+			ca.SetupDirectories()
 		}
 	}
 }
 
-//targetRec represents target records for downloading.
-type targetRec struct {
-	node        node.Slice
-	downloading *node.Node
-	finished    bool
-	count       int
-	stamp       int64
-}
-
-//TargetRecSlice represents slice of targetRec
-type TargetRecSlice []*targetRec
-
-//Len returns length of TargetRecSlice
-func (t TargetRecSlice) Len() int {
-	return len(t)
-}
-
-//Swap swaps the location of TargetRecSlice
-func (t TargetRecSlice) Swap(i, j int) {
-	t[i], t[j] = t[j], t[i]
-}
-
-//Len returns true if stamp of targetRec[i] is less.
-func (t TargetRecSlice) Less(i, j int) bool {
-	return t[i].stamp < t[j].stamp
-}
-
-var managers = make(map[string]*DownloadManager)
-
-//DownloadManager manages download range of records.
-type DownloadManager struct {
-	datfile string
-	recs    map[string]*targetRec
-	mutex   sync.RWMutex
-}
-
-//NewDownloadManger sets recs as finished recs and returns DownloadManager obj.
-func NewDownloadManger(ca *Cache) *DownloadManager {
-	if d, exist := managers[ca.Datfile]; exist {
-		log.Println(ca.Datfile, "is downloading")
-		return d
+//RecentStamp  returns time of getting by /recent.
+func (c *Cache) RecentStamp() int64 {
+	n := recentlist.Newest(c.Datfile)
+	s := c.ReadInfo().Stamp
+	if n == nil || n.Stamp < s {
+		return s
 	}
-	recs := ca.LoadAllRecords()
-	dm := &DownloadManager{
-		datfile: ca.Datfile,
-		recs:    make(map[string]*targetRec),
-	}
-	for k := range recs {
-		dm.recs[k] = &targetRec{
-			finished: true,
-		}
-	}
-	return dm
-}
-
-//Set sets res as targets n is holding.
-func (dm *DownloadManager) Set(res []string, n *node.Node) {
-	recs := parseHeadResponse(res, dm.datfile)
-	for _, r := range recs {
-		dm.mutex.Lock()
-		if rec, exist := dm.recs[r.Idstr()]; exist {
-			if !rec.finished {
-				rec.node = append(rec.node, n)
-			}
-		} else {
-			dm.recs[r.Recstr()] = &targetRec{
-				node:  []*node.Node{n},
-				stamp: r.Stamp,
-			}
-		}
-		dm.mutex.Unlock()
-	}
-}
-
-//Get returns begin and end stamp to be gotten for node n.
-func (dm *DownloadManager) Get(n *node.Node) (int64, int64) {
-	dm.mutex.Lock()
-	defer dm.mutex.Unlock()
-	var s TargetRecSlice
-	for _, rec := range dm.recs {
-		if rec.node.Has(n) && !rec.finished && rec.downloading == nil && rec.count < 5 {
-			s = append(s, rec)
-		}
-	}
-	if len(s) == 0 {
-		dm.checkFinished()
-		return -1, -1
-	}
-	managers[dm.datfile] = dm
-	sort.Sort(sort.Reverse(s))
-	begin := len(s) - 1
-	if len(s) > 5 {
-		begin = len(s) / 2
-	}
-	for i := 0; i <= begin; i++ {
-		s[i].downloading = n
-	}
-	return s[begin].stamp, s[0].stamp
-}
-
-func (dm *DownloadManager) checkFinished() {
-	if _, exist := managers[dm.datfile]; !exist {
-		return
-	}
-	finished := true
-	for _, rec := range dm.recs {
-		if rec.count >= 5 {
-			rec.finished = true
-		}
-		if !rec.finished {
-			finished = false
-		}
-	}
-	if finished {
-		log.Println(dm.datfile, ":finished downloading")
-		managers[dm.datfile] = nil
-		delete(managers, dm.datfile)
-	}
-}
-
-//Finished set records n is downloading as finished.
-func (dm *DownloadManager) Finished(n *node.Node, success bool) {
-	dm.mutex.Lock()
-	defer dm.mutex.Unlock()
-	for _, rec := range dm.recs {
-		if rec.downloading != nil && rec.downloading.Equals(n) {
-			if success {
-				rec.finished = true
-			} else {
-				rec.count++
-			}
-			rec.downloading = nil
-		}
-	}
-	dm.checkFinished()
+	return n.Stamp
 }

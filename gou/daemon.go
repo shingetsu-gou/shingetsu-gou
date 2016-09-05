@@ -30,7 +30,6 @@ package gou
 
 import (
 	"bytes"
-	"encoding/base64"
 	"fmt"
 	"io/ioutil"
 	"log"
@@ -40,173 +39,21 @@ import (
 	"path"
 	"path/filepath"
 	"strconv"
-	"sync"
 	"time"
 
 	"golang.org/x/net/netutil"
 
+	"github.com/shingetsu-gou/shingetsu-gou/cfg"
 	"github.com/shingetsu-gou/shingetsu-gou/cgi"
-	"github.com/shingetsu-gou/shingetsu-gou/mch"
-	"github.com/shingetsu-gou/shingetsu-gou/node"
-	"github.com/shingetsu-gou/shingetsu-gou/thread"
 	"github.com/shingetsu-gou/shingetsu-gou/util"
 )
 
-func initPackages(cfg *Config, version string, serveHTTP http.HandlerFunc) (*node.Manager, *thread.RecentList, *node.Myself, *mch.DatakeyTable) {
-	myself := node.NewMyself(cfg.DefaultPort, cgi.ServerURL, cfg.ServerName, serveHTTP, cfg.NetworkMode)
-
-	defaultInitNode := []string{
-		"node.shingetsu.info:8000/server.cgi",
-	}
-	fmutex := &sync.RWMutex{}
-	htemplate := util.NewHtemplate(cfg.TemplateDir)
-	ttemplate := util.NewTtemplate(cfg.TemplateDir)
-	cachedRule := util.NewRegexpList(cfg.SpamList)
-	nodeAllow := util.NewRegexpList(cfg.NodeAllowFile)
-	nodeDeny := util.NewRegexpList(cfg.NodeDenyFile)
-	initNode := util.NewConfList(cfg.InitnodeList, defaultInitNode)
-	followers := util.NewConfList(cfg.FollowList, nil)
-
-	//nodecfg must be first!
-	node.NodeCfg = &node.NodeConfig{
-		Myself:    myself,
-		NodeAllow: nodeAllow,
-		NodeDeny:  nodeDeny,
-		Version:   version,
-	}
-	thread.RecordHeadCfg = &thread.RecordHeadConfig{
-		CacheDir: cfg.CacheDir,
-		Fmutex:   fmutex,
-	}
-	nodeManager := node.NewManager(&node.ManagerConfig{
-		Lookup:    cfg.Lookup(),
-		Fmutex:    fmutex,
-		NodeAllow: nodeAllow,
-		NodeDeny:  nodeDeny,
-		Myself:    myself,
-		InitNode:  initNode,
-	})
-	userTag := thread.NewUserTag(&thread.UserTagConfig{
-		CacheDir: cfg.CacheDir,
-		Fmutex:   fmutex,
-	})
-	suggestedTagTable := thread.NewSuggestedTagTable(&thread.SuggestedTagTableConfig{
-		TagSize: cfg.TagSize,
-		Sugtag:  cfg.Sugtag(),
-		Fmutex:  fmutex,
-	})
-	recentList := thread.NewRecentList(&thread.RecentListConfig{
-		HeavyMoon:         cfg.HeavyMoon,
-		RecentRange:       cfg.RecentRange,
-		TagSize:           cfg.TagSize,
-		Recent:            cfg.Recent(),
-		Fmutex:            fmutex,
-		NodeManager:       nodeManager,
-		SuggestedTagTable: suggestedTagTable,
-	})
-	updateQue := thread.NewUpdateQue(&thread.UpdateQueConfig{
-		RecentList:  recentList,
-		NodeManager: nodeManager,
-	})
-	datakeyTable := mch.NewDatakeyTable(&mch.DatakeyTableConfig{
-		Datakey:    cfg.Datakey(),
-		RecentList: recentList,
-		Fmutex:     fmutex,
-	})
-
-	thread.CacheCfg = &thread.CacheConfig{
-		CacheDir:          cfg.CacheDir,
-		RecordLimit:       cfg.RecordLimit,
-		SyncRange:         cfg.SyncRange,
-		GetRange:          cfg.GetRange,
-		NodeManager:       nodeManager,
-		UserTag:           userTag,
-		SuggestedTagTable: suggestedTagTable,
-		RecentList:        recentList,
-		Followers:         followers,
-		Fmutex:            fmutex,
-	}
-
-	cgi.AdminCfg = &cgi.AdminCGIConfig{
-		AdminSID:          cfg.AdminSid(),
-		NodeManager:       nodeManager,
-		Htemplate:         htemplate,
-		UserTag:           userTag,
-		SuggestedTagTable: suggestedTagTable,
-		RecentList:        recentList,
-		Myself:            myself,
-	}
-
-	thread.CacheListCfg = &thread.CacheListConfig{
-		SaveSize:    cfg.SaveSize,
-		SaveRemoved: cfg.SaveRemoved,
-		CacheDir:    cfg.CacheDir,
-		SaveRecord:  cfg.SaveRecord,
-		Fmutex:      fmutex,
-	}
-
-	thread.RecordCfg = &thread.RecordConfig{
-		DefaultThumbnailSize: cfg.DefaultThumbnailSize,
-		CachedRule:           cachedRule,
-		RecordLimit:          cfg.RecordLimit,
-	}
-
-	cgi.CGICfg = &cgi.CGIConfig{
-		FileDir:           cfg.FileDir,
-		Docroot:           cfg.Docroot,
-		MaxConnection:     cfg.MaxConnection,
-		ServerName:        cfg.ServerName,
-		ReAdminStr:        cfg.ReAdminStr,
-		ReFriendStr:       cfg.ReFriendStr,
-		ReVisitorStr:      cfg.ReVisitorStr,
-		Htemplate:         htemplate,
-		UserTag:           userTag,
-		SuggestedTagTable: suggestedTagTable,
-		Version:           version,
-		EnableEmbed:       cfg.EnableEmbed,
-	}
-	cgi.GatewayCfg = &cgi.GatewayConfig{
-		RSSRange:       cfg.RSSRange,
-		Motd:           cfg.Motd(),
-		TopRecentRange: cfg.TopRecentRange,
-		RunDir:         cfg.RunDir,
-		ServerName:     cfg.ServerName,
-		Enable2ch:      cfg.Enable2ch,
-		RecentList:     recentList,
-		Ttemplate:      ttemplate,
-	}
-	cgi.MchCfg = &cgi.MchConfig{
-		Motd:         cfg.Motd(),
-		RecentList:   recentList,
-		DatakeyTable: datakeyTable,
-		UpdateQue:    updateQue,
-	}
-
-	cgi.ServerCfg = &cgi.ServerConfig{
-		RecentRange: cfg.RecentRange,
-		NodeManager: nodeManager,
-		InitNode:    initNode,
-		UpdateQue:   updateQue,
-		RecentList:  recentList,
-	}
-	cgi.ThreadCfg = &cgi.ThreadCGIConfig{
-		ThreadPageSize:       cfg.ThreadPageSize,
-		DefaultThumbnailSize: cfg.DefaultThumbnailSize,
-		RecordLimit:          cfg.RecordLimit,
-		ForceThumbnail:       cfg.ForceThumbnail,
-		Htemplate:            htemplate,
-		UpdateQue:            updateQue,
-	}
-	return nodeManager, recentList, myself, datakeyTable
-
-}
-
 //StartDaemon setups saves pid, start cron job and a http server.
-func StartDaemon(cfg *Config, version string) {
+func StartDaemon() {
 	p := os.Getpid()
 	err := ioutil.WriteFile(cfg.PID(), []byte(strconv.Itoa(p)), 0666)
 	if err != nil {
-		log.Println(err)
+		log.Fatal(err)
 	}
 
 	h := fmt.Sprintf("0.0.0.0:%d", cfg.DefaultPort)
@@ -223,12 +70,11 @@ func StartDaemon(cfg *Config, version string) {
 		WriteTimeout:   3 * time.Minute,
 		MaxHeaderBytes: 1 << 20,
 	}
-	nm, rl, myself, dt := initPackages(cfg, version, sm.ServeHTTP)
 
-	go cron(nm, rl, cfg.HeavyMoon, myself, dt)
+	go cron()
 
 	cgi.AdminSetup(sm)
-	cgi.ServerSetup(sm, cfg.RelayNumber)
+	cgi.ServerSetup(sm)
 	cgi.GatewaySetup(sm)
 	cgi.ThreadSetup(sm)
 
@@ -239,20 +85,20 @@ func StartDaemon(cfg *Config, version string) {
 	if cfg.EnableProf {
 		sm.RegisterPprof()
 	}
-	sm.RegistCompressHandler("/", handleRoot(cfg.Docroot))
+	sm.RegistCompressHandler("/", handleRoot())
 	fmt.Println("started daemon and http server...")
 	log.Fatal(s.Serve(limitListener))
 }
 
 //handleRoot return handler that handles url not defined other handlers.
 //if root, print titles of threads. if not, serve files on disk.
-func handleRoot(docroot string) func(http.ResponseWriter, *http.Request) {
+func handleRoot() func(http.ResponseWriter, *http.Request) {
 	return func(w http.ResponseWriter, r *http.Request) {
 		if r.URL.Path == "/" {
 			cgi.PrintTitle(w, r)
 			return
 		}
-		pathOnDisk := filepath.Join(docroot, r.URL.Path)
+		pathOnDisk := filepath.Join(cfg.Docroot, r.URL.Path)
 
 		if util.IsFile(pathOnDisk) {
 			http.ServeFile(w, r, pathOnDisk)
@@ -271,79 +117,5 @@ func handleRoot(docroot string) func(http.ResponseWriter, *http.Request) {
 
 		log.Println("not found", r.URL.Path)
 		http.NotFound(w, r)
-	}
-}
-
-//Sakurifice makes cache be compatible with saku.
-//i.e. makes body dir ,attach dir and dat.stat in under cache dir.
-func Sakurifice(cfg *Config) {
-	initPackages(cfg, "", nil)
-	f := filepath.Join(cfg.RunDir, "tag.txt")
-	if !util.IsFile(f) {
-		writeFile(f, []byte{})
-	}
-
-	cl := thread.NewCacheList()
-	log.Println("# of cache", cl.Len())
-	for _, ca := range cl.Caches {
-		log.Println("processing", ca.Datfile)
-		f := filepath.Join(ca.Datpath(), "dat.stat")
-		writeFile(f, []byte(ca.Datfile))
-		bodypath := filepath.Join(ca.Datpath(), "body")
-		mkdir(bodypath)
-		attachPath := filepath.Join(ca.Datpath(), "attach")
-		mkdir(attachPath)
-		recs := ca.LoadRecords()
-		for _, rec := range recs {
-			if err := rec.Load(); err != nil {
-				log.Fatal(err)
-			}
-			at := rec.GetBodyValue("attach", "")
-			sign := rec.GetBodyValue("sign", "")
-			pubkey := rec.GetBodyValue("pubkey", "")
-			if at != "" || sign != "" || pubkey != "" {
-				f := filepath.Join(bodypath, rec.Idstr())
-				writeFile(f, []byte(rec.BodyString()))
-			}
-			if at != "" {
-				makeAttached(at, rec, f, cfg.DefaultThumbnailSize)
-			}
-		}
-	}
-}
-
-//makeAttached makes attached file cache and thumbnail.
-func makeAttached(at string, rec *thread.Record, f string, defaultThumbnailSize string) {
-	decoded, err := base64.StdEncoding.DecodeString(at)
-	if err != nil {
-		log.Fatal(err)
-	}
-	f = rec.AttachPath("")
-	writeFile(f, decoded)
-	if defaultThumbnailSize == "" {
-		return
-	}
-	decoded = util.MakeThumbnail(decoded, rec.GetBodyValue("suffix", ""), defaultThumbnailSize)
-	if decoded != nil {
-		f = rec.AttachPath(defaultThumbnailSize)
-		writeFile(f, decoded)
-	}
-}
-
-//mkdir makes dir witn 0755 permission.
-func mkdir(path string) {
-	if !util.IsDir(path) {
-		err := os.Mkdir(path, 0755)
-		if err != nil {
-			log.Fatal(err)
-		}
-	}
-}
-
-//writeFile writes data to file fname  with 0755 permission.
-func writeFile(fname string, data []byte) {
-	err := ioutil.WriteFile(fname, data, 0644)
-	if err != nil {
-		log.Fatal(err)
 	}
 }
