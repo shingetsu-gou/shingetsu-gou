@@ -49,7 +49,9 @@ type Head struct {
 }
 
 func FromRecentDB(query string, args ...interface{}) ([]*Head, error) {
+	db.Mutex.RLock()
 	rows, err := db.DB.Query(query, args...)
+	db.Mutex.RUnlock()
 	if err != nil {
 		return nil, err
 	}
@@ -119,8 +121,8 @@ func (u *Head) Exists() bool {
 //Removed return true if record is removed (i.e. exists.in removed path)
 func (u *Head) Removed() bool {
 	db.Mutex.RLock()
-	defer db.Mutex.RUnlock()
 	r, err := db.Int64("select count(*) from record where Thread=? and Hash=? and Stamp =? and Deleted=1", u.Datfile, u.ID, u.Stamp)
+	db.Mutex.RUnlock()
 	if err != nil {
 		log.Print(err)
 		return false

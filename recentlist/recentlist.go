@@ -103,6 +103,7 @@ func Append(rec *record.Head) {
 	if err != nil {
 		log.Print(err)
 	}
+	log.Println("!")
 }
 
 //find finds records and returns index. returns -1 if not found.

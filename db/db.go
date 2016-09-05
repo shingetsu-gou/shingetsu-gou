@@ -31,7 +31,6 @@ package db
 import (
 	"database/sql"
 	"log"
-	"os"
 	"path"
 	"sync"
 
@@ -40,46 +39,44 @@ import (
 )
 
 var tables = []string{
-	`CREATE TABLE "keylib" ("ID" integer not null primary key autoincrement, "Stamp" integer, "Thread" varchar(255) unique)`,
-	`CREATE TABLE "lookup" ("ID" integer not null primary key autoincrement, "Thread" varchar(255), "Addr" varchar(255), unique ("Addr", "Thread"))`,
-	`CREATE TABLE "recent" ("ID" integer not null primary key autoincrement, "Stamp" integer, "Hash" varchar(255), "Thread" varchar(255), unique ("Stamp", "Thread", "Hash"))`,
-	`CREATE TABLE "sugtag" ("ID" integer not null primary key autoincrement, "Thread" varchar(255), "Tag" varchar(255), unique ("Thread", "Tag"))`,
-	`CREATE TABLE "thread" ("ID" integer not null primary key autoincrement, "Thread" varchar(255) unique)`,
-	`CREATE TABLE "record" ("ID" integer not null primary key autoincrement, "Stamp" integer, "Hash" varchar(255), "Thread" varchar(255), "Body" varchar(255), "Deleted" integer, unique ("Stamp", "Hash", "Thread"))`,
-	`CREATE TABLE "usertag" ("ID" integer not null primary key autoincrement, "Thread" varchar(255), "Tag" varchar(255), unique ("Tag", "Thread"))`,
+	`CREATE TABLE IF NOT EXISTS  "keylib" ("ID" integer not null primary key autoincrement, "Stamp" integer, "Thread" varchar(255) unique)`,
+	`CREATE TABLE IF NOT EXISTS  "lookup" ("ID" integer not null primary key autoincrement, "Thread" varchar(255), "Addr" varchar(255), unique ("Addr", "Thread"))`,
+	`CREATE TABLE IF NOT EXISTS  "recent" ("ID" integer not null primary key autoincrement, "Stamp" integer, "Hash" varchar(255), "Thread" varchar(255), unique ("Stamp", "Thread", "Hash"))`,
+	`CREATE TABLE IF NOT EXISTS  "sugtag" ("ID" integer not null primary key autoincrement, "Thread" varchar(255), "Tag" varchar(255), unique ("Thread", "Tag"))`,
+	`CREATE TABLE IF NOT EXISTS  "thread" ("ID" integer not null primary key autoincrement, "Thread" varchar(255) unique)`,
+	`CREATE TABLE IF NOT EXISTS  "record" ("ID" integer not null primary key autoincrement, "Stamp" integer, "Hash" varchar(255), "Thread" varchar(255), "Body" varchar(255), "Deleted" integer, unique ("Stamp", "Hash", "Thread"))`,
+	`CREATE TABLE IF NOT EXISTS  "usertag" ("ID" integer not null primary key autoincrement, "Thread" varchar(255), "Tag" varchar(255), unique ("Tag", "Thread"))`,
 }
+
+/*
+sqlite in mattn-sqlite3 is copiled with serialized param.
+therefore no need to lock.
+https://www.sqlite.org/threadsafe.html
+*/
 
 var Mutex = &sync.RWMutex{}
 
-/*
-func (r *Record) Recstr() string {
-	return fmt.Sprintf("%d<>%s<>%s", r.Time, r.Hash, r.Body)
-}
-func (r *Record) IDstr() string {
-	return fmt.Sprintf("%d_%s", r.Time, r.Hash)
-}
-*/
 var DB *sql.DB
 
 func Setup() {
 	dbpath := path.Join(cfg.RunDir, "gou.db")
-
-	exist := false
-	if _, err := os.Stat(dbpath); err == nil {
-		exist = true
-	}
-
 	var err error
-	DB, err = sql.Open("sqlite3", dbpath)
+	DB, err = sql.Open("sqlite3", "file:"+dbpath+"?cache=shared&mode=rwc")
 	if err != nil {
 		log.Fatal(err)
 	}
-	if !exist {
-		for _, table := range tables {
-			if _, err = DB.Exec(table); err != nil {
-				log.Fatal(err)
-			}
+	tx, err := DB.Begin()
+	if err != nil {
+		log.Fatal(err)
+	}
+	for _, table := range tables {
+		if _, err = DB.Exec(table); err != nil {
+			log.Fatal(err)
 		}
+	}
+	err = tx.Commit()
+	if err != nil {
+		log.Fatal(err)
 	}
 	_, err = DB.Exec("PRAGMA synchronous=OFF;")
 	if err != nil {

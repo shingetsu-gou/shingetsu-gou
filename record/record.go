@@ -247,7 +247,7 @@ func (r *Record) Load() error {
 		log.Println(err)
 		return err
 	}
-	return r.Parse(fmt.Sprintf("%d<>%s<>%d", r.Stamp, r.ID, body))
+	return r.Parse(fmt.Sprintf("%d<>%s<>%s", r.Stamp, r.ID, body))
 }
 
 //ShortPubkey returns short version of pubkey.

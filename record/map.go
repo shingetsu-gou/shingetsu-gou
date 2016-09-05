@@ -41,8 +41,8 @@ type Map map[string]*Record
 
 func FromRecordDB(query string, args ...interface{}) (Map, error) {
 	db.Mutex.RLock()
-	defer db.Mutex.RUnlock()
 	rows, err := db.DB.Query(query, args...)
+	db.Mutex.RUnlock()
 	if err != nil {
 		return nil, err
 	}
@@ -57,6 +57,7 @@ func FromRecordDB(query string, args ...interface{}) (Map, error) {
 			return nil, nil
 		}
 		idd := fmt.Sprintf("%d_%s", stamp, hash)
+		log.Println(idd)
 		recs[idd] = New(datfile, hash, stamp)
 		recs[idd].Load()
 	}
