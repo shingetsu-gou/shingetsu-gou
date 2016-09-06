@@ -44,22 +44,22 @@ after_script:
   echo "Bootstrapping linux/386...";
   GOOS=linux GOARCH=386 go build -o ${REPO_NAME}_${PACKAGE_VERSION}_linux_386  ;
   echo "Bootstrapping linux/arm64...";
-GOOS=linux GOARCH=arm64  CC=aarch64-linux-gnu-gcc-5 go build -o ${REPO_NAME}_${PACKAGE_VERSION}_linux_arm64  ;
+GOOS=linux GOARCH=arm64  CC=aarch64-linux-gnu-gcc-5 go build -o ${REPO_NAME}_${PACKAGE_VERSION}_linux_arm64;
 echo "Bootstrapping windows/amd64...";
-GOOS=windows GOARCH=amd64  CC=x86_64-w64-mingw32-gcc go build -o ${REPO_NAME}_${PACKAGE_VERSION}_win_amd64.exe  ;
+GOOS=windows GOARCH=amd64  CC=x86_64-w64-mingw32-gcc go build -o ${REPO_NAME}_${PACKAGE_VERSION}_win_amd64.exe;
 echo "Bootstrapping windows/386...";
-GOOS=windows GOARCH=386 CC=i686-w64-mingw32-gccgo build -o ${REPO_NAME}_${PACKAGE_VERSION}_win_386.exe  ;
+GOOS=windows GOARCH=386 CC=i686-w64-mingw32-gccgo build -o ${REPO_NAME}_${PACKAGE_VERSION}_win_386.exe;
 echo "Bootstrapping darwin/amd64...";
-GOOS=darwin GOARCH=amd64 CC=o64-clang go build -o ${REPO_NAME}_${PACKAGE_VERSION}_darwin_amd64  ;
+GOOS=darwin GOARCH=amd64 CC=o64-clang go build -o ${REPO_NAME}_${PACKAGE_VERSION}_darwin_amd64;
 echo "Bootstrapping darwin/386...";
-GOOS=darwin GOARCH=386  CC=o32-clang go build -o ${REPO_NAME}_${PACKAGE_VERSION}_darwin_386  ;
+GOOS=darwin GOARCH=386  CC=o32-clang go build -o ${REPO_NAME}_${PACKAGE_VERSION}_darwin_386;
 gzip ${REPO_NAME}_${PACKAGE_VERSION}_linux_386;
 gzip ${REPO_NAME}_${PACKAGE_VERSION}_linux_amd64;
 gzip ${REPO_NAME}_${PACKAGE_VERSION}_linux_arm64;
-zip ${REPO_NAME}_${PACKAGE_VERSION}_win_amd64.exe.zip  ${REPO_NAME}_${PACKAGE_VERSION}_win_amd64.exe ;
-zip ${REPO_NAME}_${PACKAGE_VERSION}_win_386.exe.zip  ${REPO_NAME}_${PACKAGE_VERSION}_win_386.exe ;
-zip ${REPO_NAME}_${PACKAGE_VERSION}_darwin_amd64.zip  ${REPO_NAME}_${PACKAGE_VERSION}_darwin_amd64 ;
-zip ${REPO_NAME}_${PACKAGE_VERSION}_darwin_386.zip  ${REPO_NAME}_${PACKAGE_VERSION}_darwin_386 ;
+zip ${REPO_NAME}_${PACKAGE_VERSION}_win_amd64.exe.zip  ${REPO_NAME}_${PACKAGE_VERSION}_win_amd64.exe;
+zip ${REPO_NAME}_${PACKAGE_VERSION}_win_386.exe.zip  ${REPO_NAME}_${PACKAGE_VERSION}_win_386.exe;
+zip ${REPO_NAME}_${PACKAGE_VERSION}_darwin_amd64.zip  ${REPO_NAME}_${PACKAGE_VERSION}_darwin_amd64;
+zip ${REPO_NAME}_${PACKAGE_VERSION}_darwin_386.zip  ${REPO_NAME}_${PACKAGE_VERSION}_darwin_386;
   cd ..;
   fi
 
