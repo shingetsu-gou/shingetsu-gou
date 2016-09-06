@@ -154,8 +154,3 @@ func FileDecode(query string) string {
 	}
 	return string(b)
 }
-
-//FileHash simply returns itself, because it does not implement other types except 'asis'.
-func FileHash(query string) string {
-	return query
-}

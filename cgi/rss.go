@@ -134,6 +134,7 @@ func (r *RSS) makeRSS1(wr io.Writer) {
 }
 
 //W3cdate returns RSS formated date string.
+//used in templates
 func (r RSS) W3cdate(dat int64) string {
 	t := time.Unix(dat, 0)
 	return t.Format("2006-01-02T15:04:05Z")

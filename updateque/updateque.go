@@ -57,7 +57,6 @@ func UpdateNodes(rec *record.Record, n *node.Node) {
 				ca.SetupDirectories()
 			}
 		}
-		recentlist.Sync()
 	}
 }
 

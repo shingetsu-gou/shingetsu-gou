@@ -51,6 +51,8 @@ var defaultInitNode = []string{
 
 var nodeAllow = util.NewRegexpList(cfg.NodeAllowFile)
 var nodeDeny = util.NewRegexpList(cfg.NodeDenyFile)
+
+//InitNode stores initial nodes.
 var InitNode = util.NewConfList(cfg.InitnodeList, defaultInitNode)
 
 //Node represents node info.
@@ -299,7 +301,7 @@ func (n *Node) GetherNodes() []*Node {
 //Slice is slice of node.
 type Slice []*Node
 
-//MustNew makes node slice from names.
+//NewSlice  makes node slice from names.
 func NewSlice(names []string) Slice {
 	var ns Slice
 	for _, nn := range names {
@@ -316,11 +318,6 @@ func NewSlice(names []string) Slice {
 //Len returns size of nodes.
 func (ns Slice) Len() int {
 	return len(ns)
-}
-
-//Swap swaps nodes order.
-func (ns Slice) Swap(i, j int) {
-	ns[i], ns[j] = ns[j], ns[i]
 }
 
 //Has returns true if ns has n.
@@ -366,25 +363,6 @@ func (ns Slice) Extend(a Slice) Slice {
 	copy(nn, ns)
 	copy(nn[ns.Len():], a)
 	return nn.Uniq()
-}
-
-func (ns Slice) checkOpenned() bool {
-	ok := false
-	var mutex sync.Mutex
-	var wg sync.WaitGroup
-	for j := 0; j < len(ns) && j < 10; j++ {
-		wg.Add(1)
-		go func(n *Node) {
-			defer wg.Done()
-			if _, err := n.Join(); err == nil {
-				mutex.Lock()
-				ok = true
-				mutex.Unlock()
-			}
-		}(ns[j])
-	}
-	wg.Wait()
-	return ok
 }
 
 // Me converts myself to *Node.

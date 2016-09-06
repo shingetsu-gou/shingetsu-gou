@@ -44,15 +44,6 @@ import (
 	"github.com/shingetsu-gou/shingetsu-gou/util"
 )
 
-//CacheInfo represents size/len/velocity of cache.
-type CacheInfo struct {
-	Size     int64 //size of total records
-	Len      int   //# of records
-	Velocity int   //# of new records in one day
-	Stamp    int64 //stamp of newest record
-	Oldest   int64 //oldeest stamp
-}
-
 //Cache represents cache of one file.
 type Cache struct {
 	Datfile string
@@ -132,50 +123,61 @@ func (c *Cache) HasTag(board string) bool {
 	return c.HasTagstr(board)
 }
 
-//dathash returns datfile itself is type=asis.
-func (c *Cache) dathash() string {
-	return util.FileHash(c.Datfile)
-}
-
-//ReadInfo reads cache info from disk and returns #,velocity, and total size.
-func (c *Cache) ReadInfo() *CacheInfo {
-	db.Mutex.RLock()
-	defer db.Mutex.RUnlock()
-	ci := &CacheInfo{}
+//Stamp returns lastest stampl of records in the cache.
+func (c *Cache) Stamp() int64 {
 	r, err := db.Int64s("select  Stamp from record  where Thread=? order by Stamp ", c.Datfile)
 	if err != nil {
 		log.Print(err)
-		return ci
+		return 0
 	}
 	if len(r) == 0 {
-		return ci
+		return 0
 	}
-	ci.Stamp = r[len(r)-1]
-	ci.Oldest = r[0]
+	return r[len(r)-1]
+}
+
+//Len returns # of records in the cache.
+func (c *Cache) Len() int {
+	cnt, err := db.Int64("select count(*)  from record where Thread=?", c.Datfile)
+	if err != nil {
+		log.Print(err)
+		return 0
+	}
+	return int(cnt)
+}
+
+//Velocity returns number of records in one days in the cache.
+func (c *Cache) Velocity() int {
 	cnt, err := db.Int64("select count(*)  from record where Stamp>? and Thread=?",
 		time.Now().Add(-7*24*time.Hour).Second(), c.Datfile)
 	if err != nil {
 		log.Print(err)
-		return ci
+		return 0
 	}
-	ci.Velocity = int(cnt)
+	return int(cnt)
+}
+
+//Size returns sum of body char length of records in the cache.
+func (c *Cache) Size() int64 {
 	//sqlite3-specific cmd
 	cntt, err := db.Int64("select sum(length(Body))  from record where Thread=?", c.Datfile)
 	if err != nil {
 		log.Print(err)
-		return ci
+		return 0
 	}
-	ci.Size = cntt
-	return ci
+	return cntt
 }
 
 const (
-	Alive   = 1
+	//Alive counts records that are not removed.
+	Alive = 1
+	//Removed counts records that are  removed.
 	Removed = 2
-	All     = 3
+	//All counts all records
+	All = 3
 )
 
-//LoadAllRecords loads and returns record maps from the disk including removed.
+//LoadRecords loads and returns record maps from the disk..
 func (c *Cache) LoadRecords(kind int) record.Map {
 	var cond string
 	switch kind {
@@ -195,8 +197,6 @@ func (c *Cache) LoadRecords(kind int) record.Map {
 
 //SetupDirectories make necessary dirs.
 func (c *Cache) SetupDirectories() {
-	db.Mutex.Lock()
-	defer db.Mutex.Unlock()
 	_, err := db.DB.Exec("insert into thread(Thread) values(?)", c.Datfile)
 	if err != nil {
 		log.Print(err)
@@ -222,8 +222,6 @@ func (c *Cache) CheckData(res string, stamp int64, id string, begin, end int64) 
 
 //Remove Remove all files and dirs of cache.
 func (c *Cache) Remove() {
-	db.Mutex.Lock()
-	defer db.Mutex.Unlock()
 	_, err := db.DB.Exec("delete from record   Thread= ? order where", c.Datfile)
 	if err != nil {
 		log.Println(err)
@@ -236,8 +234,6 @@ func (c *Cache) Remove() {
 
 //HasRecord return true if  cache has more than one records or removed records.
 func (c *Cache) HasRecord() bool {
-	db.Mutex.RLock()
-	defer db.Mutex.RUnlock()
 	cnt, err := db.Int64("select  count(*) from record where (Thread=? and Deleted=0)", c.Datfile)
 	if err != nil {
 		log.Print(err)
@@ -248,8 +244,6 @@ func (c *Cache) HasRecord() bool {
 
 //Exists return true is datapath exists.
 func (c *Cache) Exists() bool {
-	db.Mutex.RLock()
-	defer db.Mutex.RUnlock()
 	cnt, err := db.Int64("select  count(*) from thread where Thread=?", c.Datfile)
 	if err != nil {
 		log.Print(err)
@@ -299,7 +293,7 @@ func CreateAllCachedirs() {
 //RecentStamp  returns time of getting by /recent.
 func (c *Cache) RecentStamp() int64 {
 	n := recentlist.Newest(c.Datfile)
-	s := c.ReadInfo().Stamp
+	s := c.Stamp()
 	if n == nil || n.Stamp < s {
 		return s
 	}

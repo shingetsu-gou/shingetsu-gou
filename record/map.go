@@ -39,10 +39,9 @@ import (
 //Map is a map key=stamp_id, value=record.
 type Map map[string]*Record
 
+//FromRecordDB makes record map from record db.
 func FromRecordDB(query string, args ...interface{}) (Map, error) {
-	db.Mutex.RLock()
 	rows, err := db.DB.Query(query, args...)
-	db.Mutex.RUnlock()
 	if err != nil {
 		return nil, err
 	}

@@ -96,9 +96,11 @@ func doSync(fullRecent bool) {
 	}
 	log.Println("recentList.getall start")
 	recentlist.Getall(fullRecent)
+	recentlist.RemoveOlds()
 	log.Println("recentList.getall finished")
 
 	if cfg.HeavyMoon && !running {
+		thread.CreateAllCachedirs()
 		running = true
 		go func() {
 			log.Println("cacheList.getall start")

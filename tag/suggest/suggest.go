@@ -40,8 +40,6 @@ import (
 
 //Get returns copy of Slice associated with datfile or returns def if not exists.
 func Get(datfile string, def tag.Slice) tag.Slice {
-	db.Mutex.RLock()
-	defer db.Mutex.RUnlock()
 	r, err := db.Strings("select Tag from sugtag where Thread=?", datfile)
 	if err != nil {
 		log.Print(err)
@@ -61,8 +59,6 @@ func Get(datfile string, def tag.Slice) tag.Slice {
 
 //keys return datfile names of Sugtaglist.
 func keys() []string {
-	db.Mutex.RLock()
-	defer db.Mutex.RUnlock()
 	r, err := db.Strings("select Thread from sugtag group by Thread")
 	if err != nil {
 		log.Print(err)
@@ -73,8 +69,6 @@ func keys() []string {
 
 //AddString adds tags to datfile from tagstrings.
 func AddString(datfile string, vals []string) {
-	db.Mutex.Lock()
-	defer db.Mutex.Unlock()
 	for _, v := range vals {
 		if !tag.IsOK(v) {
 			continue
@@ -88,8 +82,6 @@ func AddString(datfile string, vals []string) {
 
 //HasTagstr return true if one of tags has tagstr
 func HasTagstr(datfile string, tagstr string) bool {
-	db.Mutex.RLock()
-	defer db.Mutex.RUnlock()
 	cnt, err := db.Int64("select count(*) from sugtag where Thread=? and Tag=?", datfile, tagstr)
 	if err != nil {
 		log.Print(err)
@@ -116,8 +108,6 @@ func Prune(recs []*record.Head) {
 			tmp = append(tmp[:l], tmp[l+1:]...)
 		}
 	}
-	db.Mutex.Lock()
-	defer db.Mutex.Unlock()
 	for _, datfile := range tmp {
 		_, err := db.DB.Exec("delete from sugtag where Thread=? ", datfile)
 		if err != nil {

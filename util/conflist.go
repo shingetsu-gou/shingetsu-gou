@@ -69,18 +69,6 @@ func (r *ConfList) GetData() []string {
 	return d
 }
 
-//GetSplitData retuns a copy of splitted lines by ", " in the file.
-func (r *ConfList) GetSplitData() [][]string {
-	r.mutex.RLock()
-	defer r.mutex.RUnlock()
-	d := make([][]string, len(r.data))
-	for i, da := range r.data {
-		dd := strings.Split(da, ", ")
-		d[i] = dd
-	}
-	return d
-}
-
 //update read the file if newer, and stores all lines in the file.
 func (r *ConfList) update() bool {
 	r.mutex.Lock()

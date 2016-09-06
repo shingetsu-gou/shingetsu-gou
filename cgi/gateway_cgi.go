@@ -243,7 +243,7 @@ func PrintTitle(w http.ResponseWriter, r *http.Request) {
 	sort.Sort(sort.Reverse(thread.NewSortByStamp(all, false)))
 	outputCachelist := make([]*thread.Cache, 0, thread.Len())
 	for _, ca := range all {
-		if time.Now().Unix() <= ca.ReadInfo().Stamp+cfg.TopRecentRange {
+		if time.Now().Unix() <= ca.Stamp()+cfg.TopRecentRange {
 			outputCachelist = append(outputCachelist, ca)
 		}
 	}
@@ -359,7 +359,7 @@ func newGatewayCGI(w http.ResponseWriter, r *http.Request) (gatewayCGI, error) {
 //appendRSS appends cache ca to rss with contents,url to records,stamp,attached file.
 func (g *gatewayCGI) appendRSS(rsss *RSS, ca *thread.Cache) {
 	now := time.Now().Unix()
-	if ca.ReadInfo().Stamp+cfg.RSSRange < now {
+	if ca.Stamp()+cfg.RSSRange < now {
 		return
 	}
 	title := util.Escape(util.FileDecode(ca.Datfile))
@@ -378,7 +378,7 @@ func (g *gatewayCGI) appendRSS(rsss *RSS, ca *thread.Cache) {
 		if attach := r.GetBodyValue("attach", ""); attach != "" {
 			suffix := r.GetBodyValue("suffix", "")
 			if reg := regexp.MustCompile("^[0-9A-Za-z]+$"); !reg.MatchString(suffix) {
-				suffix = "txt"
+				suffix = cfg.SuffixTXT
 			}
 			content += fmt.Sprintf("\n    <p><a href=\"http://%s%s%s%s/%s/%d.%s\">%d.%s</a></p>",
 				g.host(), cfg.ThreadURL, "/", ca.Datfile, r.ID, r.Stamp, suffix, r.Stamp, suffix)
@@ -391,14 +391,13 @@ func (g *gatewayCGI) appendRSS(rsss *RSS, ca *thread.Cache) {
 
 //makeOneRow makes one row of CSV depending on c.
 func (g *gatewayCGI) makeOneRow(c string, ca *thread.Cache, p, title string) string {
-	i := ca.ReadInfo()
 	switch c {
 	case "file":
 		return ca.Datfile
 	case "stamp":
-		return strconv.FormatInt(i.Stamp, 10)
+		return strconv.FormatInt(ca.Stamp(), 10)
 	case "date":
-		return time.Unix(i.Stamp, 0).String()
+		return time.Unix(ca.Stamp(), 0).String()
 	case "path":
 		return p
 	case "uri":
@@ -410,9 +409,9 @@ func (g *gatewayCGI) makeOneRow(c string, ca *thread.Cache, p, title string) str
 	case "title":
 		return title
 	case "records":
-		return strconv.Itoa(i.Len)
+		return strconv.Itoa(ca.Len())
 	case "size":
-		return strconv.FormatInt(i.Size, 10)
+		return strconv.FormatInt(ca.Size(), 10)
 	case "tag":
 		return ca.TagString()
 	case "sugtag":

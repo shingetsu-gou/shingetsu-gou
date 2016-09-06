@@ -50,8 +50,6 @@ const (
 
 //getFromList returns one node  in the nodelist.
 func getFromList() *node.Node {
-	db.Mutex.RLock()
-	defer db.Mutex.RUnlock()
 	r, err := db.String("select  Addr from lookup where Thread=''")
 	if err != nil {
 		log.Print(err)
@@ -78,8 +76,6 @@ func ListLen() int {
 }
 
 func listLen(datfile string) int {
-	db.Mutex.RLock()
-	defer db.Mutex.RUnlock()
 	r, err := db.Int64("select count(*) from lookup where Thread=?", datfile)
 	if err != nil {
 		log.Print(err)
@@ -96,8 +92,6 @@ func GetNodestrSlice() []string {
 
 //getAllNodes returns all nodes in table.
 func getAllNodes() node.Slice {
-	db.Mutex.RLock()
-	defer db.Mutex.RUnlock()
 	r, err := db.Strings("select  Addr from lookup group by Addr")
 	if err != nil {
 		log.Print(err)
@@ -118,8 +112,6 @@ func Get(datfile string, def node.Slice) node.Slice {
 
 //GetNodestrSliceInTable returns Nodestr slice of nodes associated datfile thread.
 func GetNodestrSliceInTable(datfile string) []string {
-	db.Mutex.RLock()
-	defer db.Mutex.RUnlock()
 	r, err := db.Strings("select  Addr from lookup where Thread=?", datfile)
 	if err != nil {
 		log.Print(err)
@@ -158,22 +150,10 @@ func AppendToTable(datfile string, n *node.Node) {
 	l := listLen(datfile)
 	if ((datfile != "" && l < shareNodes) || (datfile == "" && l < defaultNodes)) &&
 		n != nil && n.IsAllowed() && !hasNodeInTable(datfile, n) {
-		db.Mutex.Lock()
-		defer db.Mutex.Unlock()
 		_, err := db.DB.Exec("insert into lookup(Thread,Addr) values(?,?)", datfile, n.Nodestr)
 		if err != nil {
 			log.Println(err)
 		}
-	}
-}
-
-//extendTable adds slice of nodes with check.
-func extendToTable(datfile string, ns []*node.Node) {
-	if ns == nil {
-		return
-	}
-	for _, n := range ns {
-		AppendToTable(datfile, n)
 	}
 }
 
@@ -199,32 +179,8 @@ func ReplaceNodeInList(n *node.Node) *node.Node {
 	return old
 }
 
-//extendToList adds node slice to nodelist.
-func extendToList(ns []*node.Node) {
-	extendToTable("", ns)
-}
-
-//hasNode returns true if nodelist in all tables has n.
-func hasNode(n *node.Node) bool {
-	return len(findNode(n)) > 0
-}
-
-//findNode returns datfile of node n, or -1 if not exist.
-func findNode(n *node.Node) []string {
-	db.Mutex.RLock()
-	defer db.Mutex.RUnlock()
-	r, err := db.Strings("select  Thread from lookup where Addr=?", n.Nodestr)
-	if err != nil {
-		log.Print(err)
-		return nil
-	}
-	return r
-}
-
 //hasNodeInTable returns true if nodelist has n.
 func hasNodeInTable(datfile string, n *node.Node) bool {
-	db.Mutex.RLock()
-	defer db.Mutex.RUnlock()
 	r, err := db.Int64("select  count(*) from lookup where Addr=? and Thread=?", n.Nodestr, datfile)
 	if err != nil {
 		log.Print(err)
@@ -243,8 +199,6 @@ func RemoveFromTable(datfile string, n *node.Node) bool {
 	if !hasNodeInTable(datfile, n) {
 		return false
 	}
-	db.Mutex.Lock()
-	defer db.Mutex.Unlock()
 	_, err := db.DB.Exec("delete from lookup where Thread=? and Addr=? ", datfile, n.Nodestr)
 	if err != nil {
 		log.Println(err)
@@ -262,8 +216,6 @@ func RemoveFromList(n *node.Node) bool {
 //RemoveFromAllTable removes node n from all tables and return true if exists.
 //or returns false if not exists.
 func RemoveFromAllTable(n *node.Node) bool {
-	db.Mutex.Lock()
-	defer db.Mutex.Unlock()
 	_, err := db.DB.Exec("delete from lookup where  Addr=? ", n.Nodestr)
 	if err != nil {
 		log.Println(err)
@@ -290,7 +242,7 @@ func Initialize(allnodes node.Slice) {
 				mutex.Lock()
 				pingOK = append(pingOK, inode)
 				mutex.Unlock()
-				Join(inode)
+				go Join(inode)
 			}
 		}(inodes[i])
 	}

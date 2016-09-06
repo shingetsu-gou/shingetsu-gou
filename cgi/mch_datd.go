@@ -209,10 +209,9 @@ func (m *mchCGI) threadApp(board, datkey string) {
 		download.GetCache(true, data)
 	}
 
-	i := data.ReadInfo()
 	thread := keylib.MakeDat(data, board, m.req.Host)
 	str := strings.Join(thread, "\n") + "\n"
-	m.serveContent("a.txt", time.Unix(i.Stamp, 0), str)
+	m.serveContent("a.txt", time.Unix(data.Stamp(), 0), str)
 }
 
 //makeSubjectCachelist returns thread.Caches in all thread.Cache and in recentlist sorted by recent stamp.
@@ -252,12 +251,11 @@ func (m *mchCGI) makeSubject(board string) ([]string, int64) {
 	cl := m.makeSubjectCachelist(board)
 	var lastStamp int64
 	for _, c := range cl {
-		i := c.ReadInfo()
-		if !loadFromNet && i.Len == 0 {
+		if !loadFromNet && c.Len() == 0 {
 			continue
 		}
-		if lastStamp < i.Stamp {
-			lastStamp = i.Stamp
+		if lastStamp < c.Stamp() {
+			lastStamp = c.Stamp()
 		}
 		key, err := keylib.GetDatkey(c.Datfile)
 		if err != nil {
@@ -270,7 +268,7 @@ func (m *mchCGI) makeSubject(board string) ([]string, int64) {
 		}
 		titleStr = strings.Trim(titleStr, "\r\n")
 		subjects = append(subjects, fmt.Sprintf("%d.dat<>%s (%d)",
-			key, titleStr, i.Len))
+			key, titleStr, c.Len()))
 	}
 	return subjects, lastStamp
 }

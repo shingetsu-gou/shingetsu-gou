@@ -44,15 +44,11 @@ import (
 
 func getThread(stamp int64) (string, error) {
 	var thread string
-	db.Mutex.RLock()
-	defer db.Mutex.RUnlock()
 	thread, err := db.String("select Thread from keylib where (Stamp=?)", stamp)
 	return thread, err
 }
 
 func getTime(thread string) (int64, error) {
-	db.Mutex.RLock()
-	defer db.Mutex.RUnlock()
 	return db.Int64("select Stamp from keylib where (Thread=?)", thread)
 }
 
@@ -70,8 +66,6 @@ func Load() {
 
 //setEntry stores stamp/value.
 func setEntry(stamp int64, filekey string) {
-	db.Mutex.Lock()
-	defer db.Mutex.Unlock()
 	_, err := db.DB.Exec("insert into keylib(Stamp,Thread) values(?,?)", stamp, filekey)
 	if err != nil {
 		log.Print(err)

@@ -32,9 +32,7 @@ import (
 	"database/sql"
 	"log"
 	"path"
-	"sync"
 
-	_ "github.com/mattn/go-sqlite3"
 	"github.com/shingetsu-gou/shingetsu-gou/cfg"
 )
 
@@ -49,12 +47,10 @@ var tables = []string{
 }
 
 /*
-sqlite in mattn-sqlite3 is copiled with serialized param.
+sqlite in mattn-sqlite3 is copiled with serialized param'(i.e. thread-safe).
 therefore no need to lock.
 https://www.sqlite.org/threadsafe.html
 */
-
-var Mutex = &sync.RWMutex{}
 
 var DB *sql.DB
 

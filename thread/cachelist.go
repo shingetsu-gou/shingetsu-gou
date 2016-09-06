@@ -38,8 +38,6 @@ import (
 
 //AllCaches returns all  thread names
 func AllCaches() Caches {
-	db.Mutex.RLock()
-	defer db.Mutex.RUnlock()
 	var r []string
 	r, err := db.Strings("select Thread from record group by Thread ")
 	if err != nil {
@@ -55,8 +53,6 @@ func AllCaches() Caches {
 
 //Len returns # of Caches
 func Len() int {
-	db.Mutex.RLock()
-	defer db.Mutex.RUnlock()
 	r, err := db.Int64("select count(*) from record group by Thread")
 	if err != nil {
 		log.Print(err)
@@ -69,8 +65,6 @@ func Len() int {
 //Search reloads records in Caches in cachelist
 //and returns slice of cache which matches query.
 func Search(q string) Caches {
-	db.Mutex.RLock()
-	defer db.Mutex.RUnlock()
 	r, err := db.Strings("select Thread from record where Body like ? group by Thread", q)
 	if err != nil {
 		log.Print(err)
@@ -87,8 +81,6 @@ func Search(q string) Caches {
 //CleanRecords remove old or duplicates records for each Caches.
 func CleanRecords() {
 	l := int64(Len())
-	db.Mutex.Lock()
-	defer db.Mutex.Unlock()
 	if l > cfg.SaveRecord {
 		_, err := db.DB.Exec("delete from record  order by Stamp limit ? ", l-cfg.SaveRecord)
 		if err != nil {
@@ -106,8 +98,6 @@ func RemoveRemoved() {
 	if cfg.SaveRemoved > 0 {
 		return
 	}
-	db.Mutex.Lock()
-	defer db.Mutex.Unlock()
 	_, err := db.DB.Exec("delete from record where Deleted=1  and Stamp <? ", time.Now().Unix()-cfg.SaveRemoved)
 	if err != nil {
 		log.Println(err)

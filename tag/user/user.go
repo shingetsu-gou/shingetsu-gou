@@ -37,8 +37,6 @@ import (
 
 //Get tags from the disk  if dirty and returns Slice.
 func Get() tag.Slice {
-	db.Mutex.RLock()
-	defer db.Mutex.RUnlock()
 	r, err := db.Strings("select  Tag from usertag group by Tag")
 	if err != nil {
 		log.Print(err)
@@ -49,8 +47,6 @@ func Get() tag.Slice {
 
 //GetThread gets thread tags from the disk
 func GetThread(thread string) tag.Slice {
-	db.Mutex.RLock()
-	defer db.Mutex.RUnlock()
 	r, err := db.Strings("select  Tag from usertag where thread=?", thread)
 	if err != nil {
 		log.Print(err)
@@ -59,10 +55,8 @@ func GetThread(thread string) tag.Slice {
 	return tag.NewSlice(r)
 }
 
-//Set saves usertag.
+//Set saves tag strings.
 func Set(thread string, tag []string) {
-	db.Mutex.Lock()
-	defer db.Mutex.Unlock()
 	for _, t := range tag {
 		_, err := db.DB.Exec("insert into usertag(Thread,Tag) values(?,?)", thread, t)
 		if err != nil {
@@ -71,7 +65,7 @@ func Set(thread string, tag []string) {
 	}
 }
 
-//Set saves usertag.
+//SetTags saves tag slice..
 func SetTags(thread string, tag tag.Slice) {
 	Set(thread, tag.GetTagstrSlice())
 }

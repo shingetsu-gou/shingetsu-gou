@@ -136,6 +136,7 @@ type GatewayLink struct {
 
 //Render renders "gateway_link.txt" and returns its resutl string which is not escaped in template.
 //GatewayLink.Message must be setted up previously.
+//used in templates.
 func (c GatewayLink) Render(cginame, command string) template.HTML {
 	c.CGIname = cginame
 	c.Command = command
@@ -157,7 +158,6 @@ type ListItem struct {
 	GatewayCGI string
 	ThreadURL  string
 	Message    message
-	CacheInfo  *thread.CacheInfo
 	filter     string
 	tag        string
 }
@@ -184,6 +184,7 @@ func (l *ListItem) checkCache(ca *thread.Cache, target string) (string, bool) {
 
 //Render renders "list_items.txt" and returns its result string which is not escaped in template.
 //ListItem.IsAdmin,filter,tag,Message must be setted up previously.
+//used in templates.
 func (l ListItem) Render(ca *thread.Cache, remove bool, target string, search bool) template.HTML {
 	x, ok := l.checkCache(ca, target)
 	if !ok {
@@ -206,7 +207,6 @@ func (l ListItem) Render(ca *thread.Cache, remove bool, target string, search bo
 			}
 		}
 	}
-	l.CacheInfo = ca.ReadInfo()
 	l.Cache = ca
 	l.Title = x
 	l.Tags = ca.GetTags()
@@ -532,7 +532,7 @@ func (c *cgi) removeFileForm(ca *thread.Cache, title string) {
 		Message   message
 	}{
 		ca,
-		ca.ReadInfo().Size,
+		ca.Size(),
 		title,
 		c.isAdmin(),
 		cfg.AdminURL,

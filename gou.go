@@ -40,6 +40,7 @@ import (
 
 	"gopkg.in/natefinch/lumberjack.v2"
 
+	_ "github.com/mattn/go-sqlite3"
 	"github.com/shingetsu-gou/shingetsu-gou/cfg"
 	"github.com/shingetsu-gou/shingetsu-gou/db"
 	"github.com/shingetsu-gou/shingetsu-gou/gou"

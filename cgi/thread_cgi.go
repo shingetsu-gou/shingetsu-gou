@@ -191,7 +191,7 @@ func (t *threadCGI) setCookie(ca *thread.Cache, access string) []*http.Cookie {
 
 //printPageNavi renders page_navi.txt, part for paging.
 func (t *threadCGI) printPageNavi(path string, page int, ca *thread.Cache, id string) {
-	len := ca.ReadInfo().Len
+	len := ca.Len()
 	first := len / cfg.ThreadPageSize
 	if len%cfg.ThreadPageSize == 0 {
 		first++
@@ -421,7 +421,7 @@ func (t *threadCGI) printRecord(ca *thread.Cache, rec *record.Record) {
 		attachSize = int64(len(at)*57/78) + 1000
 		reg := regexp.MustCompile("^[0-9A-Za-z]+")
 		if !reg.MatchString(suffix) {
-			suffix = "txt"
+			suffix = cfg.SuffixTXT
 		}
 		typ := mime.TypeByExtension("." + suffix)
 		if typ == "" {
@@ -572,7 +572,7 @@ func (t *threadCGI) errorTime() int64 {
 
 //guessSuffix guess suffix of attached at from formvalue "suffix"
 func (t *threadCGI) guessSuffix(at *attached) string {
-	guessSuffix := "txt"
+	guessSuffix := cfg.SuffixTXT
 	if at != nil {
 		if e := path.Ext(at.Filename); e != "" {
 			guessSuffix = strings.ToLower(e)
@@ -634,7 +634,7 @@ func (t *threadCGI) doPost() string {
 		return ""
 	}
 	proxyClient := t.req.Header.Get("X_FORWARDED_FOR")
-	log.Printf("post %s/%d_%s from %s/%s\n", ca.Datfile, ca.ReadInfo().Stamp, rec.ID, t.req.RemoteAddr, proxyClient)
+	log.Printf("post %s/%d_%s from %s/%s\n", ca.Datfile, ca.Stamp(), rec.ID, t.req.RemoteAddr, proxyClient)
 
 	if len(rec.Recstr()) > cfg.RecordLimit<<10 {
 		t.header(t.m["big_file"], "", nil, true)

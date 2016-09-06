@@ -123,9 +123,8 @@ func printStatus(w http.ResponseWriter, r *http.Request) {
 	records := 0
 	var size int64
 	for _, ca := range thread.AllCaches() {
-		i := ca.ReadInfo()
-		records += i.Len
-		size += i.Size
+		records += ca.Len()
+		size += ca.Size()
 	}
 
 	var mem runtime.MemStats
@@ -357,7 +356,6 @@ func (a *adminCGI) postDeleteMessage(ca *thread.Cache, rec *record.Record) {
 	id := rec.Build(stamp, body, passwd)
 	rec.Sync()
 	recentlist.Append(rec.Head)
-	recentlist.Sync()
 	go manager.TellUpdate(ca.Datfile, stamp, id, nil)
 }
 

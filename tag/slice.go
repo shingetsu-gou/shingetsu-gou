@@ -29,7 +29,6 @@
 package tag
 
 import (
-	"sort"
 	"strings"
 
 	"github.com/shingetsu-gou/shingetsu-gou/util"
@@ -74,15 +73,6 @@ func (t Slice) GetTagstrSlice() []string {
 //String concatenates and returns tagstr of tags.
 func (t Slice) String() string {
 	return strings.Join(t.GetTagstrSlice(), " ")
-}
-
-//Prune truncates non-weighted tagList to size=size.
-func (t Slice) Prune(size int) Slice {
-	sort.Sort(sort.Reverse(t))
-	if t.Len() > size {
-		t = t[:size]
-	}
-	return t
 }
 
 //checkAppend append tagstr=val tag if tagList doesn't have its tag.

@@ -30,15 +30,12 @@ package record
 
 import (
 	"crypto/md5"
-	"errors"
 	"fmt"
 	"log"
-	"regexp"
 	"strconv"
 	"strings"
 
 	"github.com/shingetsu-gou/shingetsu-gou/db"
-	"github.com/shingetsu-gou/shingetsu-gou/util"
 )
 
 //Head represents one line in updatelist/recentlist
@@ -48,10 +45,9 @@ type Head struct {
 	ID      string //md5(bodystr)
 }
 
+//FromRecentDB makes Head ary from recent db.
 func FromRecentDB(query string, args ...interface{}) ([]*Head, error) {
-	db.Mutex.RLock()
 	rows, err := db.DB.Query(query, args...)
-	db.Mutex.RUnlock()
 	if err != nil {
 		return nil, err
 	}
@@ -69,47 +65,8 @@ func FromRecentDB(query string, args ...interface{}) ([]*Head, error) {
 	return h, nil
 }
 
-func newHead() *Head {
-	return &Head{}
-}
-
-//NewHeadFromLine parse one line in udpate/recent list and returns updateInfo obj.
-func NewHeadFromLine(line string) (*Head, error) {
-	regnum := regexp.MustCompile(`^\d+$`)
-	reghex := regexp.MustCompile(`^[0-9a-z]+$`)
-	strs := strings.Split(strings.TrimRight(line, "\n\r"), "<>")
-	if len(strs) < 3 || util.FileDecode(strs[2]) == "" || !strings.HasPrefix(strs[2], "thread") ||
-		!regnum.MatchString(strs[0]) || !reghex.MatchString(strs[1]) {
-		err := errors.New("illegal format")
-		log.Println(err)
-		return nil, err
-	}
-
-	u := &Head{
-		ID:      strs[1],
-		Datfile: strs[2],
-	}
-	var err error
-	u.Stamp, err = strconv.ParseInt(strs[0], 10, 64)
-	if err != nil {
-		log.Println(err)
-		return nil, err
-	}
-	return u, nil
-}
-
-//dathash returns the same string as Datfile if encoding=asis
-func (u *Head) dathash() string {
-	if u.Datfile == "" {
-		return ""
-	}
-	return util.FileHash(u.Datfile)
-}
-
 //Exists return true if record file exists.
 func (u *Head) Exists() bool {
-	db.Mutex.RLock()
-	defer db.Mutex.RUnlock()
 	r, err := db.Int64("select count(*) from record where Thread=? and Hash=? and Stamp =?", u.Datfile, u.ID, u.Stamp)
 	if err != nil {
 		log.Print(err)
@@ -120,9 +77,7 @@ func (u *Head) Exists() bool {
 
 //Removed return true if record is removed (i.e. exists.in removed path)
 func (u *Head) Removed() bool {
-	db.Mutex.RLock()
 	r, err := db.Int64("select count(*) from record where Thread=? and Hash=? and Stamp =? and Deleted=1", u.Datfile, u.ID, u.Stamp)
-	db.Mutex.RUnlock()
 	if err != nil {
 		log.Print(err)
 		return false
@@ -132,19 +87,12 @@ func (u *Head) Removed() bool {
 
 //Remove moves the record file  to remove path
 func (u *Head) Remove() error {
-	db.Mutex.Lock()
-	defer db.Mutex.Unlock()
 	_, err := db.DB.Exec("update record set Deleted=1 where Thread=? and Hash=? and Stamp =?", u.Datfile, u.ID, u.Stamp)
 	if err != nil {
 		log.Println(err)
 		return err
 	}
 	return nil
-}
-
-//Equals returns true if u=v
-func (u *Head) Equals(rec *Head) bool {
-	return u.Datfile == rec.Datfile && u.ID == rec.ID && u.Stamp == rec.Stamp
 }
 
 //Hash returns md5 of Head.
@@ -162,33 +110,7 @@ func (u *Head) Idstr() string {
 	return fmt.Sprintf("%d_%s", u.Stamp, u.ID)
 }
 
-type Heads []*Head
-
-//Less returns true if stamp of infos[i] < [j]
-func (r Heads) Less(i, j int) bool {
-	return r[i].Stamp < r[j].Stamp
-}
-
-//Swap swaps infos order.
-func (r Heads) Swap(i, j int) {
-	r[i], r[j] = r[j], r[i]
-}
-
-//Len returns size of infos
-func (r Heads) Len() int {
-	return len(r)
-}
-
-//has returns true if Heads has rec.
-func (r Heads) has(rec *Head) bool {
-	for _, v := range r {
-		if v.Equals(rec) {
-			return true
-		}
-	}
-	return false
-}
-
+//ParseHeadResponse parses response of head and returns Head map.
 func ParseHeadResponse(res []string, datfile string) map[string]*Head {
 	m := make(map[string]*Head)
 	for _, line := range res {

@@ -39,7 +39,6 @@ import (
 	"io"
 	"io/ioutil"
 	"log"
-	"math/rand"
 	"net/http"
 	"os"
 	"regexp"
@@ -50,7 +49,6 @@ import (
 	"golang.org/x/text/encoding/japanese"
 	"golang.org/x/text/transform"
 
-	"github.com/gorilla/mux"
 	"github.com/nfnt/resize"
 )
 
@@ -131,25 +129,6 @@ func EachLine(path string, handler func(line string, num int) error) error {
 	return EachIOLine(f, handler)
 }
 
-//EachKeyValueLine calls func for each line which contains key and value separated with "<>"
-func EachKeyValueLine(path string, handler func(key string, value []string, num int) error) error {
-	err := EachLine(path, func(line string, i int) error {
-		kv := strings.Split(line, "<>")
-		if len(kv) != 2 {
-			log.Fatal("illegal line in", path)
-		}
-		vs := strings.Split(kv[1], " ")
-		var err error
-		if len(vs) == 1 && vs[0] == "" {
-			err = handler(kv[0], nil, i)
-		} else {
-			err = handler(kv[0], vs, i)
-		}
-		return err
-	})
-	return err
-}
-
 //HasString returns true if ary has val.
 func HasString(s []string, val string) bool {
 	return FindString(s, val) != -1
@@ -163,46 +142,6 @@ func FindString(s []string, val string) int {
 		}
 	}
 	return -1
-}
-
-//WriteSlice write ary into a path.
-func WriteSlice(path string, ary []string) error {
-	if path == "" {
-		panic("path is null")
-	}
-	f, err := os.Create(path)
-	defer Fclose(f)
-	if err != nil {
-		log.Println(err)
-		return err
-	}
-
-	for _, v := range ary {
-		_, err := f.WriteString(v + "\n")
-		if err != nil {
-			return err
-		}
-	}
-	return nil
-}
-
-//WriteMap write map into a path.
-func WriteMap(path string, ary map[string][]string) error {
-	f, err := os.Create(path)
-	if err != nil {
-		log.Println(err)
-		return err
-	}
-	defer Fclose(f)
-
-	for k, v := range ary {
-		_, err := f.WriteString(k + "<>" + strings.Join(v, " ") + "\n")
-		if err != nil {
-			log.Println(err)
-			return err
-		}
-	}
-	return nil
 }
 
 //EachFiles iterates each dirs in dir and calls handler,not recirsively.
@@ -237,74 +176,11 @@ func IsDir(path string) bool {
 	return fs.IsDir()
 }
 
-//MoveFile moves a file from src to dest.
-func MoveFile(src, dst string) error {
-	in, err := os.Open(src)
-	if err != nil {
-		return err
-	}
-	defer Fclose(in)
-
-	out, err := os.Create(dst)
-	if err != nil {
-		return err
-	}
-	defer Fclose(out)
-
-	_, err = io.Copy(out, in)
-	if err != nil {
-		return err
-	}
-	return os.Remove(src)
-}
-
-//Shufflable interface is for shuffle ary.
-type Shufflable interface {
-	Len() int
-	Swap(i int, j int)
-}
-
-//Shuffle shuffles shufflable ary.
-func Shuffle(slc Shufflable) {
-	N := slc.Len()
-	for i := 0; i < N; i++ {
-		// choose index uniformly in [i, N-1]
-		r := i + rand.Intn(N-i)
-		slc.Swap(r, i)
-	}
-}
-
 //Fclose closes io.Close, if err exists ,println err.
 func Fclose(f io.Closer) {
 	if err := f.Close(); err != nil {
 		log.Println(err)
 	}
-}
-
-//RegistToRouter registers fn to s with path and returns the handler.
-func RegistToRouter(s *mux.Router, path string, fn func(w http.ResponseWriter, r *http.Request)) {
-	s.Handle(path, http.HandlerFunc(fn))
-}
-
-//FileSize returns file size of file.
-//returns 0 if file is not found.
-func FileSize(path string) int64 {
-	st, err := os.Stat(path)
-	if err != nil {
-		log.Println(err)
-		return 0
-	}
-	return st.Size()
-}
-
-//WriteFile writes date to path.
-func WriteFile(path, data string) error {
-	err := ioutil.WriteFile(path, []byte(data), 0666)
-	if err != nil {
-		log.Println(err)
-		return err
-	}
-	return nil
 }
 
 //MakeThumbnail makes thumbnail to suffix image format with thumbnailSize.

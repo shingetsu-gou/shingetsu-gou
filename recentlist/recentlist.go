@@ -57,9 +57,8 @@ func IsInUpdateRange(nstamp int64) bool {
 //RecentList represents records list udpated by remote host and
 //gotten by /gateway.cgi/Recent
 
+//Datfiles returns all datfile names in recentlist.
 func Datfiles() []string {
-	db.Mutex.RLock()
-	defer db.Mutex.RUnlock()
 	datfile, err := db.Strings("select Thread from recent group by Thread")
 	if err != nil {
 		log.Print(err)
@@ -71,10 +70,13 @@ func Datfiles() []string {
 //Newest returns newest record of datfile in the list.
 //if not found returns nil.
 func Newest(datfile string) *record.Head {
-	db.Mutex.RLock()
-	defer db.Mutex.RUnlock()
 	rows, err := db.DB.Query("select * from recent  where Thread=? order by Stamp DESC", datfile)
-	defer rows.Close()
+	defer func() {
+		errr := rows.Close()
+		if errr != nil {
+			log.Println(err)
+		}
+	}()
 	if err != nil {
 		log.Print(err)
 		return nil
@@ -97,19 +99,14 @@ func Append(rec *record.Head) {
 	if find(rec) {
 		return
 	}
-	db.Mutex.Lock()
-	defer db.Mutex.Unlock()
 	_, err := db.DB.Exec("insert into recent(Stamp,Hash,Thread) values(?,?,?)", rec.Stamp, rec.ID, rec.Datfile)
 	if err != nil {
 		log.Print(err)
 	}
-	log.Println("!")
 }
 
 //find finds records and returns index. returns -1 if not found.
 func find(rec *record.Head) bool {
-	db.Mutex.RLock()
-	defer db.Mutex.RUnlock()
 	r, err := db.Int64("select count(*) from recent where Stamp=? and Hash=? and Thread=?", rec.Stamp, rec.ID, rec.Datfile)
 	if err != nil {
 		log.Println(err)
@@ -118,30 +115,11 @@ func find(rec *record.Head) bool {
 	return r > 0
 }
 
-//hasInfo returns true if has record r.
-func hasInfo(rec *record.Head) bool {
-	return find(rec)
-}
-
-//remove removes info which is same as record rec
-func remove(rec *record.Head) {
-	if find(rec) {
-		db.Mutex.Lock()
-		defer db.Mutex.Unlock()
-		_, err := db.DB.Exec("delete from recent where Stamp=? and Hash=? and Thread=?", rec.Stamp, rec.ID, rec.Datfile)
-		if err != nil {
-			log.Println(err)
-		}
-	}
-}
-
-//Sync remove old records and save to the file.
-func Sync() {
+//RemoveOlds remove old records..
+func RemoveOlds() {
 	if defaultUpdateRange <= 0 {
 		return
 	}
-	db.Mutex.Lock()
-	defer db.Mutex.Unlock()
 	_, err := db.DB.Exec("delete from recent where Stamp<? ", time.Now().Unix()-int64(defaultUpdateRange))
 	if err != nil {
 		log.Println(err)
@@ -189,14 +167,11 @@ func Getall(all bool) {
 		}(n)
 	}
 	wg.Wait()
-	Sync()
 	suggest.Prune(GetRecords())
 }
 
 //GetRecords copies and returns recorcds in recentlist.
 func GetRecords() []*record.Head {
-	db.Mutex.RLock()
-	defer db.Mutex.RUnlock()
 	inf, err := record.FromRecentDB("select * from recent")
 	if err != nil {
 		log.Print(err)

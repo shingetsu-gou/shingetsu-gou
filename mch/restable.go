@@ -45,7 +45,7 @@ type ResTable struct {
 func NewResTable(ca *thread.Cache) *ResTable {
 	r := &ResTable{
 		make(map[string]int),
-		make([]string, ca.ReadInfo().Len+1),
+		make([]string, ca.Len()+1),
 	}
 	recs := ca.LoadRecords(thread.Alive)
 	for i, k := range recs.Keys() {

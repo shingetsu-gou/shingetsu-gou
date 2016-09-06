@@ -52,11 +52,6 @@ func (c Caches) Len() int {
 	return len(c)
 }
 
-//Swap swaps order of cache slice.
-func (c Caches) Swap(i, j int) {
-	c[i], c[j] = c[j], c[i]
-}
-
 //SortByStamp is for sorting by stamp.
 type SortByStamp struct {
 	Caches
@@ -73,7 +68,7 @@ func NewSortByStamp(cs Caches, recentStamp bool) *SortByStamp {
 		if recentStamp {
 			s.stamp[i] = v.RecentStamp()
 		} else {
-			s.stamp[i] = v.ReadInfo().Stamp
+			s.stamp[i] = v.Stamp()
 		}
 	}
 	return s
@@ -105,9 +100,8 @@ func NewSortByVelocity(cs Caches) *SortByVelocity {
 		size:     make([]int64, cs.Len()),
 	}
 	for i, v := range cs {
-		f := v.ReadInfo()
-		s.velocity[i] = f.Velocity
-		s.size[i] = f.Size
+		s.velocity[i] = v.Velocity()
+		s.size[i] = v.Size()
 	}
 	return s
 }

@@ -70,23 +70,23 @@ func (t TargetRecSlice) Less(i, j int) bool {
 	return t[i].stamp < t[j].stamp
 }
 
-var managers = make(map[string]*DownloadManager)
+var managers = make(map[string]*Manager)
 
-//DownloadManager manages download range of records.
-type DownloadManager struct {
+//Manager manages download range of records.
+type Manager struct {
 	datfile string
 	recs    map[string]*targetRec
 	mutex   sync.RWMutex
 }
 
-//NewDownloadManger sets recs as finished recs and returns DownloadManager obj.
-func NewDownloadManger(ca *thread.Cache) *DownloadManager {
+//NewManger sets recs as finished recs and returns DownloadManager obj.
+func NewManger(ca *thread.Cache) *Manager {
 	if d, exist := managers[ca.Datfile]; exist {
 		log.Println(ca.Datfile, "is downloading")
 		return d
 	}
 	recs := ca.LoadRecords(thread.All)
-	dm := &DownloadManager{
+	dm := &Manager{
 		datfile: ca.Datfile,
 		recs:    make(map[string]*targetRec),
 	}
@@ -99,7 +99,7 @@ func NewDownloadManger(ca *thread.Cache) *DownloadManager {
 }
 
 //Set sets res as targets n is holding.
-func (dm *DownloadManager) Set(res []string, n *node.Node) {
+func (dm *Manager) Set(res []string, n *node.Node) {
 	recs := record.ParseHeadResponse(res, dm.datfile)
 	for _, r := range recs {
 		dm.mutex.Lock()
@@ -118,7 +118,7 @@ func (dm *DownloadManager) Set(res []string, n *node.Node) {
 }
 
 //Get returns begin and end stamp to be gotten for node n.
-func (dm *DownloadManager) Get(n *node.Node) (int64, int64) {
+func (dm *Manager) Get(n *node.Node) (int64, int64) {
 	dm.mutex.Lock()
 	defer dm.mutex.Unlock()
 	var s TargetRecSlice
@@ -143,7 +143,7 @@ func (dm *DownloadManager) Get(n *node.Node) (int64, int64) {
 	return s[begin].stamp, s[0].stamp
 }
 
-func (dm *DownloadManager) checkFinished() {
+func (dm *Manager) checkFinished() {
 	if _, exist := managers[dm.datfile]; !exist {
 		return
 	}
@@ -164,7 +164,7 @@ func (dm *DownloadManager) checkFinished() {
 }
 
 //Finished set records n is downloading as finished.
-func (dm *DownloadManager) Finished(n *node.Node, success bool) {
+func (dm *Manager) Finished(n *node.Node, success bool) {
 	dm.mutex.Lock()
 	defer dm.mutex.Unlock()
 	for _, rec := range dm.recs {
@@ -181,7 +181,7 @@ func (dm *DownloadManager) Finished(n *node.Node, success bool) {
 }
 
 //headWithRange checks node n has records with range and adds records which should be downloaded to downloadmanager.
-func headWithRange(n *node.Node, c *thread.Cache, dm *DownloadManager) bool {
+func headWithRange(n *node.Node, c *thread.Cache, dm *Manager) bool {
 	begin := time.Now().Unix() - cfg.GetRange
 	if rec := recentlist.Newest(c.Datfile); rec != nil {
 		begin = rec.Stamp - cfg.GetRange
@@ -210,7 +210,7 @@ func headWithRange(n *node.Node, c *thread.Cache, dm *DownloadManager) bool {
 //getWithRange gets records with range using node n and adds to cache after checking them.
 //if no records exist in cache, uses head
 //return true if gotten records>0
-func getWithRange(n *node.Node, c *thread.Cache, dm *DownloadManager) bool {
+func getWithRange(n *node.Node, c *thread.Cache, dm *Manager) bool {
 	got := false
 	for {
 		from, to := dm.Get(n)
@@ -245,7 +245,7 @@ func GetCache(background bool, c *thread.Cache) bool {
 	done := make(chan struct{}, searchDepth+1)
 	var wg sync.WaitGroup
 	var mutex sync.RWMutex
-	dm := NewDownloadManger(c)
+	dm := NewManger(c)
 	for _, n := range ns {
 		wg.Add(1)
 		go func(n *node.Node) {
@@ -275,7 +275,7 @@ func waitFor(background bool, c *thread.Cache, done chan struct{}, wg *sync.Wait
 			wg.Wait()
 			done <- struct{}{}
 		}()
-		if newest != nil && (newest.Stamp == c.ReadInfo().Stamp) {
+		if newest != nil && (newest.Stamp == c.Stamp()) {
 			return
 		}
 		for {

@@ -75,6 +75,7 @@ func NewIDstr(datfile, idstr string) (*Record, error) {
 	return New(datfile, buf[1], stamp), nil
 }
 
+//New makes Record struct.
 func New(datfile, id string, stamp int64) *Record {
 	return &Record{
 		Head: &Head{
@@ -94,13 +95,6 @@ func (r *Record) CopyHead() Head {
 		Stamp:   r.Stamp,
 		ID:      r.ID,
 	}
-}
-
-//len returns size of contents
-func (r *Record) len() int {
-	r.mutex.RLock()
-	defer r.mutex.RUnlock()
-	return len(r.contents)
 }
 
 //Make makes and returns record from Recstr
@@ -141,6 +135,7 @@ func (r *Record) bodystr() string {
 }
 
 //HasBodyValue returns true if key k exists
+//used in templates
 func (r *Record) HasBodyValue(k string) bool {
 	r.mutex.RLock()
 	defer r.mutex.RUnlock()
@@ -240,8 +235,6 @@ func (r *Record) Load() error {
 		}
 		return errors.New("file not found")
 	}
-	db.Mutex.RLock()
-	defer db.Mutex.RUnlock()
 	body, err := db.String("select Body from record where Thread=? and Hash=? and Stamp=?", r.Datfile, r.ID, r.Stamp)
 	if err != nil {
 		log.Println(err)
@@ -319,18 +312,14 @@ func (r *Record) AttachPath(thumbnailSize string) string {
 //Sync saves Recstr to the file. if attached file exists, saves it to attached path.
 //if signed, also saves body part.
 func (r *Record) Sync() {
-	db.Mutex.RLock()
 	cnt, err := db.Int64("select count(*) from record where Thread=? and Stamp=? and Hash=?",
 		r.Datfile, r.Stamp, r.ID)
-	db.Mutex.RUnlock()
 	if err != nil {
 		log.Print(err)
 	}
 	if cnt > 0 {
 		return
 	}
-	db.Mutex.Lock()
-	defer db.Mutex.Unlock()
 	_, err = db.DB.Exec("insert into record(Stamp,Hash,Thread,Body,Deleted) values(?,?,?,?,0)", r.Stamp, r.ID, r.Datfile, r.bodystr())
 	if err != nil {
 		log.Print(err)
@@ -395,7 +384,7 @@ func (r *Record) MakeAttachLink(sakuHost string) string {
 		return ""
 	}
 	url := fmt.Sprintf("http://%s/thread.cgi/%s/%s/%d.%s",
-		sakuHost, r.Datfile, r.ID, r.Stamp, r.GetBodyValue("suffix", "txt"))
+		sakuHost, r.Datfile, r.ID, r.Stamp, r.GetBodyValue("suffix", cfg.SuffixTXT))
 	return "<br><br>[Attached]<br>" + url
 }
 

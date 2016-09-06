@@ -62,44 +62,51 @@ const (
 	ServerURL = "/server.cgi"
 )
 
+//data Errors.
 var (
 	ErrSpam = errors.New("this is spam")
 	ErrGet  = errors.New("cannot get data")
 )
 
-var NetworkMode int //port_opened,relay,upnp
-var SaveRecord int64
-var SaveSize int // It is not seconds, but number.
-var GetRange int64
-var SyncRange int64
-var SaveRemoved int64
-var DefaultPort int //DefaultPort is listening port
-var MaxConnection int
-var Docroot string
-var LogDir string
-var RunDir string
-var FileDir string
-var TemplateDir string
-var SpamList string
-var InitnodeList string
-var NodeAllowFile string
-var NodeDenyFile string
-var ReAdminStr string
-var ReFriendStr string
-var ReVisitorStr string
-var ServerName string
-var TagSize int
-var RSSRange int64
-var TopRecentRange int64
-var RecentRange int64
-var RecordLimit int
-var ThreadPageSize int
-var DefaultThumbnailSize string
-var Enable2ch bool
-var ForceThumbnail bool
-var EnableProf bool
-var HeavyMoon bool
-var EnableEmbed bool
+//config params
+var (
+	NetworkMode          int //port_opened,relay,upnp
+	SaveRecord           int64
+	SaveSize             int // It is not seconds, but number.
+	GetRange             int64
+	SyncRange            int64
+	SaveRemoved          int64
+	DefaultPort          int //DefaultPort is listening port
+	MaxConnection        int
+	Docroot              string
+	LogDir               string
+	RunDir               string
+	FileDir              string
+	TemplateDir          string
+	SpamList             string
+	InitnodeList         string
+	NodeAllowFile        string
+	NodeDenyFile         string
+	ReAdminStr           string
+	ReFriendStr          string
+	ReVisitorStr         string
+	ServerName           string
+	TagSize              int
+	RSSRange             int64
+	TopRecentRange       int64
+	RecentRange          int64
+	RecordLimit          int
+	ThreadPageSize       int
+	DefaultThumbnailSize string
+	Enable2ch            bool
+	ForceThumbnail       bool
+	EnableProf           bool
+	HeavyMoon            bool
+	EnableEmbed          bool
+)
+
+//SuffixTXT is suffix of text files.
+var SuffixTXT = "txt"
 
 // asis, md5, sha1, sha224, sha256, sha384, or sha512
 //	cache_hash_method = "asis"
