@@ -55,12 +55,20 @@ func getTime(thread string) (int64, error) {
 //Load loads from the file, adds stamps/datfile pairs from cachelist and recentlist.
 //and saves to file.
 func Load() {
+	tx, err := db.DB.Begin()
+	if err != nil {
+		log.Print(err)
+		return
+	}
 	for _, c := range thread.AllCaches() {
 		setFromCache(c)
 	}
 	for _, rec := range recentlist.GetRecords() {
 		c := thread.NewCache(rec.Datfile)
 		setFromCache(c)
+	}
+	if err := tx.Commit(); err != nil {
+		log.Println(err)
 	}
 }
 
