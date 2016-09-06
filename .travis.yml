@@ -11,7 +11,7 @@ env:
     - REPO_NAME: shingetsu-gou
     - CGO_ENABLED:1 
 
-gobuild_args: -ldflags "-X cfg.VERSION=${PACKAGE_VERSION}"
+gobuild_args: -ldflags "-X cfg.Version=${PACKAGE_VERSION}"
 
 before_install:
 - sudo apt-get -qq update
