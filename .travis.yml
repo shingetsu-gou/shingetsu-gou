@@ -42,7 +42,7 @@ after_script:
   echo "Bootstrapping linux/arm...";
   GOOS=linux GOARCH=arm CC=arm-linux-gnueabi-gcc  CGO_CFLAGS="-march=armv6" CGO_CXXFLAGS="-march=armv6"  go build -o ${REPO_NAME}_${PACKAGE_VERSION}_linux_arm64;
   echo "Bootstrapping windows/amd64...";
-  env GOOS=windows GOARCH=amd64  CC=x86_64-w64-mingw32-gcc go build -o ${REPO_NAME}_${PACKAGE_VERSION}_win_amd64.exe;
+  env CGO_ENABLED=1 GOOS=windows GOARCH=amd64  CC=x86_64-w64-mingw32-gcc go build -o ${REPO_NAME}_${PACKAGE_VERSION}_win_amd64.exe;
   echo "Bootstrapping windows/386...";
   GOOS=windows GOARCH=386 CC=i686-w64-mingw32-gcc go build -o ${REPO_NAME}_${PACKAGE_VERSION}_win_386.exe;
   echo "Bootstrapping darwin/amd64...";
