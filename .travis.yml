@@ -39,12 +39,11 @@ after_script:
 - goveralls -coverprofile=coverage.out -service=travis-ci
 - gometalinter -e bindata --deadline=1000s ./...
 - if  [ ${TRAVIS_GO_VERSION} == "1.7" ]; then
-
-echo "Bootstrapping linux/amd64...";
-go build -o ${REPO_NAME}_linux_amd64  ;
-echo "Bootstrapping linux/386...";
-GOOS=linux GOARCH=386 go build -o ${REPO_NAME}_${PACKAGE_VERSION}_linux_386  ;
-echo "Bootstrapping linux/arm64...";
+  echo "Bootstrapping linux/amd64...";
+  go build -o ${REPO_NAME}_linux_amd64;
+  echo "Bootstrapping linux/386...";
+  GOOS=linux GOARCH=386 go build -o ${REPO_NAME}_${PACKAGE_VERSION}_linux_386  ;
+  echo "Bootstrapping linux/arm64...";
 GOOS=linux GOARCH=arm64  CC=aarch64-linux-gnu-gcc-5 go build -o ${REPO_NAME}_${PACKAGE_VERSION}_linux_arm64  ;
 echo "Bootstrapping windows/amd64...";
 GOOS=windows GOARCH=amd64  CC=x86_64-w64-mingw32-gcc go build -o ${REPO_NAME}_${PACKAGE_VERSION}_win_amd64.exe  ;
