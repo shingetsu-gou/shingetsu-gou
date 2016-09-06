@@ -35,7 +35,7 @@ after_script:
 - gometalinter -e bindata --deadline=1000s ./...
 - if  [ ${TRAVIS_GO_VERSION} == "1.7" ]; then
   echo "Bootstrapping linux/amd64...";
-  go build -o ${REPO_NAME}_linux_amd64;
+  go build -o ${REPO_NAME}_${PACKAGE_VERSION}_linux_amd64;
   echo "Bootstrapping linux/386...";
   GOOS=linux GOARCH=386 go build -o ${REPO_NAME}_${PACKAGE_VERSION}_linux_386;
   echo "Bootstrapping linux/arm...";
