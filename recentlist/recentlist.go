@@ -141,33 +141,43 @@ func Getall(all bool) {
 	var wg sync.WaitGroup
 	for _, n := range nodes {
 		wg.Add(1)
-		go func(n *node.Node) {
-			defer wg.Done()
-			var res []string
-			var err error
-			res, err = n.Talk("/recent/"+strconv.FormatInt(begin, 10)+"-", nil)
-			if err != nil {
-				manager.RemoveFromAllTable(n)
-				log.Println(err)
-				return
-			}
-			for _, line := range res {
-				rec := record.Make(line)
-				if rec == nil {
-					continue
-				}
-				Append(rec.Head)
-				tags := strings.Fields(strings.TrimSpace(rec.GetBodyValue("tag", "")))
-				if len(tags) > 0 {
-					suggest.AddString(rec.Datfile, tags)
-					manager.AppendToTable(rec.Datfile, n)
-				}
-			}
-			log.Println("added", len(res), "recent records from", n.Nodestr)
-		}(n)
+		go get(begin, &wg, n)
 	}
 	wg.Wait()
 	suggest.Prune(GetRecords())
+}
+
+func get(begin int64, wg *sync.WaitGroup, n *node.Node) {
+	defer wg.Done()
+	var res []string
+	var err error
+	res, err = n.Talk("/recent/"+strconv.FormatInt(begin, 10)+"-", nil)
+	if err != nil {
+		manager.RemoveFromAllTable(n)
+		log.Println(err)
+		return
+	}
+	tx, err := db.DB.Begin()
+	if err != nil {
+		log.Print(err)
+		return
+	}
+	for _, line := range res {
+		rec := record.Make(line)
+		if rec == nil {
+			continue
+		}
+		Append(rec.Head)
+		tags := strings.Fields(strings.TrimSpace(rec.GetBodyValue("tag", "")))
+		if len(tags) > 0 {
+			suggest.AddString(rec.Datfile, tags)
+			manager.AppendToTable(rec.Datfile, n)
+		}
+	}
+	if err := tx.Commit(); err != nil {
+		log.Println(err)
+	}
+	log.Println("added", len(res), "recent records from", n.Nodestr)
 }
 
 //GetRecords copies and returns recorcds in recentlist.

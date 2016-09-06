@@ -69,6 +69,11 @@ func keys() []string {
 
 //AddString adds tags to datfile from tagstrings.
 func AddString(datfile string, vals []string) {
+	tx, err := db.DB.Begin()
+	if err != nil {
+		log.Print(err)
+		return
+	}
 	for _, v := range vals {
 		if !tag.IsOK(v) {
 			continue
@@ -77,6 +82,9 @@ func AddString(datfile string, vals []string) {
 		if err != nil {
 			log.Print(err)
 		}
+	}
+	if err := tx.Commit(); err != nil {
+		log.Println(err)
 	}
 }
 
@@ -108,10 +116,18 @@ func Prune(recs []*record.Head) {
 			tmp = append(tmp[:l], tmp[l+1:]...)
 		}
 	}
+	tx, err := db.DB.Begin()
+	if err != nil {
+		log.Print(err)
+		return
+	}
 	for _, datfile := range tmp {
 		_, err := db.DB.Exec("delete from sugtag where Thread=? ", datfile)
 		if err != nil {
 			log.Println(err)
 		}
+	}
+	if err := tx.Commit(); err != nil {
+		log.Println(err)
 	}
 }

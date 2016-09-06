@@ -51,6 +51,7 @@ import (
 	"github.com/gorilla/mux"
 	"github.com/shingetsu-gou/shingetsu-gou/cfg"
 	"github.com/shingetsu-gou/shingetsu-gou/record"
+	"github.com/shingetsu-gou/shingetsu-gou/tag/user"
 	"github.com/shingetsu-gou/shingetsu-gou/thread"
 	"github.com/shingetsu-gou/shingetsu-gou/thread/download"
 	"github.com/shingetsu-gou/shingetsu-gou/updateque"
@@ -237,7 +238,7 @@ func (t *threadCGI) printTag(ca *thread.Cache) {
 		Message    message
 	}{
 		ca.Datfile,
-		ca.GetTagstrSlice(),
+		user.GetStrings(ca.Datfile),
 		"tags",
 		"changes",
 		cfg.GatewayURL,
@@ -258,7 +259,7 @@ func (t *threadCGI) printThreadHead(path, id string, page int, ca *thread.Cache,
 			log.Println("bot detected, not get cache")
 		}
 	case t.checkGetCache():
-		ca.SetupDirectories()
+		ca.Subscribe()
 		if t.req.FormValue("search_new_file") == "" {
 			download.GetCache(true, ca)
 		}
@@ -355,7 +356,6 @@ func (t *threadCGI) printThread(path, id string, nPage int) {
 		return
 	}
 	filePath := util.FileEncode("thread", path)
-	log.Print(filePath)
 	ca := thread.NewCache(filePath)
 	rss := cfg.GatewayURL + "/rss"
 	if t.printThreadHead(path, id, nPage, ca, rss) != nil {
@@ -363,7 +363,7 @@ func (t *threadCGI) printThread(path, id string, nPage int) {
 	}
 	tags := strings.Fields(strings.TrimSpace(t.req.FormValue("tag")))
 	if t.isAdmin() && len(tags) > 0 {
-		ca.AddTags(tags)
+		user.Add(ca.Datfile, tags)
 	}
 	t.printTag(ca)
 	t.printThreadTop(path, id, nPage, ca)

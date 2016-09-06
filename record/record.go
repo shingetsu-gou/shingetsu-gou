@@ -35,7 +35,6 @@ import (
 	"regexp"
 	"strconv"
 	"strings"
-	"sync"
 
 	"github.com/shingetsu-gou/shingetsu-gou/cfg"
 	"github.com/shingetsu-gou/shingetsu-gou/db"
@@ -50,8 +49,6 @@ type Record struct {
 	*Head
 	contents map[string]string
 	keyOrder []string
-	isLoaded bool
-	mutex    sync.RWMutex
 }
 
 //NewIDstr parse idstr unixtime+"_"+md5(bodystr)), set stamp and id, and return record obj.
@@ -88,8 +85,6 @@ func New(datfile, id string, stamp int64) *Record {
 
 //CopyHead copies and  returns Head.
 func (r *Record) CopyHead() Head {
-	r.mutex.RLock()
-	defer r.mutex.RUnlock()
 	return Head{
 		Datfile: r.Datfile,
 		Stamp:   r.Stamp,
@@ -124,9 +119,6 @@ func Make(line string) *Record {
 
 //bodystr returns body part of one line in the record file.
 func (r *Record) bodystr() string {
-	r.mutex.RLock()
-	defer r.mutex.RUnlock()
-
 	rs := make([]string, len(r.contents))
 	for i, k := range r.keyOrder {
 		rs[i] = k + ":" + r.contents[k]
@@ -137,9 +129,6 @@ func (r *Record) bodystr() string {
 //HasBodyValue returns true if key k exists
 //used in templates
 func (r *Record) HasBodyValue(k string) bool {
-	r.mutex.RLock()
-	defer r.mutex.RUnlock()
-
 	if _, exist := r.contents[k]; exist {
 		return true
 	}
@@ -149,9 +138,6 @@ func (r *Record) HasBodyValue(k string) bool {
 //GetBodyValue returns value of key k
 //return def if not exists.
 func (r *Record) GetBodyValue(k string, def string) string {
-	r.mutex.RLock()
-	defer r.mutex.RUnlock()
-
 	if v, exist := r.contents[k]; exist {
 		return v
 	}
@@ -165,8 +151,6 @@ func (r *Record) Recstr() string {
 
 //Parse parses one line in record file and response of /recent/ and set params to record r.
 func (r *Record) Parse(recstr string) error {
-	r.mutex.Lock()
-	defer r.mutex.Unlock()
 	var err error
 	recstr = strings.TrimRight(recstr, "\r\n")
 	tmp := strings.Split(recstr, "<>")
@@ -215,19 +199,11 @@ func (r *Record) Parse(recstr string) error {
 		r.keyOrder = append(r.keyOrder, buf[0])
 		r.contents[buf[0]] = buf[1]
 	}
-	r.isLoaded = true
 	return nil
 }
 
 //Load loads a record file and parses it.
 func (r *Record) Load() error {
-	r.mutex.RLock()
-	isLoaded := r.isLoaded
-	r.mutex.RUnlock()
-	if isLoaded {
-		return nil
-	}
-
 	if !r.Exists() {
 		err := r.Remove()
 		if err != nil {
@@ -255,7 +231,6 @@ func (r *Record) ShortPubkey() string {
 func (r *Record) Build(stamp int64, body map[string]string, passwd string) string {
 	r.contents = make(map[string]string)
 	r.Stamp = stamp
-	r.mutex.Lock()
 	for key, value := range body {
 		if value == "" {
 			continue
@@ -263,29 +238,21 @@ func (r *Record) Build(stamp int64, body map[string]string, passwd string) strin
 		r.contents[key] = value
 		r.keyOrder = append(r.keyOrder, key)
 	}
-	r.mutex.Unlock()
 	if passwd != "" {
 		k := util.MakePrivateKey(passwd)
 		pubkey, _ := k.GetKeys()
 		md := util.MD5digest(r.bodystr())
 		sign := k.Sign(md)
-		r.mutex.Lock()
 		r.contents["pubkey"] = pubkey
 		r.contents["sign"] = sign
 		r.contents["target"] = strings.Join(r.keyOrder, ",")
 		r.keyOrder = append(r.keyOrder, "pubkey")
 		r.keyOrder = append(r.keyOrder, "sign")
 		r.keyOrder = append(r.keyOrder, "target")
-		r.mutex.Unlock()
 	}
 
 	id := util.MD5digest(r.bodystr())
-	r.mutex.Lock()
 	r.ID = id
-	r.isLoaded = true
-	r.mutex.Unlock()
-	r.mutex.RLock()
-	defer r.mutex.RUnlock()
 	return r.ID
 }
 
@@ -337,8 +304,6 @@ func (r *Record) Getbody() string {
 
 //checkSign check signature in the record is valid.
 func (r *Record) checkSign() bool {
-	r.mutex.RLock()
-	defer r.mutex.RUnlock()
 
 	for _, k := range []string{"pubkey", "sign", "target"} {
 		if _, exist := r.contents[k]; !exist {
@@ -360,8 +325,6 @@ func (r *Record) checkSign() bool {
 //meets checks the record meets conditions of args
 func (r *Record) meets(begin, end int64) bool {
 	md5ok := r.md5check()
-	r.mutex.RLock()
-	defer r.mutex.RUnlock()
 	if begin > r.Stamp || (end > 0 && r.Stamp > end) {
 		log.Println("stamp range NG", begin, end, r.Stamp)
 		return false
@@ -390,8 +353,6 @@ func (r *Record) MakeAttachLink(sakuHost string) string {
 
 //BodyString retuns bodystr not including attach field, and shorten pubkey.
 func (r *Record) BodyString() string {
-	r.mutex.RLock()
-	defer r.mutex.RUnlock()
 	buf := []string{
 		strconv.FormatInt(r.Stamp, 10),
 		r.ID,
@@ -452,7 +413,5 @@ func (r *Record) CheckData(begin, end int64) error {
 
 //InRange returns true if stamp  is in begin~end and idstr has id.
 func (r *Record) InRange(begin, end int64, id string) bool {
-	r.mutex.RLock()
-	defer r.mutex.RUnlock()
 	return begin <= r.Stamp && r.Stamp <= end && (id == "" || strings.HasSuffix(r.Idstr(), id))
 }

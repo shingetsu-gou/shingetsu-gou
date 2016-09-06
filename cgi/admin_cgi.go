@@ -198,9 +198,9 @@ func printEdittag(w http.ResponseWriter, r *http.Request) {
 		a.m,
 		cfg.AdminURL,
 		datfile,
-		ca.TagString(),
+		user.String(ca.Datfile),
 		suggest.Get(ca.Datfile, nil),
-		user.GetThread(ca.Datfile),
+		user.GetByThread(ca.Datfile),
 	}
 	a.header(fmt.Sprintf("%s: %s", a.m["edit_tag"], strTitle), "", nil, true)
 	tmpH.RenderTemplate("edit_tag", d, a.wr)
@@ -224,7 +224,7 @@ func saveTagCGI(w http.ResponseWriter, r *http.Request) {
 		a.print404(nil, "")
 	}
 	tl := strings.Fields(tags)
-	ca.SetTags(tl)
+	user.Set(datfile, tl)
 	var next string
 	title := util.StrEncode(util.FileDecode(datfile))
 	if strings.HasPrefix(datfile, "thread_") {

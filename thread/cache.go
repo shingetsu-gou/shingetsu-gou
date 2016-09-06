@@ -31,24 +31,18 @@ package thread
 import (
 	"log"
 	"strings"
-	"sync"
 	"time"
 
 	"github.com/shingetsu-gou/shingetsu-gou/cfg"
 	"github.com/shingetsu-gou/shingetsu-gou/db"
 	"github.com/shingetsu-gou/shingetsu-gou/recentlist"
 	"github.com/shingetsu-gou/shingetsu-gou/record"
-	"github.com/shingetsu-gou/shingetsu-gou/tag"
-	"github.com/shingetsu-gou/shingetsu-gou/tag/suggest"
-	"github.com/shingetsu-gou/shingetsu-gou/tag/user"
 	"github.com/shingetsu-gou/shingetsu-gou/util"
 )
 
 //Cache represents cache of one file.
 type Cache struct {
 	Datfile string
-	tags    tag.Slice //made by the user
-	mutex   sync.RWMutex
 }
 
 //NewCache read tag files to set and returns cache obj.
@@ -57,70 +51,8 @@ type Cache struct {
 func NewCache(datfile string) *Cache {
 	c := &Cache{
 		Datfile: datfile,
-		tags:    user.GetThread(datfile),
 	}
 	return c
-}
-
-//AddTags add user tag list from vals.
-func (c *Cache) AddTags(vals []string) {
-	c.mutex.Lock()
-	c.tags = c.tags.AddString(vals)
-	c.mutex.Unlock()
-	user.SetTags(c.Datfile, c.tags)
-}
-
-//SetTags sets user tag list from vals.
-func (c *Cache) SetTags(vals []string) {
-	c.mutex.Lock()
-	c.tags = tag.NewSlice(vals)
-	c.mutex.Unlock()
-	user.Set(c.Datfile, vals)
-}
-
-//LenTags returns # of set user tag.
-func (c *Cache) LenTags() int {
-	c.mutex.Lock()
-	defer c.mutex.Unlock()
-	return c.tags.Len()
-}
-
-//TagString returns string of user tag.
-func (c *Cache) TagString() string {
-	c.mutex.Lock()
-	defer c.mutex.Unlock()
-	return c.tags.String()
-}
-
-//GetTagstrSlice returns tagstr slice of user tag.
-func (c *Cache) GetTagstrSlice() []string {
-	c.mutex.Lock()
-	defer c.mutex.Unlock()
-	return c.tags.GetTagstrSlice()
-}
-
-//GetTags returns copy of usertags.
-func (c *Cache) GetTags() tag.Slice {
-	c.mutex.RLock()
-	defer c.mutex.RUnlock()
-	ts := make([]*tag.Tag, c.tags.Len())
-	copy(ts, c.tags)
-	return tag.Slice(ts)
-}
-
-//HasTagstr returns true if tag has tagstr.
-func (c *Cache) HasTagstr(tagstr string) bool {
-	c.mutex.RLock()
-	defer c.mutex.RUnlock()
-	return c.tags.HasTagstr(tagstr)
-}
-
-//HasTag returns true if cache has tagstr=board tag in usertag or sugtag.
-func (c *Cache) HasTag(board string) bool {
-	if suggest.HasTagstr(c.Datfile, board) {
-		return true
-	}
-	return c.HasTagstr(board)
 }
 
 //Stamp returns lastest stampl of records in the cache.
@@ -159,6 +91,9 @@ func (c *Cache) Velocity() int {
 
 //Size returns sum of body char length of records in the cache.
 func (c *Cache) Size() int64 {
+	if c.Len() == 0 {
+		return 0
+	}
 	//sqlite3-specific cmd
 	cntt, err := db.Int64("select sum(length(Body))  from record where Thread=?", c.Datfile)
 	if err != nil {
@@ -195,8 +130,8 @@ func (c *Cache) LoadRecords(kind int) record.Map {
 	return r
 }
 
-//SetupDirectories make necessary dirs.
-func (c *Cache) SetupDirectories() {
+//Subscribe add the thread to thread db.
+func (c *Cache) Subscribe() {
 	_, err := db.DB.Exec("insert into thread(Thread) values(?)", c.Datfile)
 	if err != nil {
 		log.Print(err)
@@ -285,7 +220,7 @@ func CreateAllCachedirs() {
 	for _, rh := range recentlist.GetRecords() {
 		ca := NewCache(rh.Datfile)
 		if !ca.Exists() {
-			ca.SetupDirectories()
+			ca.Subscribe()
 		}
 	}
 }

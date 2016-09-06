@@ -36,6 +36,7 @@ import (
 	"time"
 
 	"github.com/shingetsu-gou/shingetsu-gou/cfg"
+	"github.com/shingetsu-gou/shingetsu-gou/db"
 	"github.com/shingetsu-gou/shingetsu-gou/node"
 	"github.com/shingetsu-gou/shingetsu-gou/node/manager"
 	"github.com/shingetsu-gou/shingetsu-gou/recentlist"
@@ -219,13 +220,21 @@ func getWithRange(n *node.Node, c *thread.Cache, dm *Manager) bool {
 		}
 
 		var okcount int
-		_, err := n.Talk(fmt.Sprintf("/get/%s/%d-%d", c.Datfile, from, to), func(res string) error {
-			err := c.CheckData(res, -1, "", from, to)
-			if err == nil {
+		tx, err := db.DB.Begin()
+		if err != nil {
+			log.Print(err)
+			return false
+		}
+		_, err = n.Talk(fmt.Sprintf("/get/%s/%d-%d", c.Datfile, from, to), func(res string) error {
+			errf := c.CheckData(res, -1, "", from, to)
+			if errf == nil {
 				okcount++
 			}
 			return nil
 		})
+		if err = tx.Commit(); err != nil {
+			log.Println(err)
+		}
 		if err != nil {
 			dm.Finished(n, false)
 			return false
@@ -242,7 +251,6 @@ func GetCache(background bool, c *thread.Cache) bool {
 	const searchDepth = 5 // Search node size
 	ns := manager.NodesForGet(c.Datfile, searchDepth)
 	found := false
-	done := make(chan struct{}, searchDepth+1)
 	var wg sync.WaitGroup
 	var mutex sync.RWMutex
 	dm := NewManger(c)
@@ -257,39 +265,43 @@ func GetCache(background bool, c *thread.Cache) bool {
 				mutex.Lock()
 				found = true
 				mutex.Unlock()
-				done <- struct{}{}
 				return
 			}
 		}(n)
 	}
-	waitFor(background, c, done, &wg)
+	if background {
+		bg(c, &wg)
+	} else {
+		wg.Wait()
+	}
 	mutex.RLock()
 	defer mutex.RUnlock()
 	return found
 }
 
-func waitFor(background bool, c *thread.Cache, done chan struct{}, wg *sync.WaitGroup) {
+//bg waits for at least one record in the cache.
+func bg(c *thread.Cache, wg *sync.WaitGroup) {
+	w := time.Second
 	newest := recentlist.Newest(c.Datfile)
-	if background {
-		go func() {
-			wg.Wait()
-			done <- struct{}{}
-		}()
-		if newest != nil && (newest.Stamp == c.Stamp()) {
+	var done chan struct{}
+	go func() {
+		wg.Wait()
+		done <- struct{}{}
+	}()
+	if newest != nil && (newest.Stamp == c.Stamp()) {
+		return
+	}
+	for {
+		select {
+		case <-done:
 			return
-		}
-		for {
-			select {
-			case <-done:
+		case <-time.After(w):
+			w = w + time.Second
+			if c.HasRecord() {
 				return
-			case <-time.After(3 * time.Second):
-				if c.HasRecord() {
-					return
-				}
 			}
 		}
 	}
-	wg.Wait()
 }
 
 //Getall reload all records in cache in cachelist from network.

@@ -155,7 +155,6 @@ func (t *Htemplate) ExecuteTemplate(file string, st interface{}) string {
 
 //RenderTemplate executes rss template and write to wr.
 func (t *Ttemplate) RenderTemplate(file string, st interface{}, wr io.Writer) {
-	log.Println(file, st, wr)
 	if err := t.ExecuteTemplate(wr, file, st); err != nil {
 		log.Println(err)
 	}

@@ -148,7 +148,7 @@ func printRecentRSS(w http.ResponseWriter, r *http.Request) {
 	for _, ca := range cl {
 		title := util.Escape(util.FileDecode(ca.Datfile))
 		tags := suggest.Get(ca.Datfile, nil)
-		tags = append(tags, ca.GetTags()...)
+		tags = append(tags, user.GetByThread(ca.Datfile)...)
 		rsss.append(cfg.ThreadURL[1:]+"/"+util.StrEncode(title),
 			title, "", "", html.EscapeString(title), tags.GetTagstrSlice(),
 			ca.RecentStamp(), false)
@@ -385,7 +385,7 @@ func (g *gatewayCGI) appendRSS(rsss *RSS, ca *thread.Cache) {
 		}
 		permpath := path[1:]
 		permpath = fmt.Sprintf("%s/%s", path[1:], r.ID[:8])
-		rsss.append(permpath, title, rssTextFormat(r.GetBodyValue("name", "")), desc, content, ca.GetTagstrSlice(), r.Stamp, false)
+		rsss.append(permpath, title, rssTextFormat(r.GetBodyValue("name", "")), desc, content, user.GetStrings(ca.Datfile), r.Stamp, false)
 	}
 }
 
@@ -413,7 +413,7 @@ func (g *gatewayCGI) makeOneRow(c string, ca *thread.Cache, p, title string) str
 	case "size":
 		return strconv.FormatInt(ca.Size(), 10)
 	case "tag":
-		return ca.TagString()
+		return user.String(ca.Datfile)
 	case "sugtag":
 		return suggest.String(ca.Datfile)
 	}

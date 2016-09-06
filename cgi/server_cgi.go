@@ -47,6 +47,7 @@ import (
 	"github.com/shingetsu-gou/shingetsu-gou/node/manager"
 	"github.com/shingetsu-gou/shingetsu-gou/recentlist"
 	"github.com/shingetsu-gou/shingetsu-gou/record"
+	"github.com/shingetsu-gou/shingetsu-gou/tag/user"
 	"github.com/shingetsu-gou/shingetsu-gou/thread"
 	"github.com/shingetsu-gou/shingetsu-gou/updateque"
 )
@@ -228,8 +229,8 @@ func doRecent(w http.ResponseWriter, r *http.Request) {
 		}
 		ca := thread.NewCache(i.Datfile)
 		cont := fmt.Sprintf("%d<>%s<>%s", i.Stamp, i.ID, i.Datfile)
-		if ca.LenTags() > 0 {
-			cont += "<>tag:" + ca.TagString()
+		if user.Len(ca.Datfile) > 0 {
+			cont += "<>tag:" + user.String(ca.Datfile)
 		}
 		_, err := fmt.Fprintf(w, "%s\n", cont)
 		if err != nil {

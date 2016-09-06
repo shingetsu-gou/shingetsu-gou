@@ -54,7 +54,7 @@ func UpdateNodes(rec *record.Record, n *node.Node) {
 		recentlist.Append(rec.Head)
 		if cfg.HeavyMoon {
 			if ca := thread.NewCache(rec.Datfile); !ca.Exists() {
-				ca.SetupDirectories()
+				ca.Subscribe()
 			}
 		}
 	}

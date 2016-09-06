@@ -56,7 +56,6 @@ func FromRecordDB(query string, args ...interface{}) (Map, error) {
 			return nil, nil
 		}
 		idd := fmt.Sprintf("%d_%s", stamp, hash)
-		log.Println(idd)
 		recs[idd] = New(datfile, hash, stamp)
 		recs[idd].Load()
 	}

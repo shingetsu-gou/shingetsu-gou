@@ -35,6 +35,37 @@ import (
 	"github.com/shingetsu-gou/shingetsu-gou/tag"
 )
 
+//String  returns string form of usertags.
+func String(thread string) string {
+	tags := GetByThread(thread)
+	return tags.String()
+}
+
+//Len  returns # of usertags.
+func Len(thread string) int {
+	r, err := db.Int64("select count(*)  from usertag where thread=?", thread)
+	if err != nil {
+		log.Print(err)
+		return 0
+	}
+	return int(r)
+}
+
+//Has returns true if thread has the tag.
+func Has(thread string, tag ...string) bool {
+	for _, t := range tag {
+		r, err := db.Int64("select count(*)  from usertag where thread=? and Tag=?", thread, t)
+		if err != nil {
+			log.Print(err)
+			continue
+		}
+		if r > 0 {
+			return true
+		}
+	}
+	return false
+}
+
 //Get tags from the disk  if dirty and returns Slice.
 func Get() tag.Slice {
 	r, err := db.Strings("select  Tag from usertag group by Tag")
@@ -45,27 +76,56 @@ func Get() tag.Slice {
 	return tag.NewSlice(r)
 }
 
-//GetThread gets thread tags from the disk
-func GetThread(thread string) tag.Slice {
+//GetStrings gets thread tags from the disk
+func GetStrings(thread string) []string {
 	r, err := db.Strings("select  Tag from usertag where thread=?", thread)
 	if err != nil {
 		log.Print(err)
 		return nil
 	}
+	return r
+}
+
+//GetByThread gets thread tags from the disk
+func GetByThread(thread string) tag.Slice {
+	r := GetStrings(thread)
 	return tag.NewSlice(r)
 }
 
-//Set saves tag strings.
-func Set(thread string, tag []string) {
+//Add saves tag strings.
+func Add(thread string, tag []string) {
+	tx, err := db.DB.Begin()
+	if err != nil {
+		log.Print(err)
+		return
+	}
 	for _, t := range tag {
 		_, err := db.DB.Exec("insert into usertag(Thread,Tag) values(?,?)", thread, t)
 		if err != nil {
 			log.Print(err)
 		}
 	}
+	if err := tx.Commit(); err != nil {
+		log.Println(err)
+	}
 }
 
-//SetTags saves tag slice..
+//AddTags saves tag slice..
+func AddTags(thread string, tag tag.Slice) {
+	Add(thread, tag.GetTagstrSlice())
+}
+
+//Set remove all tags and saves tag strings.
+func Set(thread string, tag []string) {
+	_, err := db.DB.Exec("delete from usertag where Thread=?", thread)
+	if err != nil {
+		log.Print(err)
+		return
+	}
+	Add(thread, tag)
+}
+
+//SetTags remove all tags and saves tag slice.
 func SetTags(thread string, tag tag.Slice) {
 	Set(thread, tag.GetTagstrSlice())
 }

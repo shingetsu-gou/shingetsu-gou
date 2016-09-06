@@ -251,8 +251,16 @@ func Initialize(allnodes node.Slice) {
 	log.Println("# of nodelist:", ListLen())
 	if ListLen() == 0 {
 		myself.SetStatus(cfg.Port0)
+		tx, err := db.DB.Begin()
+		if err != nil {
+			log.Print(err)
+			return
+		}
 		for _, p := range pingOK {
 			appendToList(p)
+		}
+		if err := tx.Commit(); err != nil {
+			log.Println(err)
 		}
 	}
 }
@@ -269,20 +277,27 @@ func Join(n *node.Node) bool {
 	if hasNodeInTable("", n) || node.Me(false).Nodestr == n.Nodestr {
 		return false
 	}
+	tx, err := db.DB.Begin()
+	if err != nil {
+		log.Print(err)
+		return false
+	}
 	for count := 0; count < retryJoin && ListLen() < defaultNodes; count++ {
 		extnode, err := n.Join()
-		if err == nil && extnode == nil {
-			appendToList(n)
-			return true
-		}
-		if err == nil {
-			appendToList(n)
-			n = extnode
-			flag = true
-		} else {
+		if err != nil {
 			RemoveFromTable("", n)
 			return flag
 		}
+		if extnode == nil {
+			appendToList(n)
+			return true
+		}
+		appendToList(n)
+		n = extnode
+		flag = true
+	}
+	if err := tx.Commit(); err != nil {
+		log.Println(err)
 	}
 	return flag
 }

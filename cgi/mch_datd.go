@@ -46,6 +46,7 @@ import (
 	"github.com/shingetsu-gou/shingetsu-gou/mch"
 	"github.com/shingetsu-gou/shingetsu-gou/mch/keylib"
 	"github.com/shingetsu-gou/shingetsu-gou/record"
+	"github.com/shingetsu-gou/shingetsu-gou/tag/user"
 	"github.com/shingetsu-gou/shingetsu-gou/thread"
 	"github.com/shingetsu-gou/shingetsu-gou/thread/download"
 	"github.com/shingetsu-gou/shingetsu-gou/updateque"
@@ -223,7 +224,7 @@ func (m *mchCGI) makeSubjectCachelist(board string) []*thread.Cache {
 	}
 	var result2 []*thread.Cache
 	for _, c := range result {
-		if c.HasTag(board) {
+		if user.Has(c.Datfile, board) {
 			result2 = append(result2, c)
 		}
 	}
@@ -309,7 +310,7 @@ func (m *mchCGI) postComment(threadKey, name, mail, body, passwd, tag string) er
 	}
 	rec.Sync()
 	if tag != "" {
-		c.SetTags([]string{tag})
+		user.Set(c.Datfile, []string{tag})
 	}
 	go updateque.UpdateNodes(rec, nil)
 	return nil

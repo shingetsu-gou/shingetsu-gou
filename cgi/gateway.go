@@ -173,7 +173,7 @@ func (l *ListItem) checkCache(ca *thread.Cache, target string) (string, bool) {
 	}
 	if l.tag != "" {
 		switch {
-		case ca.HasTagstr(strings.ToLower(l.tag)):
+		case user.Has(ca.Datfile, strings.ToLower(l.tag)):
 		case target == "recent" && suggest.HasTagstr(ca.Datfile, strings.ToLower(l.tag)):
 		default:
 			return "", false
@@ -197,8 +197,8 @@ func (l ListItem) Render(ca *thread.Cache, remove bool, target string, search bo
 	}
 	var sugtags []*tag.Tag
 	if target == "recent" {
-		strTags := make([]string, ca.LenTags())
-		for i, v := range ca.GetTags() {
+		strTags := make([]string, user.Len(ca.Datfile))
+		for i, v := range user.GetByThread(ca.Datfile) {
 			strTags[i] = strings.ToLower(v.Tagstr)
 		}
 		for _, st := range suggest.Get(ca.Datfile, nil) {
@@ -209,7 +209,7 @@ func (l ListItem) Render(ca *thread.Cache, remove bool, target string, search bo
 	}
 	l.Cache = ca
 	l.Title = x
-	l.Tags = ca.GetTags()
+	l.Tags = user.GetByThread(ca.Datfile)
 	l.Sugtags = sugtags
 	l.Target = target
 	l.Remove = remove
@@ -233,7 +233,6 @@ type cgi struct {
 //newCGI reads messages file, and set params , returns cgi obj.
 //cgi obj is cached.
 func newCGI(w http.ResponseWriter, r *http.Request) *cgi {
-
 	c := &cgi{
 		jc:  newJsCache(cfg.Docroot),
 		wr:  w,
