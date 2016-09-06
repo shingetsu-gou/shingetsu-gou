@@ -16,7 +16,7 @@ gobuild_args: -ldflags "-X cfg.VERSION= ${PACKAGE_VERSION}"
 before_install:
 - sudo apt-get -qq update
 - sudo apt-get install -y automake autogen build-essential ca-certificates     gcc-arm-linux-gnueabi g++-arm-linux-gnueabi libc6-dev-armel-cross  gcc-arm-linux-gnueabihf g++-arm-linux-gnueabihf libc6-dev-armhf-cross  gcc-multilib g++-multilib 
-- sudo apt-get install -y gcc-mingw-w64-i686 g++-mingw-w64-i686 gcc-mingw-w64-x86-64 g++-mingw-w64-x86-64 clang llvm-dev  libtool libxml2-dev uuid-dev libssl-dev swig pkg-config patch  make xz-utils cpio wget zip unzip p7zip  bzr texinfo help2man       --no-install-recommends
+- sudo apt-get install -y binutils-mingw-w64-i686  binutils-mingw-w64-x86-64  gcc-mingw-w64-i686 g++-mingw-w64-i686 gcc-mingw-w64-x86-64 g++-mingw-w64-x86-64 clang llvm-dev  libtool libxml2-dev uuid-dev libssl-dev swig pkg-config patch  make xz-utils cpio wget zip unzip p7zip  bzr texinfo help2man       --no-install-recommends
 - go get github.com/axw/gocov/gocov
 - go get github.com/alecthomas/gometalinter
 - go get github.com/mattn/goveralls
