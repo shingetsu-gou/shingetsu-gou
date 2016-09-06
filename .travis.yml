@@ -14,14 +14,8 @@ env:
 gobuild_args: -ldflags "-X cfg.VERSION= ${PACKAGE_VERSION}"
 
 before_install:
-- sudo apt-get update
-- sudo apt-get install -y automake autogen build-essential ca-certificates                    \
-    gcc-arm-linux-gnueabi g++-arm-linux-gnueabi libc6-dev-armel-cross                \
-    gcc-arm-linux-gnueabihf g++-arm-linux-gnueabihf libc6-dev-armhf-cross            \
-    gcc-aarch64-linux-gnu g++-aarch64-linux-gnu libc6-dev-arm64-cross                \
-    gcc-multilib g++-multilib gcc-mingw-w64 g++-mingw-w64 clang llvm-dev             \
-    libtool libxml2-dev uuid-dev libssl-dev swig pkg-config patch          \
-    make xz-utils cpio wget zip unzip p7zip  bzr texinfo help2man       --no-install-recommends
+- sudo apt-get -qq update
+- sudo apt-get install -y automake autogen build-essential ca-certificates     gcc-arm-linux-gnueabi g++-arm-linux-gnueabi libc6-dev-armel-cross  gcc-arm-linux-gnueabihf g++-arm-linux-gnueabihf libc6-dev-armhf-cross  gcc-aarch64-linux-gnu g++-aarch64-linux-gnu libc6-dev-arm64-cross  gcc-multilib g++-multilib gcc-mingw-w64 g++-mingw-w64 clang llvm-dev  libtool libxml2-dev uuid-dev libssl-dev swig pkg-config patch  make xz-utils cpio wget zip unzip p7zip  bzr texinfo help2man       --no-install-recommends
 - go get github.com/axw/gocov/gocov
 - go get github.com/alecthomas/gometalinter
 - go get github.com/mattn/goveralls
@@ -44,11 +38,11 @@ after_script:
   echo "Bootstrapping linux/386...";
   GOOS=linux GOARCH=386 go build -o ${REPO_NAME}_${PACKAGE_VERSION}_linux_386;
   echo "Bootstrapping linux/arm64...";
-  GOOS=linux GOARCH=arm64  CC=aarch64-linux-gnu-gcc-5 go build -o ${REPO_NAME}_${PACKAGE_VERSION}_linux_arm64;
+  GOOS=linux GOARCH=arm64  CC=aarch64-linux-gnu-gcc go build -o ${REPO_NAME}_${PACKAGE_VERSION}_linux_arm64;
   echo "Bootstrapping windows/amd64...";
   GOOS=windows GOARCH=amd64  CC=x86_64-w64-mingw32-gcc go build -o ${REPO_NAME}_${PACKAGE_VERSION}_win_amd64.exe;
   echo "Bootstrapping windows/386...";
-  GOOS=windows GOARCH=386 CC=i686-w64-mingw32-gccgo build -o ${REPO_NAME}_${PACKAGE_VERSION}_win_386.exe;
+  GOOS=windows GOARCH=386 CC=i686-w64-mingw32-gcc go build -o ${REPO_NAME}_${PACKAGE_VERSION}_win_386.exe;
   echo "Bootstrapping darwin/amd64...";
   GOOS=darwin GOARCH=amd64 CC=o64-clang go build -o ${REPO_NAME}_${PACKAGE_VERSION}_darwin_amd64;
   echo "Bootstrapping darwin/386...";
