@@ -172,7 +172,7 @@ func Verify(mesg, testsig, publicKey string) bool {
 func CutKey(key string) string {
 	digest := md5.Sum([]byte(key))
 	k := base64.StdEncoding.EncodeToString(digest[:])[:11]
-	return string(k)
+	return k
 }
 
 func setBytesReverse(b *big.Int, d []byte) *big.Int {

@@ -57,7 +57,10 @@ func FromRecordDB(query string, args ...interface{}) (Map, error) {
 		}
 		idd := fmt.Sprintf("%d_%s", stamp, hash)
 		recs[idd] = New(datfile, hash, stamp)
-		recs[idd].Load()
+		if err := recs[idd].Load(); err != nil {
+			log.Print(err)
+			return nil, err
+		}
 	}
 	return recs, nil
 }

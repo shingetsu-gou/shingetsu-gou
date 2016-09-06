@@ -48,6 +48,7 @@ after_script:
   GOOS=darwin GOARCH=amd64 CC=o64-clang go build -o ${REPO_NAME}_${PACKAGE_VERSION}_darwin_amd64;
   echo "Bootstrapping darwin/386...";
   GOOS=darwin GOARCH=386  CC=o32-clang go build -o ${REPO_NAME}_${PACKAGE_VERSION}_darwin_386;
+  ls;
   gzip ${REPO_NAME}_${PACKAGE_VERSION}_linux_386;
   gzip ${REPO_NAME}_${PACKAGE_VERSION}_linux_amd64;
   gzip ${REPO_NAME}_${PACKAGE_VERSION}_linux_arm64;

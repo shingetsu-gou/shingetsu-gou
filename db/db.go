@@ -52,8 +52,10 @@ therefore no need to lock.
 https://www.sqlite.org/threadsafe.html
 */
 
+//DB is sql.DB for operating database.
 var DB *sql.DB
 
+//Setup setups db.
 func Setup() {
 	dbpath := path.Join(cfg.RunDir, "gou.db")
 	var err error
@@ -80,12 +82,14 @@ func Setup() {
 	}
 }
 
+//String return string result after query.
 func String(query string, args ...interface{}) (string, error) {
 	var str string
 	err := DB.QueryRow(query, args...).Scan(&str)
 	return str, err
 }
 
+//Strings return []string result after query.
 func Strings(query string, args ...interface{}) ([]string, error) {
 	rows, err := DB.Query(query, args...)
 	if err != nil {
@@ -103,12 +107,14 @@ func Strings(query string, args ...interface{}) ([]string, error) {
 	return result, nil
 }
 
+//Int64  return int64 result after query.
 func Int64(query string, args ...interface{}) (int64, error) {
 	var str int64
 	err := DB.QueryRow(query, args...).Scan(&str)
 	return str, err
 }
 
+//Int64s  return []int64 result after query.
 func Int64s(query string, args ...interface{}) ([]int64, error) {
 	rows, err := DB.Query(query, args...)
 	if err != nil {

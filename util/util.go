@@ -72,7 +72,7 @@ func EscapeSpace(msg string) string {
 func Escape(msg string) string {
 	msg = strings.Replace(msg, "&", "&amp;", -1)
 	reg := regexp.MustCompile(`&amp;(#\d+|#[Xx][0-9A-Fa-f]+|[A-Za-z0-9]+);`)
-	msg = string(reg.ReplaceAllString(msg, "&$1;"))
+	msg = reg.ReplaceAllString(msg, "&$1;")
 	msg = strings.Replace(msg, "<", "&lt;", -1)
 	msg = strings.Replace(msg, ">", "&gt;", -1)
 	msg = strings.Replace(msg, "\r", "", -1)
