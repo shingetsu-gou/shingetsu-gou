@@ -157,11 +157,11 @@ func (c *Cache) CheckData(res string, stamp int64, id string, begin, end int64) 
 
 //Remove Remove all files and dirs of cache.
 func (c *Cache) Remove() {
-	_, err := db.DB.Exec("delete from record   Thread= ? order where", c.Datfile)
+	_, err := db.DB.Exec("delete from record where  Thread= ?", c.Datfile)
 	if err != nil {
 		log.Println(err)
 	}
-	_, err = db.DB.Exec("delete from thread   Thread= ? order where ", c.Datfile)
+	_, err = db.DB.Exec("delete from thread   where Thread= ? ", c.Datfile)
 	if err != nil {
 		log.Println(err)
 	}

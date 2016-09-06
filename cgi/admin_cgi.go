@@ -79,7 +79,6 @@ func execCmd(w http.ResponseWriter, r *http.Request) {
 	rmFiles := a.req.Form["file"]
 	rmRecords := a.req.Form["record"]
 
-	log.Println("removing, cmd", cmd, "rmFiles", rmFiles, "rmRecords", rmRecords, "dopost=", a.req.FormValue("dopost"))
 	switch cmd {
 	case "rdel":
 		a.printDeleteRecord(rmFiles, rmRecords)
