@@ -39,7 +39,7 @@ after_success:
 -  echo "Bootstrapping linux/386..."
 -  env CGO_ENABLED=1 GOOS=linux GOARCH=386 go build -o ${REPO_NAME}_${PACKAGE_VERSION}_linux_386 -ldflags "-X cfg.Version=${PACKAGE_VERSION}"
 -  echo "Bootstrapping linux/arm..."
--  env CGO_ENABLED=1 GOOS=linux GOARCH=arm GOARM=6  CC=arm-linux-gnueabihf-gcc  CGO_CFLAGS="-march=armv6" CGO_CXXFLAGS="-march=armv6"  go build -o ${REPO_NAME}_${PACKAGE_VERSION}_linux_arm -ldflags "-X cfg.Version=${PACKAGE_VERSION}"
+-  env CGO_ENABLED=1 GOOS=linux GOARCH=arm GOARM=6  CC=arm-linux-gnueabihf-gcc  go build -o ${REPO_NAME}_${PACKAGE_VERSION}_linux_arm -ldflags "-X cfg.Version=${PACKAGE_VERSION}"
  - echo "Bootstrapping windows/amd64..."
  - env CGO_ENABLED=1 GOOS=windows GOARCH=amd64  CC=x86_64-w64-mingw32-gcc go build -o ${REPO_NAME}_${PACKAGE_VERSION}_win_amd64.exe -ldflags "-X cfg.Version=${PACKAGE_VERSION}"
  - echo "Bootstrapping windows/386..."
