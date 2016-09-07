@@ -13,20 +13,15 @@ gobuild_args: -u -x -ldflags "-X cfg.Version=${PACKAGE_VERSION}"
 
 before_install:
 - sudo apt-get -qq update
-- sudo apt-get install -y  gcc-arm-linux-gnueabihf g++-arm-linux-gnueabihf  gcc-arm-linux-gnueabi g++-arm-linux-gnueabi libc6-dev-armel-cross  gcc-arm-linux-gnueabihf g++-arm-linux-gnueabihf libc6-dev-armhf-cross  gcc-multilib g++-multilib 
-- sudo apt-get install -y binutils-mingw-w64-i686  binutils-mingw-w64-x86-64  gcc-mingw-w64-i686 g++-mingw-w64-i686 gcc-mingw-w64-x86-64 g++-mingw-w64-x86-64 clang llvm-dev   libxml2-dev uuid-dev swig  p7zip  texinfo help2man       --no-install-recommends
 - go get github.com/axw/gocov/gocov
 - go get github.com/alecthomas/gometalinter
 - go get github.com/mattn/goveralls
 - go get -u github.com/jteeuwen/go-bindata/...
 - if ! go get code.google.com/p/go.tools/cmd/cover; then go get golang.org/x/tools/cmd/cover; fi
-- export PATH=$PATH:$GOPATH/bin:$HOME/gopath/src/github.com/shingetsu-gou/shingetsu-gou/osxcross/target/bin
+- export PATH=$PATH:$GOPATH/bin
 - gometalinter --install --update
 - go-bindata -o util/bindata.go -pkg util www/... file/... gou_template/...
-- wget https://s3.dockerproject.org/darwin/v2/MacOSX10.11.sdk.tar.xz
-- git clone https://github.com/tpoechtrager/osxcross.git
-- mv MacOSX10.11.sdk.tar.xz osxcross/tarballs/
-- UNATTENDED=yes OSX_VERSION_MIN=10.6 osxcross/build.sh
+
 script:
 - go test -v -covermode=count -coverprofile=coverage.out
 #- ! gometalinter --deadline=1000s ./... 2>&1 | read
@@ -34,43 +29,26 @@ script:
 after_success:
 - goveralls -coverprofile=coverage.out -service=travis-ci
 - gometalinter -e bindata --deadline=1000s ./...
-- echo "Bootstrapping linux/amd64..."
-- go build -o ${REPO_NAME}_${PACKAGE_VERSION}_linux_amd64 -ldflags "-X cfg.Version=${PACKAGE_VERSION}" 
-- echo "Bootstrapping linux/386..."
-- env CGO_ENABLED=1 GOOS=linux GOARCH=386 go build -o ${REPO_NAME}_${PACKAGE_VERSION}_linux_386 -ldflags "-X cfg.Version=${PACKAGE_VERSION}"
-- echo "Bootstrapping linux/arm..."
-- env CGO_ENABLED=1 GOOS=linux GOARCH=arm GOARM=6  CC=arm-linux-gnueabihf-gcc  go build -o ${REPO_NAME}_${PACKAGE_VERSION}_linux_arm -ldflags "-X cfg.Version=${PACKAGE_VERSION}" -ldflags "-extld=arm-linux-gnueabihf-gcc"
-- echo "Bootstrapping windows/amd64..."
-- env CGO_ENABLED=1 GOOS=windows GOARCH=amd64  CC=x86_64-w64-mingw32-gcc go build -o ${REPO_NAME}_${PACKAGE_VERSION}_win_amd64.exe -ldflags "-X cfg.Version=${PACKAGE_VERSION}"
-- echo "Bootstrapping windows/386..."
-- env CGO_ENABLED=1 GOOS=windows GOARCH=386 CC=i686-w64-mingw32-gcc go build -o ${REPO_NAME}_${PACKAGE_VERSION}_win_386.exe -ldflags "-X cfg.Version=${PACKAGE_VERSION}"
-- echo "Bootstrapping darwin/amd64..."
-- env CGO_ENABLED=1 GOOS=darwin GOARCH=amd64 CC=o64-clang go build -o ${REPO_NAME}_${PACKAGE_VERSION}_darwin_amd64 -ldflags "-X cfg.Version=${PACKAGE_VERSION}"
-- echo "Bootstrapping darwin/386..."
-- env CGO_ENABLED=1 GOOS=darwin GOARCH=386  CC=o32-clang go build -o ${REPO_NAME}_${PACKAGE_VERSION}_darwin_386 -ldflags "-X cfg.Version=${PACKAGE_VERSION}"
-- ls
-- gzip ${REPO_NAME}_${PACKAGE_VERSION}_linux_386
-- gzip ${REPO_NAME}_${PACKAGE_VERSION}_linux_amd64
-- gzip ${REPO_NAME}_${PACKAGE_VERSION}_linux_arm
-- zip ${REPO_NAME}_${PACKAGE_VERSION}_win_amd64.exe.zip  ${REPO_NAME}_${PACKAGE_VERSION}_win_amd64.exe
-- zip ${REPO_NAME}_${PACKAGE_VERSION}_win_386.exe.zip  ${REPO_NAME}_${PACKAGE_VERSION}_win_386.exe
-- zip ${REPO_NAME}_${PACKAGE_VERSION}_darwin_amd64.zip  ${REPO_NAME}_${PACKAGE_VERSION}_darwin_amd64
-- zip ${REPO_NAME}_${PACKAGE_VERSION}_darwin_386.zip  ${REPO_NAME}_${PACKAGE_VERSION}_darwin_386
-- ls
-- cd ..
+- docker pull karalabe/xgo-latest
+- go get github.com/karalabe/xgo
+- xgo -out ${REPO_NAME}_${PACKAGE_VERSION} github.com/$REPO_NAME/$REPO_NAME
+- ls -al
+
 
 deploy:
   provider: releases
   api_key:
     secure: ${GITHUB_TOKEN}
   file:
-     -  "$HOME/gopath/src/github.com/shingetsu-gou/shingetsu-gou/${REPO_NAME}_${PACKAGE_VERSION}_linux_386.gz"
-     -  "$HOME/gopath/src/github.com/shingetsu-gou/shingetsu-gou/${REPO_NAME}_${PACKAGE_VERSION}_linux_amd64.gz"
-     -  "$HOME/gopath/src/github.com/shingetsu-gou/shingetsu-gou/${REPO_NAME}_${PACKAGE_VERSION}_linux_arm.gz"
-     -  "$HOME/gopath/src/github.com/shingetsu-gou/shingetsu-gou/${REPO_NAME}_${PACKAGE_VERSION}_win_386.exe.zip"
-     -  "$HOME/gopath/src/github.com/shingetsu-gou/shingetsu-gou/${REPO_NAME}_${PACKAGE_VERSION}_win_amd64.exe.zip"
-     -  "$HOME/gopath/src/github.com/shingetsu-gou/shingetsu-gou/${REPO_NAME}_${PACKAGE_VERSION}_darwin_386.zip"
-     -  "$HOME/gopath/src/github.com/shingetsu-gou/shingetsu-gou/${REPO_NAME}_${PACKAGE_VERSION}_darwin_amd64.zip"
+     -  "$GOPATH/src/github.com/shingetsu-gou/shingetsu-gou/${REPO_NAME}_${PACKAGE_VERSION}-android-16-arm"
+     -  "$GOPATH/src/github.com/shingetsu-gou/shingetsu-gou/${REPO_NAME}_${PACKAGE_VERSION}-darwin-10.6-386"
+     -  "$GOPATH/src/github.com/shingetsu-gou/shingetsu-gou/${REPO_NAME}_${PACKAGE_VERSION}-darwin-10.6-amd64"
+     -  "$GOPATH/src/github.com/shingetsu-gou/shingetsu-gou/${REPO_NAME}_${PACKAGE_VERSION}-ios-5.0-arm"
+     -  "$GOPATH/src/github.com/shingetsu-gou/shingetsu-gou/${REPO_NAME}_${PACKAGE_VERSION}-linux-386"
+     -  "$GOPATH/src/github.com/shingetsu-gou/shingetsu-gou/${REPO_NAME}_${PACKAGE_VERSION}-linux-amd64"
+     -  "$GOPATH/src/github.com/shingetsu-gou/shingetsu-gou/${REPO_NAME}_${PACKAGE_VERSION}-linux-arm"
+     -  "$GOPATH/src/github.com/shingetsu-gou/shingetsu-gou/${REPO_NAME}_${PACKAGE_VERSION}-windows-4.0-386.exe"
+     -  "$GOPATH/src/github.com/shingetsu-gou/shingetsu-gou/${REPO_NAME}_${PACKAGE_VERSION}-windows-4.0-amd64.exe"
   skip_cleanup: true
   on:
     repo: $REPO_NAME/$REPO_NAME
