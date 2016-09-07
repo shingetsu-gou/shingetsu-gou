@@ -46,9 +46,9 @@ after_success:
 - zip ${REPO_NAME}_${PACKAGE_VERSION}-windows-4.0-amd64.exe.zip ${REPO_NAME}_${PACKAGE_VERSION}-windows-4.0-amd64.exe
 - gzip ${REPO_NAME}_${PACKAGE_VERSION}-linux-386
 - gzip ${REPO_NAME}_${PACKAGE_VERSION}-linux-amd64
-- gzip ${REPO_NAME}_${PACKAGE_VERSION}-linux-amd-5
-- gzip ${REPO_NAME}_${PACKAGE_VERSION}-linux-amd-6
-- gzip ${REPO_NAME}_${PACKAGE_VERSION}-linux-amd-7
+- gzip ${REPO_NAME}_${PACKAGE_VERSION}-linux-arm-5
+- gzip ${REPO_NAME}_${PACKAGE_VERSION}-linux-arm-6
+- gzip ${REPO_NAME}_${PACKAGE_VERSION}-linux-arm-7
 - gzip ${REPO_NAME}_${PACKAGE_VERSION}-linux-arm64
 - ls -al
 
