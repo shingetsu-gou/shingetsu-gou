@@ -27,7 +27,7 @@ before_install:
 - git clone https://github.com/tpoechtrager/osxcross.git
 - mv MacOSX10.11.sdk.tar.xz osxcross/tarballs/
 - UNATTENDED=yes OSX_VERSION_MIN=10.6 osxcross/build.sh
-- ls osxcross/target
+- find osxcross
 - mv osxcross/target/* $GOPATH/bin
 script:
 - go test -v -covermode=count -coverprofile=coverage.out
