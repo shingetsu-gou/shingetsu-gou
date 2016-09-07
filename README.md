@@ -10,7 +10,7 @@ tl;dr
 ## 特徴
 * Go言語で開発
 * sakuと設定ファイル互換
-* cacheは非互換（sakuで使ってるファイルの一部を使っていないため）だが変換コマンドで対応可能
+* cacheにsqlite3を使用（朔とは非互換）
 * ポータブル：各プラットフォーム別に実行ファイル1個
 * 省メモリ（ざっくりsakuの７割～５割くらい？）
 * 速度は早いかもしれない。 
@@ -20,16 +20,6 @@ tl;dr
 3. ./shingetsu-gouで実行
 4. ブラウザでhttp://localhost:8000/をアクセス
 5. uPnP/NAT-PMPでポートを自動で開ける努力はしますが、不可の場合、スレに書き込めません。朔同様自分でポートを開けてください。
-
-## 朔から移行
-1.  [ここ](https://github.com/shingetsu-gou/shingetsu-gou/releases)から自分のOSの実行バイナリダウンロード、展開
-2. 合を実行するディレクトリに実行ファイル(shingetsu-gou)と、朔のcacheディレクトリとmessage-*.txtを除くfileディレクトリをコピー（朔のcache/fileディレクトリは別に残しておくことを推奨します）
-3. ./shingetsu-gouで実行
-
-## 合のキャッシュを朔で使う（朔に戻る）
-1. 合のキャッシュをバックアップ（推奨）
-2. 合の実行ディレクトリで./shingetsu-gou --sakurifice実行
-3. 合のcacheディレクトリとfileディレクトリを朔のディレクトリにコピー
 
 
 ## Overview
@@ -50,24 +40,22 @@ Yeah, the sun and moon are in conjunction during the new moon(shingetsu:新月, 
 ## Feature
 
 1. Setting files are compatible with ones of saku 4.6.1.
-2. You can use cache of saku without modification, but you cannot use cache of Gou with saku.
-   But there is --sakurifice option to convert Gou cache to saku one.
+2. use sqlite3 for cache.(not compatible with Saku)
 2. Gou uses less (about half of ) memory usage than saku.
 3. Portable because there is only one binary file for each platforms and no need to prepare runtime. 
    Just download and click one binary to run.
 4. (should be) faster than saku (?).
-5. Relaying by websocket for NAT users (testing now).
 
 ## Platform
-  * MacOS darwin/Plan9 on i386
-  * Windows/OpenBSD on i386/amd64
-  * Linux/NetBSD/FreeBSD on i386/amd64/arm
-  * Solaris on amd64
-
+  * MacOS darwin on i386
+  * Windows on i386/amd64
+  * Linux on i386/amd64/arm
+  
 ## Requirements
 
 * git
-* go 1.4+
+* gcc(for compiling mattn/go-sqlite3)
+* go 1.7
 
 are required to compile.
 
@@ -86,8 +74,6 @@ Or you can download executable binaries from [here](https://github.com/shingetsu
 ## Command Options
 ```
 shingetsu-gou <options>
-  -sakurifice
-        makes caches compatible with saku
   -silent
         suppress logs
   -v    print logs
@@ -101,22 +87,6 @@ shingetsu-gou <options>
 3. Gou can try to open port by uPnP and NAT-PMP. You can enable this function by setting enable_nat:true in [Gateway]  in saku.ini, which is false by default, but is true in attached saku.ini in binary.
 4. URL for 2ch interface /2ch_hoehoe/subject.txt in saku is /2ch/hoehoe/subject.txt in Gou.
 5. files in template directory are not compatible with Gou and Saku. The default template directory name in Gou is "gou_template/".
-6. Duplicate files are not used. i.e. files below are not used in Gou. If you want to use saku after using Gou to same cache files, you must run gou command once with --sakurifice option before using skau to complement some indispensable files.
-	* in cache directory
-		* body directory
-		* attach directory
-		* count.stat
-		* dat.stat
-		* size.stat
-		* stamp.stat
-		* validstamp.stat
-		* velocity.stat
-	* in run directory
-		* client.txt
-		* node.txt
-		* search.txt
-		* tag.txt
-		* update.txt
 7. dnsname in config.py is same as server_name in saku.ini in Gou.
 8. Gou has moonlight-like function (I believe), _heavymoon_. Add [Gateway] moonlight:true in saku.ini if you want to use. THIS FUNCTION IS NOT RECOMMENDED because of _heavy_ network load.
 9. Contents of some links are embed into the thread. If you don't like it you can disable by [Gateway] enable_embed:false.
@@ -134,7 +104,7 @@ If files in file/ dir are not found on your disk, Gou automatically expands thes
 (but not overwrite). Other files are not expanded.
 But you can add files to www/ or  template/ if you wish. These files will override embded ones.
 
-This is for easy to use Gou; just get a binary, and run it!
+This is for easy to use Gou; just get a binary, and run it.
 
 ## License
 
