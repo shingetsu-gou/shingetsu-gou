@@ -35,7 +35,7 @@ after_success:
 - gometalinter -e bindata --deadline=1000s ./...
 - docker pull karalabe/xgo-latest
 - go get github.com/karalabe/xgo
-- xgo -out ${REPO_NAME}_${PACKAGE_VERSION} github.com/$REPO_NAME/$REPO_NAME
+- xgo -out ${REPO_NAME}_${PACKAGE_VERSION} -targets= linux/386,linux/amd64,linux/arm-5,linux/arm-6,linux/arm-7,linux/arm64,windows/*,darwin/* github.com/$REPO_NAME/$REPO_NAME
 - ls -al
 
 
@@ -44,13 +44,14 @@ deploy:
   api_key:
     secure: ${GITHUB_TOKEN}
   file:
-     -  "$GOPATH/src/github.com/shingetsu-gou/shingetsu-gou/${REPO_NAME}_${PACKAGE_VERSION}-android-16-arm"
      -  "$GOPATH/src/github.com/shingetsu-gou/shingetsu-gou/${REPO_NAME}_${PACKAGE_VERSION}-darwin-10.6-386"
      -  "$GOPATH/src/github.com/shingetsu-gou/shingetsu-gou/${REPO_NAME}_${PACKAGE_VERSION}-darwin-10.6-amd64"
-     -  "$GOPATH/src/github.com/shingetsu-gou/shingetsu-gou/${REPO_NAME}_${PACKAGE_VERSION}-ios-5.0-arm"
      -  "$GOPATH/src/github.com/shingetsu-gou/shingetsu-gou/${REPO_NAME}_${PACKAGE_VERSION}-linux-386"
      -  "$GOPATH/src/github.com/shingetsu-gou/shingetsu-gou/${REPO_NAME}_${PACKAGE_VERSION}-linux-amd64"
-     -  "$GOPATH/src/github.com/shingetsu-gou/shingetsu-gou/${REPO_NAME}_${PACKAGE_VERSION}-linux-arm"
+     -  "$GOPATH/src/github.com/shingetsu-gou/shingetsu-gou/${REPO_NAME}_${PACKAGE_VERSION}-linux-arm-5"
+     -  "$GOPATH/src/github.com/shingetsu-gou/shingetsu-gou/${REPO_NAME}_${PACKAGE_VERSION}-linux-arm-6"
+     -  "$GOPATH/src/github.com/shingetsu-gou/shingetsu-gou/${REPO_NAME}_${PACKAGE_VERSION}-linux-arm-7"
+     -  "$GOPATH/src/github.com/shingetsu-gou/shingetsu-gou/${REPO_NAME}_${PACKAGE_VERSION}-linux-arm64"
      -  "$GOPATH/src/github.com/shingetsu-gou/shingetsu-gou/${REPO_NAME}_${PACKAGE_VERSION}-windows-4.0-386.exe"
      -  "$GOPATH/src/github.com/shingetsu-gou/shingetsu-gou/${REPO_NAME}_${PACKAGE_VERSION}-windows-4.0-amd64.exe"
   skip_cleanup: true
