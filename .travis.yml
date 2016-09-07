@@ -35,7 +35,7 @@ after_success:
 - gometalinter -e bindata --deadline=1000s ./...
 - docker pull karalabe/xgo-latest
 - go get github.com/karalabe/xgo
-- xgo -out ${REPO_NAME}_${PACKAGE_VERSION} -targets= linux/386,linux/amd64,linux/arm-5,linux/arm-6,linux/arm-7,linux/arm64,windows/*,darwin/* github.com/$REPO_NAME/$REPO_NAME
+- xgo -out ${REPO_NAME}_${PACKAGE_VERSION} -targets=linux/386,linux/amd64,linux/arm-5,linux/arm-6,linux/arm-7,linux/arm64,windows/*,darwin/* github.com/$REPO_NAME/$REPO_NAME
 - ls -al
 
 
