@@ -1,7 +1,6 @@
 language: go
 
 go:
-  - 1.6
   - 1.7
 
 env:
@@ -25,10 +24,11 @@ before_install:
 - gometalinter --install --update
 - go-bindata -o util/bindata.go -pkg util www/... file/... gou_template/...
 - wget https://s3.dockerproject.org/darwin/v2/MacOSX10.11.sdk.tar.xz
--  git clone https://github.com/tpoechtrager/osxcross.git
+- git clone https://github.com/tpoechtrager/osxcross.git
 - mv MacOSX10.11.sdk.tar.xz osxcross/tarballs/
 - UNATTENDED=yes OSX_VERSION_MIN=10.6 osxcross/build.sh
-- mv osxcross/target $GOPATH/bin
+- ls osxcross/target
+- mv osxcross/target/* $GOPATH/bin
 script:
 - go test -v -covermode=count -coverprofile=coverage.out
 #- ! gometalinter --deadline=1000s ./... 2>&1 | read
