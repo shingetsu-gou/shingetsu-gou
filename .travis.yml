@@ -28,7 +28,6 @@ before_install:
 - mv MacOSX10.11.sdk.tar.xz osxcross/tarballs/
 - UNATTENDED=yes OSX_VERSION_MIN=10.6 osxcross/build.sh
 - find osxcross
-- mv osxcross/target $GOPATH/bin
 script:
 - go test -v -covermode=count -coverprofile=coverage.out
 #- ! gometalinter --deadline=1000s ./... 2>&1 | read
