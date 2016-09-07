@@ -1,7 +1,11 @@
+sudo: required
 language: go
 
 go:
   - 1.7
+
+services:
+  - docker
 
 env:
   global:
