@@ -65,13 +65,13 @@ deploy:
   api_key:
     secure: ${GITHUB_TOKEN}
   file:
-     -  "${REPO_NAME}_linux_386.gz"
-     -  "${REPO_NAME}_linux_amd64.gz"
-     -  "${REPO_NAME}_linux_arm64.gz"
-     -  "${REPO_NAME}_win_386.exe.zip"
-     -  "${REPO_NAME}_win_amd64.exe.zip"
-     -  "${REPO_NAME}_darwin_386.zip"
-     -  "${REPO_NAME}_darwin_amd64.zip"
+     -  "${REPO_NAME}_${PACKAGE_VERSION}_linux_386.gz"
+     -  "${REPO_NAME}_${PACKAGE_VERSION}_linux_amd64.gz"
+     -  "${REPO_NAME}_${PACKAGE_VERSION}_linux_arm64.gz"
+     -  "${REPO_NAME}_${PACKAGE_VERSION}_win_386.exe.zip"
+     -  "${REPO_NAME}_${PACKAGE_VERSION}_win_amd64.exe.zip"
+     -  "${REPO_NAME}_${PACKAGE_VERSION}_darwin_386.zip"
+     -  "${REPO_NAME}_${PACKAGE_VERSION}_darwin_amd64.zip"
   skip_cleanup: true
   on:
     repo: $REPO_NAME/$REPO_NAME
