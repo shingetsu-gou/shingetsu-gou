@@ -9,7 +9,7 @@ env:
     - secure: "rMvn3pYBCTD9QL7y5YTR4qTS935Yg/XTYV590Jc4WmI1ohniCjamqrF06eHIduBmnwt+OpvcKB54CLNqa2CbBJhV9rwXcWQ1w7ggvukx8V+VKXSgUSv6lLbXN7ZdQyUwpfsWnYVM6o+CT8OHr71FsAqMh3dMjSv3FYjdsKVfUXTRnxjXe+zscjxWRpn/CsbQ7PayPGnc8+c3/tULqayFekbI0Vax/OtbAMSlNkKUSDMCEc6JatJ3MYW0qWTZA59ECicpWFyF0xDwhYgAaj7t5dPLyWSJTdwebcixen7scdjQ8PiGa3mLs/NhK0Typ6CFHBuyHE4P50bAiekivTrwSdxpe6xGcEwY8ph/N2BKu6V0tjh/3rr+fnmfmu0SMNssDGLkQkK7THKMmFl9gkcIL+pRdee8xJbVCHwCbgsY9S12lu6MNwLwmV+iQ+QqEtVMJhEkpQE7sg3qSXYcMWpZC+r9cl1QHbEC1HvNO+k+tjgtGKpmE+hqAQI2reLg2HuzFBoxXTVDuvhf3bVL+U0R2fHfo2PiqFBUlAqBJfJPW1G4oP5YwWEtWoBWVNJXPUK4vGlFGH6jMcIqXxGfcQRO2NnfmpljOdgEgw2+xRV4Wi7Nacr+f7y1JupRS7mb8ZY9iuIKmyMdHmCamaEobijh+TBRLV8bHwmCJcRQIc/FPMM="
     - PACKAGE_VERSION: 0.0.17
     - REPO_NAME: shingetsu-gou
-    - CGO_ENABLED:1 
+    - OSX_SDK_PATH:https://s3.dockerproject.org/darwin/v2/MacOSX10.11.sdk.tar.xz
 
 gobuild_args: -u -x -ldflags "-X cfg.Version=${PACKAGE_VERSION}"
 
@@ -26,7 +26,11 @@ before_install:
 - gometalinter --install --update
 - go-bindata -o util/bindata.go -pkg util www/... file/... gou_template/...
 - go get -u -x github.com/mattn/go-sqlite3
-
+- wget $OSX_SDK_PATH
+-  git clone https://github.com/tpoechtrager/osxcross.git
+- mv MacOSX10.11.sdk.tar.xz osxcross/tarballs/
+- UNATTENDED=yes OSX_VERSION_MIN=10.6 osxcross/build.sh
+- mv osxcross/target $HOME/gopath/bin   
 script:
 - go test -v -covermode=count -coverprofile=coverage.out
 #- ! gometalinter --deadline=1000s ./... 2>&1 | read
@@ -50,7 +54,6 @@ after_script:
   echo "Bootstrapping darwin/386...";
   env CGO_ENABLED=1 GOOS=darwin GOARCH=386  CC=o32-clang go build -o ${REPO_NAME}_${PACKAGE_VERSION}_darwin_386;
   ls;
-  find $GOPATH;
   gzip ${REPO_NAME}_${PACKAGE_VERSION}_linux_386;
   gzip ${REPO_NAME}_${PACKAGE_VERSION}_linux_amd64;
   gzip ${REPO_NAME}_${PACKAGE_VERSION}_linux_arm64;
