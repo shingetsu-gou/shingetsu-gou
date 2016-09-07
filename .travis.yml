@@ -35,7 +35,21 @@ after_success:
 - gometalinter -e bindata --deadline=1000s ./...
 - docker pull karalabe/xgo-latest
 - go get github.com/karalabe/xgo
+- cd
 - xgo -out ${REPO_NAME}_${PACKAGE_VERSION} --targets=linux/386,linux/amd64,linux/arm-5,linux/arm-6,linux/arm-7,linux/arm64,windows/*,darwin/* github.com/$REPO_NAME/$REPO_NAME
+- ls -al
+- sudo chown travis ${REPO_NAME}_${PACKAGE_VERSION}-*
+- sudo chgrp travis ${REPO_NAME}_${PACKAGE_VERSION}-*
+- zip ${REPO_NAME}_${PACKAGE_VERSION}-darwin-10.6-386.zip ${REPO_NAME}_${PACKAGE_VERSION}-darwin-10.6-386
+- zip ${REPO_NAME}_${PACKAGE_VERSION}-darwin-10.6-amd64.zip ${REPO_NAME}_${PACKAGE_VERSION}-darwin-10.6-amd64
+- zip ${REPO_NAME}_${PACKAGE_VERSION}}-windows-4.0-386.exe.zip ${REPO_NAME}_${PACKAGE_VERSION}}-windows-4.0-386.exe
+- zip ${REPO_NAME}_${PACKAGE_VERSION}-windows-4.0-amd64.exe.zip ${REPO_NAME}_${PACKAGE_VERSION}-windows-4.0-amd64.exe
+- gzip ${REPO_NAME}_${PACKAGE_VERSION}-linux-386
+- gzip ${REPO_NAME}_${PACKAGE_VERSION}-linux-amd64
+- gzip ${REPO_NAME}_${PACKAGE_VERSION}-linux-amd-5
+- gzip ${REPO_NAME}_${PACKAGE_VERSION}-linux-amd-6
+- gzip ${REPO_NAME}_${PACKAGE_VERSION}-linux-amd-7
+- gzip ${REPO_NAME}_${PACKAGE_VERSION}-linux-arm64
 - ls -al
 
 
@@ -44,16 +58,16 @@ deploy:
   api_key:
     secure: ${GITHUB_TOKEN}
   file:
-     -  "$GOPATH/src/github.com/shingetsu-gou/shingetsu-gou/${REPO_NAME}_${PACKAGE_VERSION}-darwin-10.6-386"
-     -  "$GOPATH/src/github.com/shingetsu-gou/shingetsu-gou/${REPO_NAME}_${PACKAGE_VERSION}-darwin-10.6-amd64"
-     -  "$GOPATH/src/github.com/shingetsu-gou/shingetsu-gou/${REPO_NAME}_${PACKAGE_VERSION}-linux-386"
-     -  "$GOPATH/src/github.com/shingetsu-gou/shingetsu-gou/${REPO_NAME}_${PACKAGE_VERSION}-linux-amd64"
-     -  "$GOPATH/src/github.com/shingetsu-gou/shingetsu-gou/${REPO_NAME}_${PACKAGE_VERSION}-linux-arm-5"
-     -  "$GOPATH/src/github.com/shingetsu-gou/shingetsu-gou/${REPO_NAME}_${PACKAGE_VERSION}-linux-arm-6"
-     -  "$GOPATH/src/github.com/shingetsu-gou/shingetsu-gou/${REPO_NAME}_${PACKAGE_VERSION}-linux-arm-7"
-     -  "$GOPATH/src/github.com/shingetsu-gou/shingetsu-gou/${REPO_NAME}_${PACKAGE_VERSION}-linux-arm64"
-     -  "$GOPATH/src/github.com/shingetsu-gou/shingetsu-gou/${REPO_NAME}_${PACKAGE_VERSION}-windows-4.0-386.exe"
-     -  "$GOPATH/src/github.com/shingetsu-gou/shingetsu-gou/${REPO_NAME}_${PACKAGE_VERSION}-windows-4.0-amd64.exe"
+     -  "$HOME/${REPO_NAME}_${PACKAGE_VERSION}-darwin-10.6-386.zip"
+     -  "$HOME${REPO_NAME}_${PACKAGE_VERSION}-darwin-10.6-amd64.zip"
+     -  "$HOME${REPO_NAME}_${PACKAGE_VERSION}-linux-386.gz"
+     -  "$HOME/${REPO_NAME}_${PACKAGE_VERSION}-linux-amd64.gz"
+     -  "$HOME/${REPO_NAME}_${PACKAGE_VERSION}-linux-arm-5.gz"
+     -  "$HOME/${REPO_NAME}_${PACKAGE_VERSION}-linux-arm-6.gz"
+     -  "$HOME/${REPO_NAME}_${PACKAGE_VERSION}-linux-arm-7.gz"
+     -  "$HOME/${REPO_NAME}_${PACKAGE_VERSION}-linux-arm64.gz"
+     -  "$HOME/${REPO_NAME}_${PACKAGE_VERSION}-windows-4.0-386.exe.zip"
+     -  "$HOME/${REPO_NAME}_${PACKAGE_VERSION}-windows-4.0-amd64.exe.zip"
   skip_cleanup: true
   on:
     repo: $REPO_NAME/$REPO_NAME
