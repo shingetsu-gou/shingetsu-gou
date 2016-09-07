@@ -42,7 +42,7 @@ after_success:
 - sudo chgrp travis ${REPO_NAME}_${PACKAGE_VERSION}-*
 - zip ${REPO_NAME}_${PACKAGE_VERSION}-darwin-10.6-386.zip ${REPO_NAME}_${PACKAGE_VERSION}-darwin-10.6-386
 - zip ${REPO_NAME}_${PACKAGE_VERSION}-darwin-10.6-amd64.zip ${REPO_NAME}_${PACKAGE_VERSION}-darwin-10.6-amd64
-- zip ${REPO_NAME}_${PACKAGE_VERSION}}-windows-4.0-386.exe.zip ${REPO_NAME}_${PACKAGE_VERSION}}-windows-4.0-386.exe
+- zip ${REPO_NAME}_${PACKAGE_VERSION}-windows-4.0-386.exe.zip ${REPO_NAME}_${PACKAGE_VERSION}-windows-4.0-386.exe
 - zip ${REPO_NAME}_${PACKAGE_VERSION}-windows-4.0-amd64.exe.zip ${REPO_NAME}_${PACKAGE_VERSION}-windows-4.0-amd64.exe
 - gzip ${REPO_NAME}_${PACKAGE_VERSION}-linux-386
 - gzip ${REPO_NAME}_${PACKAGE_VERSION}-linux-amd64
@@ -59,8 +59,8 @@ deploy:
     secure: ${GITHUB_TOKEN}
   file:
      -  "$HOME/${REPO_NAME}_${PACKAGE_VERSION}-darwin-10.6-386.zip"
-     -  "$HOME${REPO_NAME}_${PACKAGE_VERSION}-darwin-10.6-amd64.zip"
-     -  "$HOME${REPO_NAME}_${PACKAGE_VERSION}-linux-386.gz"
+     -  "$HOME/${REPO_NAME}_${PACKAGE_VERSION}-darwin-10.6-amd64.zip"
+     -  "$HOME/${REPO_NAME}_${PACKAGE_VERSION}-linux-386.gz"
      -  "$HOME/${REPO_NAME}_${PACKAGE_VERSION}-linux-amd64.gz"
      -  "$HOME/${REPO_NAME}_${PACKAGE_VERSION}-linux-arm-5.gz"
      -  "$HOME/${REPO_NAME}_${PACKAGE_VERSION}-linux-arm-6.gz"
