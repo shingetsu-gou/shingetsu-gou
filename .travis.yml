@@ -31,7 +31,7 @@ script:
 - go test -v -covermode=count -coverprofile=coverage.out
 #- ! gometalinter --deadline=1000s ./... 2>&1 | read
 
-after_script:
+after_success:
 - goveralls -coverprofile=coverage.out -service=travis-ci
 - gometalinter -e bindata --deadline=1000s ./...
 - if  [ ${TRAVIS_GO_VERSION} == "1.7" ]; then
@@ -57,6 +57,7 @@ after_script:
   zip ${REPO_NAME}_${PACKAGE_VERSION}_win_386.exe.zip  ${REPO_NAME}_${PACKAGE_VERSION}_win_386.exe;
   zip ${REPO_NAME}_${PACKAGE_VERSION}_darwin_amd64.zip  ${REPO_NAME}_${PACKAGE_VERSION}_darwin_amd64;
   zip ${REPO_NAME}_${PACKAGE_VERSION}_darwin_386.zip  ${REPO_NAME}_${PACKAGE_VERSION}_darwin_386;
+  ls;
   cd ..;
   fi
 
