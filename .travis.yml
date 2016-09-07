@@ -52,7 +52,7 @@ after_success:
   ls;
   gzip ${REPO_NAME}_${PACKAGE_VERSION}_linux_386;
   gzip ${REPO_NAME}_${PACKAGE_VERSION}_linux_amd64;
-  gzip ${REPO_NAME}_${PACKAGE_VERSION}_linux_arm64;
+  gzip ${REPO_NAME}_${PACKAGE_VERSION}_linux_arm;
   zip ${REPO_NAME}_${PACKAGE_VERSION}_win_amd64.exe.zip  ${REPO_NAME}_${PACKAGE_VERSION}_win_amd64.exe;
   zip ${REPO_NAME}_${PACKAGE_VERSION}_win_386.exe.zip  ${REPO_NAME}_${PACKAGE_VERSION}_win_386.exe;
   zip ${REPO_NAME}_${PACKAGE_VERSION}_darwin_amd64.zip  ${REPO_NAME}_${PACKAGE_VERSION}_darwin_amd;
@@ -68,7 +68,7 @@ deploy:
   file:
      -  "$HOME/gopath/src/github.com/shingetsu-gou/shingetsu-gou/${REPO_NAME}_${PACKAGE_VERSION}_linux_386.gz"
      -  "$HOME/gopath/src/github.com/shingetsu-gou/shingetsu-gou/${REPO_NAME}_${PACKAGE_VERSION}_linux_amd64.gz"
-     -  "$HOME/gopath/src/github.com/shingetsu-gou/shingetsu-gou/${REPO_NAME}_${PACKAGE_VERSION}_linux_arm64.gz"
+     -  "$HOME/gopath/src/github.com/shingetsu-gou/shingetsu-gou/${REPO_NAME}_${PACKAGE_VERSION}_linux_arm.gz"
      -  "$HOME/gopath/src/github.com/shingetsu-gou/shingetsu-gou/${REPO_NAME}_${PACKAGE_VERSION}_win_386.exe.zip"
      -  "$HOME/gopath/src/github.com/shingetsu-gou/shingetsu-gou/${REPO_NAME}_${PACKAGE_VERSION}_win_amd64.exe.zip"
      -  "$HOME/gopath/src/github.com/shingetsu-gou/shingetsu-gou/${REPO_NAME}_${PACKAGE_VERSION}_darwin_386.zip"
