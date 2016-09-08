@@ -104,6 +104,7 @@ func doSync(fullRecent bool) {
 	log.Println("recentList.getall finished")
 
 	if cfg.HeavyMoon && !running {
+		log.Println("running heavymoon...")
 		thread.CreateAllCachedirs()
 		running = true
 		go func() {
@@ -111,6 +112,7 @@ func doSync(fullRecent bool) {
 			download.Getall()
 			log.Println("cacheList.getall finished")
 			running = false
+			log.Println("heavymoon end")
 		}()
 	}
 }

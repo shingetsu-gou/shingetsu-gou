@@ -39,7 +39,7 @@ import (
 //AllCaches returns all  thread names
 func AllCaches() Caches {
 	var r []string
-	r, err := db.Strings("select Thread from record group by Thread ")
+	r, err := db.Strings("select Thread from thread group by Thread ")
 	if err != nil {
 		log.Print(err)
 		return nil
