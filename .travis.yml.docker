@@ -1,0 +1,75 @@
+sudo: required
+language: go
+
+go:
+  - 1.7
+
+services:
+  - docker
+
+env:
+  global:
+    - secure: "rMvn3pYBCTD9QL7y5YTR4qTS935Yg/XTYV590Jc4WmI1ohniCjamqrF06eHIduBmnwt+OpvcKB54CLNqa2CbBJhV9rwXcWQ1w7ggvukx8V+VKXSgUSv6lLbXN7ZdQyUwpfsWnYVM6o+CT8OHr71FsAqMh3dMjSv3FYjdsKVfUXTRnxjXe+zscjxWRpn/CsbQ7PayPGnc8+c3/tULqayFekbI0Vax/OtbAMSlNkKUSDMCEc6JatJ3MYW0qWTZA59ECicpWFyF0xDwhYgAaj7t5dPLyWSJTdwebcixen7scdjQ8PiGa3mLs/NhK0Typ6CFHBuyHE4P50bAiekivTrwSdxpe6xGcEwY8ph/N2BKu6V0tjh/3rr+fnmfmu0SMNssDGLkQkK7THKMmFl9gkcIL+pRdee8xJbVCHwCbgsY9S12lu6MNwLwmV+iQ+QqEtVMJhEkpQE7sg3qSXYcMWpZC+r9cl1QHbEC1HvNO+k+tjgtGKpmE+hqAQI2reLg2HuzFBoxXTVDuvhf3bVL+U0R2fHfo2PiqFBUlAqBJfJPW1G4oP5YwWEtWoBWVNJXPUK4vGlFGH6jMcIqXxGfcQRO2NnfmpljOdgEgw2+xRV4Wi7Nacr+f7y1JupRS7mb8ZY9iuIKmyMdHmCamaEobijh+TBRLV8bHwmCJcRQIc/FPMM="
+    - PACKAGE_VERSION: 0.1.0
+    - REPO_NAME: shingetsu-gou
+
+gobuild_args: -u -x -ldflags "-X cfg.Version=${PACKAGE_VERSION}"
+
+before_install:
+- sudo apt-get -qq update
+- go get github.com/axw/gocov/gocov
+- go get github.com/alecthomas/gometalinter
+- go get github.com/mattn/goveralls
+- go get -u github.com/jteeuwen/go-bindata/...
+- if ! go get code.google.com/p/go.tools/cmd/cover; then go get golang.org/x/tools/cmd/cover; fi
+- export PATH=$PATH:$GOPATH/bin
+- gometalinter --install --update
+- go-bindata -o util/bindata.go -pkg util www/... file/... gou_template/...
+
+script:
+- go test -v -covermode=count -coverprofile=coverage.out
+#- ! gometalinter --deadline=1000s ./... 2>&1 | read
+
+after_success:
+- goveralls -coverprofile=coverage.out -service=travis-ci
+- gometalinter -e bindata --deadline=1000s ./...
+- docker pull karalabe/xgo-latest
+- go get github.com/karalabe/xgo
+- cd
+- xgo -out ${REPO_NAME}_${PACKAGE_VERSION} --targets=linux/386,linux/amd64,linux/arm-5,linux/arm-6,linux/arm-7,linux/arm64,windows/*,darwin/* github.com/$REPO_NAME/$REPO_NAME
+- ls -al
+- sudo chown travis ${REPO_NAME}_${PACKAGE_VERSION}-*
+- sudo chgrp travis ${REPO_NAME}_${PACKAGE_VERSION}-*
+- zip ${REPO_NAME}_${PACKAGE_VERSION}-darwin-10.6-386.zip ${REPO_NAME}_${PACKAGE_VERSION}-darwin-10.6-386
+- zip ${REPO_NAME}_${PACKAGE_VERSION}-darwin-10.6-amd64.zip ${REPO_NAME}_${PACKAGE_VERSION}-darwin-10.6-amd64
+- zip ${REPO_NAME}_${PACKAGE_VERSION}-windows-4.0-386.exe.zip ${REPO_NAME}_${PACKAGE_VERSION}-windows-4.0-386.exe
+- zip ${REPO_NAME}_${PACKAGE_VERSION}-windows-4.0-amd64.exe.zip ${REPO_NAME}_${PACKAGE_VERSION}-windows-4.0-amd64.exe
+- gzip ${REPO_NAME}_${PACKAGE_VERSION}-linux-386
+- gzip ${REPO_NAME}_${PACKAGE_VERSION}-linux-amd64
+- gzip ${REPO_NAME}_${PACKAGE_VERSION}-linux-arm-5
+- gzip ${REPO_NAME}_${PACKAGE_VERSION}-linux-arm-6
+- gzip ${REPO_NAME}_${PACKAGE_VERSION}-linux-arm-7
+- gzip ${REPO_NAME}_${PACKAGE_VERSION}-linux-arm64
+- ls -al
+
+
+deploy:
+  provider: releases
+  api_key:
+    secure: ${GITHUB_TOKEN}
+  file:
+     -  "$HOME/${REPO_NAME}_${PACKAGE_VERSION}-darwin-10.6-386.zip"
+     -  "$HOME/${REPO_NAME}_${PACKAGE_VERSION}-darwin-10.6-amd64.zip"
+     -  "$HOME/${REPO_NAME}_${PACKAGE_VERSION}-linux-386.gz"
+     -  "$HOME/${REPO_NAME}_${PACKAGE_VERSION}-linux-amd64.gz"
+     -  "$HOME/${REPO_NAME}_${PACKAGE_VERSION}-linux-arm-5.gz"
+     -  "$HOME/${REPO_NAME}_${PACKAGE_VERSION}-linux-arm-6.gz"
+     -  "$HOME/${REPO_NAME}_${PACKAGE_VERSION}-linux-arm-7.gz"
+     -  "$HOME/${REPO_NAME}_${PACKAGE_VERSION}-linux-arm64.gz"
+     -  "$HOME/${REPO_NAME}_${PACKAGE_VERSION}-windows-4.0-386.exe.zip"
+     -  "$HOME/${REPO_NAME}_${PACKAGE_VERSION}-windows-4.0-amd64.exe.zip"
+  skip_cleanup: true
+  on:
+    repo: $REPO_NAME/$REPO_NAME
+    tags: true
+    all_branches: true

@@ -33,6 +33,7 @@ import (
 	"time"
 
 	"github.com/shingetsu-gou/shingetsu-gou/cfg"
+	"github.com/shingetsu-gou/shingetsu-gou/db"
 	"github.com/shingetsu-gou/shingetsu-gou/mch/keylib"
 	"github.com/shingetsu-gou/shingetsu-gou/myself"
 	"github.com/shingetsu-gou/shingetsu-gou/node"
@@ -81,6 +82,9 @@ func cron() {
 			recentlist.Getall(true)
 			thread.CleanRecords()
 			thread.RemoveRemoved()
+			if _, err := db.DB.Exec("vacuum"); err != nil {
+				log.Println(err)
+			}
 			log.Println("long cycle cron finished")
 		}
 	}()
