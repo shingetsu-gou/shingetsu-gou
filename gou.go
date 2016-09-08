@@ -129,7 +129,7 @@ func setupDirectories() {
 }
 
 func main() {
-	fmt.Println("starting Gou...")
+	fmt.Println("starting Gou", cfg.Version, "...")
 	var printLog, isSilent bool
 	flag.BoolVar(&printLog, "verbose", false, "print logs")
 	flag.BoolVar(&printLog, "v", false, "print logs")
@@ -137,7 +137,7 @@ func main() {
 	flag.Parse()
 	setupDirectories()
 	setLogger(printLog, isSilent)
-	log.Println("********************starting Gou...******************")
+	log.Println("********************starting Gou", cfg.Version, "...******************")
 	expandAssets()
 	db.Setup()
 	gou.StartDaemon()

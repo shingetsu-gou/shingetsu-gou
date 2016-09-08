@@ -22,7 +22,7 @@ before_install:
 - go get github.com/mattn/goveralls
 - go get -u github.com/jteeuwen/go-bindata/...
 - if ! go get code.google.com/p/go.tools/cmd/cover; then go get golang.org/x/tools/cmd/cover; fi
-- export PATH=$PATH:$GOPATH/bin:$GOPATH/${REPO_DIR}/osxcross/target/bin
+- export PATH=$PATH:$GOPATH/bin:$GOPATH/src/${REPO_DIR}/osxcross/target/bin
 - gometalinter --install --update
 - go-bindata -o util/bindata.go -pkg util www/... file/... gou_template/...
 #- wget https://s3.dockerproject.org/darwin/v2/MacOSX10.11.sdk.tar.xz
@@ -66,13 +66,13 @@ deploy:
   api_key:
     secure: ${GITHUB_TOKEN}
   file:
-     -  "$GOPATH/$REPO_DIR/${REPO_NAME}_${PACKAGE_VERSION}_linux_386.gz"
-     -  "$GOPATH/$REPO_DIR/${REPO_NAME}_${PACKAGE_VERSION}_linux_amd64.gz"
-#     -  "$GOPATH/$REPO_DIR/${REPO_NAME}_${PACKAGE_VERSION}_linux_arm.gz"
-     -  "$GOPATH/$REPO_DIR/${REPO_NAME}_${PACKAGE_VERSION}_win_386.exe.zip"
-     -  "$GOPATH/$REPO_DIR/${REPO_NAME}_${PACKAGE_VERSION}_win_amd64.exe.zip"
-#     -  "$GOPATH/$REPO_DIR/${REPO_NAME}_${PACKAGE_VERSION}_darwin_386.zip"
-#     -  "$GOPATH/$REPO_DIR/${REPO_NAME}_${PACKAGE_VERSION}_darwin_amd64.zip"
+     -  "$GOPATH/src/$REPO_DIR/${REPO_NAME}_${PACKAGE_VERSION}_linux_386.gz"
+     -  "$GOPATH/src/$REPO_DIR/${REPO_NAME}_${PACKAGE_VERSION}_linux_amd64.gz"
+#     -  "$GOPATH/src/$REPO_DIR/${REPO_NAME}_${PACKAGE_VERSION}_linux_arm.gz"
+     -  "$GOPATH/src/$REPO_DIR/${REPO_NAME}_${PACKAGE_VERSION}_win_386.exe.zip"
+     -  "$GOPATH/src/$REPO_DIR/${REPO_NAME}_${PACKAGE_VERSION}_win_amd64.exe.zip"
+#     -  "$GOPATH/src/$REPO_DIR/${REPO_NAME}_${PACKAGE_VERSION}_darwin_386.zip"
+#     -  "$GOPATH/src/$REPO_DIR/${REPO_NAME}_${PACKAGE_VERSION}_darwin_amd64.zip"
   skip_cleanup: true
   on:
     repo: $REPO_NAME/$REPO_NAME
