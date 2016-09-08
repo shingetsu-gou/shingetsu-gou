@@ -13,8 +13,9 @@ gobuild_args: -u -x -ldflags "-X cfg.Version=${PACKAGE_VERSION}"
 
 before_install:
 - sudo apt-get -qq update
-- sudo apt-get install -y  gcc-arm-linux-gnueabihf g++-arm-linux-gnueabihf  gcc-arm-linux-gnueabi g++-arm-linux-gnueabi libc6-dev-armel-cross  gcc-arm-linux-gnueabihf g++-arm-linux-gnueabihf libc6-dev-armhf-cross  gcc-multilib g++-multilib 
-- sudo apt-get install -y binutils-mingw-w64-i686  binutils-mingw-w64-x86-64  gcc-mingw-w64-i686 g++-mingw-w64-i686 gcc-mingw-w64-x86-64 g++-mingw-w64-x86-64 clang llvm-dev   libxml2-dev uuid-dev swig  p7zip  texinfo help2man       --no-install-recommends
+#- sudo apt-get install -y  gcc-arm-linux-gnueabihf g++-arm-linux-gnueabihf  gcc-arm-linux-gnueabi g++-arm-linux-gnueabi libc6-dev-armel-cross  gcc-arm-linux-gnueabihf g++-arm-linux-gnueabihf libc6-dev-armhf-cross  gcc-multilib g++-multilib 
+#- sudo apt-get install -y binutils-mingw-w64-i686  binutils-mingw-w64-x86-64  gcc-mingw-w64-i686 g++-mingw-w64-i686 gcc-mingw-w64-x86-64 g++-mingw-w64-x86-64 clang llvm-dev   libxml2-dev uuid-dev swig  p7zip  texinfo help2man       --no-install-recommends
+- sudo apt-get install -y binutils-mingw-w64-i686  binutils-mingw-w64-x86-64  gcc-mingw-w64-i686  gcc-mingw-w64-x86-64     libxml2-dev uuid-dev swig  p7zip  texinfo help2man gcc-multilib g++-multilib 
 - go get github.com/axw/gocov/gocov
 - go get github.com/alecthomas/gometalinter
 - go get github.com/mattn/goveralls
