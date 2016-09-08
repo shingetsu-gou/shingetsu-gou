@@ -220,23 +220,24 @@ func getWithRange(n *node.Node, c *thread.Cache, dm *Manager) bool {
 		}
 
 		var okcount int
+		ress, err := n.Talk(fmt.Sprintf("/get/%s/%d-%d", c.Datfile, from, to), nil)
+		if err != nil {
+			dm.Finished(n, false)
+			return false
+		}
 		tx, err := db.DB.Begin()
 		if err != nil {
 			log.Print(err)
 			return false
 		}
-		_, err = n.Talk(fmt.Sprintf("/get/%s/%d-%d", c.Datfile, from, to), func(res string) error {
+		for _, res := range ress {
 			errf := c.CheckData(res, -1, "", from, to)
 			if errf == nil {
 				okcount++
 			}
-			return nil
-		})
+		}
 		if err = tx.Commit(); err != nil {
 			log.Println(err)
-		}
-		if err != nil {
-			dm.Finished(n, false)
 			return false
 		}
 		dm.Finished(n, true)
@@ -281,7 +282,7 @@ func GetCache(background bool, c *thread.Cache) bool {
 
 //bg waits for at least one record in the cache.
 func bg(c *thread.Cache, wg *sync.WaitGroup) {
-	w := time.Second
+	w := 2 * time.Second
 	newest := recentlist.Newest(c.Datfile)
 	var done chan struct{}
 	go func() {
@@ -296,8 +297,8 @@ func bg(c *thread.Cache, wg *sync.WaitGroup) {
 		case <-done:
 			return
 		case <-time.After(w):
-			w = w + time.Second
-			if c.HasRecord() {
+			w += time.Second
+			if c.HasRecord() || w >= 5*time.Second {
 				return
 			}
 		}
@@ -307,6 +308,8 @@ func bg(c *thread.Cache, wg *sync.WaitGroup) {
 //Getall reload all records in cache in cachelist from network.
 func Getall() {
 	for _, ca := range thread.AllCaches() {
+		log.Println(ca.Datfile, "is downloading...")
 		GetCache(false, ca)
+		log.Println(ca.Datfile, "end")
 	}
 }

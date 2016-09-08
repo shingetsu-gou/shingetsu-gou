@@ -53,7 +53,7 @@ func AllCaches() Caches {
 
 //Len returns # of Caches
 func Len() int {
-	r, err := db.Int64("select count(*) from record group by Thread")
+	r, err := db.Int64("select count(distinct Thread) from record")
 	if err != nil {
 		log.Print(err)
 		return 0

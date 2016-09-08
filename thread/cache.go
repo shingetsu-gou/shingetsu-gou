@@ -70,7 +70,7 @@ func (c *Cache) Stamp() int64 {
 
 //Len returns # of records in the cache.
 func (c *Cache) Len() int {
-	cnt, err := db.Int64("select count(*)  from record where Thread=?", c.Datfile)
+	cnt, err := db.Int64("select count(*)  from record where Thread=? and Deleted=0", c.Datfile)
 	if err != nil {
 		log.Print(err)
 		return 0
@@ -217,11 +217,18 @@ func (c *Cache) GetContents() []string {
 //CreateAllCachedirs creates all dirs in recentlist to be retrived when called recentlist.getall.
 //(heavymoon)
 func CreateAllCachedirs() {
+	tx, err := db.DB.Begin()
+	if err != nil {
+		log.Print(err)
+	}
 	for _, rh := range recentlist.GetRecords() {
 		ca := NewCache(rh.Datfile)
 		if !ca.Exists() {
 			ca.Subscribe()
 		}
+	}
+	if err = tx.Commit(); err != nil {
+		log.Println(err)
 	}
 }
 
