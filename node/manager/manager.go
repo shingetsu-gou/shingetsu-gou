@@ -92,7 +92,7 @@ func GetNodestrSlice() []string {
 
 //getAllNodes returns all nodes in table.
 func getAllNodes() node.Slice {
-	r, err := db.Strings("select  Addr from lookup group by Addr")
+	r, err := db.Strings("select  distinct Addr from lookup group by Addr")
 	if err != nil {
 		log.Print(err)
 		return nil

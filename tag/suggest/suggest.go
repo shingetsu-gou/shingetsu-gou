@@ -59,7 +59,7 @@ func Get(datfile string, def tag.Slice) tag.Slice {
 
 //keys return datfile names of Sugtaglist.
 func keys() []string {
-	r, err := db.Strings("select Thread from sugtag group by Thread")
+	r, err := db.Strings("select distinct Thread from sugtag group by Thread")
 	if err != nil {
 		log.Print(err)
 		return nil

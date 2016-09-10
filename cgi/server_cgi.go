@@ -69,6 +69,7 @@ func ServerSetup(s *LoggingServeMux) {
 
 //doPing just resopnse PONG with remote addr.
 func doPing(w http.ResponseWriter, r *http.Request) {
+	log.Println(r.Header)
 	host, _, err := net.SplitHostPort(r.RemoteAddr)
 	if err != nil {
 		log.Println(err)

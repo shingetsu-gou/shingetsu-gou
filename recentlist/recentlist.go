@@ -59,7 +59,7 @@ func IsInUpdateRange(nstamp int64) bool {
 
 //Datfiles returns all datfile names in recentlist.
 func Datfiles() []string {
-	datfile, err := db.Strings("select Thread from recent group by Thread")
+	datfile, err := db.Strings("select distinct Thread from recent group by Thread")
 	if err != nil {
 		log.Print(err)
 		return nil
