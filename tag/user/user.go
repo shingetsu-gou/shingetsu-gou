@@ -68,7 +68,7 @@ func Has(thread string, tag ...string) bool {
 
 //Get tags from the disk  if dirty and returns Slice.
 func Get() tag.Slice {
-	r, err := db.Strings("select  distict Tag from usertag group by Tag")
+	r, err := db.Strings("select  distinct Tag from usertag group by Tag")
 	if err != nil {
 		log.Print(err)
 		return nil
