@@ -6,7 +6,7 @@ go:
 env:
   global:
     - secure: "rMvn3pYBCTD9QL7y5YTR4qTS935Yg/XTYV590Jc4WmI1ohniCjamqrF06eHIduBmnwt+OpvcKB54CLNqa2CbBJhV9rwXcWQ1w7ggvukx8V+VKXSgUSv6lLbXN7ZdQyUwpfsWnYVM6o+CT8OHr71FsAqMh3dMjSv3FYjdsKVfUXTRnxjXe+zscjxWRpn/CsbQ7PayPGnc8+c3/tULqayFekbI0Vax/OtbAMSlNkKUSDMCEc6JatJ3MYW0qWTZA59ECicpWFyF0xDwhYgAaj7t5dPLyWSJTdwebcixen7scdjQ8PiGa3mLs/NhK0Typ6CFHBuyHE4P50bAiekivTrwSdxpe6xGcEwY8ph/N2BKu6V0tjh/3rr+fnmfmu0SMNssDGLkQkK7THKMmFl9gkcIL+pRdee8xJbVCHwCbgsY9S12lu6MNwLwmV+iQ+QqEtVMJhEkpQE7sg3qSXYcMWpZC+r9cl1QHbEC1HvNO+k+tjgtGKpmE+hqAQI2reLg2HuzFBoxXTVDuvhf3bVL+U0R2fHfo2PiqFBUlAqBJfJPW1G4oP5YwWEtWoBWVNJXPUK4vGlFGH6jMcIqXxGfcQRO2NnfmpljOdgEgw2+xRV4Wi7Nacr+f7y1JupRS7mb8ZY9iuIKmyMdHmCamaEobijh+TBRLV8bHwmCJcRQIc/FPMM="
-    - PACKAGE_VERSION: 0.1.2
+    - PACKAGE_VERSION: 0.1.3
     - REPO_NAME: shingetsu-gou
     - REPO_DIR: github.com/shingetsu-gou/shingetsu-gou
 
@@ -16,8 +16,8 @@ before_install:
 - sudo apt-get -qq update
 #- sudo apt-get install -y  gcc-arm-linux-gnueabihf g++-arm-linux-gnueabihf  gcc-arm-linux-gnueabi g++-arm-linux-gnueabi libc6-dev-armel-cross  gcc-arm-linux-gnueabihf g++-arm-linux-gnueabihf libc6-dev-armhf-cross  gcc-multilib g++-multilib 
 #- sudo apt-get install -y binutils-mingw-w64-i686  binutils-mingw-w64-x86-64  gcc-mingw-w64-i686 g++-mingw-w64-i686 gcc-mingw-w64-x86-64 g++-mingw-w64-x86-64 clang llvm-dev   libxml2-dev uuid-dev swig  p7zip  texinfo help2man       --no-install-recommends
-- sudo apt-get install -y binutils-mingw-w64-i686  binutils-mingw-w64-x86-64  gcc-mingw-w64-i686  gcc-mingw-w64-x86-64     libxml2-dev uuid-dev swig  p7zip  texinfo help2man 
-  #- sudo apt-get install -y binutils-mingw-w64-i686  binutils-mingw-w64-x86-64  gcc-mingw-w64-i686  gcc-mingw-w64-x86-64     libxml2-dev uuid-dev swig  p7zip  texinfo help2man gcc-multilib g++-multilib 
+#- sudo apt-get install -y binutils-mingw-w64-i686  binutils-mingw-w64-x86-64  gcc-mingw-w64-i686  gcc-mingw-w64-x86-64     libxml2-dev uuid-dev swig  p7zip  texinfo help2man 
+- sudo apt-get install -y binutils-mingw-w64-i686  binutils-mingw-w64-x86-64  gcc-mingw-w64-i686  gcc-mingw-w64-x86-64     libxml2-dev uuid-dev swig  p7zip  texinfo help2man gcc-multilib g++-multilib 
 - go get github.com/axw/gocov/gocov
 - go get github.com/alecthomas/gometalinter
 - go get github.com/mattn/goveralls
