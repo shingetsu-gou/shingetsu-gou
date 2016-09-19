@@ -40,5 +40,9 @@
   <br /><img src="/x.gif" data-lazyimg data-src="{{.ThreadCGI}}/{{.Datfile}}/{{.RecHead.ID}}/{{.RecHead.Stamp}}.{{.Suffix}}" height="210" alt="" /></a>
 {{ end }}
 {{ end }}
+  {{if and (.Rec.GetBodyValue "attach" "") (eq .Suffix "webm" "mp4" "ogv") }}
+  <br /><video src="{{.ThreadCGI}}/{{.Datfile}}/{{.RecHead.ID}}/{{.RecHead.Stamp}}.{{.Suffix}}" height="320" controls /></a>
+  <p>動画を再生するにはvideoタグをサポートしたブラウザが必要です</p></video>
+{{ end }}
 </dd>
 {{end}}
