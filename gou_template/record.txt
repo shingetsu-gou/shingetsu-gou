@@ -41,8 +41,8 @@
 {{ end }}
 {{ end }}
   {{if and (.Rec.GetBodyValue "attach" "") (eq .Suffix "webm" "mp4" "ogv") }}
-  <br /><video src="{{.ThreadCGI}}/{{.Datfile}}/{{.RecHead.ID}}/{{.RecHead.Stamp}}.{{.Suffix}}" height="320" controls /></a>
-  <p>動画を再生するにはvideoタグをサポートしたブラウザが必要です</p></video>
+  <br /><video src="{{.ThreadCGI}}/{{.Datfile}}/{{.RecHead.ID}}/{{.RecHead.Stamp}}.{{.Suffix}}" height="320" controls >
+  <p>{{.Message.video_err}}</p></video>
 {{ end }}
 </dd>
 {{end}}
