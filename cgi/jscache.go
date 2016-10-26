@@ -110,8 +110,8 @@ func (j *jsCache) GetLatest() int64 {
 	return l.Unix()
 }
 
-//getContent concat contents of all js files sorted by keys(filenames).
-func (j *jsCache) getContent() string {
+//GetContent concat contents of all js files sorted by keys(filenames).
+func (j *jsCache) GetContent() string {
 	j.update()
 	var cont string
 	all := j.allFiles()

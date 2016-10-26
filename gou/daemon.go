@@ -45,6 +45,11 @@ import (
 
 	"github.com/shingetsu-gou/shingetsu-gou/cfg"
 	"github.com/shingetsu-gou/shingetsu-gou/cgi"
+	"github.com/shingetsu-gou/shingetsu-gou/cgi/admin"
+	"github.com/shingetsu-gou/shingetsu-gou/cgi/gateway"
+	"github.com/shingetsu-gou/shingetsu-gou/cgi/mch"
+	"github.com/shingetsu-gou/shingetsu-gou/cgi/server"
+	"github.com/shingetsu-gou/shingetsu-gou/cgi/thread"
 	"github.com/shingetsu-gou/shingetsu-gou/util"
 )
 
@@ -73,14 +78,14 @@ func StartDaemon() {
 
 	go cron()
 
-	cgi.AdminSetup(sm)
-	cgi.ServerSetup(sm)
-	cgi.GatewaySetup(sm)
-	cgi.ThreadSetup(sm)
+	admin.Setup(sm)
+	server.Setup(sm)
+	gateway.Setup(sm)
+	thread.Setup(sm)
 
 	if cfg.Enable2ch {
 		fmt.Println("started 2ch interface...")
-		cgi.MchSetup(sm)
+		mch.Setup(sm)
 	}
 	if cfg.EnableProf {
 		sm.RegisterPprof()
@@ -95,7 +100,7 @@ func StartDaemon() {
 func handleRoot() func(http.ResponseWriter, *http.Request) {
 	return func(w http.ResponseWriter, r *http.Request) {
 		if r.URL.Path == "/" {
-			cgi.PrintTitle(w, r)
+			gateway.PrintTitle(w, r)
 			return
 		}
 		pathOnDisk := filepath.Join(cfg.Docroot, r.URL.Path)

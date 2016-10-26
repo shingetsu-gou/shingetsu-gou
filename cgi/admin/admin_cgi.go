@@ -26,7 +26,7 @@
  * POSSIBILITY OF SUCH DAMAGE.
  */
 
-package cgi
+package admin
 
 import (
 	"fmt"
@@ -42,6 +42,7 @@ import (
 	"time"
 
 	"github.com/shingetsu-gou/shingetsu-gou/cfg"
+	"github.com/shingetsu-gou/shingetsu-gou/cgi"
 	"github.com/shingetsu-gou/shingetsu-gou/myself"
 	"github.com/shingetsu-gou/shingetsu-gou/node"
 	"github.com/shingetsu-gou/shingetsu-gou/node/manager"
@@ -56,8 +57,8 @@ import (
 
 var adminSID = ""
 
-//AdminSetup registers handlers for admin.cgi
-func AdminSetup(s *LoggingServeMux) {
+//Setup registers handlers for admin.cgi
+func Setup(s *cgi.LoggingServeMux) {
 	s.RegistCompressHandler(cfg.AdminURL+"/status", printStatus)
 	s.RegistCompressHandler(cfg.AdminURL+"/edittag", printEdittag)
 	s.RegistCompressHandler(cfg.AdminURL+"/savetag", saveTagCGI)
@@ -74,9 +75,9 @@ func execCmd(w http.ResponseWriter, r *http.Request) {
 		log.Println(err)
 		return
 	}
-	cmd := a.req.FormValue("cmd")
-	rmFiles := a.req.Form["file"]
-	rmRecords := a.req.Form["record"]
+	cmd := a.Req.FormValue("cmd")
+	rmFiles := a.Req.Form["file"]
+	rmRecords := a.Req.Form["record"]
 
 	switch cmd {
 	case "rdel":
@@ -84,7 +85,7 @@ func execCmd(w http.ResponseWriter, r *http.Request) {
 	case "fdel":
 		a.printDeleteFile(rmFiles)
 	case "xrdel":
-		a.doDeleteRecord(rmFiles, rmRecords, a.req.FormValue("dopost"))
+		a.doDeleteRecord(rmFiles, rmRecords, a.Req.FormValue("dopost"))
 	case "xfdel":
 		a.doDeleteFile(rmFiles)
 	}
@@ -98,12 +99,12 @@ func printSearch(w http.ResponseWriter, r *http.Request) {
 		log.Println(err)
 		return
 	}
-	query := a.req.FormValue("query")
+	query := a.Req.FormValue("query")
 	if query == "" {
-		a.header(a.m["search"], "", nil, true)
-		a.printParagraph("desc_search")
+		a.Header(a.M["search"], "", nil, true)
+		a.PrintParagraph("desc_search")
 		a.printSearchForm("")
-		a.footer(nil)
+		a.Footer(nil)
 	} else {
 		a.printSearchResult(query)
 	}
@@ -131,13 +132,13 @@ func printStatus(w http.ResponseWriter, r *http.Request) {
 	var port0 string
 	switch myself.GetStatus() {
 	case cfg.Normal:
-		port0 = a.m["opened"]
+		port0 = a.M["opened"]
 	case cfg.UPnP:
 		port0 = "UPnP"
 	case cfg.Port0:
-		port0 = a.m["port0"]
+		port0 = a.M["port0"]
 	case cfg.Disconnected:
-		port0 = a.m["disconnected"]
+		port0 = a.M["disconnected"]
 	}
 
 	s := map[string]string{
@@ -145,9 +146,9 @@ func printStatus(w http.ResponseWriter, r *http.Request) {
 		"linked_nodes":      strconv.Itoa(manager.ListLen()),
 		"files":             strconv.Itoa(thread.Len()),
 		"records":           strconv.Itoa(records),
-		"cache_size":        fmt.Sprintf("%.1f%s", float64(size)/1024/1024, a.m["mb"]),
+		"cache_size":        fmt.Sprintf("%.1f%s", float64(size)/1024/1024, a.M["mb"]),
 		"self_node":         node.Me(false).Nodestr,
-		"alloc_mem":         fmt.Sprintf("%.1f%s", float64(mem.Alloc)/1024/1024, a.m["mb"]),
+		"alloc_mem":         fmt.Sprintf("%.1f%s", float64(mem.Alloc)/1024/1024, a.M["mb"]),
 		"connection_status": port0,
 	}
 	ns := map[string][]string{
@@ -158,15 +159,15 @@ func printStatus(w http.ResponseWriter, r *http.Request) {
 	d := struct {
 		Status     map[string]string
 		NodeStatus map[string][]string
-		Message    message
+		Message    cgi.Message
 	}{
 		s,
 		ns,
-		a.m,
+		a.M,
 	}
-	a.header(a.m["status"], "", nil, true)
-	tmpH.RenderTemplate("status", d, a.wr)
-	a.footer(nil)
+	a.Header(a.M["status"], "", nil, true)
+	cgi.TmpH.RenderTemplate("status", d, a.WR)
+	a.Footer(nil)
 }
 
 //printEdittag renders the page for editing tags in thread specified by form "file".
@@ -176,33 +177,33 @@ func printEdittag(w http.ResponseWriter, r *http.Request) {
 		log.Println(err)
 		return
 	}
-	datfile := a.req.FormValue("file")
+	datfile := a.Req.FormValue("file")
 	strTitle := util.FileDecode(datfile)
 	ca := thread.NewCache(datfile)
 	datfile = html.EscapeString(datfile)
 
 	if !ca.Exists() {
-		a.print404(nil, "")
+		a.Print404(nil, "")
 		return
 	}
 	d := struct {
-		Message  message
+		Message  cgi.Message
 		AdminCGI string
 		Datfile  string
 		Tags     string
 		Sugtags  tag.Slice
 		Usertags tag.Slice
 	}{
-		a.m,
+		a.M,
 		cfg.AdminURL,
 		datfile,
 		user.String(ca.Datfile),
 		suggest.Get(ca.Datfile, nil),
 		user.GetByThread(ca.Datfile),
 	}
-	a.header(fmt.Sprintf("%s: %s", a.m["edit_tag"], strTitle), "", nil, true)
-	tmpH.RenderTemplate("edit_tag", d, a.wr)
-	a.footer(nil)
+	a.Header(fmt.Sprintf("%s: %s", a.M["edit_tag"], strTitle), "", nil, true)
+	cgi.TmpH.RenderTemplate("edit_tag", d, a.WR)
+	a.Footer(nil)
 }
 
 //saveTagCGI saves edited tags of file and render this file with 302.
@@ -212,14 +213,14 @@ func saveTagCGI(w http.ResponseWriter, r *http.Request) {
 		log.Println(err)
 		return
 	}
-	datfile := a.req.FormValue("file")
-	tags := a.req.FormValue("tag")
+	datfile := a.Req.FormValue("file")
+	tags := a.Req.FormValue("tag")
 	if datfile == "" {
 		return
 	}
 	ca := thread.NewCache(datfile)
 	if !ca.Exists() {
-		a.print404(nil, "")
+		a.Print404(nil, "")
 	}
 	tl := strings.Fields(tags)
 	user.Set(datfile, tl)
@@ -230,26 +231,26 @@ func saveTagCGI(w http.ResponseWriter, r *http.Request) {
 	} else {
 		next = "/"
 	}
-	a.print302(next)
+	a.Print302(next)
 }
 
 //adminCGI is for admin.cgi handler.
 type adminCGI struct {
-	*cgi
+	*cgi.CGI
 }
 
 //newAdminCGI returns adminCGI obj if client is admin.
 //if not render 403.
 func newAdminCGI(w http.ResponseWriter, r *http.Request) (*adminCGI, error) {
-	c, err := newCGI(w, r)
+	c, err := cgi.NewCGI(w, r)
 	if err != nil {
 		return nil, err
 	}
 	a := adminCGI{
-		cgi: c,
+		CGI: c,
 	}
-	if !a.isAdmin() {
-		a.print403()
+	if !a.IsAdmin() {
+		a.Print403()
 	}
 	return &a, nil
 }
@@ -266,7 +267,7 @@ func (a *adminCGI) makeSid() string {
 
 //checkSid returns true if form value of "sid" == saved sid.
 func (a *adminCGI) checkSid() bool {
-	sid := a.req.FormValue("sid")
+	sid := a.Req.FormValue("sid")
 	r := (adminSID != "" && adminSID == sid)
 	adminSID = ""
 	return r
@@ -274,7 +275,7 @@ func (a *adminCGI) checkSid() bool {
 
 //DeleteRecord is for renderring confirmation to a delete record.
 type DeleteRecord struct {
-	Message  message
+	Message  cgi.Message
 	AdminCGI string
 	Datfile  string
 	Records  []*record.Record
@@ -285,7 +286,7 @@ type DeleteRecord struct {
 //renders info about rec.
 func (a *adminCGI) printDeleteRecord(rmFiles []string, records []string) {
 	if rmFiles == nil || records == nil {
-		a.print404(nil, "")
+		a.Print404(nil, "")
 		return
 	}
 	datfile := rmFiles[0]
@@ -299,26 +300,26 @@ func (a *adminCGI) printDeleteRecord(rmFiles []string, records []string) {
 		}
 	}
 	d := DeleteRecord{
-		a.m,
+		a.M,
 		cfg.AdminURL,
 		datfile,
 		recs,
 		sid,
 	}
-	a.header(a.m["del_record"], "", nil, true)
-	tmpH.RenderTemplate("delete_record", d, a.wr)
-	a.footer(nil)
+	a.Header(a.M["del_record"], "", nil, true)
+	cgi.TmpH.RenderTemplate("delete_record", d, a.WR)
+	a.Footer(nil)
 }
 
 //doDeleteRecord dels records in rmFiles files and 302 to this file page.
 //with cheking sid. if dopost tells other nodes.
 func (a *adminCGI) doDeleteRecord(rmFiles []string, records []string, dopost string) {
-	if a.req.Method != "POST" || !a.checkSid() {
-		a.print404(nil, "")
+	if a.Req.Method != "POST" || !a.checkSid() {
+		a.Print404(nil, "")
 		return
 	}
 	if rmFiles == nil || records == nil {
-		a.print404(nil, "")
+		a.Print404(nil, "")
 		return
 	}
 	datfile := rmFiles[0]
@@ -332,11 +333,11 @@ func (a *adminCGI) doDeleteRecord(rmFiles []string, records []string, dopost str
 		rec, err := record.NewIDstr(datfile, r)
 		if err != nil || rec.Remove() == nil && dopost != "" {
 			a.postDeleteMessage(ca, rec)
-			a.print302(next)
+			a.Print302(next)
 			return
 		}
 	}
-	a.print302(next)
+	a.Print302(next)
 }
 
 //postDeleteMessage tells others deletion of a record.
@@ -345,13 +346,13 @@ func (a *adminCGI) postDeleteMessage(ca *thread.Cache, rec *record.Record) {
 	stamp := time.Now().Unix()
 	body := make(map[string]string)
 	for _, key := range []string{"name", "body"} {
-		if v := a.req.FormValue(key); v != "" {
+		if v := a.Req.FormValue(key); v != "" {
 			body[key] = util.Escape(v)
 		}
 	}
 	body["remove_stamp"] = strconv.FormatInt(rec.Stamp, 10)
 	body["remove_id"] = rec.ID
-	passwd := a.req.FormValue("passwd")
+	passwd := a.Req.FormValue("passwd")
 	id := rec.Build(stamp, body, passwd)
 	rec.Sync()
 	recentlist.Append(rec.Head)
@@ -361,7 +362,7 @@ func (a *adminCGI) postDeleteMessage(ca *thread.Cache, rec *record.Record) {
 //printDeleteFile renders the page for confirmation of deleting file.
 func (a *adminCGI) printDeleteFile(files []string) {
 	if files == nil {
-		a.print404(nil, "")
+		a.Print404(nil, "")
 	}
 	sid := a.makeSid()
 	cas := make([]*thread.Cache, len(files))
@@ -369,35 +370,35 @@ func (a *adminCGI) printDeleteFile(files []string) {
 		cas[i] = thread.NewCache(v)
 	}
 	d := struct {
-		Message  message
+		Message  cgi.Message
 		AdminCGI string
 		Files    []*thread.Cache
 		Sid      string
 	}{
-		a.m,
+		a.M,
 		cfg.AdminURL,
 		cas,
 		sid,
 	}
-	a.header(a.m["del_file"], "", nil, true)
-	tmpH.RenderTemplate("delete_file", d, a.wr)
-	a.footer(nil)
+	a.Header(a.M["del_file"], "", nil, true)
+	cgi.TmpH.RenderTemplate("delete_file", d, a.WR)
+	a.Footer(nil)
 }
 
 //doDeleteFile remove files in cache and 302 to changes page.
 func (a *adminCGI) doDeleteFile(files []string) {
-	if a.req.Method != "POST" || !a.checkSid() {
-		a.print404(nil, "")
+	if a.Req.Method != "POST" || !a.checkSid() {
+		a.Print404(nil, "")
 	}
 	if files == nil {
-		a.print404(nil, "")
+		a.Print404(nil, "")
 	}
 
 	for _, c := range files {
 		ca := thread.NewCache(c)
 		ca.Remove()
 	}
-	a.print302(cfg.GatewayURL + "/" + "changes")
+	a.Print302(cfg.GatewayURL + "/" + "changes")
 }
 
 //printSearchForm renders search_form.txt
@@ -405,21 +406,21 @@ func (a *adminCGI) printSearchForm(query string) {
 	d := struct {
 		Query    string
 		AdminCGI string
-		Message  message
+		Message  cgi.Message
 	}{
 		query,
 		cfg.AdminURL,
-		a.m,
+		a.M,
 	}
-	tmpH.RenderTemplate("search_form", d, a.wr)
+	cgi.TmpH.RenderTemplate("search_form", d, a.WR)
 }
 
 //printSearchResult renders cachelist that its datfile matches query.
 func (a *adminCGI) printSearchResult(query string) {
 	strQuery := html.EscapeString(query)
-	title := fmt.Sprintf("%s: %s", a.m["search"], strQuery)
-	a.header(title, "", nil, true)
-	a.printParagraph("desc_search")
+	title := fmt.Sprintf("%s: %s", a.M["search"], strQuery)
+	a.Header(title, "", nil, true)
+	a.PrintParagraph("desc_search")
 	a.printSearchForm(strQuery)
 	reg := html.EscapeString(query)
 	regg, err := regexp.Compile(reg)
@@ -437,5 +438,5 @@ func (a *adminCGI) printSearchResult(query string) {
 		}
 	}
 	sort.Sort(sort.Reverse(thread.NewSortByStamp(result, false)))
-	a.printIndexList(result, "", true, false)
+	a.PrintIndexList(result, "", true, false)
 }

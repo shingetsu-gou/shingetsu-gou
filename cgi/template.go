@@ -44,8 +44,8 @@ import (
 	"github.com/shingetsu-gou/shingetsu-gou/util"
 )
 
-var tmpH = newHtemplate(cfg.TemplateDir)
-var tmpT = newTtemplate(cfg.TemplateDir)
+var TmpH = newHtemplate(cfg.TemplateDir)
+var TmpT = newTtemplate(cfg.TemplateDir)
 
 var funcMap = map[string]interface{}{
 	"add":          func(a, b int) int { return a + b },

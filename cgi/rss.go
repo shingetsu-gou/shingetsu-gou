@@ -76,8 +76,8 @@ func (r *RSS) Len() int {
 	return len(r.Feeds)
 }
 
-//newRSS makes RSS object.
-func newRss(encode, lang, title, parent, link, uri, description, xsl string) *RSS {
+//NewRSS makes RSS object.
+func NewRss(encode, lang, title, parent, link, uri, description, xsl string) *RSS {
 	if encode == "" {
 		encode = "utf-8"
 	}
@@ -107,8 +107,8 @@ func newRss(encode, lang, title, parent, link, uri, description, xsl string) *RS
 	return r
 }
 
-//append adds RSS an item.
-func (r *RSS) append(link, title, creator, description, content string, subject []string, date int64, abs bool) {
+//Append adds RSS an item.
+func (r *RSS) Append(link, title, creator, description, content string, subject []string, date int64, abs bool) {
 	if !abs {
 		link = r.parent + link
 	}
@@ -124,13 +124,13 @@ func (r *RSS) append(link, title, creator, description, content string, subject 
 	r.Feeds = append(r.Feeds, i)
 }
 
-//makeRSS1 renders template.
-func (r *RSS) makeRSS1(wr io.Writer) {
+//MakeRSS1 renders template.
+func (r *RSS) MakeRSS1(wr io.Writer) {
 	for _, c := range r.Feeds {
 		c.Content = strings.Replace(c.content, "]]", "&#93;&#93;>", -1)
 	}
 	sort.Sort(sort.Reverse(r))
-	tmpT.RenderTemplate("rss1", *r, wr)
+	TmpT.RenderTemplate("rss1", *r, wr)
 }
 
 //W3cdate returns RSS formated date string.
@@ -140,8 +140,8 @@ func (r RSS) W3cdate(dat int64) string {
 	return t.Format("2006-01-02T15:04:05Z")
 }
 
-//rssTextFormat formats plain string to stirng usable in html.
-func rssTextFormat(plain string) string {
+//RSSTextFormat formats plain string to stirng usable in html.
+func RSSTextFormat(plain string) string {
 	buf := strings.Replace(plain, "<br>", " ", -1)
 	buf = strings.Replace(buf, "&", "&amp;", -1)
 	reg := regexp.MustCompile(`&amp;(#\d+|lt|gt|amp);`)

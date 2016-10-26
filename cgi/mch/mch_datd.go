@@ -26,7 +26,7 @@
  * POSSIBILITY OF SUCH DAMAGE.
  */
 
-package cgi
+package mch
 
 import (
 	"bytes"
@@ -43,6 +43,7 @@ import (
 	"github.com/gorilla/handlers"
 	"github.com/gorilla/mux"
 	"github.com/shingetsu-gou/shingetsu-gou/cfg"
+	"github.com/shingetsu-gou/shingetsu-gou/cgi"
 	"github.com/shingetsu-gou/shingetsu-gou/mch"
 	"github.com/shingetsu-gou/shingetsu-gou/mch/keylib"
 	"github.com/shingetsu-gou/shingetsu-gou/record"
@@ -53,17 +54,17 @@ import (
 	"github.com/shingetsu-gou/shingetsu-gou/util"
 )
 
-//MchSetup setups handlers for 2ch interface.
-func MchSetup(s *LoggingServeMux) {
+//Setup setups handlers for 2ch interface.
+func Setup(s *cgi.LoggingServeMux) {
 	log.Println("start 2ch interface")
 	rtr := mux.NewRouter()
 
-	registToRouter(rtr, "/2ch/", boardApp)
-	registToRouter(rtr, "/2ch/dat/{datkey:[^\\.]+}.dat", threadApp)
-	registToRouter(rtr, "/2ch/{board:[^/]+}/subject.txt", subjectApp)
-	registToRouter(rtr, "/2ch/subject.txt", subjectApp)
-	registToRouter(rtr, "/2ch/{board:[^/]+}/head.txt", headApp)
-	registToRouter(rtr, "/2ch/head.txt", headApp)
+	cgi.RegistToRouter(rtr, "/2ch/", boardApp)
+	cgi.RegistToRouter(rtr, "/2ch/dat/{datkey:[^\\.]+}.dat", threadApp)
+	cgi.RegistToRouter(rtr, "/2ch/{board:[^/]+}/subject.txt", subjectApp)
+	cgi.RegistToRouter(rtr, "/2ch/subject.txt", subjectApp)
+	cgi.RegistToRouter(rtr, "/2ch/{board:[^/]+}/head.txt", headApp)
+	cgi.RegistToRouter(rtr, "/2ch/head.txt", headApp)
 	s.Handle("/2ch/", handlers.CompressHandler(rtr))
 
 	s.RegistCompressHandler("/test/bbs.cgi", postCommentApp)
@@ -127,22 +128,22 @@ func headApp(w http.ResponseWriter, r *http.Request) {
 
 //mchCGI is a class for renderring pages of 2ch interface .
 type mchCGI struct {
-	*cgi
+	*cgi.CGI
 }
 
 //newMchCGI returns mchCGI obj if visitor  is allowed.
 //if not allowed print 403.
 func newMchCGI(w http.ResponseWriter, r *http.Request) (*mchCGI, error) {
-	c, err := newCGI(w, r)
+	c, err := cgi.NewCGI(w, r)
 	if err != nil {
 		w.WriteHeader(403)
 		fmt.Fprintf(w, "403 Forbidden")
 		return nil, err
 	}
 	a := mchCGI{
-		cgi: c,
+		CGI: c,
 	}
-	if !c.checkVisitor() {
+	if !c.CheckVisitor() {
 		http.Error(w, "403 Forbidden", http.StatusForbidden)
 		return nil, errors.New("403 forbidden")
 	}
@@ -155,18 +156,18 @@ func newMchCGI(w http.ResponseWriter, r *http.Request) (*mchCGI, error) {
 //to use range request.
 func (m *mchCGI) serveContent(name string, t time.Time, str string) {
 	br := bytes.NewReader([]byte(util.ToSJIS(str)))
-	http.ServeContent(m.wr, m.req, name, t, br)
+	http.ServeContent(m.WR, m.Req, name, t, br)
 }
 
 //boardApp just renders title stripped from url.
 func (m *mchCGI) boardApp() {
-	l := m.req.FormValue("Accept-Language")
+	l := m.Req.FormValue("Accept-Language")
 	if l == "" {
 		l = "ja"
 	}
-	msg := searchMessage(l, cfg.FileDir)
-	m.wr.Header().Set("Content-Type", "text/html; charset=Shift_JIS")
-	board := util.Escape(util.GetBoard(m.path()))
+	msg := cgi.SearchMessage(l, cfg.FileDir)
+	m.WR.Header().Set("Content-Type", "text/html; charset=Shift_JIS")
+	board := util.Escape(util.GetBoard(m.Path()))
 	text := ""
 	if board != "" {
 		text = fmt.Sprintf("%s - %s - %s", msg["logo"], msg["description"], board)
@@ -191,7 +192,7 @@ func (m *mchCGI) boardApp() {
 //listing records. if thread.Cache len=0 or for each refering the thread.Cache 4 times
 //reloads thread.Cache fron network.
 func (m *mchCGI) threadApp(board, datkey string) {
-	m.wr.Header().Set("Content-Type", "text/plain; charset=Shift_JIS")
+	m.WR.Header().Set("Content-Type", "text/plain; charset=Shift_JIS")
 	n, err := strconv.ParseInt(datkey, 10, 64)
 	if err != nil {
 		log.Println(err)
@@ -199,23 +200,23 @@ func (m *mchCGI) threadApp(board, datkey string) {
 	}
 	key := keylib.GetFilekey(n)
 	if err != nil {
-		m.wr.WriteHeader(404)
-		fmt.Fprintf(m.wr, "404 Not Found")
+		m.WR.WriteHeader(404)
+		fmt.Fprintf(m.WR, "404 Not Found")
 		return
 	}
 	data := thread.NewCache(key)
 
 	if !data.Exists() {
-		m.wr.WriteHeader(404)
-		fmt.Fprintf(m.wr, "404 Not Found")
+		m.WR.WriteHeader(404)
+		fmt.Fprintf(m.WR, "404 Not Found")
 		return
 	}
 
-	if m.checkGetCache() {
+	if m.CheckGetCache() {
 		download.GetCache(true, data)
 	}
 
-	thread := keylib.MakeDat(data, board, m.req.Host)
+	thread := keylib.MakeDat(data, board, m.Req.Host)
 	str := strings.Join(thread, "\n") + "\n"
 	m.serveContent("a.txt", time.Unix(data.Stamp(), 0), str)
 }
@@ -246,13 +247,13 @@ func (m *mchCGI) subjectApp(board string) {
 		boardName = util.FileDecode("dummy_" + boardEncoded)
 	}
 	subject, lastStamp := m.makeSubject(boardName)
-	m.wr.Header().Set("Content-Type", "text/plain; charset=Shift_JIS")
+	m.WR.Header().Set("Content-Type", "text/plain; charset=Shift_JIS")
 	m.serveContent("a.txt", time.Unix(lastStamp, 0), strings.Join(subject, "\n")+"\n")
 }
 
 //makeSubject makes subject.txt(list of records title) from thread.Caches with tag=board.
 func (m *mchCGI) makeSubject(board string) ([]string, int64) {
-	loadFromNet := m.checkGetCache()
+	loadFromNet := m.CheckGetCache()
 	var subjects []string
 	cl := m.makeSubjectCachelist(board)
 	var lastStamp int64
@@ -281,7 +282,7 @@ func (m *mchCGI) makeSubject(board string) ([]string, int64) {
 
 //headApp renders motd(terms of service).
 func (m *mchCGI) headApp() {
-	m.wr.Header().Set("Content-Type", "text/plain; charset=Shift_JIS")
+	m.WR.Header().Set("Content-Type", "text/plain; charset=Shift_JIS")
 	var body string
 	err := util.EachLine(cfg.Motd(), func(line string, i int) error {
 		line = strings.TrimSpace(line)
@@ -323,14 +324,14 @@ func (m *mchCGI) postComment(threadKey, name, mail, body, passwd, tag string) er
 
 //errorResp render erro page with cp932 code.
 func (m *mchCGI) errorResp(msg string, info map[string]string) {
-	m.wr.Header().Set("Content-Type", "text/html; charset=Shift_JIS")
+	m.WR.Header().Set("Content-Type", "text/html; charset=Shift_JIS")
 	info["message"] = msg
-	tmpH.RenderTemplate("2ch_error", info, m.wr)
+	cgi.TmpH.RenderTemplate("2ch_error", info, m.WR)
 }
 
 //getCP932 returns form value of key with cp932 code.
 func (m *mchCGI) getCP932(key string) string {
-	return util.FromSJIS(m.req.FormValue(key))
+	return util.FromSJIS(m.Req.FormValue(key))
 }
 
 //getcommentData returns comment data with map in cp932 code.
@@ -367,7 +368,7 @@ func (m *mchCGI) checkInfo(info map[string]string) string {
 	case info["body"] == "":
 		m.errorResp("本文がありません.", info)
 		return ""
-	case thread.NewCache(key).Exists(), m.hasAuth():
+	case thread.NewCache(key).Exists(), m.HasAuth():
 	case info["subject"] != "":
 		m.errorResp("掲示版を作る権限がありません", info)
 		return ""
@@ -386,14 +387,14 @@ func (m *mchCGI) checkInfo(info map[string]string) string {
 //postCommentApp checks posted data and replaces >> links to html links,
 //and  saves it as record.
 func (m *mchCGI) postCommentApp() {
-	if m.req.Method != http.MethodPost {
-		m.wr.Header().Set("Content-Type", "text/plain")
-		m.wr.WriteHeader(404)
-		fmt.Fprintf(m.wr, "404 Not Found")
+	if m.Req.Method != http.MethodPost {
+		m.WR.Header().Set("Content-Type", "text/plain")
+		m.WR.WriteHeader(404)
+		fmt.Fprintf(m.WR, "404 Not Found")
 		return
 	}
 	info := m.getCommentData()
-	info["host"] = m.req.Host
+	info["host"] = m.Req.Host
 	key := m.checkInfo(info)
 	if key == "" {
 		return
@@ -402,7 +403,7 @@ func (m *mchCGI) postCommentApp() {
 	referer := m.getCP932("Referer")
 	reg := regexp.MustCompile("/2ch_([^/]+)/")
 	var tag string
-	if ma := reg.FindStringSubmatch(referer); ma != nil && m.hasAuth() {
+	if ma := reg.FindStringSubmatch(referer); ma != nil && m.HasAuth() {
 		tag = util.FileDecode("dummy_" + ma[1])
 	}
 	table := mch.NewResTable(thread.NewCache(key))
@@ -423,14 +424,14 @@ func (m *mchCGI) postCommentApp() {
 		name = ary[0]
 		passwd = ary[1]
 	}
-	if passwd != "" && !m.isAdmin() {
+	if passwd != "" && !m.IsAdmin() {
 		m.errorResp("自ノード以外で署名機能は使えません", info)
 	}
 	err := m.postComment(key, name, info["mail"], body, passwd, tag)
 	if err == errSpamM {
 		m.errorResp("スパムとみなされました", info)
 	}
-	m.wr.Header().Set("Content-Type", "text/html; charset=Shift_JIS")
-	fmt.Fprintln(m.wr,
+	m.WR.Header().Set("Content-Type", "text/html; charset=Shift_JIS")
+	fmt.Fprintln(m.WR,
 		util.ToSJIS(`<html lang="ja"><head><meta http-equiv="Content-Type" content="text/html"><title>書きこみました。</title></head><body>書きこみが終わりました。<br><br></body></html>`))
 }

@@ -68,7 +68,7 @@ func (s *LoggingServeMux) RegisterPprof() {
 	s.Handle("/debug/pprof/symbol", http.HandlerFunc(pprof.Symbol))
 }
 
-//registToRouter registers fn to s with path.
-func registToRouter(s *mux.Router, path string, fn func(w http.ResponseWriter, r *http.Request)) {
+//RegistToRouter registers fn to s with path.
+func RegistToRouter(s *mux.Router, path string, fn func(w http.ResponseWriter, r *http.Request)) {
 	s.Handle(path, http.HandlerFunc(fn))
 }

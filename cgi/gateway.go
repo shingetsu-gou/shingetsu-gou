@@ -55,10 +55,10 @@ import (
 )
 
 //message hold string map.
-type message map[string]string
+type Message map[string]string
 
 //newMessage reads from the file excpet #comment and stores them with url unescaping value.
-func newMessage(filedir, fname string) message {
+func newMessage(filedir, fname string) Message {
 	var err error
 	m := make(map[string]string)
 	var dat []byte
@@ -96,9 +96,9 @@ func newMessage(filedir, fname string) message {
 	return m
 }
 
-//searchMessage parse Accept-Language header ,selects most-weighted(biggest q)
+//SearchMessage parse Accept-Language header ,selects most-weighted(biggest q)
 //language ,reads the associated message file, and creates and returns message obj.
-func searchMessage(acceptLanguage, filedir string) message {
+func SearchMessage(acceptLanguage, filedir string) Message {
 	const defaultLanguage = "en" // Language code (see RFC3066)
 
 	var lang []string
@@ -127,7 +127,7 @@ func searchMessage(acceptLanguage, filedir string) message {
 
 //GatewayLink is a struct for gateway_link.txt
 type GatewayLink struct {
-	Message     message
+	Message     Message
 	CGIname     string
 	Command     string
 	Description string
@@ -136,11 +136,11 @@ type GatewayLink struct {
 //Render renders "gateway_link.txt" and returns its resutl string which is not escaped in template.
 //GatewayLink.Message must be setted up previously.
 //used in templates.
-func (c GatewayLink) Render(cginame, command string) template.HTML {
-	c.CGIname = cginame
+func (c GatewayLink) Render(CGIname, command string) template.HTML {
+	c.CGIname = CGIname
 	c.Command = command
 	c.Description = c.Message["desc_"+command]
-	return template.HTML(tmpH.ExecuteTemplate("gateway_link", c))
+	return template.HTML(TmpH.ExecuteTemplate("gateway_link", c))
 }
 
 //ListItem is for list_item.txt
@@ -156,9 +156,9 @@ type ListItem struct {
 	StrOpts    string
 	GatewayCGI string
 	ThreadURL  string
-	Message    message
-	filter     string
-	tag        string
+	Message    Message
+	Filter     string
+	Tag        string
 }
 
 //checkCache checks cache ca has specified tag and datfile doesn't contains filterd string.
@@ -167,13 +167,13 @@ func (l *ListItem) checkCache(ca *thread.Cache, target string) (string, bool) {
 	if x == "" {
 		return "", false
 	}
-	if l.filter != "" && !strings.Contains(strings.ToLower(x), l.filter) {
+	if l.Filter != "" && !strings.Contains(strings.ToLower(x), l.Filter) {
 		return "", false
 	}
-	if l.tag != "" {
+	if l.Tag != "" {
 		switch {
-		case user.Has(ca.Datfile, strings.ToLower(l.tag)):
-		case target == "recent" && suggest.HasTagstr(ca.Datfile, strings.ToLower(l.tag)):
+		case user.Has(ca.Datfile, strings.ToLower(l.Tag)):
+		case target == "recent" && suggest.HasTagstr(ca.Datfile, strings.ToLower(l.Tag)):
 		default:
 			return "", false
 		}
@@ -215,28 +215,28 @@ func (l ListItem) Render(ca *thread.Cache, remove bool, target string, search bo
 	l.StrOpts = strOpts
 	l.GatewayCGI = cfg.GatewayURL
 	l.ThreadURL = cfg.ThreadURL
-	return template.HTML(tmpH.ExecuteTemplate("list_item", l))
+	return template.HTML(TmpH.ExecuteTemplate("list_item", l))
 }
 
-//cgi is a base class for all http handlers.
-type cgi struct {
-	m        message
-	jc       *jsCache
-	req      *http.Request
-	wr       http.ResponseWriter
-	filter   string
-	tag      string
+//CGI is a base class for all http handlers.
+type CGI struct {
+	M        Message
+	JC       *jsCache
+	Req      *http.Request
+	WR       http.ResponseWriter
+	Filter   string
+	Tag      string
 	IsThread bool
 }
 
-//newCGI reads messages file, and set params , returns cgi obj.
-//cgi obj is cached.
-func newCGI(w http.ResponseWriter, r *http.Request) (*cgi, error) {
-	c := &cgi{
-		jc:  newJsCache(cfg.Docroot),
-		wr:  w,
-		m:   searchMessage(r.Header.Get("Accept-Language"), cfg.FileDir),
-		req: r,
+//NewCGI reads messages file, and set params , returns CGI obj.
+//CGI obj is cached.
+func NewCGI(w http.ResponseWriter, r *http.Request) (*CGI, error) {
+	c := &CGI{
+		JC:  newJsCache(cfg.Docroot),
+		WR:  w,
+		M:   SearchMessage(r.Header.Get("Accept-Language"), cfg.FileDir),
+		Req: r,
 	}
 	err := r.ParseForm()
 	if err != nil {
@@ -246,27 +246,27 @@ func newCGI(w http.ResponseWriter, r *http.Request) (*cgi, error) {
 	return c, nil
 }
 
-//host returns servername or host in http header.
-func (c *cgi) host() string {
+//Host returns servername or host in http header.
+func (c *CGI) Host() string {
 	host := cfg.ServerName
 	if host == "" {
-		host = c.req.Host
+		host = c.Req.Host
 	}
 	return host
 }
 
 //isAdmin returns tur if matches admin regexp setted in config file.
-func (c *cgi) isAdmin() bool {
-	m, err := regexp.MatchString(cfg.ReAdminStr, c.req.RemoteAddr)
+func (c *CGI) IsAdmin() bool {
+	m, err := regexp.MatchString(cfg.ReAdminStr, c.Req.RemoteAddr)
 	if err != nil {
 		log.Fatal(err)
 	}
 	return m
 }
 
-//isFriend returns tur if matches friend regexp setted in config file.
-func (c *cgi) isFriend() bool {
-	m, err := regexp.MatchString(cfg.ReFriendStr, c.req.RemoteAddr)
+//IsFriend returns tur if matches friend regexp setted in config file.
+func (c *CGI) IsFriend() bool {
+	m, err := regexp.MatchString(cfg.ReFriendStr, c.Req.RemoteAddr)
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -274,19 +274,19 @@ func (c *cgi) isFriend() bool {
 }
 
 //isVisitor returns tur if matches visitor regexp setted in config file.
-func (c *cgi) isVisitor() bool {
-	m, err := regexp.MatchString(cfg.ReVisitorStr, c.req.RemoteAddr)
+func (c *CGI) isVisitor() bool {
+	m, err := regexp.MatchString(cfg.ReVisitorStr, c.Req.RemoteAddr)
 	if err != nil {
 		log.Fatal(err)
 	}
 	return m
 }
 
-//path returns path part of url.
-//e.g. /thread.cgi/hoe/moe -> hoe/moe
-func (c *cgi) path() string {
-	p := strings.Split(c.req.URL.Path, "/")
-	//  /thread.cgi/hoe
+//Path returns path part of url.
+//e.g. /thread.CGI/hoe/moe -> hoe/moe
+func (c *CGI) Path() string {
+	p := strings.Split(c.Req.URL.Path, "/")
+	//  /thread.CGI/hoe
 	// 0/         1/  2
 	var path string
 	if len(p) > 1 {
@@ -297,7 +297,7 @@ func (c *cgi) path() string {
 
 //extentions reads files with suffix in root dir and return them.
 //if __merged file exists return it when useMerged=true.
-func (c *cgi) extension(suffix string) []string {
+func (c *CGI) extension(suffix string) []string {
 	var filename []string
 	d, err := util.AssetDir("www")
 	if err != nil {
@@ -326,8 +326,8 @@ func (c *cgi) extension(suffix string) []string {
 	return filename
 }
 
-//footer render footer.
-func (c *cgi) footer(menubar *Menubar) {
+//Footer render footer.
+func (c *CGI) Footer(menubar *Menubar) {
 	g := struct {
 		Menubar *Menubar
 		Version string
@@ -335,65 +335,65 @@ func (c *cgi) footer(menubar *Menubar) {
 		menubar,
 		cfg.Version,
 	}
-	tmpH.RenderTemplate("footer", g, c.wr)
+	TmpH.RenderTemplate("footer", g, c.WR)
 }
 
-//rfc822Time convers stamp to "2006-01-02 15:04:05"
-func (c *cgi) rfc822Time(stamp int64) string {
+//RFC822Time convers stamp to "2006-01-02 15:04:05"
+func (c *CGI) RFC822Time(stamp int64) string {
 	return time.Unix(stamp, 0).Format("2006-01-02 15:04:05")
 }
 
-//printParagraph render paragraph.txt,just print constents.
+//PrintParagraph render paragraph.txt,just print constents.
 //contentsKey must be a key of Message map.
-func (c *cgi) printParagraph(contentsKey string) {
+func (c *CGI) PrintParagraph(contentsKey string) {
 	g := struct {
 		Contents template.HTML
 	}{
-		Contents: template.HTML(c.m[contentsKey]),
+		Contents: template.HTML(c.M[contentsKey]),
 	}
-	tmpH.RenderTemplate("paragraph", g, c.wr)
+	TmpH.RenderTemplate("paragraph", g, c.WR)
 }
 
 //Menubar is var set for menubar.txt
 type Menubar struct {
 	GatewayLink
 	GatewayCGI string
-	Message    message
+	Message    Message
 	ID         string
 	RSS        string
 	IsAdmin    bool
 	IsFriend   bool
 }
 
-//mekaMenubar makes and returns *Menubar obj.
-func (c *cgi) makeMenubar(id, rss string) *Menubar {
+//MakeMenubar makes and returns *Menubar obj.
+func (c *CGI) MakeMenubar(id, rss string) *Menubar {
 	g := &Menubar{
 		GatewayLink{
-			Message: c.m,
+			Message: c.M,
 		},
 		cfg.GatewayURL,
-		c.m,
+		c.M,
 		id,
 		rss,
-		c.isAdmin(),
-		c.isFriend(),
+		c.IsAdmin(),
+		c.IsFriend(),
 	}
 	return g
 }
 
-//header renders header.txt with cookie.
-func (c *cgi) header(title, rss string, cookie []*http.Cookie, denyRobot bool) {
+//Header renders header.txt with cookie.
+func (c *CGI) Header(title, rss string, cookie []*http.Cookie, denyRobot bool) {
 	if rss == "" {
 		rss = cfg.GatewayURL + "/rss"
 	}
 	var js []string
-	if c.req.FormValue("__debug_js") != "" {
+	if c.Req.FormValue("__debug_js") != "" {
 		js = c.extension("js")
 	} else {
-		c.jc.update()
+		c.JC.update()
 	}
 	h := struct {
-		Message    message
+		Message    Message
 		RootPath   string
 		Title      string
 		RSS        string
@@ -406,14 +406,14 @@ func (c *cgi) header(title, rss string, cookie []*http.Cookie, denyRobot bool) {
 		ThreadCGI  string
 		IsThread   bool
 	}{
-		c.m,
+		c.M,
 		"/",
 		title,
 		rss,
-		c.jc,
+		c.JC,
 		js,
 		c.extension("css"),
-		c.makeMenubar("top", rss),
+		c.MakeMenubar("top", rss),
 		denyRobot,
 		time.Now().Unix(),
 		cfg.ThreadURL,
@@ -421,26 +421,26 @@ func (c *cgi) header(title, rss string, cookie []*http.Cookie, denyRobot bool) {
 	}
 	if cookie != nil {
 		for _, co := range cookie {
-			http.SetCookie(c.wr, co)
+			http.SetCookie(c.WR, co)
 		}
 	}
-	tmpH.RenderTemplate("header", h, c.wr)
+	TmpH.RenderTemplate("header", h, c.WR)
 }
 
-//resAnchor returns a href  string with url.
-func (c *cgi) resAnchor(id, appli string, title string, absuri bool) string {
+//ResAnchor returns a href  string with url.
+func (c *CGI) ResAnchor(id, appli string, title string, absuri bool) string {
 	title = util.StrEncode(title)
 	var prefix, innerlink string
 	if absuri {
-		prefix = "http://" + c.host()
+		prefix = "http://" + c.Host()
 	} else {
 		innerlink = " class=\"innerlink\""
 	}
 	return fmt.Sprintf("<a href=\"%s%s%s%s/%s\"%s>", prefix, appli, "/", title, id, innerlink)
 }
 
-//htmlFormat converts plain text to html , including converting link string to <a href="link">.
-func (c *cgi) htmlFormat(plain, appli string, title string, absuri bool) string {
+//HtmlFormat converts plain text to html , including converting link string to <a href="link">.
+func (c *CGI) HtmlFormat(plain, appli string, title string, absuri bool) string {
 	if strings.HasPrefix(plain, "@markdown") {
 		plain = strings.Replace(plain, "<br>", "\n", -1)
 		plain = strings.Replace(plain, "&lt;", "<", -1)
@@ -472,7 +472,7 @@ func (c *cgi) htmlFormat(plain, appli string, title string, absuri bool) string 
 	buf = reg1.ReplaceAllStringFunc(buf, func(str string) string {
 		regg := regexp.MustCompile("(&gt;&gt;)([0-9a-f]{8})")
 		id := regg.ReplaceAllString(str, "$2")
-		return regg.ReplaceAllString(str, c.resAnchor(id, appli, title, absuri)+"$1$2</a>")
+		return regg.ReplaceAllString(str, c.ResAnchor(id, appli, title, absuri)+"$1$2</a>")
 	})
 	reg3 := regexp.MustCompile(`(:[a-z0-9_]+:)`)
 	buf = reg3.ReplaceAllStringFunc(buf, func(str string) string {
@@ -488,10 +488,10 @@ func (c *cgi) htmlFormat(plain, appli string, title string, absuri bool) string 
 
 //bracketLink convert ling string to [[link]] string with href tag.
 // if not thread and rec link, simply return [[link]]
-func (c *cgi) bracketLink(link, appli string, absuri bool) string {
+func (c *CGI) bracketLink(link, appli string, absuri bool) string {
 	var prefix string
 	if absuri {
-		prefix = "http://" + c.host()
+		prefix = "http://" + c.Host()
 	}
 	reg := regexp.MustCompile("^/(thread)/([^/]+)/([0-9a-f]{8})$")
 	if m := reg.FindStringSubmatch(link); m != nil {
@@ -519,73 +519,73 @@ func (c *cgi) bracketLink(link, appli string, absuri bool) string {
 	return "[[" + link + "]]"
 }
 
-//removeFileForm render remove_form_form page.
-func (c *cgi) removeFileForm(ca *thread.Cache, title string) {
+//RemoveFileForm render remove_form_form page.
+func (c *CGI) RemoveFileForm(ca *thread.Cache, title string) {
 	s := struct {
 		Cache     *thread.Cache
 		CacheSize int64
 		Title     string
 		IsAdmin   bool
 		AdminCGI  string
-		Message   message
+		Message   Message
 	}{
 		ca,
 		ca.Size(),
 		title,
-		c.isAdmin(),
+		c.IsAdmin(),
 		cfg.AdminURL,
-		c.m,
+		c.M,
 	}
-	tmpH.RenderTemplate("remove_file_form", s, c.wr)
+	TmpH.RenderTemplate("remove_file_form", s, c.WR)
 }
 
 //printJump render jump (redirect)page.
-func (c *cgi) printJump(next string) {
+func (c *CGI) printJump(next string) {
 	s := struct {
 		Next template.HTML
 	}{
 		template.HTML(next),
 	}
-	tmpH.RenderTemplate("jump", s, c.wr)
+	TmpH.RenderTemplate("jump", s, c.WR)
 }
 
-//print302 renders jump page(meaning found and redirect)
-func (c *cgi) print302(next string) {
-	c.header("Loading...", "", nil, false)
+//Print302 renders jump page(meaning found and redirect)
+func (c *CGI) Print302(next string) {
+	c.Header("Loading...", "", nil, false)
 	c.printJump(next)
-	c.footer(nil)
+	c.Footer(nil)
 }
 
-//print403 renders 403 forbidden page with jump page.
-func (c *cgi) print403() {
-	c.header(c.m["403"], "", nil, true)
-	c.printParagraph("403_body")
-	c.footer(nil)
+//Print403 renders 403 forbidden page with jump page.
+func (c *CGI) Print403() {
+	c.Header(c.M["403"], "", nil, true)
+	c.PrintParagraph("403_body")
+	c.Footer(nil)
 }
 
-//print404 render the 404 page.
+//Print404 render the 404 page.
 //if ca!=nil also renders info page of removing cache.
-func (c *cgi) print404(ca *thread.Cache, id string) {
-	c.header(c.m["404"], "", nil, true)
-	c.printParagraph("404_body")
+func (c *CGI) Print404(ca *thread.Cache, id string) {
+	c.Header(c.M["404"], "", nil, true)
+	c.PrintParagraph("404_body")
 	if ca != nil {
-		c.removeFileForm(ca, "")
+		c.RemoveFileForm(ca, "")
 	}
-	c.footer(nil)
+	c.Footer(nil)
 }
 
-//checkVisitor returns true if visitor is permitted.
-func (c *cgi) checkVisitor() bool {
-	return c.isAdmin() || c.isFriend() || c.isVisitor()
+//CheckVisitor returns true if visitor is permitted.
+func (c *CGI) CheckVisitor() bool {
+	return c.IsAdmin() || c.IsFriend() || c.isVisitor()
 }
 
-//hasAuth auth returns true if visitor is admin or friend.
-func (c *cgi) hasAuth() bool {
-	return c.isAdmin() || c.isFriend()
+//HasAuth auth returns true if visitor is admin or friend.
+func (c *CGI) HasAuth() bool {
+	return c.IsAdmin() || c.IsFriend()
 }
 
-//printIndexList renders index_list.txt which renders threads in cachelist.
-func (c *cgi) printIndexList(cl []*thread.Cache, target string, footer bool, searchNewFile bool) {
+//PrintIndexList renders index_list.txt which renders threads in cachelist.
+func (c *CGI) PrintIndexList(cl []*thread.Cache, target string, footer bool, searchNewFile bool) {
 	s := struct {
 		Target        string
 		Filter        string
@@ -594,7 +594,7 @@ func (c *cgi) printIndexList(cl []*thread.Cache, target string, footer bool, sea
 		Cachelist     []*thread.Cache
 		GatewayCGI    string
 		AdminCGI      string
-		Message       message
+		Message       Message
 		SearchNewFile bool
 		IsAdmin       bool
 		IsFriend      bool
@@ -602,62 +602,62 @@ func (c *cgi) printIndexList(cl []*thread.Cache, target string, footer bool, sea
 		ListItem
 	}{
 		target,
-		c.filter,
-		c.tag,
+		c.Filter,
+		c.Tag,
 		user.Get(),
 		cl,
 		cfg.GatewayURL,
 		cfg.AdminURL,
-		c.m,
+		c.M,
 		searchNewFile,
-		c.isAdmin(),
-		c.isFriend(),
+		c.IsAdmin(),
+		c.IsFriend(),
 		GatewayLink{
-			Message: c.m,
+			Message: c.M,
 		},
 		ListItem{
-			IsAdmin: c.isAdmin(),
-			filter:  c.filter,
-			tag:     c.tag,
-			Message: c.m,
+			IsAdmin: c.IsAdmin(),
+			Filter:  c.Filter,
+			Tag:     c.Tag,
+			Message: c.M,
 		},
 	}
-	tmpH.RenderTemplate("index_list", s, c.wr)
+	TmpH.RenderTemplate("index_list", s, c.WR)
 	if footer {
-		c.printNewElementForm()
-		c.footer(nil)
+		c.PrintNewElementForm()
+		c.Footer(nil)
 	}
 }
 
-//printNewElementForm renders new_element_form.txt for posting new thread.
-func (c *cgi) printNewElementForm() {
+//PrintNewElementForm renders new_element_form.txt for posting new thread.
+func (c *CGI) PrintNewElementForm() {
 	const titleLimit = 30 //Charactors
 
-	if !c.isAdmin() && !c.isFriend() {
+	if !c.IsAdmin() && !c.IsFriend() {
 		return
 	}
 	s := struct {
 		Datfile    string
 		CGIname    string
-		Message    message
+		Message    Message
 		TitleLimit int
 		IsAdmin    bool
 	}{
 		"",
 		cfg.GatewayURL,
-		c.m,
+		c.M,
 		titleLimit,
-		c.isAdmin(),
+		c.IsAdmin(),
 	}
-	tmpH.RenderTemplate("new_element_form", s, c.wr)
+	TmpH.RenderTemplate("new_element_form", s, c.WR)
 }
 
-//isBot returns true if client is bot.
-func (c *cgi) isBot() bool {
+//IsBot returns true if client is bot.
+func (c *CGI) IsBot() bool {
 	robots := []string{
 		"Google", "bot", "Yahoo", "archiver", "Wget", "Crawler", "Yeti", "Baidu",
 	}
-	agent := c.req.Header.Get("User-Agent")
+	agent := c.Req.Header.Get("User-Agent")
 	for _, robot := range robots {
 		if strings.Contains(agent, robot) {
 			return true
@@ -666,12 +666,12 @@ func (c *cgi) isBot() bool {
 	return false
 }
 
-//checkGetCache return true
+//CheckGetCache return true
 //if visitor is firend or admin and user-agent is not robot.
-func (c *cgi) checkGetCache() bool {
+func (c *CGI) CheckGetCache() bool {
 
-	if !c.hasAuth() {
+	if !c.HasAuth() {
 		return false
 	}
-	return !c.isBot()
+	return !c.IsBot()
 }
