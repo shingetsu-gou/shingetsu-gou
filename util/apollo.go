@@ -33,6 +33,7 @@ package util
 import (
 	"crypto/md5"
 	"encoding/base64"
+	"errors"
 	"log"
 	"math/big"
 )
@@ -91,7 +92,7 @@ func (p *PrivateKey) GetKeys() (string, string) {
 }
 
 //newPrivateKey makes private key from seeds.
-func newPrivateKey(pSeed, qSeed big.Int) *PrivateKey {
+func newPrivateKey(pSeed, qSeed big.Int) (*PrivateKey, error) {
 	q := &qSeed
 	p := &pSeed
 	var tmp big.Int
@@ -111,13 +112,14 @@ func newPrivateKey(pSeed, qSeed big.Int) *PrivateKey {
 		tmp.Exp(test, rsaPublicE, &keyN)
 		tmp.Exp(&tmp, &keyD, &keyN)
 		if tmp.Cmp(test) == 0 {
-			return &PrivateKey{&keyN, &keyD}
+			return &PrivateKey{&keyN, &keyD}, nil
 		}
 		p.Add(p, tmp.SetInt64(2))
 		q.Add(q, tmp.SetInt64(2))
 	}
-	log.Fatal("cannot generate private key")
-	return nil
+	err := errors.New("cannot generate private key")
+	log.Fatal(err)
+	return nil, err
 }
 
 //base64ToInt makes int from string.
@@ -184,7 +186,7 @@ func setBytesReverse(b *big.Int, d []byte) *big.Int {
 }
 
 //MakePrivateKey makes privatekey from keystr
-func MakePrivateKey(keystr string) *PrivateKey {
+func MakePrivateKey(keystr string) (*PrivateKey, error) {
 	var seedbuf [64]byte
 	seed1 := md5.Sum([]byte(keystr))
 	seed2 := md5.Sum([]byte(keystr + "pad1"))

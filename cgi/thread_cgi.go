@@ -132,21 +132,22 @@ type threadCGI struct {
 }
 
 //newThreadCGI returns threadCGI obj.
-func newThreadCGI(w http.ResponseWriter, r *http.Request) (threadCGI, error) {
+func newThreadCGI(w http.ResponseWriter, r *http.Request) (*threadCGI, error) {
+	c, err := newCGI(w, r)
+	if err != nil {
+		c.print403()
+		return nil, err
+	}
+	if !c.checkVisitor() {
+		c.print403()
+		return nil, errors.New("visitor now allowed")
+	}
 	t := threadCGI{
-		cgi: newCGI(w, r),
+		cgi: c,
 	}
 
-	if t.cgi == nil {
-		t.print403()
-		return t, errors.New("error while parsing form")
-	}
-	if !t.checkVisitor() {
-		t.print403()
-		return t, errors.New("visitor now allowed")
-	}
 	t.IsThread = true
-	return t, nil
+	return &t, nil
 }
 
 //printThreadIndex adds records in multiform and redirect to its thread page.
@@ -593,7 +594,7 @@ func (t *threadCGI) guessSuffix(at *attached) string {
 
 //makeRecord builds and returns record with attached file.
 //if nobody render null_article page.
-func (t *threadCGI) makeRecord(at *attached, suffix string, ca *thread.Cache) *record.Record {
+func (t *threadCGI) makeRecord(at *attached, suffix string, ca *thread.Cache) (*record.Record, error) {
 	body := make(map[string]string)
 	for _, name := range []string{"body", "base_stamp", "base_id", "name", "mail"} {
 		if value := t.req.FormValue(name); value != "" {
@@ -608,7 +609,7 @@ func (t *threadCGI) makeRecord(at *attached, suffix string, ca *thread.Cache) *r
 	if len(body) == 0 {
 		t.header(t.m["null_article"], "", nil, true)
 		t.footer(nil)
-		return nil
+		return nil, errors.New("null article")
 	}
 	stamp := time.Now().Unix()
 	if t.req.FormValue("error") != "" {
@@ -617,7 +618,7 @@ func (t *threadCGI) makeRecord(at *attached, suffix string, ca *thread.Cache) *r
 	rec := record.New(ca.Datfile, "", 0)
 	passwd := t.req.FormValue("passwd")
 	rec.Build(stamp, body, passwd)
-	return rec
+	return rec, nil
 }
 
 //doPost parses multipart form ,makes record of it and adds to cache.
@@ -629,8 +630,8 @@ func (t *threadCGI) doPost() string {
 	}
 	suffix := t.guessSuffix(attached)
 	ca := thread.NewCache(t.req.FormValue("file"))
-	rec := t.makeRecord(attached, suffix, ca)
-	if rec == nil {
+	rec, err := t.makeRecord(attached, suffix, ca)
+	if err != nil {
 		return ""
 	}
 	proxyClient := t.req.Header.Get("X_FORWARDED_FOR")

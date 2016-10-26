@@ -29,6 +29,7 @@
 package recentlist
 
 import (
+	"errors"
 	"log"
 	"strconv"
 	"strings"
@@ -69,7 +70,7 @@ func Datfiles() []string {
 
 //Newest returns newest record of datfile in the list.
 //if not found returns nil.
-func Newest(datfile string) *record.Head {
+func Newest(datfile string) (*record.Head, error) {
 	rows, err := db.DB.Query("select * from recent  where Thread=? order by Stamp DESC", datfile)
 	defer func() {
 		errr := rows.Close()
@@ -79,19 +80,19 @@ func Newest(datfile string) *record.Head {
 	}()
 	if err != nil {
 		log.Print(err)
-		return nil
+		return nil, err
 	}
 	if !rows.Next() {
-		return nil
+		return nil, errors.New("not found")
 	}
 	r := record.Head{}
 	var id int
 	err = rows.Scan(&id, &r.Stamp, &r.ID, &r.Datfile)
 	if err != nil {
 		log.Print(err)
-		return nil
+		return nil, err
 	}
-	return &r
+	return &r, nil
 }
 
 //Append add a infos generated from the record.
@@ -163,8 +164,8 @@ func get(begin int64, wg *sync.WaitGroup, n *node.Node) {
 		return
 	}
 	for _, line := range res {
-		rec := record.Make(line)
-		if rec == nil {
+		rec, err := record.Make(line)
+		if err != nil {
 			continue
 		}
 		Append(rec.Head)

@@ -184,7 +184,7 @@ func (dm *Manager) Finished(n *node.Node, success bool) {
 //headWithRange checks node n has records with range and adds records which should be downloaded to downloadmanager.
 func headWithRange(n *node.Node, c *thread.Cache, dm *Manager) bool {
 	begin := time.Now().Unix() - cfg.GetRange
-	if rec := recentlist.Newest(c.Datfile); rec != nil {
+	if rec, err := recentlist.Newest(c.Datfile); err == nil {
 		begin = rec.Stamp - cfg.GetRange
 	}
 	if cfg.GetRange == 0 || begin < 0 {
@@ -283,13 +283,13 @@ func GetCache(background bool, c *thread.Cache) bool {
 //bg waits for at least one record in the cache.
 func bg(c *thread.Cache, wg *sync.WaitGroup) {
 	w := 2 * time.Second
-	newest := recentlist.Newest(c.Datfile)
+	newest, err := recentlist.Newest(c.Datfile)
 	var done chan struct{}
 	go func() {
 		wg.Wait()
 		done <- struct{}{}
 	}()
-	if newest != nil && (newest.Stamp == c.Stamp()) {
+	if err == nil && (newest.Stamp == c.Stamp()) {
 		return
 	}
 	for {

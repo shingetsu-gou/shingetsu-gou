@@ -30,6 +30,7 @@ package record
 
 import (
 	"crypto/md5"
+	"errors"
 	"fmt"
 	"log"
 	"strconv"
@@ -116,7 +117,8 @@ func ParseHeadResponse(res []string, datfile string) map[string]*Head {
 	for _, line := range res {
 		strs := strings.Split(strings.TrimRight(line, "\n\r"), "<>")
 		if len(strs) < 2 {
-			log.Println("illegal format")
+			err := errors.New("illegal format")
+			log.Println(err)
 			return nil
 		}
 		u := &Head{

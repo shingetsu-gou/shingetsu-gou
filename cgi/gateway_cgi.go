@@ -333,13 +333,15 @@ type gatewayCGI struct {
 }
 
 //newGatewayCGI returns gatewayCGI obj with filter.tag value in form.
-func newGatewayCGI(w http.ResponseWriter, r *http.Request) (gatewayCGI, error) {
+func newGatewayCGI(w http.ResponseWriter, r *http.Request) (*gatewayCGI, error) {
+	c, err := newCGI(w, r)
+	if err != nil {
+		return nil, err
+	}
 	a := gatewayCGI{
-		cgi: newCGI(w, r),
+		cgi: c,
 	}
-	if a.cgi == nil {
-		return a, errors.New("cannot make cgi")
-	}
+
 	filter := r.FormValue("filter")
 	tag := r.FormValue("tag")
 
@@ -351,9 +353,9 @@ func newGatewayCGI(w http.ResponseWriter, r *http.Request) (gatewayCGI, error) {
 
 	if !a.checkVisitor() {
 		a.print403()
-		return a, errors.New("permission denied")
+		return nil, errors.New("permission denied")
 	}
-	return a, nil
+	return &a, nil
 }
 
 //appendRSS appends cache ca to rss with contents,url to records,stamp,attached file.

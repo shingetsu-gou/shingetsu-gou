@@ -132,17 +132,22 @@ type mchCGI struct {
 
 //newMchCGI returns mchCGI obj if visitor  is allowed.
 //if not allowed print 403.
-func newMchCGI(w http.ResponseWriter, r *http.Request) (mchCGI, error) {
-	c := mchCGI{
-		cgi: newCGI(w, r),
-	}
-	if c.cgi == nil || !c.checkVisitor() {
+func newMchCGI(w http.ResponseWriter, r *http.Request) (*mchCGI, error) {
+	c, err := newCGI(w, r)
+	if err != nil {
 		w.WriteHeader(403)
 		fmt.Fprintf(w, "403 Forbidden")
-		return c, errors.New("403 forbidden")
+		return nil, err
+	}
+	a := mchCGI{
+		cgi: c,
+	}
+	if !c.checkVisitor() {
+		http.Error(w, "403 Forbidden", http.StatusForbidden)
+		return nil, errors.New("403 forbidden")
 	}
 
-	return c, nil
+	return &a, nil
 }
 
 //serveContent serves str as content with name=name(only used suffix to determine

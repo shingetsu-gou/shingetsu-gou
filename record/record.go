@@ -93,28 +93,30 @@ func (r *Record) CopyHead() Head {
 }
 
 //Make makes and returns record from Recstr
-func Make(line string) *Record {
+func Make(line string) (*Record, error) {
 	line = strings.TrimRight(line, "\r\n")
 	buf := strings.Split(line, "<>")
 	if len(buf) <= 2 || buf[0] == "" || buf[1] == "" || buf[2] == "" {
-		return nil
+		err := errors.New("illegal format")
+		return nil, err
 	}
 	idstr := buf[0] + "_" + buf[1]
 	dec := util.FileDecode(buf[2])
 	if dec == "" || !strings.HasPrefix(buf[2], "thread_") {
-		//		log.Println("illegal format",buf[2])
-		return nil
+		err := errors.New("illegal format " + buf[2])
+		//		log.Println(err)
+		return nil, err
 	}
 	buf[2] = util.FileEncode("thread", dec)
 	vr, err := NewIDstr(buf[2], idstr)
 	if err != nil {
-		return nil
+		return nil, err
 	}
 	if err := vr.Parse(line); err != nil {
 		log.Println(err)
-		return nil
+		return nil, err
 	}
-	return vr
+	return vr, nil
 }
 
 //bodystr returns body part of one line in the record file.
@@ -239,16 +241,18 @@ func (r *Record) Build(stamp int64, body map[string]string, passwd string) strin
 		r.keyOrder = append(r.keyOrder, key)
 	}
 	if passwd != "" {
-		k := util.MakePrivateKey(passwd)
-		pubkey, _ := k.GetKeys()
-		md := util.MD5digest(r.bodystr())
-		sign := k.Sign(md)
-		r.contents["pubkey"] = pubkey
-		r.contents["sign"] = sign
-		r.contents["target"] = strings.Join(r.keyOrder, ",")
-		r.keyOrder = append(r.keyOrder, "pubkey")
-		r.keyOrder = append(r.keyOrder, "sign")
-		r.keyOrder = append(r.keyOrder, "target")
+		k, err := util.MakePrivateKey(passwd)
+		if err == nil {
+			pubkey, _ := k.GetKeys()
+			md := util.MD5digest(r.bodystr())
+			sign := k.Sign(md)
+			r.contents["pubkey"] = pubkey
+			r.contents["sign"] = sign
+			r.contents["target"] = strings.Join(r.keyOrder, ",")
+			r.keyOrder = append(r.keyOrder, "pubkey")
+			r.keyOrder = append(r.keyOrder, "sign")
+			r.keyOrder = append(r.keyOrder, "target")
+		}
 	}
 
 	id := util.MD5digest(r.bodystr())

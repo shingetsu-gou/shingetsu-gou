@@ -77,24 +77,22 @@ func newMessage(filedir, fname string) message {
 		}
 	}
 	if dat == nil {
-		return nil
+		log.Fatal("message file was not found")
 	}
 
 	re := regexp.MustCompile(`^\s*#`)
-	for _, line := range strings.Split(string(dat), "\n") {
+	for i, line := range strings.Split(string(dat), "\n") {
 		line = strings.Trim(line, "\r\n")
 		if line == "" || re.MatchString(line) {
 			continue
 		}
 		buf := strings.Split(line, "<>")
-		if len(buf) == 2 {
-			buf[1] = html.UnescapeString(buf[1])
-			m[buf[0]] = buf[1]
-			continue
+		if len(buf) != 2 {
+			log.Fatalf("illegal format at line %d in the message file", i)
 		}
-		return nil
+		buf[1] = html.UnescapeString(buf[1])
+		m[buf[0]] = buf[1]
 	}
-
 	return m
 }
 
@@ -123,6 +121,7 @@ func searchMessage(acceptLanguage, filedir string) message {
 			}
 		}
 	}
+	log.Fatalf("no messages are found.")
 	return nil
 }
 
@@ -232,7 +231,7 @@ type cgi struct {
 
 //newCGI reads messages file, and set params , returns cgi obj.
 //cgi obj is cached.
-func newCGI(w http.ResponseWriter, r *http.Request) *cgi {
+func newCGI(w http.ResponseWriter, r *http.Request) (*cgi, error) {
 	c := &cgi{
 		jc:  newJsCache(cfg.Docroot),
 		wr:  w,
@@ -242,9 +241,9 @@ func newCGI(w http.ResponseWriter, r *http.Request) *cgi {
 	err := r.ParseForm()
 	if err != nil {
 		log.Println(err)
-		return nil
+		return nil, err
 	}
-	return c
+	return c, nil
 }
 
 //host returns servername or host in http header.

@@ -29,7 +29,6 @@
 package cgi
 
 import (
-	"errors"
 	"fmt"
 	"io/ioutil"
 	"log"
@@ -297,18 +296,20 @@ type serverCGI struct {
 }
 
 //newServerCGI set content-type to text and  returns serverCGI obj.
-func newServerCGI(w http.ResponseWriter, r *http.Request) (serverCGI, error) {
-	c := serverCGI{
-		cgi: newCGI(w, r),
+func newServerCGI(w http.ResponseWriter, r *http.Request) (*serverCGI, error) {
+	c, err := newCGI(w, r)
+	if err != nil {
+		return nil, err
 	}
-	if c.cgi == nil {
-		return c, errors.New("cannot make CGI")
+	a := serverCGI{
+		cgi: c,
 	}
+
 	if w != nil {
 		w.Header().Set("Content-Type", "text/plain")
 	}
 
-	return c, nil
+	return &a, nil
 }
 
 //remoteIP returns host if host!=""

@@ -29,7 +29,6 @@
 package cgi
 
 import (
-	"errors"
 	"fmt"
 	"html"
 	"log"
@@ -241,17 +240,18 @@ type adminCGI struct {
 
 //newAdminCGI returns adminCGI obj if client is admin.
 //if not render 403.
-func newAdminCGI(w http.ResponseWriter, r *http.Request) (adminCGI, error) {
-	a := adminCGI{
-		cgi: newCGI(w, r),
+func newAdminCGI(w http.ResponseWriter, r *http.Request) (*adminCGI, error) {
+	c, err := newCGI(w, r)
+	if err != nil {
+		return nil, err
 	}
-	if a.cgi == nil {
-		return a, errors.New("cannot make cgi")
+	a := adminCGI{
+		cgi: c,
 	}
 	if !a.isAdmin() {
 		a.print403()
 	}
-	return a, nil
+	return &a, nil
 }
 
 //makeSid makes md5(rand) id and writes to sid file.

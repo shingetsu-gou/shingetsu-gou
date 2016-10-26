@@ -234,9 +234,9 @@ func CreateAllCachedirs() {
 
 //RecentStamp  returns time of getting by /recent.
 func (c *Cache) RecentStamp() int64 {
-	n := recentlist.Newest(c.Datfile)
+	n, err := recentlist.Newest(c.Datfile)
 	s := c.Stamp()
-	if n == nil || n.Stamp < s {
+	if err != nil || n.Stamp < s {
 		return s
 	}
 	return n.Stamp

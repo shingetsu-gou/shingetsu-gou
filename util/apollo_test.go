@@ -36,7 +36,10 @@ import (
 func TestApllo(t *testing.T) {
 	log.SetFlags(log.Ldate | log.Ltime | log.Lshortfile)
 
-	pkey := MakePrivateKey("test")
+	pkey, err := MakePrivateKey("test")
+	if err != nil {
+		t.Fatal(err)
+	}
 	log.Println(pkey.keyD, pkey.keyN)
 	pub, pri := pkey.GetKeys()
 	log.Println(pkey.keyD, pkey.keyN)
