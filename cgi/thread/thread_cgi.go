@@ -85,13 +85,13 @@ func Setup(s *cgi.LoggingServeMux) {
 
 //printThreadIndex adds records in multiform and redirect to its thread page.
 func printThreadIndex(w http.ResponseWriter, r *http.Request) {
-	if a, err := newThreadCGI(w, r); err == nil {
+	if a, err := new(w, r); err == nil {
 		a.printThreadIndex()
 	}
 }
 
 func printAttach(w http.ResponseWriter, r *http.Request) {
-	if a, err := newThreadCGI(w, r); err == nil {
+	if a, err := new(w, r); err == nil {
 		m := mux.Vars(r)
 		var stamp int64
 		if m["stamp"] != "" {
@@ -108,7 +108,7 @@ func printAttach(w http.ResponseWriter, r *http.Request) {
 
 //printThread renders whole thread list page.
 func printThread(w http.ResponseWriter, r *http.Request) {
-	if a, err := newThreadCGI(w, r); err == nil {
+	if a, err := new(w, r); err == nil {
 		m := mux.Vars(r)
 		var page int
 		if m["page"] != "" {
@@ -132,8 +132,8 @@ type threadCGI struct {
 	*cgi.CGI
 }
 
-//newThreadCGI returns threadCGI obj.
-func newThreadCGI(w http.ResponseWriter, r *http.Request) (*threadCGI, error) {
+//new returns threadCGI obj.
+func new(w http.ResponseWriter, r *http.Request) (*threadCGI, error) {
 	c, err := cgi.NewCGI(w, r)
 	if err != nil {
 		c.Print403()

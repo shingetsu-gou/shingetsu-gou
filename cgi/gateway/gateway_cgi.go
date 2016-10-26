@@ -89,7 +89,7 @@ func printGatewayThread(w http.ResponseWriter, r *http.Request) {
 		PrintTitle(w, r)
 		return
 	}
-	g, err := newGatewayCGI(w, r)
+	g, err := new(w, r)
 	if err != nil {
 		log.Println(err)
 		return
@@ -99,7 +99,7 @@ func printGatewayThread(w http.ResponseWriter, r *http.Request) {
 
 //printCSV renders csv of caches saved in disk.
 func printCSV(w http.ResponseWriter, r *http.Request) {
-	g, err := newGatewayCGI(w, r)
+	g, err := new(w, r)
 	if err != nil {
 		log.Println(err)
 		return
@@ -109,7 +109,7 @@ func printCSV(w http.ResponseWriter, r *http.Request) {
 
 //printCSVChanges renders csv of caches which changes recently and are in disk(validstamp is newer).
 func printCSVChanges(w http.ResponseWriter, r *http.Request) {
-	g, err := newGatewayCGI(w, r)
+	g, err := new(w, r)
 	if err != nil {
 		log.Println(err)
 		return
@@ -121,7 +121,7 @@ func printCSVChanges(w http.ResponseWriter, r *http.Request) {
 
 //printCSVRecent renders csv of caches which are written recently(are updated remotely).
 func printCSVRecent(w http.ResponseWriter, r *http.Request) {
-	g, err := newGatewayCGI(w, r)
+	g, err := new(w, r)
 	if err != nil {
 		log.Println(err)
 		return
@@ -137,7 +137,7 @@ func printCSVRecent(w http.ResponseWriter, r *http.Request) {
 //printRecentRSS renders rss of caches which are written recently(are updated remotely).
 //including title,tags,last-modified.
 func printRecentRSS(w http.ResponseWriter, r *http.Request) {
-	g, err := newGatewayCGI(w, r)
+	g, err := new(w, r)
 	if err != nil {
 		log.Println(err)
 		return
@@ -163,7 +163,7 @@ func printRecentRSS(w http.ResponseWriter, r *http.Request) {
 
 //printRSS reneders rss including newer records.
 func printRSS(w http.ResponseWriter, r *http.Request) {
-	g, err := newGatewayCGI(w, r)
+	g, err := new(w, r)
 	if err != nil {
 		log.Println(err)
 		return
@@ -182,7 +182,7 @@ func printRSS(w http.ResponseWriter, r *http.Request) {
 
 //printMergedJS renders merged js with stamp.
 func printMergedJS(w http.ResponseWriter, r *http.Request) {
-	g, err := newGatewayCGI(w, r)
+	g, err := new(w, r)
 	if err != nil {
 		log.Println(err)
 		return
@@ -198,7 +198,7 @@ func printMergedJS(w http.ResponseWriter, r *http.Request) {
 
 //printMotd renders motd.
 func printMotd(w http.ResponseWriter, r *http.Request) {
-	g, err := newGatewayCGI(w, r)
+	g, err := new(w, r)
 	if err != nil {
 		log.Println(err)
 		return
@@ -218,7 +218,7 @@ func printMotd(w http.ResponseWriter, r *http.Request) {
 
 //printNew renders the page for making new thread.
 func printNew(w http.ResponseWriter, r *http.Request) {
-	g, err := newGatewayCGI(w, r)
+	g, err := new(w, r)
 	if err != nil {
 		log.Println(err)
 		return
@@ -231,7 +231,7 @@ func printNew(w http.ResponseWriter, r *http.Request) {
 
 //PrintTitle renders list of newer thread in the disk for the top page
 func PrintTitle(w http.ResponseWriter, r *http.Request) {
-	g, err := newGatewayCGI(w, r)
+	g, err := new(w, r)
 	if err != nil {
 		log.Println(err)
 		return
@@ -293,7 +293,7 @@ func PrintTitle(w http.ResponseWriter, r *http.Request) {
 
 //printGatewayIndex renders list of new threads in the disk.
 func printGatewayIndex(w http.ResponseWriter, r *http.Request) {
-	g, err := newGatewayCGI(w, r)
+	g, err := new(w, r)
 	if err != nil {
 		log.Println(err)
 		return
@@ -303,7 +303,7 @@ func printGatewayIndex(w http.ResponseWriter, r *http.Request) {
 
 //printIndexChanges renders list of new threads in the disk sorted by velocity.
 func printIndexChanges(w http.ResponseWriter, r *http.Request) {
-	g, err := newGatewayCGI(w, r)
+	g, err := new(w, r)
 	if err != nil {
 		log.Println(err)
 		return
@@ -313,7 +313,7 @@ func printIndexChanges(w http.ResponseWriter, r *http.Request) {
 
 //printRecent renders cache in recentlist.
 func printRecent(w http.ResponseWriter, r *http.Request) {
-	g, err := newGatewayCGI(w, r)
+	g, err := new(w, r)
 	if err != nil {
 		log.Println(err)
 		return
@@ -333,8 +333,8 @@ type gatewayCGI struct {
 	*cgi.CGI
 }
 
-//newGatewayCGI returns gatewayCGI obj with filter.tag value in form.
-func newGatewayCGI(w http.ResponseWriter, r *http.Request) (*gatewayCGI, error) {
+//new returns gatewayCGI obj with filter.tag value in form.
+func new(w http.ResponseWriter, r *http.Request) (*gatewayCGI, error) {
 	c, err := cgi.NewCGI(w, r)
 	if err != nil {
 		return nil, err

@@ -70,7 +70,7 @@ func Setup(s *cgi.LoggingServeMux) {
 //i.e. confirmagion page for deleting rec/file(rdel/fdel) and for deleting.
 //(xrdel/xfdel)
 func execCmd(w http.ResponseWriter, r *http.Request) {
-	a, err := newAdminCGI(w, r)
+	a, err := new(w, r)
 	if err != nil {
 		log.Println(err)
 		return
@@ -94,7 +94,7 @@ func execCmd(w http.ResponseWriter, r *http.Request) {
 //printSearch renders the page for searching if query=""
 //or do query if query!=""
 func printSearch(w http.ResponseWriter, r *http.Request) {
-	a, err := newAdminCGI(w, r)
+	a, err := new(w, r)
 	if err != nil {
 		log.Println(err)
 		return
@@ -114,7 +114,7 @@ func printSearch(w http.ResponseWriter, r *http.Request) {
 //#linknodes,#knownNodes,#files,#records,cacheSize,selfnode/linknodes/knownnodes
 // ip:port,
 func printStatus(w http.ResponseWriter, r *http.Request) {
-	a, err := newAdminCGI(w, r)
+	a, err := new(w, r)
 	if err != nil {
 		log.Println()
 		return
@@ -172,7 +172,7 @@ func printStatus(w http.ResponseWriter, r *http.Request) {
 
 //printEdittag renders the page for editing tags in thread specified by form "file".
 func printEdittag(w http.ResponseWriter, r *http.Request) {
-	a, err := newAdminCGI(w, r)
+	a, err := new(w, r)
 	if err != nil {
 		log.Println(err)
 		return
@@ -208,7 +208,7 @@ func printEdittag(w http.ResponseWriter, r *http.Request) {
 
 //saveTagCGI saves edited tags of file and render this file with 302.
 func saveTagCGI(w http.ResponseWriter, r *http.Request) {
-	a, err := newAdminCGI(w, r)
+	a, err := new(w, r)
 	if err != nil {
 		log.Println(err)
 		return
@@ -239,9 +239,9 @@ type adminCGI struct {
 	*cgi.CGI
 }
 
-//newAdminCGI returns adminCGI obj if client is admin.
+//new returns adminCGI obj if client is admin.
 //if not render 403.
-func newAdminCGI(w http.ResponseWriter, r *http.Request) (*adminCGI, error) {
+func new(w http.ResponseWriter, r *http.Request) (*adminCGI, error) {
 	c, err := cgi.NewCGI(w, r)
 	if err != nil {
 		return nil, err

@@ -72,7 +72,7 @@ func Setup(s *cgi.LoggingServeMux) {
 
 //boardApp just calls boardApp(), only print title.
 func boardApp(w http.ResponseWriter, r *http.Request) {
-	a, err := newMchCGI(w, r)
+	a, err := new(w, r)
 	if err != nil {
 		log.Println(err)
 		return
@@ -82,7 +82,7 @@ func boardApp(w http.ResponseWriter, r *http.Request) {
 
 //threadApp renders dat files(record data) in the thread.
 func threadApp(w http.ResponseWriter, r *http.Request) {
-	a, err := newMchCGI(w, r)
+	a, err := new(w, r)
 	if err != nil {
 		log.Println(err)
 		return
@@ -97,7 +97,7 @@ func threadApp(w http.ResponseWriter, r *http.Request) {
 
 //subjectApp renders time-subject lines of the thread.
 func subjectApp(w http.ResponseWriter, r *http.Request) {
-	a, err := newMchCGI(w, r)
+	a, err := new(w, r)
 	if err != nil {
 		log.Println(err)
 		return
@@ -108,7 +108,7 @@ func subjectApp(w http.ResponseWriter, r *http.Request) {
 
 //postCommentApp posts one record to the thread.
 func postCommentApp(w http.ResponseWriter, r *http.Request) {
-	a, err := newMchCGI(w, r)
+	a, err := new(w, r)
 	if err != nil {
 		log.Println(err)
 		return
@@ -118,7 +118,7 @@ func postCommentApp(w http.ResponseWriter, r *http.Request) {
 
 //headApp just renders motd.
 func headApp(w http.ResponseWriter, r *http.Request) {
-	a, err := newMchCGI(w, r)
+	a, err := new(w, r)
 	if err != nil {
 		log.Println(err)
 		return
@@ -131,9 +131,9 @@ type mchCGI struct {
 	*cgi.CGI
 }
 
-//newMchCGI returns mchCGI obj if visitor  is allowed.
+//new returns mchCGI obj if visitor  is allowed.
 //if not allowed print 403.
-func newMchCGI(w http.ResponseWriter, r *http.Request) (*mchCGI, error) {
+func new(w http.ResponseWriter, r *http.Request) (*mchCGI, error) {
 	c, err := cgi.NewCGI(w, r)
 	if err != nil {
 		w.WriteHeader(403)

@@ -90,7 +90,7 @@ func doNode(w http.ResponseWriter, r *http.Request) {
 //doJoin adds node specified in url to searchlist and nodelist.
 //if nodelist>#defaultnode removes and says bye one node in nodelist and returns welcome its ip:port.
 func doJoin(w http.ResponseWriter, r *http.Request) {
-	s, err := newServerCGI(w, r)
+	s, err := new(w, r)
 	if err != nil {
 		log.Println(err)
 		return
@@ -117,7 +117,7 @@ func doJoin(w http.ResponseWriter, r *http.Request) {
 
 //doBye  removes from nodelist and says bye to the node specified in url.
 func doBye(w http.ResponseWriter, r *http.Request) {
-	s, err := newServerCGI(w, r)
+	s, err := new(w, r)
 	if err != nil {
 		log.Println(err)
 		return
@@ -136,7 +136,7 @@ func doBye(w http.ResponseWriter, r *http.Request) {
 
 //doHave checks existance of cache whose name is specified in url.
 func doHave(w http.ResponseWriter, r *http.Request) {
-	s, err := newServerCGI(w, r)
+	s, err := new(w, r)
 	if err != nil {
 		log.Println(err)
 		return
@@ -159,7 +159,7 @@ func doHave(w http.ResponseWriter, r *http.Request) {
 //doUpdate adds remote node to searchlist and lookuptable with datfile specified in url.
 //if stamp is in range of defaultUpdateRange adds to updateque.
 func doUpdate(w http.ResponseWriter, r *http.Request) {
-	s, err := newServerCGI(w, r)
+	s, err := new(w, r)
 	if err != nil {
 		log.Println(err)
 		log.Println("failed to create cgi struct")
@@ -210,7 +210,7 @@ func doUpdate(w http.ResponseWriter, r *http.Request) {
 
 //doRecent renders records whose timestamp is in range of one specified in url.
 func doRecent(w http.ResponseWriter, r *http.Request) {
-	s, err := newServerCGI(w, r)
+	s, err := new(w, r)
 	if err != nil {
 		log.Println(err)
 		return
@@ -253,7 +253,7 @@ func doMotd(w http.ResponseWriter, r *http.Request) {
 //doGetHead renders records contents(get) or id+timestamp(head) who has id and
 // whose stamp is in range of one specified by url.
 func doGetHead(w http.ResponseWriter, r *http.Request) {
-	s, err := newServerCGI(w, r)
+	s, err := new(w, r)
 	if err != nil {
 		log.Println(err)
 		return
@@ -296,8 +296,8 @@ type serverCGI struct {
 	*cgi.CGI
 }
 
-//newServerCGI set content-type to text and  returns serverCGI obj.
-func newServerCGI(w http.ResponseWriter, r *http.Request) (*serverCGI, error) {
+//new set content-type to text and  returns serverCGI obj.
+func new(w http.ResponseWriter, r *http.Request) (*serverCGI, error) {
 	c, err := cgi.NewCGI(w, r)
 	if err != nil {
 		return nil, err
