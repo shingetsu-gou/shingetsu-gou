@@ -237,13 +237,17 @@ func Initialize(allnodes node.Slice) {
 	for i := 0; i < len(inodes) && ListLen() < defaultNodes; i++ {
 		wg.Add(1)
 		go func(inode *node.Node) {
-			defer wg.Done()
-			if _, err := inode.Ping(); err == nil {
-				mutex.Lock()
-				pingOK = append(pingOK, inode)
-				mutex.Unlock()
-				go Join(inode)
+			if _, err := inode.Ping(); err != nil {
+				wg.Done()
+				return
 			}
+			mutex.Lock()
+			pingOK = append(pingOK, inode)
+			mutex.Unlock()
+			go func(inode *node.Node) {
+				Join(inode)
+				wg.Done()
+			}(inode)
 		}(inodes[i])
 	}
 	wg.Wait()

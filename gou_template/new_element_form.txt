@@ -3,7 +3,7 @@
  */}}
 {{define "new_element_form"}}
 <div class="row">
-<form method="post" action="{{.CGIname}}/" class="well form-horizontal span6">
+<form method="post" action="{{.GatewayCGI}}/" class="well form-horizontal span6">
   <input type="hidden" name="cmd" value="new" />
   <input type="hidden" name="file" value="{{.Datfile}}" />
   <input type="hidden" value="thread" name="type" />
