@@ -125,37 +125,34 @@ func SearchMessage(acceptLanguage, filedir string) Message {
 	return nil
 }
 
+//CacheInfo is infos of a cache.
+type CacheInfo struct {
+	Cache   *thread.Cache
+	Tags    tag.Slice
+	Sugtags []*tag.Tag
+	Title   string
+}
+
 //ListItem is for list_item.txt
 type ListItem struct {
-	Cache      *thread.Cache
-	CacheSize  int64
-	Title      string
-	Tags       tag.Slice
-	Sugtags    []*tag.Tag
-	Target     string
-	Remove     bool
-	IsAdmin    bool
-	StrOpts    string
-	GatewayCGI string
-	ThreadURL  string
-	Message    Message
-	Filter     string
-	Tag        string
+	Caches  []*CacheInfo
+	StrOpts string
+	Remove  bool
 }
 
 //checkCache checks cache ca has specified tag and datfile doesn't contains filterd string.
-func (l *ListItem) checkCache(ca *thread.Cache, target string) (string, bool) {
+func (c *CGI) checkCache(ca *thread.Cache, target string) (string, bool) {
 	x := util.FileDecode(ca.Datfile)
 	if x == "" {
 		return "", false
 	}
-	if l.Filter != "" && !strings.Contains(strings.ToLower(x), l.Filter) {
+	if c.Filter != "" && !strings.Contains(strings.ToLower(x), c.Filter) {
 		return "", false
 	}
-	if l.Tag != "" {
+	if c.Tag != "" {
 		switch {
-		case user.Has(ca.Datfile, strings.ToLower(l.Tag)):
-		case target == "recent" && suggest.HasTagstr(ca.Datfile, strings.ToLower(l.Tag)):
+		case user.Has(ca.Datfile, strings.ToLower(c.Tag)):
+		case target == "recent" && suggest.HasTagstr(ca.Datfile, strings.ToLower(c.Tag)):
 		default:
 			return "", false
 		}
@@ -163,49 +160,43 @@ func (l *ListItem) checkCache(ca *thread.Cache, target string) (string, bool) {
 	return x, true
 }
 
-//Render renders "list_items.txt" and returns its result string which is not escaped in template.
-//ListItem.IsAdmin,filter,tag,Message must be setted up previously.
-//used in templates.
-func (l ListItem) Render(ca *thread.Cache, remove bool, target string, search bool) template.HTML {
-	x, ok := l.checkCache(ca, target)
-	if !ok {
-		return template.HTML("")
-	}
-	x = util.EscapeSpace(x)
-	var strOpts string
+//NewListItem returns ListItem struct from caches.
+func (c *CGI) NewListItem(caches []*thread.Cache, remove bool, target string, search bool) *ListItem {
+	li := &ListItem{Remove: remove}
+	li.Caches = make([]*CacheInfo, 0, len(caches))
 	if search {
-		strOpts = "?search_new_file=yes"
+		li.StrOpts = "?search_new_file=yes"
 	}
-	var sugtags []*tag.Tag
-	if target == "recent" {
-		strTags := make([]string, user.Len(ca.Datfile))
-		for i, v := range user.GetByThread(ca.Datfile) {
-			strTags[i] = strings.ToLower(v.Tagstr)
+	for _, ca := range caches {
+		x, ok := c.checkCache(ca, target)
+		if !ok {
+			continue
 		}
-		for _, st := range suggest.Get(ca.Datfile, nil) {
-			if !util.HasString(strTags, strings.ToLower(st.Tagstr)) {
-				sugtags = append(sugtags, st)
+		ci := &CacheInfo{Cache: ca}
+		li.Caches = append(li.Caches, ci)
+		ci.Title = util.EscapeSpace(x)
+		if target == "recent" {
+			strTags := make([]string, user.Len(ca.Datfile))
+			for i, v := range user.GetByThread(ca.Datfile) {
+				strTags[i] = strings.ToLower(v.Tagstr)
+			}
+			for _, st := range suggest.Get(ca.Datfile, nil) {
+				if !util.HasString(strTags, strings.ToLower(st.Tagstr)) {
+					ci.Sugtags = append(ci.Sugtags, st)
+				}
 			}
 		}
+		ci.Tags = user.GetByThread(ca.Datfile)
 	}
-	l.Cache = ca
-	l.Title = x
-	l.Tags = user.GetByThread(ca.Datfile)
-	l.Sugtags = sugtags
-	l.Target = target
-	l.Remove = remove
-	l.StrOpts = strOpts
-	l.GatewayCGI = cfg.GatewayURL
-	l.ThreadURL = cfg.ThreadURL
-	return template.HTML(TmpH.ExecuteTemplate("list_item", l))
+	return li
 }
 
 //Defaults is default variables for templates.
 type Defaults struct {
-	AdminURL    string
-	GatewayURL  string
-	ThreadURL   string
-	ServerURL   string
+	AdminCGI    string
+	GatewayCGI  string
+	ThreadCGI   string
+	ServerCGI   string
 	Message     Message
 	IsAdmin     bool
 	IsFriend    bool
@@ -216,6 +207,7 @@ type Defaults struct {
 	DescIndex   string
 	DescSearch  string
 	DescStatus  string
+	EmptyList   template.HTML
 }
 
 //CGI is a base class for all http handlers.
@@ -248,6 +240,8 @@ func NewCGI(w http.ResponseWriter, r *http.Request) (*CGI, error) {
 
 //Defaults returns default params for templates.
 func (c *CGI) Defaults() *Defaults {
+	href := `<a href="` + cfg.GatewayURL + `/recent" title="` + c.M["desc_recent"] + `">` + c.M["recent"] + `</a>`
+
 	return &Defaults{
 		cfg.AdminURL,
 		cfg.GatewayURL,
@@ -263,6 +257,7 @@ func (c *CGI) Defaults() *Defaults {
 		c.M["desc_index"],
 		c.M["desc_search"],
 		c.M["desc_status"],
+		template.HTML(fmt.Sprintf(c.M["empty_list"], href)),
 	}
 }
 
@@ -365,7 +360,7 @@ func (c *CGI) RFC822Time(stamp int64) string {
 
 //Menubar is var set for menubar.txt
 type Menubar struct {
-	*Defaults
+	Defaults
 	ID  string
 	RSS string
 }
@@ -373,7 +368,7 @@ type Menubar struct {
 //MakeMenubar makes and returns *Menubar obj.
 func (c *CGI) MakeMenubar(id, rss string) *Menubar {
 	g := &Menubar{
-		c.Defaults(),
+		*c.Defaults(),
 		id,
 		rss,
 	}
@@ -590,24 +585,19 @@ func (c *CGI) PrintIndexList(cl []*thread.Cache, target string, footer bool, sea
 		Filter        string
 		Tag           string
 		Taglist       tag.Slice
-		Cachelist     []*thread.Cache
 		SearchNewFile bool
-		*Defaults
+		NoList        bool
+		Defaults
 		ListItem
 	}{
 		target,
 		c.Filter,
 		c.Tag,
 		user.Get(),
-		cl,
 		searchNewFile,
-		c.Defaults(),
-		ListItem{
-			IsAdmin: c.IsAdmin(),
-			Filter:  c.Filter,
-			Tag:     c.Tag,
-			Message: c.M,
-		},
+		len(cl) == 0,
+		*c.Defaults(),
+		*c.NewListItem(cl, true, target, searchNewFile),
 	}
 	TmpH.RenderTemplate("index_list", s, c.WR)
 	if footer {

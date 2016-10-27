@@ -31,14 +31,10 @@
 
 <div style="background:url(/arazuki_saku.png) no-repeat 100% 0%;">
   <ul id="thread_index">
-  {{ range $cache:=$root.Cachelist }}
-      {{$root.ListItem.Render $cache true $root.Target $root.SearchNewFile}}
-  {{ end }}
+  {{ template "list_item" . }}
   </ul>
-{{ if and (not .Cachelist) (or .IsFriend .IsAdmin)}}
-<p>
-{{`<a href="{{.GatewayCGI}}/recent" title="{{.DescRecent}}">{.Message.Recent}}</a>` |  unescapedPrintf .Message.empty_list }}
-</p>
+{{ if and (.NoList) (or .IsFriend .IsAdmin)}}
+<p>{{.EmptyList}}</p>
 {{ end }}
 
 {{ if .IsAdmin }}

@@ -3,16 +3,15 @@
  */}}
 {{define "list_item"}}
 {{$root:=.}}
+{{ range $cache:=.Caches }}
 <li>
-{{ if and .IsAdmin .Remove }}
+{{ if and $root.IsAdmin $root.Remove }}
   <input type="checkbox" name="file" value="{{.Cache.Datfile}}" style="display:inline-block" />
 {{ end }}
   <span class="stamp" id="s{{.Cache.RecentStamp}}">{{localtime .Cache.RecentStamp}}</span>
-{{ if and .IsAdmin .Remove }}
-{{ end }}
 
-<a href="{{.ThreadURL}}/{{strEncode .Title}}{{.StrOpts}}">{{.Title}}</a>
-({{.Cache.Len}}/{{toInt .Cache.Size|toMB|printf "%.1f"}}{{.Message.mb}})
+<a href="{{$root.ThreadCGI}}/{{strEncode .Title}}{{$root.StrOpts}}">{{.Title}}</a>
+({{.Cache.Len}}/{{toInt .Cache.Size|toMB|printf "%.1f"}}{{$root.Message.mb}})
 {{ if .Tags}}
   <span class="tags">
   {{ range $tag:=.Tags }}
@@ -28,4 +27,5 @@
 </span>
 {{ end }}
 </li>
+{{end}}
 {{end}}

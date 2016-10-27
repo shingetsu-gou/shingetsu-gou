@@ -251,28 +251,23 @@ func PrintTitle(w http.ResponseWriter, r *http.Request) {
 
 	g.Header(g.M["logo"]+" - "+g.M["description"], "", nil, false)
 	s := struct {
-		Cachelist     []*thread.Cache
 		Target        string
 		Taglist       tag.Slice
 		MchURL        string
 		MchCategories []*mchCategory
 		Types         string
+		NoList        bool
 		cgi.ListItem
-		*cgi.Defaults
+		cgi.Defaults
 	}{
-		outputCachelist,
 		"changes",
 		user.Get(),
 		g.mchURL(""),
 		g.mchCategories(),
 		"thread",
-		cgi.ListItem{
-			IsAdmin: g.IsAdmin(),
-			Filter:  g.Filter,
-			Tag:     g.Tag,
-			Message: g.M,
-		},
-		g.Defaults(),
+		len(outputCachelist) == 0,
+		*g.NewListItem(outputCachelist, false, "changes", false),
+		*g.Defaults(),
 	}
 	cgi.TmpH.RenderTemplate("top", s, g.WR)
 	g.PrintNewElementForm()
