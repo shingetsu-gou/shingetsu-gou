@@ -91,40 +91,44 @@ func printThreadIndex(w http.ResponseWriter, r *http.Request) {
 }
 
 func printAttach(w http.ResponseWriter, r *http.Request) {
-	if a, err := new(w, r); err == nil {
-		m := mux.Vars(r)
-		var stamp int64
-		if m["stamp"] != "" {
-			var err error
-			stamp, err = strconv.ParseInt(m["stamp"], 10, 64)
-			if err != nil {
-				log.Println(err)
-				return
-			}
-		}
-		a.printAttach(m["datfile"], m["id"], stamp, m["thumbnailSize"], m["suffix"])
+	a, err := new(w, r)
+	if err != nil {
+		return
 	}
+	m := mux.Vars(r)
+	var stamp int64
+	if m["stamp"] != "" {
+		var err error
+		stamp, err = strconv.ParseInt(m["stamp"], 10, 64)
+		if err != nil {
+			log.Println(err)
+			return
+		}
+	}
+	a.printAttach(m["datfile"], m["id"], stamp, m["thumbnailSize"], m["suffix"])
 }
 
 //printThread renders whole thread list page.
 func printThread(w http.ResponseWriter, r *http.Request) {
-	if a, err := new(w, r); err == nil {
-		m := mux.Vars(r)
-		var page int
-		if m["page"] != "" {
-			var err error
-			page, err = strconv.Atoi(m["page"])
-			if err != nil {
-				return
-			}
-		}
-		path, err := url.QueryUnescape(m["path"])
+	a, errr := new(w, r)
+	if errr != nil {
+		return
+	}
+	m := mux.Vars(r)
+	var page int
+	if m["page"] != "" {
+		var err error
+		page, err = strconv.Atoi(m["page"])
 		if err != nil {
-			log.Print(err)
 			return
 		}
-		a.printThread(path, m["id"], page)
 	}
+	path, err := url.QueryUnescape(m["path"])
+	if err != nil {
+		log.Print(err)
+		return
+	}
+	a.printThread(path, m["id"], page)
 }
 
 //threadCGI is for thread.cgi.
