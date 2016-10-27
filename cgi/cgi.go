@@ -363,12 +363,6 @@ func (c *CGI) RFC822Time(stamp int64) string {
 	return time.Unix(stamp, 0).Format("2006-01-02 15:04:05")
 }
 
-//PrintParagraph render paragraph.txt,just print constents.
-//contentsKey must be a key of Message map.
-func (c *CGI) PrintParagraph(contentsKey string) {
-	fmt.Fprintf(c.WR, "<p>%s</p>", c.M[contentsKey])
-}
-
 //Menubar is var set for menubar.txt
 type Menubar struct {
 	*Defaults
@@ -564,7 +558,7 @@ func (c *CGI) Print302(next string) {
 //Print403 renders 403 forbidden page with jump page.
 func (c *CGI) Print403() {
 	c.Header(c.M["403"], "", nil, true)
-	c.PrintParagraph("403_body")
+	fmt.Fprintf(c.WR, "<p>%s</p>", c.M["403_body"])
 	c.Footer(nil)
 }
 
@@ -572,7 +566,7 @@ func (c *CGI) Print403() {
 //if ca!=nil also renders info page of removing cache.
 func (c *CGI) Print404(ca *thread.Cache, id string) {
 	c.Header(c.M["404"], "", nil, true)
-	c.PrintParagraph("404_body")
+	fmt.Fprintf(c.WR, "<p>%s</p>", c.M["404_body"])
 	if ca != nil {
 		c.RemoveFileForm(ca, "")
 	}

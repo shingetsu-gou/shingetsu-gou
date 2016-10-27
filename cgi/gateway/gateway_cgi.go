@@ -311,7 +311,7 @@ func printRecent(w http.ResponseWriter, r *http.Request) {
 		title = fmt.Sprintf("%s : %s", g.M["recent"], g.Filter)
 	}
 	g.Header(title, "", nil, true)
-	g.PrintParagraph("desc_recent")
+	fmt.Fprintf(g.WR, "<p>%s</p>", g.M["desc_recent"])
 	cl := thread.MakeRecentCachelist()
 	g.PrintIndexList(cl, "recent", true, false)
 }
@@ -451,7 +451,7 @@ func (g *gatewayCGI) printIndex(doChange bool) {
 		title = fmt.Sprintf("%s : %s", g.M["string"], g.Filter)
 	}
 	g.Header(title, "", nil, true)
-	g.PrintParagraph("desc_" + str)
+	fmt.Fprintf(g.WR, "<p>%s</p>", g.M["desc_"+str])
 	cl := thread.AllCaches()
 	if doChange {
 		sort.Sort(sort.Reverse(thread.NewSortByStamp(cl, false)))
