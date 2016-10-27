@@ -30,7 +30,6 @@ package cgi
 
 import (
 	"bytes"
-	"fmt"
 	"html/template"
 	htmlTemplate "html/template"
 	"io"
@@ -63,9 +62,6 @@ var funcMap = map[string]interface{}{
 	"escape":       util.Escape,
 	"escapeSpace":  util.EscapeSpace,
 	"localtime":    func(stamp int64) string { return time.Unix(stamp, 0).Format("2006-01-02 15:04") },
-	"unescapedPrintf": func(format string, a ...interface{}) htmlTemplate.HTML {
-		return htmlTemplate.HTML(fmt.Sprintf(format, a))
-	},
 }
 
 //Ttemplate is for rendering text rss template.
