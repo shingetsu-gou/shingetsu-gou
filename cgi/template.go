@@ -44,7 +44,10 @@ import (
 	"github.com/shingetsu-gou/shingetsu-gou/util"
 )
 
+//TmpH is template for html.
 var TmpH = newHtemplate(cfg.TemplateDir)
+
+//TmpT is template for text(rss).
 var TmpT = newTtemplate(cfg.TemplateDir)
 
 var funcMap = map[string]interface{}{

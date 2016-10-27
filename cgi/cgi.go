@@ -54,7 +54,7 @@ import (
 	"golang.org/x/text/language"
 )
 
-//message hold string map.
+//Message hold string map.
 type Message map[string]string
 
 //newMessage reads from the file excpet #comment and stores them with url unescaping value.
@@ -123,24 +123,6 @@ func SearchMessage(acceptLanguage, filedir string) Message {
 	}
 	log.Fatalf("no messages are found.")
 	return nil
-}
-
-//GatewayLink is a struct for gateway_link.txt
-type GatewayLink struct {
-	Message     Message
-	CGIname     string
-	Command     string
-	Description string
-}
-
-//Render renders "gateway_link.txt" and returns its resutl string which is not escaped in template.
-//GatewayLink.Message must be setted up previously.
-//used in templates.
-func (c GatewayLink) Render(CGIname, command string) template.HTML {
-	c.CGIname = CGIname
-	c.Command = command
-	c.Description = c.Message["desc_"+command]
-	return template.HTML(TmpH.ExecuteTemplate("gateway_link", c))
 }
 
 //ListItem is for list_item.txt
@@ -218,6 +200,24 @@ func (l ListItem) Render(ca *thread.Cache, remove bool, target string, search bo
 	return template.HTML(TmpH.ExecuteTemplate("list_item", l))
 }
 
+//Defaults is default variables for templates.
+type Defaults struct {
+	AdminURL    string
+	GatewayURL  string
+	ThreadURL   string
+	ServerURL   string
+	Message     Message
+	IsAdmin     bool
+	IsFriend    bool
+	Version     string
+	DescChanges string
+	DescNew     string
+	DescRecent  string
+	DescIndex   string
+	DescSearch  string
+	DescStatus  string
+}
+
 //CGI is a base class for all http handlers.
 type CGI struct {
 	M        Message
@@ -246,6 +246,26 @@ func NewCGI(w http.ResponseWriter, r *http.Request) (*CGI, error) {
 	return c, nil
 }
 
+//Defaults returns default params for templates.
+func (c *CGI) Defaults() *Defaults {
+	return &Defaults{
+		cfg.AdminURL,
+		cfg.GatewayURL,
+		cfg.ThreadURL,
+		cfg.ServerURL,
+		c.M,
+		c.IsAdmin(),
+		c.IsFriend(),
+		cfg.Version,
+		c.M["desc_changes"],
+		c.M["desc_new"],
+		c.M["desc_recent"],
+		c.M["desc_index"],
+		c.M["desc_search"],
+		c.M["desc_status"],
+	}
+}
+
 //Host returns servername or host in http header.
 func (c *CGI) Host() string {
 	host := cfg.ServerName
@@ -255,7 +275,7 @@ func (c *CGI) Host() string {
 	return host
 }
 
-//isAdmin returns tur if matches admin regexp setted in config file.
+//IsAdmin returns tur if matches admin regexp setted in config file.
 func (c *CGI) IsAdmin() bool {
 	m, err := regexp.MatchString(cfg.ReAdminStr, c.Req.RemoteAddr)
 	if err != nil {
@@ -346,37 +366,22 @@ func (c *CGI) RFC822Time(stamp int64) string {
 //PrintParagraph render paragraph.txt,just print constents.
 //contentsKey must be a key of Message map.
 func (c *CGI) PrintParagraph(contentsKey string) {
-	g := struct {
-		Contents template.HTML
-	}{
-		Contents: template.HTML(c.M[contentsKey]),
-	}
-	TmpH.RenderTemplate("paragraph", g, c.WR)
+	fmt.Fprintf(c.WR, "<p>%s</p>", c.M[contentsKey])
 }
 
 //Menubar is var set for menubar.txt
 type Menubar struct {
-	GatewayLink
-	GatewayCGI string
-	Message    Message
-	ID         string
-	RSS        string
-	IsAdmin    bool
-	IsFriend   bool
+	*Defaults
+	ID  string
+	RSS string
 }
 
 //MakeMenubar makes and returns *Menubar obj.
 func (c *CGI) MakeMenubar(id, rss string) *Menubar {
 	g := &Menubar{
-		GatewayLink{
-			Message: c.M,
-		},
-		cfg.GatewayURL,
-		c.M,
+		c.Defaults(),
 		id,
 		rss,
-		c.IsAdmin(),
-		c.IsFriend(),
 	}
 	return g
 }
@@ -439,8 +444,8 @@ func (c *CGI) ResAnchor(id, appli string, title string, absuri bool) string {
 	return fmt.Sprintf("<a href=\"%s%s%s%s/%s\"%s>", prefix, appli, "/", title, id, innerlink)
 }
 
-//HtmlFormat converts plain text to html , including converting link string to <a href="link">.
-func (c *CGI) HtmlFormat(plain, appli string, title string, absuri bool) string {
+//HTMLFormat converts plain text to html , including converting link string to <a href="link">.
+func (c *CGI) HTMLFormat(plain, appli string, title string, absuri bool) string {
 	if strings.HasPrefix(plain, "@markdown") {
 		plain = strings.Replace(plain, "<br>", "\n", -1)
 		plain = strings.Replace(plain, "&lt;", "<", -1)
@@ -592,13 +597,8 @@ func (c *CGI) PrintIndexList(cl []*thread.Cache, target string, footer bool, sea
 		Tag           string
 		Taglist       tag.Slice
 		Cachelist     []*thread.Cache
-		GatewayCGI    string
-		AdminCGI      string
-		Message       Message
 		SearchNewFile bool
-		IsAdmin       bool
-		IsFriend      bool
-		GatewayLink
+		*Defaults
 		ListItem
 	}{
 		target,
@@ -606,15 +606,8 @@ func (c *CGI) PrintIndexList(cl []*thread.Cache, target string, footer bool, sea
 		c.Tag,
 		user.Get(),
 		cl,
-		cfg.GatewayURL,
-		cfg.AdminURL,
-		c.M,
 		searchNewFile,
-		c.IsAdmin(),
-		c.IsFriend(),
-		GatewayLink{
-			Message: c.M,
-		},
+		c.Defaults(),
 		ListItem{
 			IsAdmin: c.IsAdmin(),
 			Filter:  c.Filter,

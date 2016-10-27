@@ -77,7 +77,7 @@ func (r *RSS) Len() int {
 }
 
 //NewRSS makes RSS object.
-func NewRss(encode, lang, title, parent, link, uri, description, xsl string) *RSS {
+func NewRSS(encode, lang, title, parent, link, uri, description, xsl string) *RSS {
 	if encode == "" {
 		encode = "utf-8"
 	}

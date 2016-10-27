@@ -142,7 +142,7 @@ func printRecentRSS(w http.ResponseWriter, r *http.Request) {
 		log.Println(err)
 		return
 	}
-	rsss := cgi.NewRss("UTF-8", "", fmt.Sprintf("%s - %s", g.M["recent"], g.M["logo"]),
+	rsss := cgi.NewRSS("UTF-8", "", fmt.Sprintf("%s - %s", g.M["recent"], g.M["logo"]),
 		"http://"+g.Host(), "",
 		"http://"+g.Host()+cfg.GatewayURL+"/"+"recent_rss", g.M["description"], xslURL)
 	cl := thread.MakeRecentCachelist()
@@ -168,7 +168,7 @@ func printRSS(w http.ResponseWriter, r *http.Request) {
 		log.Println(err)
 		return
 	}
-	rsss := cgi.NewRss("UTF-8", "", g.M["logo"], "http://"+g.Host(), "",
+	rsss := cgi.NewRSS("UTF-8", "", g.M["logo"], "http://"+g.Host(), "",
 		"http://"+g.Host()+cfg.GatewayURL+"/"+"rss", g.M["description"], xslURL)
 	for _, ca := range thread.AllCaches() {
 		g.appendRSS(rsss, ca)
@@ -256,35 +256,23 @@ func PrintTitle(w http.ResponseWriter, r *http.Request) {
 		Taglist       tag.Slice
 		MchURL        string
 		MchCategories []*mchCategory
-		Message       cgi.Message
-		IsAdmin       bool
-		IsFriend      bool
-		GatewayCGI    string
-		AdminCGI      string
 		Types         string
-		*cgi.GatewayLink
 		cgi.ListItem
+		*cgi.Defaults
 	}{
 		outputCachelist,
 		"changes",
 		user.Get(),
 		g.mchURL(""),
 		g.mchCategories(),
-		g.M,
-		g.IsAdmin(),
-		g.IsFriend(),
-		cfg.GatewayURL,
-		cfg.AdminURL,
 		"thread",
-		&cgi.GatewayLink{
-			Message: g.M,
-		},
 		cgi.ListItem{
 			IsAdmin: g.IsAdmin(),
 			Filter:  g.Filter,
 			Tag:     g.Tag,
 			Message: g.M,
 		},
+		g.Defaults(),
 	}
 	cgi.TmpH.RenderTemplate("top", s, g.WR)
 	g.PrintNewElementForm()
@@ -500,7 +488,7 @@ func (g *gatewayCGI) jumpNewFile() {
 //rssHTMLFormat converts and returns plain string to html formats.
 func (g *gatewayCGI) rssHTMLFormat(plain, appli, path string) string {
 	title := util.StrDecode(path)
-	buf := g.HtmlFormat(plain, appli, title, true)
+	buf := g.HTMLFormat(plain, appli, title, true)
 	if buf != "" {
 		buf = fmt.Sprintf("<p>%s</p>", buf)
 	}

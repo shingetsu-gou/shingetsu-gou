@@ -5,15 +5,15 @@
 {{$root:=.}}
 <div style="background:url(/arazuki_saku.png) no-repeat 100% 0%;">
 <ul class="topmenu">
-  <li>{{.GatewayLink.Render .GatewayCGI "changes"}}</li>
-  <li>{{.GatewayLink.Render .GatewayCGI "index"}}</li>
+    <li><a href="{{.GatewayCGI}}/changes" title="{{.DescChages}}">{.Message.changes}}</a>
+    <li><a href="{{.GatewayCGI}}/index" title="{{.DescIndex}}">{.Message.index}}</a>
 {{ if or .IsFriend .IsAdmin }}
-  <li>{{.GatewayLink.Render .GatewayCGI "recent"}}</li>
-  <li>{{.GatewayLink.Render .GatewayCGI "new"}}</li>
+    <li><a href="{{.GatewayCGI}}/recent" title="{{.DescRecent}}">{.Message.recent}}</a>
+    <li><a href="{{.GatewayCGI}}/new" title="{{.DescNew}}">{.Message.new}}</a>
 {{ end }}
 {{ if .IsAdmin }}
-  <li>{{.GatewayLink.Render .AdminCGI "search"}}</li>
-  <li>{{.GatewayLink.Render .AdminCGI "status"}}</li>
+    <li><a href="{{.AdminCGI}}/search" title="{{.DescSearch}}">{.Message.search}}</a>
+    <li><a href="{{.AdminCGI}}/status" title="{{.DescStatus}}">{.Message.status}}</a>
 {{ end }}
 <li><a href="http://www.shingetsu.info/">{{.Message.site}}</a></li>
 <li><a href="{{.GatewayCGI}}/motd">{{.Message.agreement}}</a></li>
@@ -30,7 +30,9 @@
 {{ end }}
 </ul>
 {{ if and (not .Cachelist)  (or .IsFriend .IsAdmin) }}
-  <p>{{.GatewayLink.Render .GatewayCGI "recent" | unescapedPrintf .Message.empty_list }}</p>
+<p>
+{{`<a href="{{.GatewayCGI}}/recent" title="{{.DescRecent}}">{.Message.Recent}}</a>` |  unescapedPrintf .Message.empty_list }}
+</p>
 {{ end }}
 
 {{ if .Taglist }}

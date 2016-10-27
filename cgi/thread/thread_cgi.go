@@ -438,7 +438,7 @@ func (t *threadCGI) printRecord(ca *thread.Cache, rec *record.Record) {
 		}
 	}
 	body := rec.GetBodyValue("body", "")
-	body = t.HtmlFormat(body, cfg.ThreadURL, t.Path(), false)
+	body = t.HTMLFormat(body, cfg.ThreadURL, t.Path(), false)
 	removeID := rec.GetBodyValue("remove_id", "")
 	if len(removeID) > 8 {
 		removeID = removeID[:8]

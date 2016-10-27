@@ -36,7 +36,9 @@
   {{ end }}
   </ul>
 {{ if and (not .Cachelist) (or .IsFriend .IsAdmin)}}
-  <p>{{.GatewayLink.Render .GatewayCGI "recent" | unescapedPrintf .Message.empty_list }}</p>
+<p>
+{{`<a href="{{.GatewayCGI}}/recent" title="{{.DescRecent}}">{.Message.Recent}}</a>` |  unescapedPrintf .Message.empty_list }}
+</p>
 {{ end }}
 
 {{ if .IsAdmin }}
