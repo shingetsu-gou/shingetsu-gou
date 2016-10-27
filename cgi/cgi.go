@@ -30,14 +30,10 @@ package cgi
 
 import (
 	"fmt"
-	"html"
 	"html/template"
-	"io/ioutil"
 	"log"
 	"net/http"
 	"os"
-	"path"
-	"path/filepath"
 	"regexp"
 	"sort"
 	"strings"
@@ -50,80 +46,7 @@ import (
 	"github.com/shingetsu-gou/shingetsu-gou/tag/user"
 	"github.com/shingetsu-gou/shingetsu-gou/thread"
 	"github.com/shingetsu-gou/shingetsu-gou/util"
-
-	"golang.org/x/text/language"
 )
-
-//Message hold string map.
-type Message map[string]string
-
-//newMessage reads from the file excpet #comment and stores them with url unescaping value.
-func newMessage(filedir, fname string) Message {
-	var err error
-	m := make(map[string]string)
-	var dat []byte
-	file := path.Join("file", fname)
-	if dat, err = util.Asset(file); err != nil {
-		log.Println(err)
-	}
-	file = filepath.Join(filedir, fname)
-	if util.IsFile(fname) {
-		dat1, err := ioutil.ReadFile(file)
-		if err != nil {
-			log.Println(err)
-		} else {
-			log.Println("loaded", file)
-			dat = dat1
-		}
-	}
-	if dat == nil {
-		log.Fatal("message file was not found")
-	}
-
-	re := regexp.MustCompile(`^\s*#`)
-	for i, line := range strings.Split(string(dat), "\n") {
-		line = strings.Trim(line, "\r\n")
-		if line == "" || re.MatchString(line) {
-			continue
-		}
-		buf := strings.Split(line, "<>")
-		if len(buf) != 2 {
-			log.Fatalf("illegal format at line %d in the message file", i)
-		}
-		buf[1] = html.UnescapeString(buf[1])
-		m[buf[0]] = buf[1]
-	}
-	return m
-}
-
-//SearchMessage parse Accept-Language header ,selects most-weighted(biggest q)
-//language ,reads the associated message file, and creates and returns message obj.
-func SearchMessage(acceptLanguage, filedir string) Message {
-	const defaultLanguage = "en" // Language code (see RFC3066)
-
-	var lang []string
-	if acceptLanguage != "" {
-		tags, _, err := language.ParseAcceptLanguage(acceptLanguage)
-		if err != nil {
-			log.Println(err)
-		} else {
-			for _, tag := range tags {
-				lang = append(lang, tag.String())
-			}
-		}
-	}
-	lang = append(lang, defaultLanguage)
-	for _, l := range lang {
-		slang := strings.Split(l, "-")[0]
-		for _, j := range []string{l, slang} {
-			if m := newMessage(filedir, "message-"+j+".txt"); m != nil {
-				return m
-			}
-		}
-	}
-	log.Fatalf("no messages are found.")
-	return nil
-}
 
 //CacheInfo is infos of a cache.
 type CacheInfo struct {
@@ -141,18 +64,18 @@ type ListItem struct {
 }
 
 //checkCache checks cache ca has specified tag and datfile doesn't contains filterd string.
-func (c *CGI) checkCache(ca *thread.Cache, target string) (string, bool) {
+func checkCache(ca *thread.Cache, target, filter, tag string) (string, bool) {
 	x := util.FileDecode(ca.Datfile)
 	if x == "" {
 		return "", false
 	}
-	if c.Filter != "" && !strings.Contains(strings.ToLower(x), c.Filter) {
+	if filter != "" && !strings.Contains(strings.ToLower(x), filter) {
 		return "", false
 	}
-	if c.Tag != "" {
+	if tag != "" {
 		switch {
-		case user.Has(ca.Datfile, strings.ToLower(c.Tag)):
-		case target == "recent" && suggest.HasTagstr(ca.Datfile, strings.ToLower(c.Tag)):
+		case user.Has(ca.Datfile, strings.ToLower(tag)):
+		case target == "recent" && suggest.HasTagstr(ca.Datfile, strings.ToLower(tag)):
 		default:
 			return "", false
 		}
@@ -161,14 +84,14 @@ func (c *CGI) checkCache(ca *thread.Cache, target string) (string, bool) {
 }
 
 //NewListItem returns ListItem struct from caches.
-func (c *CGI) NewListItem(caches []*thread.Cache, remove bool, target string, search bool) *ListItem {
+func NewListItem(caches []*thread.Cache, remove bool, target string, search bool, filter, tag string) *ListItem {
 	li := &ListItem{Remove: remove}
 	li.Caches = make([]*CacheInfo, 0, len(caches))
 	if search {
 		li.StrOpts = "?search_new_file=yes"
 	}
 	for _, ca := range caches {
-		x, ok := c.checkCache(ca, target)
+		x, ok := checkCache(ca, target, filter, tag)
 		if !ok {
 			continue
 		}
@@ -207,6 +130,7 @@ type Defaults struct {
 	DescIndex   string
 	DescSearch  string
 	DescStatus  string
+	Path        string
 	EmptyList   template.HTML
 }
 
@@ -216,8 +140,6 @@ type CGI struct {
 	JC       *jsCache
 	Req      *http.Request
 	WR       http.ResponseWriter
-	Filter   string
-	Tag      string
 	IsThread bool
 }
 
@@ -257,6 +179,7 @@ func (c *CGI) Defaults() *Defaults {
 		c.M["desc_index"],
 		c.M["desc_search"],
 		c.M["desc_status"],
+		c.Path(),
 		template.HTML(fmt.Sprintf(c.M["empty_list"], href)),
 	}
 }
@@ -387,7 +310,6 @@ func (c *CGI) Header(title, rss string, cookie []*http.Cookie, denyRobot bool) {
 		c.JC.update()
 	}
 	h := struct {
-		Message    Message
 		RootPath   string
 		Title      string
 		RSS        string
@@ -397,10 +319,9 @@ func (c *CGI) Header(title, rss string, cookie []*http.Cookie, denyRobot bool) {
 		Menubar    *Menubar
 		DenyRobot  bool
 		Dummyquery int64
-		ThreadCGI  string
 		IsThread   bool
+		Defaults
 	}{
-		c.M,
 		"/",
 		title,
 		rss,
@@ -410,8 +331,8 @@ func (c *CGI) Header(title, rss string, cookie []*http.Cookie, denyRobot bool) {
 		c.MakeMenubar("top", rss),
 		denyRobot,
 		time.Now().Unix(),
-		cfg.ThreadURL,
 		c.IsThread,
+		*c.Defaults(),
 	}
 	if cookie != nil {
 		for _, co := range cookie {
@@ -519,16 +440,12 @@ func (c *CGI) RemoveFileForm(ca *thread.Cache, title string) {
 		Cache     *thread.Cache
 		CacheSize int64
 		Title     string
-		IsAdmin   bool
-		AdminCGI  string
-		Message   Message
+		Defaults
 	}{
 		ca,
 		ca.Size(),
 		title,
-		c.IsAdmin(),
-		cfg.AdminURL,
-		c.M,
+		*c.Defaults(),
 	}
 	TmpH.RenderTemplate("remove_file_form", s, c.WR)
 }
@@ -579,25 +496,23 @@ func (c *CGI) HasAuth() bool {
 }
 
 //PrintIndexList renders index_list.txt which renders threads in cachelist.
-func (c *CGI) PrintIndexList(cl []*thread.Cache, target string, footer bool, searchNewFile bool) {
+func (c *CGI) PrintIndexList(cl []*thread.Cache, target string, footer bool, searchNewFile bool, filter, tagg string) {
 	s := struct {
-		Target        string
-		Filter        string
-		Tag           string
-		Taglist       tag.Slice
-		SearchNewFile bool
-		NoList        bool
+		Target  string
+		Filter  string
+		Tag     string
+		Taglist tag.Slice
+		NoList  bool
 		Defaults
 		ListItem
 	}{
 		target,
-		c.Filter,
-		c.Tag,
+		filter,
+		tagg,
 		user.Get(),
-		searchNewFile,
 		len(cl) == 0,
 		*c.Defaults(),
-		*c.NewListItem(cl, true, target, searchNewFile),
+		*NewListItem(cl, true, target, searchNewFile, filter, tagg),
 	}
 	TmpH.RenderTemplate("index_list", s, c.WR)
 	if footer {
@@ -615,16 +530,12 @@ func (c *CGI) PrintNewElementForm() {
 	}
 	s := struct {
 		Datfile    string
-		CGIname    string
-		Message    Message
 		TitleLimit int
-		IsAdmin    bool
+		Defaults
 	}{
 		"",
-		cfg.GatewayURL,
-		c.M,
 		titleLimit,
-		c.IsAdmin(),
+		*c.Defaults(),
 	}
 	TmpH.RenderTemplate("new_element_form", s, c.WR)
 }

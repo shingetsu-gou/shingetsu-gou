@@ -266,7 +266,7 @@ func PrintTitle(w http.ResponseWriter, r *http.Request) {
 		g.mchCategories(),
 		"thread",
 		len(outputCachelist) == 0,
-		*g.NewListItem(outputCachelist, false, "changes", false),
+		*cgi.NewListItem(outputCachelist, false, "changes", false, g.Filter, g.Tag),
 		*g.Defaults(),
 	}
 	cgi.TmpH.RenderTemplate("top", s, g.WR)
@@ -308,12 +308,14 @@ func printRecent(w http.ResponseWriter, r *http.Request) {
 	g.Header(title, "", nil, true)
 	fmt.Fprintf(g.WR, "<p>%s</p>", g.M["desc_recent"])
 	cl := thread.MakeRecentCachelist()
-	g.PrintIndexList(cl, "recent", true, false)
+	g.PrintIndexList(cl, "recent", true, false, g.Filter, g.Tag)
 }
 
 //gatewayCGI is for gateway.cgi
 type gatewayCGI struct {
 	*cgi.CGI
+	Filter string
+	Tag    string
 }
 
 //new returns gatewayCGI obj with filter.tag value in form.
@@ -453,7 +455,7 @@ func (g *gatewayCGI) printIndex(doChange bool) {
 	} else {
 		sort.Sort(sort.Reverse(thread.NewSortByVelocity(cl)))
 	}
-	g.PrintIndexList(cl, str, true, false)
+	g.PrintIndexList(cl, str, true, false, g.Filter, g.Tag)
 }
 
 //jumpNewFile renders 302 redirect to page for making new thread specified in url query

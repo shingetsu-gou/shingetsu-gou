@@ -234,23 +234,17 @@ func (t *threadCGI) printPageNavi(path string, page int, ca *thread.Cache, id st
 //printTag renders thread_tags.txt , part for displayng tags.
 func (t *threadCGI) printTag(ca *thread.Cache) {
 	s := struct {
-		Datfile    string
-		Tags       []string
-		Classname  string
-		Target     string
-		GatewayCGI string
-		AdminCGI   string
-		IsAdmin    bool
-		Message    cgi.Message
+		Datfile   string
+		Tags      []string
+		Classname string
+		Target    string
+		cgi.Defaults
 	}{
 		ca.Datfile,
 		user.GetStrings(ca.Datfile),
 		"tags",
 		"changes",
-		cfg.GatewayURL,
-		cfg.AdminURL,
-		t.IsAdmin(),
-		t.M,
+		*t.Defaults(),
 	}
 	cgi.TmpH.RenderTemplate("thread_tags", s, t.WR)
 }
@@ -302,22 +296,14 @@ func (t *threadCGI) printThreadTop(path, id string, nPage int, ca *thread.Cache)
 		Path      string
 		Cache     *thread.Cache
 		Lastrec   *record.Record
-		IsFriend  bool
-		IsAdmin   bool
-		Message   cgi.Message
-		ThreadCGI string
-		AdminCGI  string
 		ResAnchor template.HTML
+		cgi.Defaults
 	}{
 		path,
 		ca,
 		lastrec,
-		t.IsFriend(),
-		t.IsAdmin(),
-		t.M,
-		cfg.ThreadURL,
-		cfg.AdminURL,
 		template.HTML(resAnchor),
+		*t.Defaults(),
 	}
 	cgi.TmpH.RenderTemplate("thread_top", s, t.WR)
 }
@@ -454,31 +440,25 @@ func (t *threadCGI) printRecord(ca *thread.Cache, rec *record.Record) {
 		Rec        *record.Record
 		RecHead    record.Head
 		Sid        string
-		Path       string
 		AttachSize int64
 		Suffix     string
 		Body       template.HTML
-		ThreadCGI  string
 		Thumbnail  string
-		IsAdmin    bool
 		RemoveID   string
 		ResAnchor  string
-		Message    cgi.Message
+		cgi.Defaults
 	}{
 		ca.Datfile,
 		rec,
 		rec.CopyHead(),
 		id8,
-		t.Path(),
 		attachSize,
 		suffix,
 		template.HTML(body),
-		cfg.ThreadURL,
 		thumbnailSize,
-		t.IsAdmin(),
 		removeID,
 		resAnchor,
-		t.M,
+		*t.Defaults(),
 	}
 	cgi.TmpH.RenderTemplate("record", s, t.WR)
 }
@@ -490,21 +470,15 @@ func (t *threadCGI) printPostForm(ca *thread.Cache) {
 		".txt", ".xml",
 	}
 	s := struct {
-		Cache      *thread.Cache
-		Suffixes   []string
-		Limit      int
-		IsAdmin    bool
-		Message    cgi.Message
-		ThreadCGI  string
-		GatewayCGI string
+		Cache    *thread.Cache
+		Suffixes []string
+		Limit    int
+		cgi.Defaults
 	}{
 		ca,
 		mimes,
 		cfg.RecordLimit * 3 >> 2,
-		t.IsAdmin(),
-		t.M,
-		cfg.ThreadURL,
-		cfg.GatewayURL,
+		*t.Defaults(),
 	}
 	cgi.TmpH.RenderTemplate("post_form", s, t.WR)
 }
