@@ -43,14 +43,17 @@ import (
 
 const (
 	defaultNodes = 5 // Nodes keeping in node list
-	shareNodes   = 5 // Nodes having the file
+	shareNodes   = 5 // Nodes having the
 )
+
+//thread name for list
+var list = string([]byte{0x01})
 
 //Manager represents the map that maps datfile to it's source node list.
 
 //getFromList returns one node  in the nodelist.
 func getFromList() *node.Node {
-	rs, err := db.GetMap("lookupT", []byte(""))
+	rs, err := db.GetMap("lookupT", []byte(list))
 	if err != nil {
 		log.Print(err)
 		return nil
@@ -80,11 +83,11 @@ func NodeLen() int {
 
 //ListLen returns size of nodelist.
 func ListLen() int {
-	return listLen("")
+	return listLen(list)
 }
 
 func listLen(datfile string) int {
-	rs, err := db.GetMap("lookupT", []byte(""))
+	rs, err := db.GetMap("lookupT", []byte(datfile))
 	if err != nil {
 		log.Print(err)
 		return 0
@@ -178,14 +181,14 @@ func AppendToTable(datfile string, n *node.Node) {
 
 //appendToList add node n to nodelist if it is allowd and list doesn't have it.
 func appendToList(n *node.Node) {
-	AppendToTable("", n)
+	AppendToTable(list, n)
 }
 
 //ReplaceNodeInList removes one node and say bye to the node and add n in nodelist.
 //if len(node)>defaultnode
 func ReplaceNodeInList(n *node.Node) *node.Node {
 	l := ListLen()
-	if !n.IsAllowed() || hasNodeInTable("", n) {
+	if !n.IsAllowed() || hasNodeInTable(list, n) {
 		return nil
 	}
 	var old *node.Node
@@ -227,7 +230,7 @@ func RemoveFromTable(datfile string, n *node.Node) bool {
 //RemoveFromList removes node n from nodelist and return true if exists.
 //or returns false if not exists.
 func RemoveFromList(n *node.Node) bool {
-	return RemoveFromTable("", n)
+	return RemoveFromTable(list, n)
 }
 
 //RemoveFromAllTable removes node n from all tables and return true if exists.
@@ -297,13 +300,13 @@ func Join(n *node.Node) bool {
 		return false
 	}
 	flag := false
-	if hasNodeInTable("", n) || node.Me(false).Nodestr == n.Nodestr {
+	if hasNodeInTable(list, n) || node.Me(false).Nodestr == n.Nodestr {
 		return false
 	}
 	for count := 0; count < retryJoin && ListLen() < defaultNodes; count++ {
 		extnode, err := n.Join()
 		if err != nil {
-			RemoveFromTable("", n)
+			RemoveFromTable(list, n)
 			return flag
 		}
 		if extnode == nil {
@@ -329,7 +332,7 @@ func TellUpdate(datfile string, stamp int64, id string, n *node.Node) {
 	msg := strings.Join([]string{"/update", datfile, strconv.FormatInt(stamp, 10), id, tellstr}, "/")
 
 	ns := Get(datfile, nil)
-	ns = ns.Extend(Get("", nil))
+	ns = ns.Extend(Get(list, nil))
 	ns = ns.Extend(Random(ns, updateNodes))
 	log.Println("telling #", len(ns))
 	for _, n := range ns {
@@ -344,7 +347,7 @@ func TellUpdate(datfile string, stamp int64, id string, n *node.Node) {
 func NodesForGet(datfile string, searchDepth int) node.Slice {
 	var ns, ns2 node.Slice
 	ns = ns.Extend(Get(datfile, nil))
-	ns = ns.Extend(Get("", nil))
+	ns = ns.Extend(Get(list, nil))
 	ns = ns.Extend(Random(ns, 0))
 
 	for _, n := range ns {

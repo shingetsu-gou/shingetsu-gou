@@ -109,7 +109,7 @@ func GetFromDBs(datfile string) ([]*DB, error) {
 
 //ForEach do eachDo for each k/v to "record" db.
 func ForEach(cond func([]byte, int) bool, eachDo func(*DB) error) error {
-	err := db.DB.View(func(tx *bolt.Tx) error {
+	err := db.DB.Batch(func(tx *bolt.Tx) error {
 		b := tx.Bucket([]byte("record"))
 		if b == nil {
 			return errors.New("bucket not found")

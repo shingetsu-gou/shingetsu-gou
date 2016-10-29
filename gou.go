@@ -35,8 +35,10 @@ import (
 	"io/ioutil"
 	"log"
 	"os"
+	"os/signal"
 	"path"
 	"path/filepath"
+	"syscall"
 
 	"gopkg.in/natefinch/lumberjack.v2"
 
@@ -140,5 +142,14 @@ func main() {
 	log.Println("********************starting Gou", cfg.Version, "...******************")
 	expandAssets()
 	db.Setup()
+	c := make(chan os.Signal)
+	signal.Notify(c, os.Interrupt, syscall.SIGTERM)
+	go func() {
+		for range c {
+			fmt.Println("closing DB...")
+			db.DB.Close()
+			os.Exit(1)
+		}
+	}()
 	gou.StartDaemon()
 }

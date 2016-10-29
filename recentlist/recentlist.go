@@ -127,7 +127,7 @@ func RemoveOlds() {
 	t := time.Now().Unix() - int64(defaultUpdateRange)
 	b := make([]byte, 8)
 	binary.BigEndian.PutUint64(b, uint64(t))
-	err := db.DB.View(func(tx *bolt.Tx) error {
+	err := db.DB.Batch(func(tx *bolt.Tx) error {
 		ba := tx.Bucket([]byte("recentS"))
 		if ba == nil {
 			return errors.New("bucket is not found")

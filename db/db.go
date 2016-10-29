@@ -158,6 +158,9 @@ func Get(bucket string, key []byte, value interface{}) ([]byte, error) {
 			return errors.New("bucket not found")
 		}
 		v := b.Get(key)
+		if v == nil {
+			return errors.New("key not found")
+		}
 		r = append(r, v...)
 		return nil
 	})
@@ -175,7 +178,7 @@ func Put(bucket string, key []byte, value interface{}) error {
 	}
 
 	err = DB.Batch(func(tx *bolt.Tx) error {
-		b, errr := tx.CreateBucket([]byte(bucket))
+		b, errr := tx.CreateBucketIfNotExists([]byte(bucket))
 		if errr != nil {
 			return fmt.Errorf("create bucket: %s", err)
 		}
