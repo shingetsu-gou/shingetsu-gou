@@ -269,9 +269,9 @@ func doGetHead(w http.ResponseWriter, r *http.Request) {
 	begin, end, id := s.parseStamp(stamp, math.MaxInt32)
 	var recs record.Map
 	if method == "removed" {
-		recs = ca.LoadRecords(thread.Removed)
+		recs = ca.LoadRecords(record.Removed)
 	} else {
-		recs = ca.LoadRecords(thread.Alive)
+		recs = ca.LoadRecords(record.Alive)
 	}
 	for _, r := range recs {
 		if r.InRange(begin, end, id) {

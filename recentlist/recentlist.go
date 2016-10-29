@@ -36,6 +36,10 @@ import (
 	"sync"
 	"time"
 
+	"encoding/binary"
+	"encoding/json"
+
+	"github.com/boltdb/bolt"
 	"github.com/shingetsu-gou/shingetsu-gou/cfg"
 	"github.com/shingetsu-gou/shingetsu-gou/db"
 	"github.com/shingetsu-gou/shingetsu-gou/node"
@@ -60,7 +64,7 @@ func IsInUpdateRange(nstamp int64) bool {
 
 //Datfiles returns all datfile names in recentlist.
 func Datfiles() []string {
-	datfile, err := db.Strings("select distinct Thread from recent group by Thread")
+	datfile, err := db.GetPrefixs("recent")
 	if err != nil {
 		log.Print(err)
 		return nil
@@ -71,28 +75,21 @@ func Datfiles() []string {
 //Newest returns newest record of datfile in the list.
 //if not found returns nil.
 func Newest(datfile string) (*record.Head, error) {
-	rows, err := db.DB.Query("select * from recent  where Thread=? order by Stamp DESC", datfile)
-	defer func() {
-		errr := rows.Close()
-		if errr != nil {
-			log.Println(err)
-		}
-	}()
+	rows, err := db.GetStrings("recent", []byte(datfile))
 	if err != nil {
 		log.Print(err)
 		return nil, err
 	}
-	if !rows.Next() {
+	if len(rows) == 0 {
 		return nil, errors.New("not found")
 	}
+	newest := []byte(rows[len(rows)-1])
 	r := record.Head{}
-	var id int
-	err = rows.Scan(&id, &r.Stamp, &r.ID, &r.Datfile)
+	err = json.Unmarshal(newest, &r)
 	if err != nil {
-		log.Print(err)
-		return nil, err
+		log.Println(err)
 	}
-	return &r, nil
+	return &r, err
 }
 
 //Append add a infos generated from the record.
@@ -100,7 +97,12 @@ func Append(rec *record.Head) {
 	if find(rec) {
 		return
 	}
-	_, err := db.DB.Exec("insert into recent(Stamp,Hash,Thread) values(?,?,?)", rec.Stamp, rec.ID, rec.Datfile)
+	k := rec.ToKey()
+	err := db.Put("recent", k, rec)
+	if err != nil {
+		log.Print(err)
+	}
+	err = db.PutMap("recentS", db.ToKey(rec.Stamp), string(k))
 	if err != nil {
 		log.Print(err)
 	}
@@ -108,11 +110,12 @@ func Append(rec *record.Head) {
 
 //find finds records and returns index. returns -1 if not found.
 func find(rec *record.Head) bool {
-	r, err := db.Int64("select count(*) from recent where Stamp=? and Hash=? and Thread=?", rec.Stamp, rec.ID, rec.Datfile)
+	k := rec.ToKey()
+	r, err := db.Count("recent", k)
 	if err != nil {
-		log.Println(err)
-		return false
+		log.Print(err)
 	}
+
 	return r > 0
 }
 
@@ -121,7 +124,32 @@ func RemoveOlds() {
 	if defaultUpdateRange <= 0 {
 		return
 	}
-	_, err := db.DB.Exec("delete from recent where Stamp<? ", time.Now().Unix()-int64(defaultUpdateRange))
+	t := time.Now().Unix() - int64(defaultUpdateRange)
+	b := make([]byte, 8)
+	binary.BigEndian.PutUint64(b, uint64(t))
+	err := db.DB.View(func(tx *bolt.Tx) error {
+		ba := tx.Bucket([]byte("recentS"))
+		if ba == nil {
+			return errors.New("bucket is not found")
+		}
+		c := ba.Cursor()
+		c.Seek(b)
+		for k, v := c.Prev(); k != nil; k, v = c.Prev() {
+			var m map[string]struct{}
+			if err := json.Unmarshal(v, &m); err != nil {
+				return err
+			}
+			for k := range m {
+				if err := db.Del("recent", []byte(k)); err != nil {
+					log.Println(err)
+				}
+			}
+			if err := c.Delete(); err != nil {
+				log.Println(err)
+			}
+		}
+		return nil
+	})
 	if err != nil {
 		log.Println(err)
 	}
@@ -158,11 +186,6 @@ func get(begin int64, wg *sync.WaitGroup, n *node.Node) {
 		log.Println(err)
 		return
 	}
-	tx, err := db.DB.Begin()
-	if err != nil {
-		log.Print(err)
-		return
-	}
 	for _, line := range res {
 		rec, err := record.Make(line)
 		if err != nil {
@@ -175,15 +198,28 @@ func get(begin int64, wg *sync.WaitGroup, n *node.Node) {
 			manager.AppendToTable(rec.Datfile, n)
 		}
 	}
-	if err := tx.Commit(); err != nil {
-		log.Println(err)
-	}
 	log.Println("added", len(res), "recent records from", n.Nodestr)
 }
 
 //GetRecords copies and returns recorcds in recentlist.
 func GetRecords() []*record.Head {
-	inf, err := record.FromRecentDB("select * from recent")
+	var inf []*record.Head
+
+	err := db.DB.View(func(tx *bolt.Tx) error {
+		b := tx.Bucket([]byte("recent"))
+		if b == nil {
+			return errors.New("bucket is not found")
+		}
+		errr := b.ForEach(func(k, v []byte) error {
+			r := record.Head{}
+			if err := json.Unmarshal(v, &r); err != nil {
+				return err
+			}
+			inf = append(inf, &r)
+			return nil
+		})
+		return errr
+	})
 	if err != nil {
 		log.Print(err)
 		return nil

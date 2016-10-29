@@ -32,6 +32,7 @@ import (
 	"regexp"
 	"strconv"
 
+	"github.com/shingetsu-gou/shingetsu-gou/record"
 	"github.com/shingetsu-gou/shingetsu-gou/thread"
 )
 
@@ -47,7 +48,7 @@ func NewResTable(ca *thread.Cache) *ResTable {
 		make(map[string]int),
 		make([]string, ca.Len()+1),
 	}
-	recs := ca.LoadRecords(thread.Alive)
+	recs := ca.LoadRecords(record.Alive)
 	for i, k := range recs.Keys() {
 		rec := recs.Get(k, nil)
 		r.Num2id[i+1] = rec.ID[:8]

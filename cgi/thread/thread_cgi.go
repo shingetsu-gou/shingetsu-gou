@@ -286,7 +286,7 @@ func (t *threadCGI) printThreadHead(path, id string, page int, ca *thread.Cache,
 func (t *threadCGI) printThreadTop(path, id string, nPage int, ca *thread.Cache) {
 	var lastrec *record.Record
 	var resAnchor string
-	recs := ca.LoadRecords(thread.Alive)
+	recs := ca.LoadRecords(record.Alive)
 	ids := recs.Keys()
 	if ca.HasRecord() && nPage == 0 && id == "" && len(ids) > 0 {
 		lastrec = recs[ids[len(ids)-1]]
@@ -310,7 +310,7 @@ func (t *threadCGI) printThreadTop(path, id string, nPage int, ca *thread.Cache)
 
 //printThreadBody renders body(records list) part of thread page with paging.
 func (t *threadCGI) printThreadBody(id string, nPage int, ca *thread.Cache) {
-	recs := ca.LoadRecords(thread.Alive)
+	recs := ca.LoadRecords(record.Alive)
 	ids := recs.Keys()
 	fmt.Fprintln(t.WR, "</p>\n<dl id=\"records\">")
 	from := len(ids) - cfg.ThreadPageSize*(nPage+1)
@@ -393,7 +393,7 @@ func (t *threadCGI) printThreadAjax(id string) {
 		return
 	}
 	fmt.Fprintln(t.WR, "<dl>")
-	recs := ca.LoadRecords(thread.Alive)
+	recs := ca.LoadRecords(record.Alive)
 	for _, rec := range recs {
 		if id == "" || rec.ID[:8] == id && rec.Load() == nil {
 			t.printRecord(ca, rec)

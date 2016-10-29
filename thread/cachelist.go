@@ -29,17 +29,22 @@
 package thread
 
 import (
+	"bytes"
 	"log"
 	"time"
 
+	"encoding/binary"
+
+	"regexp"
+
 	"github.com/shingetsu-gou/shingetsu-gou/cfg"
 	"github.com/shingetsu-gou/shingetsu-gou/db"
+	"github.com/shingetsu-gou/shingetsu-gou/record"
 )
 
 //AllCaches returns all  thread names
 func AllCaches() Caches {
-	var r []string
-	r, err := db.Strings("select Thread from thread group by Thread ")
+	r, err := db.KeyStrings("thread")
 	if err != nil {
 		log.Print(err)
 		return nil
@@ -53,26 +58,40 @@ func AllCaches() Caches {
 
 //Len returns # of Caches
 func Len() int {
-	r, err := db.Int64("select count(distinct Thread) from record")
+	r, err := db.GetPrefixs("record")
 	if err != nil {
 		log.Print(err)
 		return 0
 	}
 
-	return int(r)
+	return len(r)
 }
 
 //Search reloads records in Caches in cachelist
 //and returns slice of cache which matches query.
 func Search(q string) Caches {
-	r, err := db.Strings("select Thread from record where Body like ? group by Thread", q)
+	reg, err := regexp.Compile(q)
 	if err != nil {
-		log.Print(err)
+		log.Println(err)
 		return nil
 	}
-	result := make([]*Cache, len(r))
+	var cnt []string
+	err = record.ForEach(
+		func(k []byte, i int) bool {
+			return true
+		},
+		func(d *record.DB) error {
+			if reg.Match([]byte(d.Body)) {
+				cnt = append(cnt, d.Datfile)
+			}
+			return nil
+		})
+	if err != nil {
+		log.Println(err)
+	}
+	result := make([]*Cache, len(cnt))
 
-	for i, rr := range r {
+	for i, rr := range cnt {
 		result[i] = NewCache(rr)
 	}
 	return result
@@ -80,14 +99,14 @@ func Search(q string) Caches {
 
 //CleanRecords remove old or duplicates records for each Caches.
 func CleanRecords() {
-	l := int64(Len())
-	if l > cfg.SaveRecord {
-		_, err := db.DB.Exec("delete from record  order by Stamp limit ? ", l-cfg.SaveRecord)
-		if err != nil {
-			log.Println(err)
-		}
-	}
-	_, err := db.DB.Exec("update record set Deleted=1 where  Stamp =?", time.Now().Unix()-cfg.SaveRecord)
+	err := record.ForEach(
+		func(k []byte, i int) bool {
+			return int64(i) < int64(Len())-cfg.SaveRecord
+		},
+		func(d *record.DB) error {
+			d.Del()
+			return nil
+		})
 	if err != nil {
 		log.Println(err)
 	}
@@ -98,7 +117,17 @@ func RemoveRemoved() {
 	if cfg.SaveRemoved > 0 {
 		return
 	}
-	_, err := db.DB.Exec("delete from record where Deleted=1  and Stamp <? ", time.Now().Unix()-cfg.SaveRemoved)
+	min := time.Now().Unix() - cfg.SaveRemoved
+	bmin := make([]byte, 8)
+	binary.BigEndian.PutUint64(bmin, uint64(min))
+	err := record.ForEach(
+		func(k []byte, i int) bool {
+			return bytes.Compare(k, bmin) < 0
+		},
+		func(d *record.DB) error {
+			d.Del()
+			return nil
+		})
 	if err != nil {
 		log.Println(err)
 	}

@@ -40,7 +40,7 @@ import (
 
 //Get returns copy of Slice associated with datfile or returns def if not exists.
 func Get(datfile string, def tag.Slice) tag.Slice {
-	r, err := db.Strings("select Tag from sugtag where Thread=?", datfile)
+	r, err := db.MapKeys("sugtag", []byte(datfile))
 	if err != nil {
 		log.Print(err)
 		return def
@@ -59,7 +59,7 @@ func Get(datfile string, def tag.Slice) tag.Slice {
 
 //keys return datfile names of Sugtaglist.
 func keys() []string {
-	r, err := db.Strings("select distinct Thread from sugtag group by Thread")
+	r, err := db.KeyStrings("sugtag")
 	if err != nil {
 		log.Print(err)
 		return nil
@@ -69,33 +69,19 @@ func keys() []string {
 
 //AddString adds tags to datfile from tagstrings.
 func AddString(datfile string, vals []string) {
-	tx, err := db.DB.Begin()
-	if err != nil {
-		log.Print(err)
-		return
-	}
 	for _, v := range vals {
 		if !tag.IsOK(v) {
 			continue
 		}
-		_, err := db.DB.Exec("insert into sugtag(Thread,Tag) values(?,?)", datfile, v)
-		if err != nil {
+		if err := db.PutMap("sugtag", []byte(datfile), v); err != nil {
 			log.Print(err)
 		}
-	}
-	if err := tx.Commit(); err != nil {
-		log.Println(err)
 	}
 }
 
 //HasTagstr return true if one of tags has tagstr
 func HasTagstr(datfile string, tagstr string) bool {
-	cnt, err := db.Int64("select count(*) from sugtag where Thread=? and Tag=?", datfile, tagstr)
-	if err != nil {
-		log.Print(err)
-		return false
-	}
-	return cnt > 0
+	return db.HasVal("sugtag", []byte(datfile), tagstr)
 }
 
 //String return tagstr string of datfile.
@@ -116,18 +102,10 @@ func Prune(recs []*record.Head) {
 			tmp = append(tmp[:l], tmp[l+1:]...)
 		}
 	}
-	tx, err := db.DB.Begin()
-	if err != nil {
-		log.Print(err)
-		return
-	}
 	for _, datfile := range tmp {
-		_, err := db.DB.Exec("delete from sugtag where Thread=? ", datfile)
+		err := db.Del("sugtag", []byte(datfile))
 		if err != nil {
 			log.Println(err)
 		}
-	}
-	if err := tx.Commit(); err != nil {
-		log.Println(err)
 	}
 }

@@ -30,39 +30,47 @@ package record
 
 import (
 	"fmt"
-	"log"
 	"sort"
-
-	"github.com/shingetsu-gou/shingetsu-gou/db"
 )
 
 //Map is a map key=stamp_id, value=record.
 type Map map[string]*Record
 
+const (
+	//Alive counts records that are not removed.
+	Alive = 1
+	//Removed counts records that are  removed.
+	Removed = 2
+	//All counts all records
+	All = 3
+)
+
 //FromRecordDB makes record map from record db.
-func FromRecordDB(query string, args ...interface{}) (Map, error) {
-	rows, err := db.DB.Query(query, args...)
+func FromRecordDB(datfile string, kind int) (Map, error) {
+	r, err := GetFromDBs(datfile)
 	if err != nil {
 		return nil, err
 	}
-	recs := make(map[string]*Record)
-	for rows.Next() {
-		var id int
-		var stamp, del int64
-		var body, datfile, hash string
-		err = rows.Scan(&id, &stamp, &hash, &datfile, &body, &del)
-		if err != nil {
-			log.Print(err)
-			return nil, nil
+	m := make(Map)
+	for _, rr := range r {
+		rec := &Record{
+			Head: rr.Head,
 		}
-		idd := fmt.Sprintf("%d_%s", stamp, hash)
-		recs[idd] = New(datfile, hash, stamp)
-		if err := recs[idd].Load(); err != nil {
-			log.Print(err)
-			return nil, err
+		idd := fmt.Sprintf("%d_%s", rr.Stamp, rr.ID)
+		switch kind {
+		case Alive:
+			if !rr.Deleted {
+				m[idd] = rec
+			}
+		case Removed:
+			if rr.Deleted {
+				m[idd] = rec
+			}
+		case All:
+			m[idd] = rec
 		}
 	}
-	return recs, nil
+	return m, nil
 }
 
 //Get returns records which hav key=i.

@@ -44,22 +44,21 @@ import (
 
 func getThread(stamp int64) (string, error) {
 	var thread string
-	thread, err := db.String("select Thread from keylib where (Stamp=?)", stamp)
+	k := db.MustTob(stamp)
+	_, err := db.Get("keylibST", k, &thread)
 	return thread, err
 }
 
 func getTime(thread string) (int64, error) {
-	return db.Int64("select Stamp from keylib where (Thread=?)", thread)
+	var stamp int64
+	k := db.MustTob(thread)
+	_, err := db.Get("keylibTS", k, &stamp)
+	return stamp, err
 }
 
 //Load loads from the file, adds stamps/datfile pairs from cachelist and recentlist.
 //and saves to file.
 func Load() {
-	tx, err := db.DB.Begin()
-	if err != nil {
-		log.Print(err)
-		return
-	}
 	for _, c := range thread.AllCaches() {
 		setFromCache(c)
 	}
@@ -67,14 +66,17 @@ func Load() {
 		c := thread.NewCache(rec.Datfile)
 		setFromCache(c)
 	}
-	if err := tx.Commit(); err != nil {
-		log.Println(err)
-	}
 }
 
 //setEntry stores stamp/value.
 func setEntry(stamp int64, filekey string) {
-	_, err := db.DB.Exec("insert into keylib(Stamp,Thread) values(?,?)", stamp, filekey)
+	sb := db.MustTob(stamp)
+	fb := db.MustTob(filekey)
+	err := db.Put("keylibST", sb, fb)
+	if err != nil {
+		log.Print(err)
+	}
+	err = db.Put("keylibTS", fb, sb)
 	if err != nil {
 		log.Print(err)
 	}
@@ -90,7 +92,7 @@ func setFromCache(ca *thread.Cache) {
 	if !ca.HasRecord() {
 		firstStamp = ca.RecentStamp()
 	} else {
-		if rec := ca.LoadRecords(thread.Alive); len(rec) > 0 {
+		if rec := ca.LoadRecords(record.Alive); len(rec) > 0 {
 			firstStamp = rec[rec.Keys()[0]].Stamp
 		}
 	}
@@ -179,7 +181,7 @@ func MakeBody(rec *record.Record, host, board string, table *mch.ResTable) strin
 
 //MakeDat makes dat lines of 2ch from cache.
 func MakeDat(ca *thread.Cache, board, host string) []string {
-	recs := ca.LoadRecords(thread.Alive)
+	recs := ca.LoadRecords(record.Alive)
 	dat := make([]string, len(recs))
 	table := mch.NewResTable(ca)
 

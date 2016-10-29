@@ -50,12 +50,20 @@ const (
 
 //getFromList returns one node  in the nodelist.
 func getFromList() *node.Node {
-	r, err := db.String("select  Addr from lookup where Thread=''")
+	rs, err := db.GetMap("lookupT", []byte(""))
 	if err != nil {
 		log.Print(err)
 		return nil
 	}
-
+	if len(rs) == 0 {
+		log.Println("node not found")
+		return nil
+	}
+	var r string
+	for rr := range rs {
+		r = rr
+		break
+	}
 	n, err := node.New(r)
 	if err != nil {
 		log.Println(err)
@@ -76,13 +84,12 @@ func ListLen() int {
 }
 
 func listLen(datfile string) int {
-	r, err := db.Int64("select count(*) from lookup where Thread=?", datfile)
+	rs, err := db.GetMap("lookupT", []byte(""))
 	if err != nil {
 		log.Print(err)
 		return 0
 	}
-
-	return int(r)
+	return len(rs)
 }
 
 //GetNodestrSlice returns Nodestr of all nodes.
@@ -92,7 +99,7 @@ func GetNodestrSlice() []string {
 
 //getAllNodes returns all nodes in table.
 func getAllNodes() node.Slice {
-	r, err := db.Strings("select  distinct Addr from lookup group by Addr")
+	r, err := db.KeyStrings("lookupA")
 	if err != nil {
 		log.Print(err)
 		return nil
@@ -112,7 +119,7 @@ func Get(datfile string, def node.Slice) node.Slice {
 
 //GetNodestrSliceInTable returns Nodestr slice of nodes associated datfile thread.
 func GetNodestrSliceInTable(datfile string) []string {
-	r, err := db.Strings("select  Addr from lookup where Thread=?", datfile)
+	r, err := db.MapKeys("lookupT", []byte(datfile))
 	if err != nil {
 		log.Print(err)
 		return nil
@@ -145,15 +152,27 @@ func Random(exclude node.Slice, num int) []*node.Node {
 	return r
 }
 
+func appendable(datfile string, n *node.Node) bool {
+	l := listLen(datfile)
+	return ((datfile != "" && l < shareNodes) ||
+		(datfile == "" && l < defaultNodes)) &&
+		n != nil && n.IsAllowed() && !hasNodeInTable(datfile, n)
+
+}
+
 //AppendToTable add node n to table if it is allowd and list doesn't have it.
 func AppendToTable(datfile string, n *node.Node) {
-	l := listLen(datfile)
-	if ((datfile != "" && l < shareNodes) || (datfile == "" && l < defaultNodes)) &&
-		n != nil && n.IsAllowed() && !hasNodeInTable(datfile, n) {
-		_, err := db.DB.Exec("insert into lookup(Thread,Addr) values(?,?)", datfile, n.Nodestr)
-		if err != nil {
-			log.Println(err)
-		}
+	if !appendable(datfile, n) {
+		return
+	}
+	err := db.PutMap("lookupT", []byte(datfile), n.Nodestr)
+	if err != nil {
+		log.Print(err)
+	}
+
+	err = db.PutMap("lookupA", []byte(n.Nodestr), datfile)
+	if err != nil {
+		log.Println(err)
 	}
 }
 
@@ -181,12 +200,7 @@ func ReplaceNodeInList(n *node.Node) *node.Node {
 
 //hasNodeInTable returns true if nodelist has n.
 func hasNodeInTable(datfile string, n *node.Node) bool {
-	r, err := db.Int64("select  count(*) from lookup where Addr=? and Thread=?", n.Nodestr, datfile)
-	if err != nil {
-		log.Print(err)
-		return false
-	}
-	return r != 0
+	return db.HasVal("lookupT", []byte(datfile), n.Nodestr)
 }
 
 //RemoveFromTable removes node n and return true if exists.
@@ -199,10 +213,13 @@ func RemoveFromTable(datfile string, n *node.Node) bool {
 	if !hasNodeInTable(datfile, n) {
 		return false
 	}
-	_, err := db.DB.Exec("delete from lookup where Thread=? and Addr=? ", datfile, n.Nodestr)
+	err := db.DelMap("lookupT", []byte(datfile), n.Nodestr)
 	if err != nil {
 		log.Println(err)
-		return false
+	}
+	err = db.DelMap("lookupA", []byte(n.Nodestr), datfile)
+	if err != nil {
+		log.Println(err)
 	}
 	return true
 }
@@ -216,10 +233,20 @@ func RemoveFromList(n *node.Node) bool {
 //RemoveFromAllTable removes node n from all tables and return true if exists.
 //or returns false if not exists.
 func RemoveFromAllTable(n *node.Node) bool {
-	_, err := db.DB.Exec("delete from lookup where  Addr=? ", n.Nodestr)
+	threads, err := db.GetMap("lookupA", []byte(n.Nodestr))
 	if err != nil {
 		log.Println(err)
 		return false
+	}
+	err = db.Del("lookupA", []byte(n.Nodestr))
+	if err != nil {
+		log.Println(err)
+	}
+	for t := range threads {
+		err := db.DelMap("lookupT", []byte(t), n.Nodestr)
+		if err != nil {
+			log.Println(err)
+		}
 	}
 	return true
 }
@@ -255,16 +282,8 @@ func Initialize(allnodes node.Slice) {
 	log.Println("# of nodelist:", ListLen())
 	if ListLen() == 0 {
 		myself.SetStatus(cfg.Port0)
-		tx, err := db.DB.Begin()
-		if err != nil {
-			log.Print(err)
-			return
-		}
 		for _, p := range pingOK {
 			appendToList(p)
-		}
-		if err := tx.Commit(); err != nil {
-			log.Println(err)
 		}
 	}
 }
@@ -281,11 +300,6 @@ func Join(n *node.Node) bool {
 	if hasNodeInTable("", n) || node.Me(false).Nodestr == n.Nodestr {
 		return false
 	}
-	tx, err := db.DB.Begin()
-	if err != nil {
-		log.Print(err)
-		return false
-	}
 	for count := 0; count < retryJoin && ListLen() < defaultNodes; count++ {
 		extnode, err := n.Join()
 		if err != nil {
@@ -299,9 +313,6 @@ func Join(n *node.Node) bool {
 		appendToList(n)
 		n = extnode
 		flag = true
-	}
-	if err := tx.Commit(); err != nil {
-		log.Println(err)
 	}
 	return flag
 }

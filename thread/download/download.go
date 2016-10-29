@@ -36,7 +36,6 @@ import (
 	"time"
 
 	"github.com/shingetsu-gou/shingetsu-gou/cfg"
-	"github.com/shingetsu-gou/shingetsu-gou/db"
 	"github.com/shingetsu-gou/shingetsu-gou/node"
 	"github.com/shingetsu-gou/shingetsu-gou/node/manager"
 	"github.com/shingetsu-gou/shingetsu-gou/recentlist"
@@ -86,7 +85,7 @@ func NewManger(ca *thread.Cache) *Manager {
 		log.Println(ca.Datfile, "is downloading")
 		return d
 	}
-	recs := ca.LoadRecords(thread.All)
+	recs := ca.LoadRecords(record.All)
 	dm := &Manager{
 		datfile: ca.Datfile,
 		recs:    make(map[string]*targetRec),
@@ -225,20 +224,11 @@ func getWithRange(n *node.Node, c *thread.Cache, dm *Manager) bool {
 			dm.Finished(n, false)
 			return false
 		}
-		tx, err := db.DB.Begin()
-		if err != nil {
-			log.Print(err)
-			return false
-		}
 		for _, res := range ress {
 			errf := c.CheckData(res, -1, "", from, to)
 			if errf == nil {
 				okcount++
 			}
-		}
-		if err = tx.Commit(); err != nil {
-			log.Println(err)
-			return false
 		}
 		dm.Finished(n, true)
 		log.Println(c.Datfile, okcount, "records were saved from", n.Nodestr)

@@ -45,6 +45,7 @@ import (
 
 	"github.com/shingetsu-gou/shingetsu-gou/cfg"
 	"github.com/shingetsu-gou/shingetsu-gou/cgi"
+	"github.com/shingetsu-gou/shingetsu-gou/record"
 	"github.com/shingetsu-gou/shingetsu-gou/tag"
 	"github.com/shingetsu-gou/shingetsu-gou/tag/suggest"
 	"github.com/shingetsu-gou/shingetsu-gou/tag/user"
@@ -352,7 +353,7 @@ func (g *gatewayCGI) appendRSS(rsss *cgi.RSS, ca *thread.Cache) {
 	}
 	title := util.Escape(util.FileDecode(ca.Datfile))
 	path := cfg.ThreadURL + "/" + util.StrEncode(title)
-	recs := ca.LoadRecords(thread.Alive)
+	recs := ca.LoadRecords(record.Alive)
 	for _, r := range recs {
 		if r.Stamp+cfg.RSSRange < now {
 			continue

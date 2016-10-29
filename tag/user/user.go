@@ -43,32 +43,27 @@ func String(thread string) string {
 
 //Len  returns # of usertags.
 func Len(thread string) int {
-	r, err := db.Int64("select count(*)  from usertag where thread=?", thread)
+	r, err := db.GetMap("usertag", []byte(thread))
 	if err != nil {
 		log.Print(err)
 		return 0
 	}
-	return int(r)
+	return len(r)
 }
 
 //Has returns true if thread has the tag.
 func Has(thread string, tag ...string) bool {
 	for _, t := range tag {
-		r, err := db.Int64("select count(*)  from usertag where thread=? and Tag=?", thread, t)
-		if err != nil {
-			log.Print(err)
-			continue
-		}
-		if r > 0 {
+		if r := db.HasVal("usertag", []byte(thread), t); r {
 			return true
 		}
 	}
 	return false
 }
 
-//Get tags from the disk  if dirty and returns Slice.
+//Get tags from the disk and returns Slice.
 func Get() tag.Slice {
-	r, err := db.Strings("select  distinct Tag from usertag group by Tag")
+	r, err := db.KeyStrings("usertagTag")
 	if err != nil {
 		log.Print(err)
 		return nil
@@ -78,7 +73,7 @@ func Get() tag.Slice {
 
 //GetStrings gets thread tags from the disk
 func GetStrings(thread string) []string {
-	r, err := db.Strings("select  Tag from usertag where thread=?", thread)
+	r, err := db.MapKeys("usergag", []byte(thread))
 	if err != nil {
 		log.Print(err)
 		return nil
@@ -94,19 +89,13 @@ func GetByThread(thread string) tag.Slice {
 
 //Add saves tag strings.
 func Add(thread string, tag []string) {
-	tx, err := db.DB.Begin()
-	if err != nil {
-		log.Print(err)
-		return
-	}
 	for _, t := range tag {
-		_, err := db.DB.Exec("insert into usertag(Thread,Tag) values(?,?)", thread, t)
-		if err != nil {
+		if err := db.PutMap("usertag", []byte(thread), t); err != nil {
 			log.Print(err)
 		}
-	}
-	if err := tx.Commit(); err != nil {
-		log.Println(err)
+		if err := db.PutMap("usertagTag", []byte(t), thread); err != nil {
+			log.Print(err)
+		}
 	}
 }
 
@@ -117,7 +106,18 @@ func AddTags(thread string, tag tag.Slice) {
 
 //Set remove all tags and saves tag strings.
 func Set(thread string, tag []string) {
-	_, err := db.DB.Exec("delete from usertag where Thread=?", thread)
+	ts, err := db.GetMap("usertag", []byte(thread))
+	if err != nil {
+		log.Print(err)
+		return
+	}
+	for t := range ts {
+		err = db.DelMap("usertagTag", []byte(t), thread)
+		if err != nil {
+			log.Print(err)
+		}
+	}
+	err = db.Del("usertag", []byte(thread))
 	if err != nil {
 		log.Print(err)
 		return

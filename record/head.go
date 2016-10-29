@@ -46,54 +46,40 @@ type Head struct {
 	ID      string //md5(bodystr)
 }
 
-//FromRecentDB makes Head ary from recent db.
-func FromRecentDB(query string, args ...interface{}) ([]*Head, error) {
-	rows, err := db.DB.Query(query, args...)
-	if err != nil {
-		return nil, err
-	}
-	var h []*Head
-	for rows.Next() {
-		r := Head{}
-		var id int
-		err = rows.Scan(&id, &r.Stamp, &r.ID, &r.Datfile)
-		if err != nil {
-			log.Print(err)
-			return nil, nil
-		}
-		h = append(h, &r)
-	}
-	return h, nil
+//ToKey returns key for db.
+func (u *Head) ToKey() []byte {
+	return db.ToKey(u.Datfile, u.Stamp, u.ID)
 }
 
 //Exists return true if record file exists.
 func (u *Head) Exists() bool {
-	r, err := db.Int64("select count(*) from record where Thread=? and Hash=? and Stamp =?", u.Datfile, u.ID, u.Stamp)
+	r, err := db.HasKey("record", u.ToKey())
 	if err != nil {
 		log.Print(err)
 		return false
 	}
-	return r > 0
+	return r
 }
 
 //Removed return true if record is removed (i.e. exists.in removed path)
 func (u *Head) Removed() bool {
-	r, err := db.Int64("select count(*) from record where Thread=? and Hash=? and Stamp =? and Deleted=1", u.Datfile, u.ID, u.Stamp)
+	d, err := GetFromDB(u)
 	if err != nil {
 		log.Print(err)
 		return false
 	}
-	return r != 0
+	return d.Deleted
 }
 
 //Remove moves the record file  to remove path
 func (u *Head) Remove() error {
-	_, err := db.DB.Exec("update record set Deleted=1 where Thread=? and Hash=? and Stamp =?", u.Datfile, u.ID, u.Stamp)
+	d, err := GetFromDB(u)
 	if err != nil {
-		log.Println(err)
+		log.Print(err)
 		return err
 	}
-	return nil
+	d.Deleted = true
+	return d.Put()
 }
 
 //Hash returns md5 of Head.

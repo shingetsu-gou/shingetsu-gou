@@ -29,12 +29,35 @@
 package db
 
 import (
-	"database/sql"
+	"bytes"
+	"encoding/binary"
+	"errors"
+	"fmt"
 	"log"
 	"path"
 
+	"encoding/json"
+
+	"github.com/boltdb/bolt"
 	"github.com/shingetsu-gou/shingetsu-gou/cfg"
 )
+
+/*
+bucket key value
+
+keylibST Stamp Thread
+keylibTS Thread Stamp
+lookupT Thread json(map[addr]struct{})
+lookupA Addr json(map[threads]struct{})
+thread Thread ""
+sugtag Thread json(map[tags]struct{})
+usertag Thread json(map[tags]struct{})
+usertagTag Tag json(map[threads]struct{})
+recent thread:stamp:hash json(Datfile,Stamp.ID)
+recentS stamp json(map[thread,stamp.hash]struct{})
+record thread:stamp:hash json(Datfile,Stamp.ID,Body,Deleted)
+recordS stamp json(map[thread,stamp.hash]struct{})
+
 
 var tables = []string{
 	`CREATE TABLE IF NOT EXISTS  "keylib" ("ID" integer not null primary key autoincrement, "Stamp" integer, "Thread" varchar(255) unique)`,
@@ -45,89 +68,308 @@ var tables = []string{
 	`CREATE TABLE IF NOT EXISTS  "record" ("ID" integer not null primary key autoincrement, "Stamp" integer, "Hash" varchar(255), "Thread" varchar(255), "Body" varchar(255), "Deleted" integer, unique ("Stamp", "Hash", "Thread"))`,
 	`CREATE TABLE IF NOT EXISTS  "usertag" ("ID" integer not null primary key autoincrement, "Thread" varchar(255), "Tag" varchar(255), unique ("Tag", "Thread"))`,
 }
-
-/*
-sqlite in mattn-sqlite3 is copiled with serialized param'(i.e. thread-safe).
-therefore no need to lock.
-https://www.sqlite.org/threadsafe.html
 */
 
-//DB is sql.DB for operating database.
-var DB *sql.DB
+//DB is bolt.DB for operating database.
+var DB *bolt.DB
 
 //Setup setups db.
 func Setup() {
-	dbpath := path.Join(cfg.RunDir, "gou.db")
+	dbpath := path.Join(cfg.RunDir, "gou_bolt.db")
 	var err error
-	DB, err = sql.Open("sqlite3", "file:"+dbpath+"?cache=shared&mode=rwc")
+	DB, err = bolt.Open(dbpath, 0644, nil)
 	if err != nil {
 		log.Fatal(err)
 	}
-	tx, err := DB.Begin()
+}
+
+// Tob returns an 8-byte big endian representation of v.
+func Tob(v interface{}) ([]byte, error) {
+	switch t := v.(type) {
+	case []byte:
+		return t, nil
+	case string:
+		return []byte(t), nil
+	case int:
+		b := make([]byte, 8)
+		binary.BigEndian.PutUint64(b, uint64(t))
+		return b, nil
+	case int64:
+		b := make([]byte, 8)
+		binary.BigEndian.PutUint64(b, uint64(t))
+		return b, nil
+	case uint64:
+		b := make([]byte, 8)
+		binary.BigEndian.PutUint64(b, t)
+		return b, nil
+	default:
+		return json.Marshal(v)
+	}
+}
+
+//MustTob is Tob , except that this fatals when error.
+func MustTob(v interface{}) []byte {
+	b, err := Tob(v)
 	if err != nil {
 		log.Fatal(err)
 	}
-	for _, table := range tables {
-		if _, err = DB.Exec(table); err != nil {
-			log.Fatal(err)
+	return b
+}
+
+//ToKey makes key of db from v.
+func ToKey(v ...interface{}) []byte {
+	var r []byte
+	for _, vv := range v {
+		b := MustTob(v)
+		r = append(r, b...)
+		if _, ok := vv.(string); ok {
+			r = append(r, '\x00')
 		}
 	}
-	err = tx.Commit()
-	if err != nil {
-		log.Fatal(err)
-	}
-	_, err = DB.Exec("PRAGMA synchronous=OFF;")
-	if err != nil {
-		log.Fatal(err)
-	}
+	return r
 }
 
-//String return string result after query.
-func String(query string, args ...interface{}) (string, error) {
-	var str string
-	err := DB.QueryRow(query, args...).Scan(&str)
-	return str, err
+//b2v converts from 'from' to 'to' according to 'to' type.
+func b2v(from []byte, to interface{}) error {
+	var err error
+	switch t := to.(type) {
+	case *string:
+		(*t) = string(from)
+	case *int64:
+		(*t) = int64(binary.BigEndian.Uint64(from))
+	case *int:
+		(*t) = int(binary.BigEndian.Uint64(from))
+	case *uint64:
+		(*t) = binary.BigEndian.Uint64(from)
+	case nil:
+		//fallthrough
+	default:
+		err = json.Unmarshal(from, to)
+	}
+	return err
 }
 
-//Strings return []string result after query.
-func Strings(query string, args ...interface{}) ([]string, error) {
-	rows, err := DB.Query(query, args...)
+//Get gets one value from db and converts it to value type.
+func Get(bucket string, key []byte, value interface{}) ([]byte, error) {
+	var r []byte
+	err := DB.View(func(tx *bolt.Tx) error {
+		b := tx.Bucket([]byte(bucket))
+		if b == nil {
+			return errors.New("bucket not found")
+		}
+		v := b.Get(key)
+		r = append(r, v...)
+		return nil
+	})
 	if err != nil {
 		return nil, err
 	}
-	var result []string
-	for rows.Next() {
-		var str string
-		err = rows.Scan(&str)
-		if err != nil {
-			return nil, err
-		}
-		result = append(result, str)
+	return r, b2v(r, value)
+}
+
+//Put sets one key/value pair.
+func Put(bucket string, key []byte, value interface{}) error {
+	val, err := Tob(value)
+	if err != nil {
+		return err
 	}
-	return result, nil
+
+	err = DB.Batch(func(tx *bolt.Tx) error {
+		b, errr := tx.CreateBucket([]byte(bucket))
+		if errr != nil {
+			return fmt.Errorf("create bucket: %s", err)
+		}
+		return b.Put(key, val)
+	})
+	return err
 }
 
-//Int64  return int64 result after query.
-func Int64(query string, args ...interface{}) (int64, error) {
-	var str int64
-	err := DB.QueryRow(query, args...).Scan(&str)
-	return str, err
+//HasKey returns true if db has key.
+func HasKey(bucket string, key []byte) (bool, error) {
+	var v []byte
+	err := DB.View(func(tx *bolt.Tx) error {
+		b := tx.Bucket([]byte(bucket))
+		if b == nil {
+			return errors.New("bucket not found")
+		}
+		v = b.Get(key)
+		return nil
+	})
+	return v != nil, err
 }
 
-//Int64s  return []int64 result after query.
-func Int64s(query string, args ...interface{}) ([]int64, error) {
-	rows, err := DB.Query(query, args...)
+//Get1st gets 1st value whose key has prefix from db and converts it to value type.
+func Get1st(bucket string, prefix []byte, value interface{}) ([]byte, error) {
+	var r []byte
+	err := DB.View(func(tx *bolt.Tx) error {
+		b := tx.Bucket([]byte(bucket))
+		if b == nil {
+			return errors.New("bucket not found")
+		}
+		c := b.Cursor()
+		k, v := c.Seek(prefix)
+		if bytes.HasPrefix(k, prefix) {
+			r = append(r, v...)
+		}
+		return nil
+	})
 	if err != nil {
 		return nil, err
 	}
-	var result []int64
-	for rows.Next() {
-		var str int64
-		err = rows.Scan(&str)
-		if err != nil {
-			return nil, err
+	return r, b2v(r, value)
+}
+
+//Count counts #data whose key has prefix.
+func Count(bucket string, prefix []byte) (int, error) {
+	var cnt int
+	err := DB.View(func(tx *bolt.Tx) error {
+		b := tx.Bucket([]byte(bucket))
+		if b == nil {
+			return errors.New("bucket not found")
 		}
-		result = append(result, str)
+		c := b.Cursor()
+		for k, _ := c.Seek(prefix); bytes.HasPrefix(k, prefix); k, _ = c.Next() {
+			cnt++
+		}
+		return nil
+	})
+	return cnt, err
+}
+
+//GetStrings returns string values whose key has prefix.
+func GetStrings(bucket string, prefix []byte) ([]string, error) {
+	var cnt []string
+	err := DB.View(func(tx *bolt.Tx) error {
+		b := tx.Bucket([]byte(bucket))
+		if b == nil {
+			return errors.New("bucket not found")
+		}
+		c := b.Cursor()
+		for k, v := c.Seek(prefix); bytes.HasPrefix(k, prefix); k, v = c.Next() {
+			var str string
+			if err := b2v(v, &str); err != nil {
+				return err
+			}
+			cnt = append(cnt, str)
+		}
+		return nil
+	})
+	return cnt, err
+}
+
+//KeyStrings returns string keys.
+func KeyStrings(bucket string) ([]string, error) {
+	var cnt []string
+	err := DB.View(func(tx *bolt.Tx) error {
+		b := tx.Bucket([]byte(bucket))
+		if b == nil {
+			return errors.New("bucket not found")
+		}
+		err := b.ForEach(func(k, v []byte) error {
+			var str string
+			if err := b2v(k, &str); err != nil {
+				return err
+			}
+			cnt = append(cnt, str)
+			return nil
+		})
+		return err
+	})
+	return cnt, err
+}
+
+//Del deletes one key-value pair.
+func Del(bucket string, key []byte) error {
+	err := DB.Batch(func(tx *bolt.Tx) error {
+		b := tx.Bucket([]byte(bucket))
+		if b == nil {
+			return errors.New("bucket not found")
+		}
+		return b.Delete(key)
+	})
+	return err
+}
+
+//GetMap gets map[string]struct{} value.
+func GetMap(bucket string, key []byte) (map[string]struct{}, error) {
+	var rs map[string]struct{}
+	_, err := Get(bucket, key, &rs)
+	return rs, err
+}
+
+//PutMap adds val to map[string]struct{} type value.
+func PutMap(bucket string, key []byte, val string) error {
+	rs, err := GetMap(bucket, key)
+	if err != nil {
+		rs = make(map[string]struct{})
 	}
-	return result, nil
+	rs[val] = struct{}{}
+	return Put(bucket, key, rs)
+}
+
+//DelMap deletes val from map[string]struct{} type value.
+func DelMap(bucket string, key []byte, val string) error {
+	rs, err := GetMap(bucket, key)
+	if err != nil {
+		return err
+	}
+	delete(rs, val)
+	if len(rs) == 0 {
+		return Del(bucket, key)
+	}
+	return Put(bucket, key, rs)
+}
+
+//MapKeys returns []string from keys of map[string]struct{} type value
+func MapKeys(bucket string, key []byte) ([]string, error) {
+	m, err := GetMap(bucket, key)
+	if err != nil {
+		return nil, err
+	}
+	r := make([]string, len(m))
+	i := 0
+	for k := range m {
+		r[i] = k
+		i++
+	}
+	return r, nil
+}
+
+//HasVal returns true if map[string]struct{} type values has val.
+func HasVal(bucket string, key []byte, val string) bool {
+	m, err := GetMap(bucket, key)
+	if err != nil {
+		return false
+	}
+	_, exist := m[val]
+	return exist
+}
+
+//GetPrefixs get string prefixs of keys.
+func GetPrefixs(bucket string) ([]string, error) {
+	var cnt []string
+	var last string
+	var blast []byte
+	err := DB.View(func(tx *bolt.Tx) error {
+		b := tx.Bucket([]byte(bucket))
+		if b == nil {
+			return errors.New("bucket not found")
+		}
+		err := b.ForEach(func(k, v []byte) error {
+			if bytes.HasPrefix(k, blast) {
+				return nil
+			}
+			loc := bytes.IndexByte(k, 0x00)
+			if loc == -1 {
+				return errors.New("not have string prefix")
+			}
+			last = string(k[:loc-1])
+			cnt = append(cnt, last)
+			blast := make([]byte, len(last)+1)
+			copy(blast, k[:loc])
+			return nil
+		})
+		return err
+	})
+	return cnt, err
 }

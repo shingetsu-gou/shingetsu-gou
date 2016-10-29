@@ -29,6 +29,7 @@
 package record
 
 import (
+	"bytes"
 	"errors"
 	"fmt"
 	"log"
@@ -36,6 +37,9 @@ import (
 	"strconv"
 	"strings"
 
+	"encoding/json"
+
+	"github.com/boltdb/bolt"
 	"github.com/shingetsu-gou/shingetsu-gou/cfg"
 	"github.com/shingetsu-gou/shingetsu-gou/db"
 	"github.com/shingetsu-gou/shingetsu-gou/node"
@@ -43,6 +47,88 @@ import (
 )
 
 var cachedRule = util.NewRegexpList(cfg.SpamList)
+
+//DB represents one record in db.
+type DB struct {
+	*Head
+	Body    string
+	Deleted bool
+}
+
+//Del deletes data from db.
+func (d *DB) Del() {
+	if err := db.Del("record", d.Head.ToKey()); err != nil {
+		log.Println(err)
+	}
+	err := db.DelMap("recordS", db.ToKey(d.Stamp), string(d.Head.ToKey()))
+	if err != nil {
+		log.Println(err)
+	}
+}
+
+//Put puts this one to db.
+func (d *DB) Put() error {
+	err := db.Put("record", d.Head.ToKey(), d)
+	if err != nil {
+		return err
+	}
+	return db.PutMap("recordS", db.ToKey(d.Stamp), string(d.Head.ToKey()))
+}
+
+//GetFromDB gets DB db.
+func GetFromDB(h *Head) (*DB, error) {
+	d := DB{}
+	_, err := db.Get("record", h.ToKey(), &d)
+	return &d, err
+}
+
+//GetFromDBs gets DBs whose thread name is datfile.
+func GetFromDBs(datfile string) ([]*DB, error) {
+	var cnt []*DB
+	bdatfile := make([]byte, len(datfile)+1)
+	copy(bdatfile, datfile)
+	bdatfile[len(datfile)] = 0x0
+	err := db.DB.View(func(tx *bolt.Tx) error {
+		b := tx.Bucket([]byte("record"))
+		if b == nil {
+			return errors.New("bucket not found")
+		}
+		c := b.Cursor()
+		for k, v := c.Seek(bdatfile); bytes.HasPrefix(k, bdatfile); k, v = c.Next() {
+			str := DB{}
+			if err := json.Unmarshal(v, &str); err != nil {
+				return err
+			}
+			cnt = append(cnt, &str)
+		}
+		return nil
+	})
+	return cnt, err
+
+}
+
+//ForEach do eachDo for each k/v to "record" db.
+func ForEach(cond func([]byte, int) bool, eachDo func(*DB) error) error {
+	err := db.DB.View(func(tx *bolt.Tx) error {
+		b := tx.Bucket([]byte("record"))
+		if b == nil {
+			return errors.New("bucket not found")
+		}
+		c := b.Cursor()
+		d := DB{}
+		i := 0
+		for k, v := c.First(); k != nil && cond(k, i); k, v = c.Next() {
+			if errr := json.Unmarshal(v, &d); errr != nil {
+				return errr
+			}
+			if errr := eachDo(&d); errr != nil {
+				return errr
+			}
+		}
+		return nil
+	})
+	return err
+}
 
 //Record represents one record.
 type Record struct {
@@ -213,12 +299,12 @@ func (r *Record) Load() error {
 		}
 		return errors.New("file not found")
 	}
-	body, err := db.String("select Body from record where Thread=? and Hash=? and Stamp=?", r.Datfile, r.ID, r.Stamp)
+	d, err := GetFromDB(r.Head)
 	if err != nil {
 		log.Println(err)
 		return err
 	}
-	return r.Parse(fmt.Sprintf("%d<>%s<>%s", r.Stamp, r.ID, body))
+	return r.Parse(fmt.Sprintf("%d<>%s<>%s", r.Stamp, r.ID, d.Body))
 }
 
 //ShortPubkey returns short version of pubkey.
@@ -283,15 +369,19 @@ func (r *Record) AttachPath(thumbnailSize string) string {
 //Sync saves Recstr to the file. if attached file exists, saves it to attached path.
 //if signed, also saves body part.
 func (r *Record) Sync() {
-	cnt, err := db.Int64("select count(*) from record where Thread=? and Stamp=? and Hash=?",
-		r.Datfile, r.Stamp, r.ID)
+	has, err := db.HasKey("record", r.Head.ToKey())
 	if err != nil {
 		log.Print(err)
 	}
-	if cnt > 0 {
+	if has {
 		return
 	}
-	_, err = db.DB.Exec("insert into record(Stamp,Hash,Thread,Body,Deleted) values(?,?,?,?,0)", r.Stamp, r.ID, r.Datfile, r.bodystr())
+	d := DB{
+		Head:    r.Head,
+		Body:    r.bodystr(),
+		Deleted: false,
+	}
+	err = d.Put()
 	if err != nil {
 		log.Print(err)
 	}
