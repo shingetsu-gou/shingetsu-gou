@@ -12,12 +12,12 @@
     </div>
   </div>
   <p class="tags">
-  {{ range $tag:=.Usertags.Tags }}
+  {{ range $tag:=.Usertags}}
     <span class="tag">{{html $tag.Tagstr}}</span>
   {{ end }}
   </p>
   <p class="sugtags">
-  {{ range $tag:=.Sugtags.Tags }}
+  {{ range $tag:=.Sugtags }}
     <span class="tag">{{html $tag.Tagstr}}</span>
   {{ end }}
   </p>

@@ -92,11 +92,11 @@ func GetStrings(thread string) []string {
 	var r []string
 	err := db.DB.View(func(tx *bolt.Tx) error {
 		var err error
-		r, err = db.MapKeys(tx, "usergag", []byte(thread))
+		r, err = db.MapKeys(tx, "usertag", []byte(thread))
 		return err
 	})
 	if err != nil {
-		log.Print(err)
+		log.Print(err, thread)
 		return nil
 	}
 	return r
@@ -140,7 +140,7 @@ func Set(thread string, tag []string) {
 	err := db.DB.Update(func(tx *bolt.Tx) error {
 		ts, err := db.GetMap(tx, "usertag", []byte(thread))
 		if err != nil {
-			return err
+			log.Println(err)
 		}
 		for t := range ts {
 			err = db.DelMap(tx, "usertagTag", []byte(t), thread)
@@ -149,7 +149,7 @@ func Set(thread string, tag []string) {
 			}
 		}
 		if err := db.Del(tx, "usertag", []byte(thread)); err != nil {
-			return err
+			log.Println(err)
 		}
 		return AddTX(tx, thread, tag)
 	})

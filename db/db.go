@@ -333,7 +333,7 @@ func GetPrefixs(tx *bolt.Tx, bucket string) ([]string, error) {
 		}
 		last = string(k[:loc])
 		cnt = append(cnt, last)
-		blast := make([]byte, len(last)+1)
+		blast = make([]byte, loc+1)
 		copy(blast, k[:loc+1])
 		return nil
 	})
