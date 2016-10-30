@@ -31,6 +31,9 @@ package record
 import (
 	"fmt"
 	"sort"
+
+	"github.com/boltdb/bolt"
+	"github.com/shingetsu-gou/shingetsu-gou/db"
 )
 
 //Map is a map key=stamp_id, value=record.
@@ -47,7 +50,12 @@ const (
 
 //FromRecordDB makes record map from record db.
 func FromRecordDB(datfile string, kind int) (Map, error) {
-	r, err := GetFromDBs(datfile)
+	var r []*DB
+	err := db.DB.View(func(tx *bolt.Tx) error {
+		var err error
+		r, err = GetFromDBs(tx, datfile)
+		return err
+	})
 	if err != nil {
 		return nil, err
 	}

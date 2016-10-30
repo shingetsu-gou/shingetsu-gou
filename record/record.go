@@ -56,78 +56,72 @@ type DB struct {
 }
 
 //Del deletes data from db.
-func (d *DB) Del() {
-	if err := db.Del("record", d.Head.ToKey()); err != nil {
+func (d *DB) Del(tx *bolt.Tx) {
+	if err := db.Del(tx, "record", d.Head.ToKey()); err != nil {
 		log.Println(err)
 	}
-	err := db.DelMap("recordS", db.ToKey(d.Stamp), string(d.Head.ToKey()))
+	err := db.DelMap(tx, "recordS", db.ToKey(d.Stamp), string(d.Head.ToKey()))
 	if err != nil {
 		log.Println(err)
 	}
 }
 
 //Put puts this one to db.
-func (d *DB) Put() error {
-	err := db.Put("record", d.Head.ToKey(), d)
+func (d *DB) Put(tx *bolt.Tx) error {
+	err := db.Put(tx, "record", d.Head.ToKey(), d)
 	if err != nil {
 		return err
 	}
-	return db.PutMap("recordS", db.ToKey(d.Stamp), string(d.Head.ToKey()))
+	return db.PutMap(tx, "recordS", db.ToKey(d.Stamp), string(d.Head.ToKey()))
 }
 
 //GetFromDB gets DB db.
-func GetFromDB(h *Head) (*DB, error) {
+func GetFromDB(tx *bolt.Tx, h *Head) (*DB, error) {
 	d := DB{}
-	_, err := db.Get("record", h.ToKey(), &d)
+	_, err := db.Get(tx, "record", h.ToKey(), &d)
 	return &d, err
 }
 
 //GetFromDBs gets DBs whose thread name is datfile.
-func GetFromDBs(datfile string) ([]*DB, error) {
+func GetFromDBs(tx *bolt.Tx, datfile string) ([]*DB, error) {
 	var cnt []*DB
 	bdatfile := make([]byte, len(datfile)+1)
 	copy(bdatfile, datfile)
 	bdatfile[len(datfile)] = 0x0
-	err := db.DB.View(func(tx *bolt.Tx) error {
-		b := tx.Bucket([]byte("record"))
-		if b == nil {
-			return errors.New("bucket not found")
+	b := tx.Bucket([]byte("record"))
+	if b == nil {
+		return nil, errors.New("bucket not found")
+	}
+	c := b.Cursor()
+	for k, v := c.Seek(bdatfile); bytes.HasPrefix(k, bdatfile); k, v = c.Next() {
+		str := DB{}
+		if err := json.Unmarshal(v, &str); err != nil {
+			return nil, err
 		}
-		c := b.Cursor()
-		for k, v := c.Seek(bdatfile); bytes.HasPrefix(k, bdatfile); k, v = c.Next() {
-			str := DB{}
-			if err := json.Unmarshal(v, &str); err != nil {
-				return err
-			}
-			cnt = append(cnt, &str)
-		}
-		return nil
-	})
-	return cnt, err
+		cnt = append(cnt, &str)
+	}
+	return cnt, nil
 
 }
 
 //ForEach do eachDo for each k/v to "record" db.
-func ForEach(cond func([]byte, int) bool, eachDo func(*DB) error) error {
-	err := db.DB.Batch(func(tx *bolt.Tx) error {
-		b := tx.Bucket([]byte("record"))
-		if b == nil {
-			return errors.New("bucket not found")
+func ForEach(tx *bolt.Tx, cond func([]byte, int) bool, eachDo func(*DB) error) error {
+	b := tx.Bucket([]byte("record"))
+	if b == nil {
+		return errors.New("bucket not found")
+	}
+	c := b.Cursor()
+	d := DB{}
+	i := 0
+	for k, v := c.First(); k != nil && cond(k, i); k, v = c.Next() {
+		if errr := json.Unmarshal(v, &d); errr != nil {
+			return errr
 		}
-		c := b.Cursor()
-		d := DB{}
-		i := 0
-		for k, v := c.First(); k != nil && cond(k, i); k, v = c.Next() {
-			if errr := json.Unmarshal(v, &d); errr != nil {
-				return errr
-			}
-			if errr := eachDo(&d); errr != nil {
-				return errr
-			}
+		if errr := eachDo(&d); errr != nil {
+			return errr
 		}
-		return nil
-	})
-	return err
+	}
+	return nil
 }
 
 //Record represents one record.
@@ -299,7 +293,12 @@ func (r *Record) Load() error {
 		}
 		return errors.New("file not found")
 	}
-	d, err := GetFromDB(r.Head)
+	var d *DB
+	err := db.DB.View(func(tx *bolt.Tx) error {
+		var err error
+		d, err = GetFromDB(tx, r.Head)
+		return err
+	})
 	if err != nil {
 		log.Println(err)
 		return err
@@ -369,19 +368,21 @@ func (r *Record) AttachPath(thumbnailSize string) string {
 //Sync saves Recstr to the file. if attached file exists, saves it to attached path.
 //if signed, also saves body part.
 func (r *Record) Sync() {
-	has, err := db.HasKey("record", r.Head.ToKey())
-	if err != nil {
-		log.Print(err)
-	}
-	if has {
-		return
-	}
-	d := DB{
-		Head:    r.Head,
-		Body:    r.bodystr(),
-		Deleted: false,
-	}
-	err = d.Put()
+	err := db.DB.Update(func(tx *bolt.Tx) error {
+		has, err := db.HasKey(tx, "record", r.Head.ToKey())
+		if err != nil {
+			return err
+		}
+		if has {
+			return nil
+		}
+		d := DB{
+			Head:    r.Head,
+			Body:    r.bodystr(),
+			Deleted: false,
+		}
+		return d.Put(tx)
+	})
 	if err != nil {
 		log.Print(err)
 	}

@@ -37,6 +37,7 @@ import (
 
 	"regexp"
 
+	"github.com/boltdb/bolt"
 	"github.com/shingetsu-gou/shingetsu-gou/cfg"
 	"github.com/shingetsu-gou/shingetsu-gou/db"
 	"github.com/shingetsu-gou/shingetsu-gou/record"
@@ -44,7 +45,12 @@ import (
 
 //AllCaches returns all  thread names
 func AllCaches() Caches {
-	r, err := db.KeyStrings("thread")
+	var r []string
+	err := db.DB.View(func(tx *bolt.Tx) error {
+		var err error
+		r, err = db.KeyStrings(tx, "thread")
+		return err
+	})
 	if err != nil {
 		log.Print(err)
 		return nil
@@ -58,7 +64,12 @@ func AllCaches() Caches {
 
 //Len returns # of Caches
 func Len() int {
-	r, err := db.GetPrefixs("record")
+	var r []string
+	err := db.DB.View(func(tx *bolt.Tx) error {
+		var err error
+		r, err = db.GetPrefixs(tx, "record")
+		return err
+	})
 	if err != nil {
 		log.Print(err)
 		return 0
@@ -76,16 +87,18 @@ func Search(q string) Caches {
 		return nil
 	}
 	var cnt []string
-	err = record.ForEach(
-		func(k []byte, i int) bool {
-			return true
-		},
-		func(d *record.DB) error {
-			if reg.Match([]byte(d.Body)) {
-				cnt = append(cnt, d.Datfile)
-			}
-			return nil
-		})
+	err = db.DB.View(func(tx *bolt.Tx) error {
+		return record.ForEach(tx,
+			func(k []byte, i int) bool {
+				return true
+			},
+			func(d *record.DB) error {
+				if reg.Match([]byte(d.Body)) {
+					cnt = append(cnt, d.Datfile)
+				}
+				return nil
+			})
+	})
 	if err != nil {
 		log.Println(err)
 	}
@@ -99,14 +112,16 @@ func Search(q string) Caches {
 
 //CleanRecords remove old or duplicates records for each Caches.
 func CleanRecords() {
-	err := record.ForEach(
-		func(k []byte, i int) bool {
-			return int64(i) < int64(Len())-cfg.SaveRecord
-		},
-		func(d *record.DB) error {
-			d.Del()
-			return nil
-		})
+	err := db.DB.Update(func(tx *bolt.Tx) error {
+		return record.ForEach(tx,
+			func(k []byte, i int) bool {
+				return int64(i) < int64(Len())-cfg.SaveRecord
+			},
+			func(d *record.DB) error {
+				d.Del(tx)
+				return nil
+			})
+	})
 	if err != nil {
 		log.Println(err)
 	}
@@ -120,14 +135,16 @@ func RemoveRemoved() {
 	min := time.Now().Unix() - cfg.SaveRemoved
 	bmin := make([]byte, 8)
 	binary.BigEndian.PutUint64(bmin, uint64(min))
-	err := record.ForEach(
-		func(k []byte, i int) bool {
-			return bytes.Compare(k, bmin) < 0
-		},
-		func(d *record.DB) error {
-			d.Del()
-			return nil
-		})
+	err := db.DB.Update(func(tx *bolt.Tx) error {
+		return record.ForEach(tx,
+			func(k []byte, i int) bool {
+				return bytes.Compare(k, bmin) < 0
+			},
+			func(d *record.DB) error {
+				d.Del(tx)
+				return nil
+			})
+	})
 	if err != nil {
 		log.Println(err)
 	}

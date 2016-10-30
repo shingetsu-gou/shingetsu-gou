@@ -150,182 +150,149 @@ func b2v(from []byte, to interface{}) error {
 }
 
 //Get gets one value from db and converts it to value type.
-func Get(bucket string, key []byte, value interface{}) ([]byte, error) {
-	var r []byte
-	err := DB.View(func(tx *bolt.Tx) error {
-		b := tx.Bucket([]byte(bucket))
-		if b == nil {
-			return errors.New("bucket not found")
-		}
-		v := b.Get(key)
-		if v == nil {
-			return errors.New("key not found")
-		}
-		r = append(r, v...)
-		return nil
-	})
-	if err != nil {
-		return nil, err
+func Get(tx *bolt.Tx, bucket string, key []byte, value interface{}) ([]byte, error) {
+	b := tx.Bucket([]byte(bucket))
+	if b == nil {
+		return nil, errors.New("bucket not found")
 	}
-	return r, b2v(r, value)
+	v := b.Get(key)
+	if v == nil {
+		return nil, errors.New("key not found")
+	}
+	return v, b2v(v, value)
 }
 
 //Put sets one key/value pair.
-func Put(bucket string, key []byte, value interface{}) error {
+func Put(tx *bolt.Tx, bucket string, key []byte, value interface{}) error {
 	val, err := Tob(value)
 	if err != nil {
 		return err
 	}
 
-	err = DB.Batch(func(tx *bolt.Tx) error {
-		b, errr := tx.CreateBucketIfNotExists([]byte(bucket))
-		if errr != nil {
-			return fmt.Errorf("create bucket: %s", err)
-		}
-		return b.Put(key, val)
-	})
-	return err
+	b, errr := tx.CreateBucketIfNotExists([]byte(bucket))
+	if errr != nil {
+		return fmt.Errorf("create bucket: %s", err)
+	}
+	return b.Put(key, val)
 }
 
 //HasKey returns true if db has key.
-func HasKey(bucket string, key []byte) (bool, error) {
+func HasKey(tx *bolt.Tx, bucket string, key []byte) (bool, error) {
 	var v []byte
-	err := DB.View(func(tx *bolt.Tx) error {
-		b := tx.Bucket([]byte(bucket))
-		if b == nil {
-			return errors.New("bucket not found")
-		}
-		v = b.Get(key)
-		return nil
-	})
-	return v != nil, err
+	b := tx.Bucket([]byte(bucket))
+	if b == nil {
+		return false, errors.New("bucket not found")
+	}
+	v = b.Get(key)
+	return v != nil, nil
 }
 
 //Get1st gets 1st value whose key has prefix from db and converts it to value type.
-func Get1st(bucket string, prefix []byte, value interface{}) ([]byte, error) {
-	var r []byte
-	err := DB.View(func(tx *bolt.Tx) error {
-		b := tx.Bucket([]byte(bucket))
-		if b == nil {
-			return errors.New("bucket not found")
-		}
-		c := b.Cursor()
-		k, v := c.Seek(prefix)
-		if bytes.HasPrefix(k, prefix) {
-			r = append(r, v...)
-		}
-		return nil
-	})
-	if err != nil {
-		return nil, err
+func Get1st(tx *bolt.Tx, bucket string, prefix []byte, value interface{}) ([]byte, error) {
+	b := tx.Bucket([]byte(bucket))
+	if b == nil {
+		return nil, errors.New("bucket not found")
 	}
-	return r, b2v(r, value)
+	c := b.Cursor()
+	k, v := c.Seek(prefix)
+	if bytes.HasPrefix(k, prefix) {
+		return v, b2v(v, value)
+	}
+	return nil, errors.New("no data")
 }
 
 //Count counts #data whose key has prefix.
-func Count(bucket string, prefix []byte) (int, error) {
+func Count(tx *bolt.Tx, bucket string, prefix []byte) (int, error) {
 	var cnt int
-	err := DB.View(func(tx *bolt.Tx) error {
-		b := tx.Bucket([]byte(bucket))
-		if b == nil {
-			return errors.New("bucket not found")
-		}
-		c := b.Cursor()
-		for k, _ := c.Seek(prefix); bytes.HasPrefix(k, prefix); k, _ = c.Next() {
-			cnt++
-		}
-		return nil
-	})
-	return cnt, err
+	b := tx.Bucket([]byte(bucket))
+	if b == nil {
+		return 0, errors.New("bucket not found")
+	}
+	c := b.Cursor()
+	for k, _ := c.Seek(prefix); bytes.HasPrefix(k, prefix); k, _ = c.Next() {
+		cnt++
+	}
+	return cnt, nil
 }
 
 //GetStrings returns string values whose key has prefix.
-func GetStrings(bucket string, prefix []byte) ([]string, error) {
+func GetStrings(tx *bolt.Tx, bucket string, prefix []byte) ([]string, error) {
 	var cnt []string
-	err := DB.View(func(tx *bolt.Tx) error {
-		b := tx.Bucket([]byte(bucket))
-		if b == nil {
-			return errors.New("bucket not found")
+	b := tx.Bucket([]byte(bucket))
+	if b == nil {
+		return nil, errors.New("bucket not found")
+	}
+	c := b.Cursor()
+	for k, v := c.Seek(prefix); bytes.HasPrefix(k, prefix); k, v = c.Next() {
+		var str string
+		if err := b2v(v, &str); err != nil {
+			return nil, err
 		}
-		c := b.Cursor()
-		for k, v := c.Seek(prefix); bytes.HasPrefix(k, prefix); k, v = c.Next() {
-			var str string
-			if err := b2v(v, &str); err != nil {
-				return err
-			}
-			cnt = append(cnt, str)
-		}
-		return nil
-	})
-	return cnt, err
+		cnt = append(cnt, str)
+	}
+	return cnt, nil
 }
 
 //KeyStrings returns string keys.
-func KeyStrings(bucket string) ([]string, error) {
+func KeyStrings(tx *bolt.Tx, bucket string) ([]string, error) {
 	var cnt []string
-	err := DB.View(func(tx *bolt.Tx) error {
-		b := tx.Bucket([]byte(bucket))
-		if b == nil {
-			return errors.New("bucket not found")
+	b := tx.Bucket([]byte(bucket))
+	if b == nil {
+		return nil, errors.New("bucket not found")
+	}
+	err := b.ForEach(func(k, v []byte) error {
+		var str string
+		if err := b2v(k, &str); err != nil {
+			return err
 		}
-		err := b.ForEach(func(k, v []byte) error {
-			var str string
-			if err := b2v(k, &str); err != nil {
-				return err
-			}
-			cnt = append(cnt, str)
-			return nil
-		})
-		return err
+		cnt = append(cnt, str)
+		return nil
 	})
 	return cnt, err
 }
 
 //Del deletes one key-value pair.
-func Del(bucket string, key []byte) error {
-	err := DB.Batch(func(tx *bolt.Tx) error {
-		b := tx.Bucket([]byte(bucket))
-		if b == nil {
-			return errors.New("bucket not found")
-		}
-		return b.Delete(key)
-	})
-	return err
+func Del(tx *bolt.Tx, bucket string, key []byte) error {
+	b := tx.Bucket([]byte(bucket))
+	if b == nil {
+		return errors.New("bucket not found")
+	}
+	return b.Delete(key)
 }
 
 //GetMap gets map[string]struct{} value.
-func GetMap(bucket string, key []byte) (map[string]struct{}, error) {
+func GetMap(tx *bolt.Tx, bucket string, key []byte) (map[string]struct{}, error) {
 	var rs map[string]struct{}
-	_, err := Get(bucket, key, &rs)
+	_, err := Get(tx, bucket, key, &rs)
 	return rs, err
 }
 
 //PutMap adds val to map[string]struct{} type value.
-func PutMap(bucket string, key []byte, val string) error {
-	rs, err := GetMap(bucket, key)
+func PutMap(tx *bolt.Tx, bucket string, key []byte, val string) error {
+	rs, err := GetMap(tx, bucket, key)
 	if err != nil {
 		rs = make(map[string]struct{})
 	}
 	rs[val] = struct{}{}
-	return Put(bucket, key, rs)
+	return Put(tx, bucket, key, rs)
 }
 
 //DelMap deletes val from map[string]struct{} type value.
-func DelMap(bucket string, key []byte, val string) error {
-	rs, err := GetMap(bucket, key)
+func DelMap(tx *bolt.Tx, bucket string, key []byte, val string) error {
+	rs, err := GetMap(tx, bucket, key)
 	if err != nil {
 		return err
 	}
 	delete(rs, val)
 	if len(rs) == 0 {
-		return Del(bucket, key)
+		return Del(tx, bucket, key)
 	}
-	return Put(bucket, key, rs)
+	return Put(tx, bucket, key, rs)
 }
 
 //MapKeys returns []string from keys of map[string]struct{} type value
-func MapKeys(bucket string, key []byte) ([]string, error) {
-	m, err := GetMap(bucket, key)
+func MapKeys(tx *bolt.Tx, bucket string, key []byte) ([]string, error) {
+	m, err := GetMap(tx, bucket, key)
 	if err != nil {
 		return nil, err
 	}
@@ -339,8 +306,8 @@ func MapKeys(bucket string, key []byte) ([]string, error) {
 }
 
 //HasVal returns true if map[string]struct{} type values has val.
-func HasVal(bucket string, key []byte, val string) bool {
-	m, err := GetMap(bucket, key)
+func HasVal(tx *bolt.Tx, bucket string, key []byte, val string) bool {
+	m, err := GetMap(tx, bucket, key)
 	if err != nil {
 		return false
 	}
@@ -349,30 +316,27 @@ func HasVal(bucket string, key []byte, val string) bool {
 }
 
 //GetPrefixs get string prefixs of keys.
-func GetPrefixs(bucket string) ([]string, error) {
+func GetPrefixs(tx *bolt.Tx, bucket string) ([]string, error) {
 	var cnt []string
 	var last string
 	var blast []byte
-	err := DB.View(func(tx *bolt.Tx) error {
-		b := tx.Bucket([]byte(bucket))
-		if b == nil {
-			return errors.New("bucket not found")
-		}
-		err := b.ForEach(func(k, v []byte) error {
-			if bytes.HasPrefix(k, blast) {
-				return nil
-			}
-			loc := bytes.IndexByte(k, 0x00)
-			if loc == -1 {
-				return errors.New("not have string prefix")
-			}
-			last = string(k[:loc-1])
-			cnt = append(cnt, last)
-			blast := make([]byte, len(last)+1)
-			copy(blast, k[:loc])
+	b := tx.Bucket([]byte(bucket))
+	if b == nil {
+		return nil, errors.New("bucket not found")
+	}
+	err := b.ForEach(func(k, v []byte) error {
+		if bytes.HasPrefix(k, blast) {
 			return nil
-		})
-		return err
+		}
+		loc := bytes.IndexByte(k, 0x00)
+		if loc == -1 {
+			return errors.New("not have string prefix")
+		}
+		last = string(k[:loc-1])
+		cnt = append(cnt, last)
+		blast := make([]byte, len(last)+1)
+		copy(blast, k[:loc])
+		return nil
 	})
 	return cnt, err
 }

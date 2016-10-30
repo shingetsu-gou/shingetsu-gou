@@ -36,6 +36,7 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/boltdb/bolt"
 	"github.com/shingetsu-gou/shingetsu-gou/db"
 )
 
@@ -53,7 +54,12 @@ func (u *Head) ToKey() []byte {
 
 //Exists return true if record file exists.
 func (u *Head) Exists() bool {
-	r, err := db.HasKey("record", u.ToKey())
+	var r bool
+	err := db.DB.View(func(tx *bolt.Tx) error {
+		var err error
+		r, err = db.HasKey(tx, "record", u.ToKey())
+		return err
+	})
 	if err != nil {
 		log.Print(err)
 		return false
@@ -63,7 +69,12 @@ func (u *Head) Exists() bool {
 
 //Removed return true if record is removed (i.e. exists.in removed path)
 func (u *Head) Removed() bool {
-	d, err := GetFromDB(u)
+	var d *DB
+	err := db.DB.View(func(tx *bolt.Tx) error {
+		var err error
+		d, err = GetFromDB(tx, u)
+		return err
+	})
 	if err != nil {
 		log.Print(err)
 		return false
@@ -73,13 +84,20 @@ func (u *Head) Removed() bool {
 
 //Remove moves the record file  to remove path
 func (u *Head) Remove() error {
-	d, err := GetFromDB(u)
+	var d *DB
+	err := db.DB.Update(func(tx *bolt.Tx) error {
+		var err error
+		d, err = GetFromDB(tx, u)
+		if err != nil {
+			return err
+		}
+		d.Deleted = true
+		return d.Put(tx)
+	})
 	if err != nil {
 		log.Print(err)
-		return err
 	}
-	d.Deleted = true
-	return d.Put()
+	return err
 }
 
 //Hash returns md5 of Head.

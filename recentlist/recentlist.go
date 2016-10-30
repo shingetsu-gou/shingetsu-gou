@@ -64,10 +64,14 @@ func IsInUpdateRange(nstamp int64) bool {
 
 //Datfiles returns all datfile names in recentlist.
 func Datfiles() []string {
-	datfile, err := db.GetPrefixs("recent")
+	var datfile []string
+	err := db.DB.View(func(tx *bolt.Tx) error {
+		var err error
+		datfile, err = db.GetPrefixs(tx, "recent")
+		return err
+	})
 	if err != nil {
 		log.Print(err)
-		return nil
 	}
 	return datfile
 }
@@ -75,7 +79,12 @@ func Datfiles() []string {
 //Newest returns newest record of datfile in the list.
 //if not found returns nil.
 func Newest(datfile string) (*record.Head, error) {
-	rows, err := db.GetStrings("recent", []byte(datfile))
+	var rows []string
+	err := db.DB.View(func(tx *bolt.Tx) error {
+		var err error
+		rows, err = db.GetStrings(tx, "recent", []byte(datfile))
+		return err
+	})
 	if err != nil {
 		log.Print(err)
 		return nil, err
@@ -92,26 +101,39 @@ func Newest(datfile string) (*record.Head, error) {
 	return &r, err
 }
 
-//Append add a infos generated from the record.
-func Append(rec *record.Head) {
+//appendHead add a infos generated from the record.
+func appendHead(tx *bolt.Tx, rec *record.Head) {
 	if find(rec) {
 		return
 	}
 	k := rec.ToKey()
-	err := db.Put("recent", k, rec)
+	err := db.Put(tx, "recent", k, rec)
 	if err != nil {
 		log.Print(err)
 	}
-	err = db.PutMap("recentS", db.ToKey(rec.Stamp), string(k))
+	err = db.PutMap(tx, "recentS", db.ToKey(rec.Stamp), string(k))
 	if err != nil {
 		log.Print(err)
 	}
 }
 
+//Append add a infos generated from the record.
+func Append(rec *record.Head) {
+	db.DB.Update(func(tx *bolt.Tx) error {
+		appendHead(tx, rec)
+		return nil
+	})
+}
+
 //find finds records and returns index. returns -1 if not found.
 func find(rec *record.Head) bool {
 	k := rec.ToKey()
-	r, err := db.Count("recent", k)
+	var r int
+	err := db.DB.View(func(tx *bolt.Tx) error {
+		var err error
+		r, err = db.Count(tx, "recent", k)
+		return err
+	})
 	if err != nil {
 		log.Print(err)
 	}
@@ -127,7 +149,7 @@ func RemoveOlds() {
 	t := time.Now().Unix() - int64(defaultUpdateRange)
 	b := make([]byte, 8)
 	binary.BigEndian.PutUint64(b, uint64(t))
-	err := db.DB.Batch(func(tx *bolt.Tx) error {
+	err := db.DB.Update(func(tx *bolt.Tx) error {
 		ba := tx.Bucket([]byte("recentS"))
 		if ba == nil {
 			return errors.New("bucket is not found")
@@ -140,7 +162,7 @@ func RemoveOlds() {
 				return err
 			}
 			for k := range m {
-				if err := db.Del("recent", []byte(k)); err != nil {
+				if err := db.Del(tx, "recent", []byte(k)); err != nil {
 					log.Println(err)
 				}
 			}
@@ -186,18 +208,21 @@ func get(begin int64, wg *sync.WaitGroup, n *node.Node) {
 		log.Println(err)
 		return
 	}
-	for _, line := range res {
-		rec, err := record.Make(line)
-		if err != nil {
-			continue
+	db.DB.Update(func(tx *bolt.Tx) error {
+		for _, line := range res {
+			rec, err := record.Make(line)
+			if err != nil {
+				continue
+			}
+			appendHead(tx, rec.Head)
+			tags := strings.Fields(strings.TrimSpace(rec.GetBodyValue("tag", "")))
+			if len(tags) > 0 {
+				suggest.AddString(tx, rec.Datfile, tags)
+				manager.AppendToTableTX(tx, rec.Datfile, n)
+			}
 		}
-		Append(rec.Head)
-		tags := strings.Fields(strings.TrimSpace(rec.GetBodyValue("tag", "")))
-		if len(tags) > 0 {
-			suggest.AddString(rec.Datfile, tags)
-			manager.AppendToTable(rec.Datfile, n)
-		}
-	}
+		return nil
+	})
 	log.Println("added", len(res), "recent records from", n.Nodestr)
 }
 

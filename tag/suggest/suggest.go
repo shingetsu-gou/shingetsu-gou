@@ -31,6 +31,7 @@ package suggest
 import (
 	"log"
 
+	"github.com/boltdb/bolt"
 	"github.com/shingetsu-gou/shingetsu-gou/cfg"
 	"github.com/shingetsu-gou/shingetsu-gou/db"
 	"github.com/shingetsu-gou/shingetsu-gou/record"
@@ -40,7 +41,12 @@ import (
 
 //Get returns copy of Slice associated with datfile or returns def if not exists.
 func Get(datfile string, def tag.Slice) tag.Slice {
-	r, err := db.MapKeys("sugtag", []byte(datfile))
+	var r []string
+	err := db.DB.View(func(tx *bolt.Tx) error {
+		var err error
+		r, err = db.MapKeys(tx, "sugtag", []byte(datfile))
+		return err
+	})
 	if err != nil {
 		log.Print(err)
 		return def
@@ -59,7 +65,12 @@ func Get(datfile string, def tag.Slice) tag.Slice {
 
 //keys return datfile names of Sugtaglist.
 func keys() []string {
-	r, err := db.KeyStrings("sugtag")
+	var r []string
+	err := db.DB.View(func(tx *bolt.Tx) error {
+		var err error
+		r, err = db.KeyStrings(tx, "sugtag")
+		return err
+	})
 	if err != nil {
 		log.Print(err)
 		return nil
@@ -68,12 +79,12 @@ func keys() []string {
 }
 
 //AddString adds tags to datfile from tagstrings.
-func AddString(datfile string, vals []string) {
+func AddString(tx *bolt.Tx, datfile string, vals []string) {
 	for _, v := range vals {
 		if !tag.IsOK(v) {
 			continue
 		}
-		if err := db.PutMap("sugtag", []byte(datfile), v); err != nil {
+		if err := db.PutMap(tx, "sugtag", []byte(datfile), v); err != nil {
 			log.Print(err)
 		}
 	}
@@ -81,7 +92,12 @@ func AddString(datfile string, vals []string) {
 
 //HasTagstr return true if one of tags has tagstr
 func HasTagstr(datfile string, tagstr string) bool {
-	return db.HasVal("sugtag", []byte(datfile), tagstr)
+	var r bool
+	db.DB.View(func(tx *bolt.Tx) error {
+		r = db.HasVal(tx, "sugtag", []byte(datfile), tagstr)
+		return nil
+	})
+	return r
 }
 
 //String return tagstr string of datfile.
@@ -102,10 +118,16 @@ func Prune(recs []*record.Head) {
 			tmp = append(tmp[:l], tmp[l+1:]...)
 		}
 	}
-	for _, datfile := range tmp {
-		err := db.Del("sugtag", []byte(datfile))
-		if err != nil {
-			log.Println(err)
+	err := db.DB.Update(func(tx *bolt.Tx) error {
+		for _, datfile := range tmp {
+			err := db.Del(tx, "sugtag", []byte(datfile))
+			if err != nil {
+				return err
+			}
 		}
+		return nil
+	})
+	if err != nil {
+		log.Println(err)
 	}
 }

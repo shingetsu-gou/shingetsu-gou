@@ -33,6 +33,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/boltdb/bolt"
 	"github.com/shingetsu-gou/shingetsu-gou/cfg"
 	"github.com/shingetsu-gou/shingetsu-gou/db"
 	"github.com/shingetsu-gou/shingetsu-gou/recentlist"
@@ -57,7 +58,12 @@ func NewCache(datfile string) *Cache {
 
 //Stamp returns latest stampl of records in the cache.
 func (c *Cache) Stamp() int64 {
-	r, err := record.GetFromDBs(c.Datfile)
+	var r []*record.DB
+	err := db.DB.View(func(tx *bolt.Tx) error {
+		var err error
+		r, err = record.GetFromDBs(tx, c.Datfile)
+		return err
+	})
 	if err != nil {
 		log.Print(err)
 		return 0
@@ -77,7 +83,12 @@ func (c *Cache) Stamp() int64 {
 
 //Len returns # of records in the cache.
 func (c *Cache) Len() int {
-	r, err := record.GetFromDBs(c.Datfile)
+	var r []*record.DB
+	err := db.DB.View(func(tx *bolt.Tx) error {
+		var err error
+		r, err = record.GetFromDBs(tx, c.Datfile)
+		return err
+	})
 	if err != nil {
 		log.Print(err)
 		return 0
@@ -87,7 +98,12 @@ func (c *Cache) Len() int {
 
 //Velocity returns number of records in one days in the cache.
 func (c *Cache) Velocity() int {
-	r, err := record.GetFromDBs(c.Datfile)
+	var r []*record.DB
+	err := db.DB.View(func(tx *bolt.Tx) error {
+		var err error
+		r, err = record.GetFromDBs(tx, c.Datfile)
+		return err
+	})
 	if err != nil {
 		log.Print(err)
 		return 0
@@ -107,7 +123,12 @@ func (c *Cache) Size() int64 {
 	if c.Len() == 0 {
 		return 0
 	}
-	r, err := record.GetFromDBs(c.Datfile)
+	var r []*record.DB
+	err := db.DB.View(func(tx *bolt.Tx) error {
+		var err error
+		r, err = record.GetFromDBs(tx, c.Datfile)
+		return err
+	})
 	if err != nil {
 		log.Print(err)
 		return 0
@@ -129,12 +150,20 @@ func (c *Cache) LoadRecords(kind int) record.Map {
 	return m
 }
 
-//Subscribe add the thread to thread db.
-func (c *Cache) Subscribe() {
-	err := db.Put("thread", []byte(c.Datfile), []byte(""))
+//subscribe add the thread to thread db.
+func (c *Cache) subscribe(tx *bolt.Tx) {
+	err := db.Put(tx, "thread", []byte(c.Datfile), []byte(""))
 	if err != nil {
 		log.Print(err)
 	}
+}
+
+//Subscribe add the thread to thread db.
+func (c *Cache) Subscribe() {
+	db.DB.Update(func(tx *bolt.Tx) error {
+		c.subscribe(tx)
+		return nil
+	})
 }
 
 //CheckData makes a record from res and checks its records meets condisions of args.
@@ -156,14 +185,16 @@ func (c *Cache) CheckData(res string, stamp int64, id string, begin, end int64) 
 
 //Remove Remove all files and dirs of cache.
 func (c *Cache) Remove() {
-	r, err := record.GetFromDBs(c.Datfile)
-	if err != nil {
-		log.Print(err)
-	}
-	for _, rr := range r {
-		rr.Del()
-	}
-	err = db.Del("thread", []byte(c.Datfile))
+	err := db.DB.Update(func(tx *bolt.Tx) error {
+		r, err := record.GetFromDBs(tx, c.Datfile)
+		if err != nil {
+			return err
+		}
+		for _, rr := range r {
+			rr.Del(tx)
+		}
+		return db.Del(tx, "thread", []byte(c.Datfile))
+	})
 	if err != nil {
 		log.Println(err)
 	}
@@ -171,7 +202,12 @@ func (c *Cache) Remove() {
 
 //HasRecord return true if  cache has more than one records or removed records.
 func (c *Cache) HasRecord() bool {
-	r, err := record.GetFromDBs(c.Datfile)
+	var r []*record.DB
+	err := db.DB.View(func(tx *bolt.Tx) error {
+		var err error
+		r, err = record.GetFromDBs(tx, c.Datfile)
+		return err
+	})
 	if err != nil {
 		log.Print(err)
 		return false
@@ -186,12 +222,16 @@ func (c *Cache) HasRecord() bool {
 
 //Exists return true is datapath exists.
 func (c *Cache) Exists() bool {
-	cnt, err := db.Count("thread", []byte(c.Datfile))
+	var cnt bool
+	err := db.DB.View(func(tx *bolt.Tx) error {
+		var err error
+		cnt, err = db.HasKey(tx, "thread", []byte(c.Datfile))
+		return err
+	})
 	if err != nil {
-		log.Print(err)
-		return false
+		log.Println(err)
 	}
-	return cnt > 0
+	return cnt
 }
 
 //Gettitle returns title part if *_*.
@@ -224,12 +264,16 @@ func (c *Cache) GetContents() []string {
 //CreateAllCachedirs creates all dirs in recentlist to be retrived when called recentlist.getall.
 //(heavymoon)
 func CreateAllCachedirs() {
-	for _, rh := range recentlist.GetRecords() {
-		ca := NewCache(rh.Datfile)
-		if !ca.Exists() {
-			ca.Subscribe()
+	recs := recentlist.GetRecords()
+	db.DB.Update(func(tx *bolt.Tx) error {
+		for _, rh := range recs {
+			ca := NewCache(rh.Datfile)
+			if !ca.Exists() {
+				ca.subscribe(tx)
+			}
 		}
-	}
+		return nil
+	})
 }
 
 //RecentStamp  returns time of getting by /recent.

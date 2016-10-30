@@ -50,13 +50,15 @@ var updated = make(map[[16]byte]time.Time)
 //if success to doUpdateNode, add node to updatelist and recentlist and
 //removes the record from queue.
 func UpdateNodes(rec *record.Record, n *node.Node) {
-	if doUpdateNode(rec, n) {
-		recentlist.Append(rec.Head)
-		if cfg.HeavyMoon {
-			if ca := thread.NewCache(rec.Datfile); !ca.Exists() {
-				ca.Subscribe()
-			}
-		}
+	if !doUpdateNode(rec, n) {
+		return
+	}
+	recentlist.Append(rec.Head)
+	if !cfg.HeavyMoon {
+		return
+	}
+	if ca := thread.NewCache(rec.Datfile); !ca.Exists() {
+		ca.Subscribe()
 	}
 }
 

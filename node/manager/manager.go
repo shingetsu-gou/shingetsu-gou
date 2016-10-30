@@ -29,12 +29,14 @@
 package manager
 
 import (
+	"errors"
 	"log"
 	"math/rand"
 	"strconv"
 	"strings"
 	"sync"
 
+	"github.com/boltdb/bolt"
 	"github.com/shingetsu-gou/shingetsu-gou/cfg"
 	"github.com/shingetsu-gou/shingetsu-gou/db"
 	"github.com/shingetsu-gou/shingetsu-gou/myself"
@@ -53,7 +55,12 @@ var list = string([]byte{0x01})
 
 //getFromList returns one node  in the nodelist.
 func getFromList() *node.Node {
-	rs, err := db.GetMap("lookupT", []byte(list))
+	var rs map[string]struct{}
+	err := db.DB.View(func(tx *bolt.Tx) error {
+		var err error
+		rs, err = db.GetMap(tx, "lookupT", []byte(list))
+		return err
+	})
 	if err != nil {
 		log.Print(err)
 		return nil
@@ -87,7 +94,12 @@ func ListLen() int {
 }
 
 func listLen(datfile string) int {
-	rs, err := db.GetMap("lookupT", []byte(datfile))
+	var rs map[string]struct{}
+	err := db.DB.View(func(tx *bolt.Tx) error {
+		var err error
+		rs, err = db.GetMap(tx, "lookupT", []byte(datfile))
+		return err
+	})
 	if err != nil {
 		log.Print(err)
 		return 0
@@ -102,7 +114,12 @@ func GetNodestrSlice() []string {
 
 //getAllNodes returns all nodes in table.
 func getAllNodes() node.Slice {
-	r, err := db.KeyStrings("lookupA")
+	var r []string
+	err := db.DB.View(func(tx *bolt.Tx) error {
+		var err error
+		r, err = db.KeyStrings(tx, "lookupA")
+		return err
+	})
 	if err != nil {
 		log.Print(err)
 		return nil
@@ -122,7 +139,12 @@ func Get(datfile string, def node.Slice) node.Slice {
 
 //GetNodestrSliceInTable returns Nodestr slice of nodes associated datfile thread.
 func GetNodestrSliceInTable(datfile string) []string {
-	r, err := db.MapKeys("lookupT", []byte(datfile))
+	var r []string
+	err := db.DB.View(func(tx *bolt.Tx) error {
+		var err error
+		r, err = db.MapKeys(tx, "lookupT", []byte(datfile))
+		return err
+	})
 	if err != nil {
 		log.Print(err)
 		return nil
@@ -165,23 +187,30 @@ func appendable(datfile string, n *node.Node) bool {
 
 //AppendToTable add node n to table if it is allowd and list doesn't have it.
 func AppendToTable(datfile string, n *node.Node) {
+	db.DB.Update(func(tx *bolt.Tx) error {
+		AppendToTableTX(tx, datfile, n)
+		return nil
+	})
+}
+
+//AppendToTableTX add node n to table if it is allowd and list doesn't have it.
+func AppendToTableTX(tx *bolt.Tx, datfile string, n *node.Node) {
 	if !appendable(datfile, n) {
 		return
 	}
-	err := db.PutMap("lookupT", []byte(datfile), n.Nodestr)
+	err := db.PutMap(tx, "lookupT", []byte(datfile), n.Nodestr)
 	if err != nil {
 		log.Print(err)
 	}
-
-	err = db.PutMap("lookupA", []byte(n.Nodestr), datfile)
+	err = db.PutMap(tx, "lookupA", []byte(n.Nodestr), datfile)
 	if err != nil {
-		log.Println(err)
+		log.Print(err)
 	}
 }
 
 //appendToList add node n to nodelist if it is allowd and list doesn't have it.
-func appendToList(n *node.Node) {
-	AppendToTable(list, n)
+func appendToList(tx *bolt.Tx, n *node.Node) {
+	AppendToTableTX(tx, list, n)
 }
 
 //ReplaceNodeInList removes one node and say bye to the node and add n in nodelist.
@@ -197,32 +226,50 @@ func ReplaceNodeInList(n *node.Node) *node.Node {
 		RemoveFromList(old)
 		old.Bye()
 	}
-	appendToList(n)
+	db.DB.Update(func(tx *bolt.Tx) error {
+		appendToList(tx, n)
+		return nil
+	})
 	return old
 }
 
 //hasNodeInTable returns true if nodelist has n.
 func hasNodeInTable(datfile string, n *node.Node) bool {
-	return db.HasVal("lookupT", []byte(datfile), n.Nodestr)
+	var r bool
+	db.DB.View(func(tx *bolt.Tx) error {
+		r = db.HasVal(tx, "lookupT", []byte(datfile), n.Nodestr)
+		return nil
+	})
+	return r
+}
+
+//removeFromTable removes node n and return true if exists.
+//or returns false if not exists.
+func removeFromTable(tx *bolt.Tx, datfile string, n *node.Node) error {
+	if n == nil {
+		err := errors.New("n is nil")
+		log.Println(err)
+		return err
+	}
+	if !db.HasVal(tx, "lookupT", []byte(datfile), n.Nodestr) {
+		return errors.New("no node")
+	}
+	err := db.DelMap(tx, "lookupT", []byte(datfile), n.Nodestr)
+	if err != nil {
+		return err
+	}
+	return db.DelMap(tx, "lookupA", []byte(n.Nodestr), datfile)
 }
 
 //RemoveFromTable removes node n and return true if exists.
 //or returns false if not exists.
 func RemoveFromTable(datfile string, n *node.Node) bool {
-	if n == nil {
-		log.Println("n is nil")
-		return false
-	}
-	if !hasNodeInTable(datfile, n) {
-		return false
-	}
-	err := db.DelMap("lookupT", []byte(datfile), n.Nodestr)
+	err := db.DB.Update(func(tx *bolt.Tx) error {
+		return removeFromTable(tx, datfile, n)
+	})
 	if err != nil {
 		log.Println(err)
-	}
-	err = db.DelMap("lookupA", []byte(n.Nodestr), datfile)
-	if err != nil {
-		log.Println(err)
+		return false
 	}
 	return true
 }
@@ -236,20 +283,26 @@ func RemoveFromList(n *node.Node) bool {
 //RemoveFromAllTable removes node n from all tables and return true if exists.
 //or returns false if not exists.
 func RemoveFromAllTable(n *node.Node) bool {
-	threads, err := db.GetMap("lookupA", []byte(n.Nodestr))
+	err := db.DB.Update(func(tx *bolt.Tx) error {
+		threads, err := db.GetMap(tx, "lookupA", []byte(n.Nodestr))
+		if err != nil {
+			return err
+		}
+		err = db.Del(tx, "lookupA", []byte(n.Nodestr))
+		if err != nil {
+			return err
+		}
+		for t := range threads {
+			err := db.DelMap(tx, "lookupT", []byte(t), n.Nodestr)
+			if err != nil {
+				return err
+			}
+		}
+		return nil
+	})
 	if err != nil {
 		log.Println(err)
 		return false
-	}
-	err = db.Del("lookupA", []byte(n.Nodestr))
-	if err != nil {
-		log.Println(err)
-	}
-	for t := range threads {
-		err := db.DelMap("lookupT", []byte(t), n.Nodestr)
-		if err != nil {
-			log.Println(err)
-		}
 	}
 	return true
 }
@@ -285,9 +338,12 @@ func Initialize(allnodes node.Slice) {
 	log.Println("# of nodelist:", ListLen())
 	if ListLen() == 0 {
 		myself.SetStatus(cfg.Port0)
-		for _, p := range pingOK {
-			appendToList(p)
-		}
+		db.DB.Update(func(tx *bolt.Tx) error {
+			for _, p := range pingOK {
+				appendToList(tx, p)
+			}
+			return nil
+		})
 	}
 }
 
@@ -299,23 +355,28 @@ func Join(n *node.Node) bool {
 	if n == nil {
 		return false
 	}
-	flag := false
 	if hasNodeInTable(list, n) || node.Me(false).Nodestr == n.Nodestr {
 		return false
 	}
-	for count := 0; count < retryJoin && ListLen() < defaultNodes; count++ {
-		extnode, err := n.Join()
-		if err != nil {
-			RemoveFromTable(list, n)
-			return flag
+	flag := false
+	err := db.DB.Update(func(tx *bolt.Tx) error {
+		for count := 0; count < retryJoin && ListLen() < defaultNodes; count++ {
+			extnode, err := n.Join()
+			if err != nil {
+				removeFromTable(tx, list, n)
+				return nil
+			}
+			appendToList(tx, n)
+			flag = true
+			if extnode == nil {
+				return nil
+			}
+			n = extnode
 		}
-		if extnode == nil {
-			appendToList(n)
-			return true
-		}
-		appendToList(n)
-		n = extnode
-		flag = true
+		return nil
+	})
+	if err != nil {
+		log.Print(err)
 	}
 	return flag
 }

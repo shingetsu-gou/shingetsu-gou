@@ -34,6 +34,7 @@ import (
 	"regexp"
 	"time"
 
+	"github.com/boltdb/bolt"
 	"github.com/shingetsu-gou/shingetsu-gou/db"
 	"github.com/shingetsu-gou/shingetsu-gou/mch"
 	"github.com/shingetsu-gou/shingetsu-gou/recentlist"
@@ -45,45 +46,56 @@ import (
 func getThread(stamp int64) (string, error) {
 	var thread string
 	k := db.MustTob(stamp)
-	_, err := db.Get("keylibST", k, &thread)
+	err := db.DB.View(func(tx *bolt.Tx) error {
+		_, err := db.Get(tx, "keylibST", k, &thread)
+		return err
+	})
 	return thread, err
 }
 
 func getTime(thread string) (int64, error) {
 	var stamp int64
 	k := db.MustTob(thread)
-	_, err := db.Get("keylibTS", k, &stamp)
+	err := db.DB.View(func(tx *bolt.Tx) error {
+		_, err := db.Get(tx, "keylibTS", k, &stamp)
+		return err
+	})
 	return stamp, err
 }
 
 //Load loads from the file, adds stamps/datfile pairs from cachelist and recentlist.
 //and saves to file.
 func Load() {
-	for _, c := range thread.AllCaches() {
-		setFromCache(c)
-	}
-	for _, rec := range recentlist.GetRecords() {
-		c := thread.NewCache(rec.Datfile)
-		setFromCache(c)
-	}
+	allCaches := thread.AllCaches()
+	allRecs := recentlist.GetRecords()
+	db.DB.Update(func(tx *bolt.Tx) error {
+		for _, c := range allCaches {
+			setFromCache(tx, c)
+		}
+		for _, rec := range allRecs {
+			c := thread.NewCache(rec.Datfile)
+			setFromCache(tx, c)
+		}
+		return nil
+	})
 }
 
 //setEntry stores stamp/value.
-func setEntry(stamp int64, filekey string) {
+func setEntry(tx *bolt.Tx, stamp int64, filekey string) {
 	sb := db.MustTob(stamp)
 	fb := db.MustTob(filekey)
-	err := db.Put("keylibST", sb, fb)
+	err := db.Put(tx, "keylibST", sb, fb)
 	if err != nil {
 		log.Print(err)
 	}
-	err = db.Put("keylibTS", fb, sb)
+	err = db.Put(tx, "keylibTS", fb, sb)
 	if err != nil {
 		log.Print(err)
 	}
 }
 
 //setFromCache adds cache.datfile/timestamp pair if not exists.
-func setFromCache(ca *thread.Cache) {
+func setFromCache(tx *bolt.Tx, ca *thread.Cache) {
 	_, err := getTime(ca.Datfile)
 	if err == nil {
 		return
@@ -102,7 +114,7 @@ func setFromCache(ca *thread.Cache) {
 	for err = nil; err != nil; firstStamp++ {
 		_, err = getThread(firstStamp)
 	}
-	setEntry(firstStamp, ca.Datfile)
+	setEntry(tx, firstStamp, ca.Datfile)
 }
 
 //GetDatkey returns stamp from filekey.
@@ -113,7 +125,10 @@ func GetDatkey(filekey string) (int64, error) {
 		return v, nil
 	}
 	c := thread.NewCache(filekey)
-	setFromCache(c)
+	db.DB.Update(func(tx *bolt.Tx) error {
+		setFromCache(tx, c)
+		return nil
+	})
 	return getTime(filekey)
 }
 

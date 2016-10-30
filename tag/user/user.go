@@ -31,6 +31,7 @@ package user
 import (
 	"log"
 
+	"github.com/boltdb/bolt"
 	"github.com/shingetsu-gou/shingetsu-gou/db"
 	"github.com/shingetsu-gou/shingetsu-gou/tag"
 )
@@ -43,7 +44,12 @@ func String(thread string) string {
 
 //Len  returns # of usertags.
 func Len(thread string) int {
-	r, err := db.GetMap("usertag", []byte(thread))
+	var r map[string]struct{}
+	err := db.DB.View(func(tx *bolt.Tx) error {
+		var errr error
+		r, errr = db.GetMap(tx, "usertag", []byte(thread))
+		return errr
+	})
 	if err != nil {
 		log.Print(err)
 		return 0
@@ -53,17 +59,27 @@ func Len(thread string) int {
 
 //Has returns true if thread has the tag.
 func Has(thread string, tag ...string) bool {
-	for _, t := range tag {
-		if r := db.HasVal("usertag", []byte(thread), t); r {
-			return true
+	rr := false
+	db.DB.View(func(tx *bolt.Tx) error {
+		for _, t := range tag {
+			if db.HasVal(tx, "usertag", []byte(thread), t) {
+				rr = true
+				return nil
+			}
 		}
-	}
-	return false
+		return nil
+	})
+	return rr
 }
 
 //Get tags from the disk and returns Slice.
 func Get() tag.Slice {
-	r, err := db.KeyStrings("usertagTag")
+	var r []string
+	err := db.DB.View(func(tx *bolt.Tx) error {
+		var err error
+		r, err = db.KeyStrings(tx, "usertagTag")
+		return err
+	})
 	if err != nil {
 		log.Print(err)
 		return nil
@@ -73,7 +89,12 @@ func Get() tag.Slice {
 
 //GetStrings gets thread tags from the disk
 func GetStrings(thread string) []string {
-	r, err := db.MapKeys("usergag", []byte(thread))
+	var r []string
+	err := db.DB.View(func(tx *bolt.Tx) error {
+		var err error
+		r, err = db.MapKeys(tx, "usergag", []byte(thread))
+		return err
+	})
 	if err != nil {
 		log.Print(err)
 		return nil
@@ -88,41 +109,53 @@ func GetByThread(thread string) tag.Slice {
 }
 
 //Add saves tag strings.
-func Add(thread string, tag []string) {
+func Add(thread string, tag []string) error {
+	return db.DB.Update(func(tx *bolt.Tx) error {
+		return AddTX(tx, thread, tag)
+	})
+}
+
+//AddTX saves tag strings.
+func AddTX(tx *bolt.Tx, thread string, tag []string) error {
 	for _, t := range tag {
-		if err := db.PutMap("usertag", []byte(thread), t); err != nil {
-			log.Print(err)
+		if err := db.PutMap(tx, "usertag", []byte(thread), t); err != nil {
+			return err
 		}
-		if err := db.PutMap("usertagTag", []byte(t), thread); err != nil {
-			log.Print(err)
+		if err := db.PutMap(tx, "usertagTag", []byte(t), thread); err != nil {
+			return err
 		}
 	}
+	return nil
 }
 
 //AddTags saves tag slice..
 func AddTags(thread string, tag tag.Slice) {
-	Add(thread, tag.GetTagstrSlice())
+	if err := Add(thread, tag.GetTagstrSlice()); err != nil {
+		log.Print(err)
+	}
 }
 
 //Set remove all tags and saves tag strings.
 func Set(thread string, tag []string) {
-	ts, err := db.GetMap("usertag", []byte(thread))
-	if err != nil {
-		log.Print(err)
-		return
-	}
-	for t := range ts {
-		err = db.DelMap("usertagTag", []byte(t), thread)
+	err := db.DB.Update(func(tx *bolt.Tx) error {
+		ts, err := db.GetMap(tx, "usertag", []byte(thread))
 		if err != nil {
-			log.Print(err)
+			return err
 		}
-	}
-	err = db.Del("usertag", []byte(thread))
+		for t := range ts {
+			err = db.DelMap(tx, "usertagTag", []byte(t), thread)
+			if err != nil {
+				return err
+			}
+		}
+		if err := db.Del(tx, "usertag", []byte(thread)); err != nil {
+			return err
+		}
+		return AddTX(tx, thread, tag)
+	})
 	if err != nil {
 		log.Print(err)
-		return
 	}
-	Add(thread, tag)
 }
 
 //SetTags remove all tags and saves tag slice.
