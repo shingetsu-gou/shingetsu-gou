@@ -90,7 +90,7 @@ func GetFromDBs(tx *bolt.Tx, datfile string) ([]*DB, error) {
 	bdatfile[len(datfile)] = 0x0
 	b := tx.Bucket([]byte("record"))
 	if b == nil {
-		return nil, errors.New("bucket not found")
+		return nil, errors.New("bucket not found record")
 	}
 	c := b.Cursor()
 	for k, v := c.Seek(bdatfile); bytes.HasPrefix(k, bdatfile); k, v = c.Next() {
@@ -108,7 +108,7 @@ func GetFromDBs(tx *bolt.Tx, datfile string) ([]*DB, error) {
 func ForEach(tx *bolt.Tx, cond func([]byte, int) bool, eachDo func(*DB) error) error {
 	b := tx.Bucket([]byte("record"))
 	if b == nil {
-		return errors.New("bucket not found")
+		return errors.New("bucket not found record")
 	}
 	c := b.Cursor()
 	d := DB{}
@@ -370,7 +370,7 @@ func (r *Record) AttachPath(thumbnailSize string) string {
 func (r *Record) SyncTX(tx *bolt.Tx, deleted bool) error {
 	has, err := db.HasKey(tx, "record", r.Head.ToKey())
 	if err != nil {
-		return err
+		log.Println(err)
 	}
 	if has {
 		return nil

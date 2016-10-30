@@ -57,17 +57,18 @@ func cron() {
 			log.Println("short cycle cron started")
 			ns := node.MustNew(node.InitNode.GetData())
 			if len(ns) == 0 {
-				log.Fatal("not init nodes")
+				log.Fatal("no init nodes")
 			}
-			nodes := ns[0].GetherNodes()
-			for _, i := range nodes {
+			for _, i := range ns {
 				if _, err := i.Ping(); err == nil {
-					break
+					manager.AppendToList(i)
 				}
 			}
-			myself.ResetPort()
-			manager.Initialize(nodes)
 			doSync(getall)
+			nodes := ns[0].GetherNodes()
+
+			myself.ResetPort()
+			go manager.Initialize(nodes)
 			keylib.Load()
 			log.Println("short cycle cron finished")
 			getall = false

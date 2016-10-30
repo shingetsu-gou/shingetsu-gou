@@ -101,7 +101,7 @@ func listLen(datfile string) int {
 		return err
 	})
 	if err != nil {
-		log.Print(err)
+		log.Print(err, datfile)
 		return 0
 	}
 	return len(rs)
@@ -146,7 +146,7 @@ func GetNodestrSliceInTable(datfile string) []string {
 		return err
 	})
 	if err != nil {
-		log.Print(err)
+		log.Print(err, datfile)
 		return nil
 	}
 	return r
@@ -206,6 +206,11 @@ func AppendToTableTX(tx *bolt.Tx, datfile string, n *node.Node) {
 	if err != nil {
 		log.Print(err)
 	}
+}
+
+//AppendToList add node n to nodelist if it is allowd and list doesn't have it.
+func AppendToList(n *node.Node) {
+	AppendToTable(list, n)
 }
 
 //appendToList add node n to nodelist if it is allowd and list doesn't have it.
@@ -315,8 +320,8 @@ func Initialize(allnodes node.Slice) {
 		inodes = inodes[:defaultNodes]
 	}
 	var wg sync.WaitGroup
-	pingOK := make([]*node.Node, 0, len(inodes))
 	var mutex sync.Mutex
+	port0 := true
 	for i := 0; i < len(inodes) && ListLen() < defaultNodes; i++ {
 		wg.Add(1)
 		go func(inode *node.Node) {
@@ -324,11 +329,13 @@ func Initialize(allnodes node.Slice) {
 				wg.Done()
 				return
 			}
-			mutex.Lock()
-			pingOK = append(pingOK, inode)
-			mutex.Unlock()
 			go func(inode *node.Node) {
-				Join(inode)
+				if Join(inode) {
+					mutex.Lock()
+					port0 = false
+					mutex.Unlock()
+				}
+				AppendToList(inode)
 				wg.Done()
 			}(inode)
 		}(inodes[i])
@@ -336,14 +343,11 @@ func Initialize(allnodes node.Slice) {
 	wg.Wait()
 
 	log.Println("# of nodelist:", ListLen())
-	if ListLen() == 0 {
+	if port0 {
+		log.Println("port0")
 		myself.SetStatus(cfg.Port0)
-		db.DB.Update(func(tx *bolt.Tx) error {
-			for _, p := range pingOK {
-				appendToList(tx, p)
-			}
-			return nil
-		})
+	} else {
+		log.Println("opened")
 	}
 }
 
@@ -359,24 +363,18 @@ func Join(n *node.Node) bool {
 		return false
 	}
 	flag := false
-	err := db.DB.Update(func(tx *bolt.Tx) error {
-		for count := 0; count < retryJoin && ListLen() < defaultNodes; count++ {
-			extnode, err := n.Join()
-			if err != nil {
-				removeFromTable(tx, list, n)
-				return nil
-			}
-			appendToList(tx, n)
-			flag = true
-			if extnode == nil {
-				return nil
-			}
-			n = extnode
+	for count := 0; count < retryJoin && ListLen() < defaultNodes; count++ {
+		extnode, err := n.Join()
+		if err != nil {
+			RemoveFromTable(list, n)
+			return false
 		}
-		return nil
-	})
-	if err != nil {
-		log.Print(err)
+		AppendToList(n)
+		flag = true
+		if extnode == nil {
+			return true
+		}
+		n = extnode
 	}
 	return flag
 }

@@ -179,7 +179,6 @@ func (c *Cache) CheckData(tx *bolt.Tx, res string, stamp int64,
 	exist, err := db.HasKey(tx, "record", r.Head.ToKey())
 	if err != nil {
 		log.Println(err)
-		return err
 	}
 	if exist {
 		return nil

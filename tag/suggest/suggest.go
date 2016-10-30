@@ -48,7 +48,7 @@ func Get(datfile string, def tag.Slice) tag.Slice {
 		return err
 	})
 	if err != nil {
-		log.Print(err)
+		log.Print(err, datfile)
 		return def
 	}
 	tags := make([]*tag.Tag, len(r))

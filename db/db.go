@@ -120,7 +120,7 @@ func MustTob(v interface{}) []byte {
 func ToKey(v ...interface{}) []byte {
 	var r []byte
 	for _, vv := range v {
-		b := MustTob(v)
+		b := MustTob(vv)
 		r = append(r, b...)
 		if _, ok := vv.(string); ok {
 			r = append(r, '\x00')
@@ -153,7 +153,7 @@ func b2v(from []byte, to interface{}) error {
 func Get(tx *bolt.Tx, bucket string, key []byte, value interface{}) ([]byte, error) {
 	b := tx.Bucket([]byte(bucket))
 	if b == nil {
-		return nil, errors.New("bucket not found")
+		return nil, errors.New("bucket not found " + bucket)
 	}
 	v := b.Get(key)
 	if v == nil {
@@ -168,7 +168,6 @@ func Put(tx *bolt.Tx, bucket string, key []byte, value interface{}) error {
 	if err != nil {
 		return err
 	}
-
 	b, errr := tx.CreateBucketIfNotExists([]byte(bucket))
 	if errr != nil {
 		return fmt.Errorf("create bucket: %s", err)
@@ -181,7 +180,7 @@ func HasKey(tx *bolt.Tx, bucket string, key []byte) (bool, error) {
 	var v []byte
 	b := tx.Bucket([]byte(bucket))
 	if b == nil {
-		return false, errors.New("bucket not found")
+		return false, errors.New("bucket not found " + bucket)
 	}
 	v = b.Get(key)
 	return v != nil, nil
@@ -191,7 +190,7 @@ func HasKey(tx *bolt.Tx, bucket string, key []byte) (bool, error) {
 func Get1st(tx *bolt.Tx, bucket string, prefix []byte, value interface{}) ([]byte, error) {
 	b := tx.Bucket([]byte(bucket))
 	if b == nil {
-		return nil, errors.New("bucket not found")
+		return nil, errors.New("bucket not found " + bucket)
 	}
 	c := b.Cursor()
 	k, v := c.Seek(prefix)
@@ -206,7 +205,7 @@ func Count(tx *bolt.Tx, bucket string, prefix []byte) (int, error) {
 	var cnt int
 	b := tx.Bucket([]byte(bucket))
 	if b == nil {
-		return 0, errors.New("bucket not found")
+		return 0, errors.New("bucket not found " + bucket)
 	}
 	c := b.Cursor()
 	for k, _ := c.Seek(prefix); bytes.HasPrefix(k, prefix); k, _ = c.Next() {
@@ -220,7 +219,7 @@ func GetStrings(tx *bolt.Tx, bucket string, prefix []byte) ([]string, error) {
 	var cnt []string
 	b := tx.Bucket([]byte(bucket))
 	if b == nil {
-		return nil, errors.New("bucket not found")
+		return nil, errors.New("bucket not found " + bucket)
 	}
 	c := b.Cursor()
 	for k, v := c.Seek(prefix); bytes.HasPrefix(k, prefix); k, v = c.Next() {
@@ -238,7 +237,7 @@ func KeyStrings(tx *bolt.Tx, bucket string) ([]string, error) {
 	var cnt []string
 	b := tx.Bucket([]byte(bucket))
 	if b == nil {
-		return nil, errors.New("bucket not found")
+		return nil, errors.New("bucket not found " + bucket)
 	}
 	err := b.ForEach(func(k, v []byte) error {
 		var str string
@@ -255,7 +254,7 @@ func KeyStrings(tx *bolt.Tx, bucket string) ([]string, error) {
 func Del(tx *bolt.Tx, bucket string, key []byte) error {
 	b := tx.Bucket([]byte(bucket))
 	if b == nil {
-		return errors.New("bucket not found")
+		return errors.New("bucket not found " + bucket)
 	}
 	return b.Delete(key)
 }
@@ -322,20 +321,20 @@ func GetPrefixs(tx *bolt.Tx, bucket string) ([]string, error) {
 	var blast []byte
 	b := tx.Bucket([]byte(bucket))
 	if b == nil {
-		return nil, errors.New("bucket not found")
+		return nil, errors.New("bucket not found " + bucket)
 	}
 	err := b.ForEach(func(k, v []byte) error {
-		if bytes.HasPrefix(k, blast) {
+		if blast != nil && bytes.HasPrefix(k, blast) {
 			return nil
 		}
 		loc := bytes.IndexByte(k, 0x00)
 		if loc == -1 {
 			return errors.New("not have string prefix")
 		}
-		last = string(k[:loc-1])
+		last = string(k[:loc])
 		cnt = append(cnt, last)
 		blast := make([]byte, len(last)+1)
-		copy(blast, k[:loc])
+		copy(blast, k[:loc+1])
 		return nil
 	})
 	return cnt, err

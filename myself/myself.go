@@ -104,7 +104,6 @@ func ResetPort() {
 	switch cfg.NetworkMode {
 	case cfg.Normal:
 		resetConnection()
-		SetStatus(cfg.Normal)
 	case cfg.UPnP:
 		if useUPnP() {
 			SetStatus(cfg.UPnP)
