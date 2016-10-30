@@ -1,0 +1,81 @@
+language: go
+
+go:
+  - 1.7
+
+env:
+  global:
+    - secure: "rMvn3pYBCTD9QL7y5YTR4qTS935Yg/XTYV590Jc4WmI1ohniCjamqrF06eHIduBmnwt+OpvcKB54CLNqa2CbBJhV9rwXcWQ1w7ggvukx8V+VKXSgUSv6lLbXN7ZdQyUwpfsWnYVM6o+CT8OHr71FsAqMh3dMjSv3FYjdsKVfUXTRnxjXe+zscjxWRpn/CsbQ7PayPGnc8+c3/tULqayFekbI0Vax/OtbAMSlNkKUSDMCEc6JatJ3MYW0qWTZA59ECicpWFyF0xDwhYgAaj7t5dPLyWSJTdwebcixen7scdjQ8PiGa3mLs/NhK0Typ6CFHBuyHE4P50bAiekivTrwSdxpe6xGcEwY8ph/N2BKu6V0tjh/3rr+fnmfmu0SMNssDGLkQkK7THKMmFl9gkcIL+pRdee8xJbVCHwCbgsY9S12lu6MNwLwmV+iQ+QqEtVMJhEkpQE7sg3qSXYcMWpZC+r9cl1QHbEC1HvNO+k+tjgtGKpmE+hqAQI2reLg2HuzFBoxXTVDuvhf3bVL+U0R2fHfo2PiqFBUlAqBJfJPW1G4oP5YwWEtWoBWVNJXPUK4vGlFGH6jMcIqXxGfcQRO2NnfmpljOdgEgw2+xRV4Wi7Nacr+f7y1JupRS7mb8ZY9iuIKmyMdHmCamaEobijh+TBRLV8bHwmCJcRQIc/FPMM="
+    - PACKAGE_VERSION: 0.1.3
+    - REPO_NAME: shingetsu-gou
+    - REPO_DIR: github.com/shingetsu-gou/shingetsu-gou
+
+gobuild_args: -u -x -ldflags "-X ${REPO_DIR}/cfg.Version=${PACKAGE_VERSION}"
+
+before_install:
+- sudo apt-get -qq update
+#- sudo apt-get install -y  gcc-arm-linux-gnueabihf g++-arm-linux-gnueabihf  gcc-arm-linux-gnueabi g++-arm-linux-gnueabi libc6-dev-armel-cross  gcc-arm-linux-gnueabihf g++-arm-linux-gnueabihf libc6-dev-armhf-cross  gcc-multilib g++-multilib 
+#- sudo apt-get install -y binutils-mingw-w64-i686  binutils-mingw-w64-x86-64  gcc-mingw-w64-i686 g++-mingw-w64-i686 gcc-mingw-w64-x86-64 g++-mingw-w64-x86-64 clang llvm-dev   libxml2-dev uuid-dev swig  p7zip  texinfo help2man       --no-install-recommends
+#- sudo apt-get install -y binutils-mingw-w64-i686  binutils-mingw-w64-x86-64  gcc-mingw-w64-i686  gcc-mingw-w64-x86-64     libxml2-dev uuid-dev swig  p7zip  texinfo help2man 
+- sudo apt-get install -y binutils-mingw-w64-i686  binutils-mingw-w64-x86-64  gcc-mingw-w64-i686  gcc-mingw-w64-x86-64     libxml2-dev uuid-dev swig  p7zip  texinfo help2man gcc-multilib g++-multilib 
+- go get github.com/axw/gocov/gocov
+- go get github.com/alecthomas/gometalinter
+- go get github.com/mattn/goveralls
+- go get -u github.com/jteeuwen/go-bindata/...
+- if ! go get code.google.com/p/go.tools/cmd/cover; then go get golang.org/x/tools/cmd/cover; fi
+- export PATH=$PATH:$GOPATH/bin:$GOPATH/src/${REPO_DIR}/osxcross/target/bin
+- gometalinter --install --update
+- go-bindata -o util/bindata.go -pkg util www/... file/... gou_template/...
+#- wget https://s3.dockerproject.org/darwin/v2/MacOSX10.11.sdk.tar.xz
+#- git clone https://github.com/tpoechtrager/osxcross.git
+#- mv MacOSX10.11.sdk.tar.xz osxcross/tarballs/
+#- UNATTENDED=yes OSX_VERSION_MIN=10.6 osxcross/build.sh
+script:
+- go test -v -covermode=count -coverprofile=coverage.out
+#- ! gometalinter --deadline=1000s ./... 2>&1 | read
+
+after_success:
+- goveralls -coverprofile=coverage.out -service=travis-ci
+- gometalinter -e bindata --deadline=1000s ./...
+- echo "Bootstrapping linux/amd64..."
+- go build -o ${REPO_NAME}_${PACKAGE_VERSION}_linux_amd64 -ldflags "-X ${REPO_DIR}/cfg.Version=${PACKAGE_VERSION}" 
+- echo "Bootstrapping linux/386..."
+- env CGO_ENABLED=1 GOOS=linux GOARCH=386 go build -o ${REPO_NAME}_${PACKAGE_VERSION}_linux_386 -ldflags "-X ${REPO_DIR}/cfg.Version=${PACKAGE_VERSION}"
+#- echo "Bootstrapping linux/arm..."
+#- env CGO_ENABLED=1 GOOS=linux GOARCH=arm GOARM=6  CC=arm-linux-gnueabihf-gcc  go build -o ${REPO_NAME}_${PACKAGE_VERSION}_linux_arm -ldflags "-X ${REPO_DIR}/cfg.Version=${PACKAGE_VERSION}" -ldflags "-extld=arm-linux-gnueabihf-gcc"
+- echo "Bootstrapping windows/amd64..."
+- env CGO_ENABLED=1 GOOS=windows GOARCH=amd64  CC=x86_64-w64-mingw32-gcc go build -o ${REPO_NAME}_${PACKAGE_VERSION}_win_amd64.exe -ldflags "-X ${REPO_DIR}/cfg.Version=${PACKAGE_VERSION}"
+- echo "Bootstrapping windows/386..."
+- env CGO_ENABLED=1 GOOS=windows GOARCH=386 CC=i686-w64-mingw32-gcc go build -o ${REPO_NAME}_${PACKAGE_VERSION}_win_386.exe -ldflags "-X ${REPO_DIR}/cfg.Version=${PACKAGE_VERSION}"
+#- echo "Bootstrapping darwin/amd64..."
+#- env CGO_ENABLED=1 GOOS=darwin GOARCH=amd64 CC=o64-clang go build -o ${REPO_NAME}_${PACKAGE_VERSION}_darwin_amd64 -ldflags "-X ${REPO_DIR}/cfg.Version=${PACKAGE_VERSION}"
+#- echo "Bootstrapping darwin/386..."
+#- env CGO_ENABLED=1 GOOS=darwin GOARCH=386  CC=o32-clang go build -o ${REPO_NAME}_${PACKAGE_VERSION}_darwin_386 -ldflags "-X ${REPO_DIR}/cfg.Version=${PACKAGE_VERSION}"
+- ls
+- gzip ${REPO_NAME}_${PACKAGE_VERSION}_linux_386
+- gzip ${REPO_NAME}_${PACKAGE_VERSION}_linux_amd64
+#- gzip ${REPO_NAME}_${PACKAGE_VERSION}_linux_arm
+- zip ${REPO_NAME}_${PACKAGE_VERSION}_win_amd64.exe.zip  ${REPO_NAME}_${PACKAGE_VERSION}_win_amd64.exe
+- zip ${REPO_NAME}_${PACKAGE_VERSION}_win_386.exe.zip  ${REPO_NAME}_${PACKAGE_VERSION}_win_386.exe
+#- zip ${REPO_NAME}_${PACKAGE_VERSION}_darwin_amd64.zip  ${REPO_NAME}_${PACKAGE_VERSION}_darwin_amd64
+#- zip ${REPO_NAME}_${PACKAGE_VERSION}_darwin_386.zip  ${REPO_NAME}_${PACKAGE_VERSION}_darwin_386
+- ls
+- cd ..
+
+deploy:
+  provider: releases
+  api_key:
+    secure: ${GITHUB_TOKEN}
+  file:
+     -  "$GOPATH/src/$REPO_DIR/${REPO_NAME}_${PACKAGE_VERSION}_linux_386.gz"
+     -  "$GOPATH/src/$REPO_DIR/${REPO_NAME}_${PACKAGE_VERSION}_linux_amd64.gz"
+#     -  "$GOPATH/src/$REPO_DIR/${REPO_NAME}_${PACKAGE_VERSION}_linux_arm.gz"
+     -  "$GOPATH/src/$REPO_DIR/${REPO_NAME}_${PACKAGE_VERSION}_win_386.exe.zip"
+     -  "$GOPATH/src/$REPO_DIR/${REPO_NAME}_${PACKAGE_VERSION}_win_amd64.exe.zip"
+#     -  "$GOPATH/src/$REPO_DIR/${REPO_NAME}_${PACKAGE_VERSION}_darwin_386.zip"
+#     -  "$GOPATH/src/$REPO_DIR/${REPO_NAME}_${PACKAGE_VERSION}_darwin_amd64.zip"
+  skip_cleanup: true
+  on:
+    repo: $REPO_NAME/$REPO_NAME
+    tags: true
+    all_branches: true
