@@ -169,18 +169,34 @@ func (c *Cache) Subscribe() {
 //CheckData makes a record from res and checks its records meets condisions of args.
 //adds the rec to cache if meets conditions.
 //if spam or big data, remove the rec from disk.
-//returns count of added records to the cache and spam/getting error.
-func (c *Cache) CheckData(res string, stamp int64, id string, begin, end int64) error {
+//returns spam/getting error.
+func (c *Cache) CheckData(tx *bolt.Tx, res string, stamp int64,
+	id string, begin, end int64) error {
 	r := record.New(c.Datfile, "", 0)
 	if errr := r.Parse(res); errr != nil {
 		return cfg.ErrGet
-
 	}
-	if r.Exists() || r.Removed() {
+	exist, err := db.HasKey(tx, "record", r.Head.ToKey())
+	if err != nil {
+		log.Println(err)
+		return err
+	}
+	if exist {
 		return nil
 	}
-	r.Sync()
-	return r.CheckData(begin, end)
+	if !r.Meets(begin, end) {
+		return cfg.ErrGet
+	}
+	deleted := false
+	if len(r.Recstr()) > cfg.RecordLimit<<10 || r.IsSpam() {
+		log.Printf("warning:%s/%s:too large or spam record", r.Datfile, r.Idstr())
+		deleted = true
+	}
+	r.SyncTX(tx, deleted)
+	if deleted {
+		return cfg.ErrSpam
+	}
+	return nil
 }
 
 //Remove Remove all files and dirs of cache.

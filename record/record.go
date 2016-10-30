@@ -365,23 +365,29 @@ func (r *Record) AttachPath(thumbnailSize string) string {
 	return r.Idstr() + "." + suffix
 }
 
+//SyncTX saves Recstr to the file. if attached file exists, saves it to attached path.
+//if signed, also saves body part.
+func (r *Record) SyncTX(tx *bolt.Tx, deleted bool) error {
+	has, err := db.HasKey(tx, "record", r.Head.ToKey())
+	if err != nil {
+		return err
+	}
+	if has {
+		return nil
+	}
+	d := DB{
+		Head:    r.Head,
+		Body:    r.bodystr(),
+		Deleted: deleted,
+	}
+	return d.Put(tx)
+}
+
 //Sync saves Recstr to the file. if attached file exists, saves it to attached path.
 //if signed, also saves body part.
 func (r *Record) Sync() {
 	err := db.DB.Update(func(tx *bolt.Tx) error {
-		has, err := db.HasKey(tx, "record", r.Head.ToKey())
-		if err != nil {
-			return err
-		}
-		if has {
-			return nil
-		}
-		d := DB{
-			Head:    r.Head,
-			Body:    r.bodystr(),
-			Deleted: false,
-		}
-		return d.Put(tx)
+		return r.SyncTX(tx, false)
 	})
 	if err != nil {
 		log.Print(err)
@@ -417,8 +423,8 @@ func (r *Record) checkSign() bool {
 	return util.Verify(md, r.contents["sign"], r.contents["pubkey"])
 }
 
-//meets checks the record meets conditions of args
-func (r *Record) meets(begin, end int64) bool {
+//Meets checks the record meets conditions of args
+func (r *Record) Meets(begin, end int64) bool {
 	md5ok := r.md5check()
 	if begin > r.Stamp || (end > 0 && r.Stamp > end) {
 		log.Println("stamp range NG", begin, end, r.Stamp)
@@ -492,7 +498,7 @@ func (r *Record) GetData(n *node.Node) error {
 //if spam or big data, remove the rec from disk.
 //returns count of added records to the cache and spam/getting error.
 func (r *Record) CheckData(begin, end int64) error {
-	if !r.meets(begin, end) {
+	if !r.Meets(begin, end) {
 		return cfg.ErrGet
 	}
 	if len(r.Recstr()) > cfg.RecordLimit<<10 || r.IsSpam() {

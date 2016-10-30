@@ -35,7 +35,9 @@ import (
 	"sync"
 	"time"
 
+	"github.com/boltdb/bolt"
 	"github.com/shingetsu-gou/shingetsu-gou/cfg"
+	"github.com/shingetsu-gou/shingetsu-gou/db"
 	"github.com/shingetsu-gou/shingetsu-gou/node"
 	"github.com/shingetsu-gou/shingetsu-gou/node/manager"
 	"github.com/shingetsu-gou/shingetsu-gou/recentlist"
@@ -224,12 +226,15 @@ func getWithRange(n *node.Node, c *thread.Cache, dm *Manager) bool {
 			dm.Finished(n, false)
 			return false
 		}
-		for _, res := range ress {
-			errf := c.CheckData(res, -1, "", from, to)
-			if errf == nil {
-				okcount++
+		db.DB.Update(func(tx *bolt.Tx) error {
+			for _, res := range ress {
+				errf := c.CheckData(tx, res, -1, "", from, to)
+				if errf == nil {
+					okcount++
+				}
 			}
-		}
+			return nil
+		})
 		dm.Finished(n, true)
 		log.Println(c.Datfile, okcount, "records were saved from", n.Nodestr)
 		got = okcount > 0
