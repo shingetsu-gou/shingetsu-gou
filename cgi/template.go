@@ -44,10 +44,10 @@ import (
 )
 
 //TmpH is template for html.
-var TmpH = newHtemplate(cfg.TemplateDir)
+var TmpH *Htemplate
 
 //TmpT is template for text(rss).
-var TmpT = newTtemplate(cfg.TemplateDir)
+var TmpT *Ttemplate
 
 var funcMap = map[string]interface{}{
 	"add":          func(a, b int) int { return a + b },
@@ -67,6 +67,12 @@ var funcMap = map[string]interface{}{
 //Ttemplate is for rendering text rss template.
 type Ttemplate struct {
 	*textTemplate.Template
+}
+
+//Setup setups template vars.
+func Setup() {
+	TmpH = newHtemplate(cfg.TemplateDir)
+	TmpT = newTtemplate(cfg.TemplateDir)
 }
 
 //newTtemplate adds funcmap to template var and parse files.

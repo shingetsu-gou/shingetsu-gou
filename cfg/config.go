@@ -68,8 +68,27 @@ var (
 	ErrGet  = errors.New("cannot get data")
 )
 
+//cwd represents current working dir.
+//which should be the result of getFilesDir()  at android.
+var cwd = "."
+var android = false
+
+//SetAndroid sets that I'm in android
+//and writable path as cwd.
+//all paths are ignored when in android.
+func SetAndroid(path string) {
+	android = true
+	cwd = path
+}
+
 //config params
 var (
+	Docroot     string
+	LogDir      string
+	RunDir      string
+	FileDir     string
+	TemplateDir string
+
 	NetworkMode          int //port_opened,relay,upnp
 	SaveRecord           int64
 	SaveSize             int // It is not seconds, but number.
@@ -78,11 +97,6 @@ var (
 	SaveRemoved          int64
 	DefaultPort          int //DefaultPort is listening port
 	MaxConnection        int
-	Docroot              string
-	LogDir               string
-	RunDir               string
-	FileDir              string
-	TemplateDir          string
 	SpamList             string
 	InitnodeList         string
 	NodeAllowFile        string
@@ -159,12 +173,12 @@ func getPathValue(i *ini.File, section, key string, vdefault string) string {
 	return filepath.FromSlash(h)
 }
 
-//init makes  config vars from the ini files and returns it.
-func init() {
-	files := []string{"file/saku.ini", "/usr/local/etc/saku/saku.ini", "/etc/saku/saku.ini"}
+//Parse makes  config vars from the ini files and returns it.
+func Parse() {
+	files := []string{filepath.Join(cwd, "file", "saku.ini"), "/usr/local/etc/saku/saku.ini", "/etc/saku/saku.ini"}
 	usr, err := user.Current()
 	if err == nil {
-		files = append(files, usr.HomeDir+"/.saku/saku.ini")
+		files = append(files, filepath.Join(usr.HomeDir, ".saku", "saku.ini"))
 	}
 	i := ini.Empty()
 	for _, f := range files {
@@ -192,15 +206,28 @@ func initVariables(i *ini.File) {
 		log.Fatal("cannot understand mode", networkModeStr)
 	}
 
+	if !android {
+		Docroot = getPathValue(i, "Path", "docroot", "./www")                                     //path from cwd
+		RunDir = getRelativePathValue(i, "Path", "run_dir", "../run", Docroot)                    //path from docroot
+		FileDir = getRelativePathValue(i, "Path", "file_dir", "../file", Docroot)                 //path from docroot
+		TemplateDir = getRelativePathValue(i, "Path", "template_dir", "../gou_template", Docroot) //path from docroot
+		LogDir = getPathValue(i, "Path", "log_dir", "./log")                                      //path from cwd
+		SpamList = getRelativePathValue(i, "Path", "spam_list", "../file/spam.txt", Docroot)
+		InitnodeList = getRelativePathValue(i, "Path", "initnode_list", "../file/initnode.txt", Docroot)
+		NodeAllowFile = getRelativePathValue(i, "Path", "node_allow", "../file/node_allow.txt", Docroot)
+		NodeDenyFile = getRelativePathValue(i, "Path", "node_deny", "../file/node_deny.txt", Docroot)
+	} else {
+		Docroot = filepath.Join(cwd, "www")
+		RunDir = filepath.Join(cwd, "run")
+		FileDir = filepath.Join(cwd, "file")
+		TemplateDir = filepath.Join(cwd, "gou_template")
+		LogDir = filepath.Join(cwd, "log")
+		SpamList = filepath.Join(cwd, "file", "spam.txt")
+		InitnodeList = filepath.Join(cwd, "file", "initnode.txt")
+		NodeAllowFile = filepath.Join(cwd, "file", "node_allow.txt")
+		NodeDenyFile = filepath.Join(cwd, "file", "node_deny.txt")
+	}
 	MaxConnection = getIntValue(i, "Network", "max_connection", 100)
-	Docroot = getPathValue(i, "Path", "docroot", "./www")                                     //path from cwd
-	RunDir = getRelativePathValue(i, "Path", "run_dir", "../run", Docroot)                    //path from docroot
-	FileDir = getRelativePathValue(i, "Path", "file_dir", "../file", Docroot)                 //path from docroot
-	TemplateDir = getRelativePathValue(i, "Path", "template_dir", "../gou_template", Docroot) //path from docroot
-	SpamList = getRelativePathValue(i, "Path", "spam_list", "../file/spam.txt", Docroot)
-	InitnodeList = getRelativePathValue(i, "Path", "initnode_list", "../file/initnode.txt", Docroot)
-	NodeAllowFile = getRelativePathValue(i, "Path", "node_allow", "../file/node_allow.txt", Docroot)
-	NodeDenyFile = getRelativePathValue(i, "Path", "node_deny", "../file/node_deny.txt", Docroot)
 	ReAdminStr = getStringValue(i, "Gateway", "admin", "^(127|\\[::1\\])")
 	ReFriendStr = getStringValue(i, "Gateway", "friend", "^(127|\\[::1\\])")
 	ReVisitorStr = getStringValue(i, "Gateway", "visitor", ".")
@@ -214,7 +241,6 @@ func initVariables(i *ini.File) {
 	EnableProf = getBoolValue(i, "Gateway", "enable_prof", false)
 	HeavyMoon = getBoolValue(i, "Gateway", "moonlight", false)
 	EnableEmbed = getBoolValue(i, "Gateway", "enable_embed", true)
-	LogDir = getPathValue(i, "Path", "log_dir", "./log") //path from cwd
 	ThreadPageSize = getIntValue(i, "Application Thread", "page_size", 50)
 	DefaultThumbnailSize = getStringValue(i, "Application Thread", "thumbnail_size", "")
 	ForceThumbnail = getBoolValue(i, "Application Thread", "force_thumbnail", false)

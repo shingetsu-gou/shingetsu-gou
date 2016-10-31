@@ -1,4 +1,4 @@
-// +build !android
+// +build android
 
 /*
  * Copyright (c) 2015, Shinya Yagyu
@@ -28,15 +28,10 @@
  * POSSIBILITY OF SUCH DAMAGE.
  */
 
-package main
+package android_gou
 
 import (
-	"flag"
-	"fmt"
 	"log"
-	"os"
-	"os/signal"
-	"syscall"
 
 	"github.com/shingetsu-gou/shingetsu-gou/cfg"
 	"github.com/shingetsu-gou/shingetsu-gou/cgi"
@@ -44,33 +39,15 @@ import (
 	"github.com/shingetsu-gou/shingetsu-gou/gou"
 )
 
-func main() {
-	fmt.Println("starting Gou", cfg.Version, "...")
-	var printLog, isSilent bool
-	flag.Usage = func() {
-		fmt.Fprintf(os.Stderr, "P2P anonymous BBS shinGETsu Gou %s\n", cfg.Version)
-		fmt.Fprintf(os.Stderr, "%s <options>\n", os.Args[0])
-		flag.PrintDefaults()
-	}
-	flag.BoolVar(&printLog, "verbose", false, "print logs")
-	flag.BoolVar(&printLog, "v", false, "print logs")
-	flag.BoolVar(&isSilent, "silent", false, "suppress logs")
-	flag.Parse()
+//Run setups params and start daemon for android.
+func Run(path string) {
+	cfg.SetAndroid(path)
 	cfg.Parse()
 	cgi.Setup()
 	gou.SetupDirectories()
-	gou.SetLogger(printLog, isSilent)
+	gou.SetLogger(false, false)
 	log.Println("********************starting Gou", cfg.Version, "...******************")
 	gou.ExpandAssets()
 	db.Setup()
-	c := make(chan os.Signal)
-	signal.Notify(c, os.Interrupt, syscall.SIGTERM)
-	go func() {
-		for range c {
-			fmt.Println("closing DB...")
-			db.DB.Close()
-			os.Exit(1)
-		}
-	}()
 	gou.StartDaemon()
 }
