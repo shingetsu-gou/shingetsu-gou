@@ -186,20 +186,6 @@ func HasKey(tx *bolt.Tx, bucket string, key []byte) (bool, error) {
 	return v != nil, nil
 }
 
-//Get1st gets 1st value whose key has prefix from db and converts it to value type.
-func Get1st(tx *bolt.Tx, bucket string, prefix []byte, value interface{}) ([]byte, error) {
-	b := tx.Bucket([]byte(bucket))
-	if b == nil {
-		return nil, errors.New("bucket not found " + bucket)
-	}
-	c := b.Cursor()
-	k, v := c.Seek(prefix)
-	if bytes.HasPrefix(k, prefix) {
-		return v, b2v(v, value)
-	}
-	return nil, errors.New("no data")
-}
-
 //Count counts #data whose key has prefix.
 func Count(tx *bolt.Tx, bucket string, prefix []byte) (int, error) {
 	var cnt int

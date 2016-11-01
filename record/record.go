@@ -307,6 +307,7 @@ func (r *Record) Load() error {
 }
 
 //ShortPubkey returns short version of pubkey.
+//used in templates
 func (r *Record) ShortPubkey() string {
 	if v, exist := r.contents["pubkey"]; exist {
 		return util.CutKey(v)
@@ -395,32 +396,13 @@ func (r *Record) Sync() {
 }
 
 //Getbody retuns contents of rec after loading if needed.
+//used in template
 func (r *Record) Getbody() string {
 	err := r.Load()
 	if err != nil {
 		log.Println(err)
 	}
 	return r.Recstr()
-}
-
-//checkSign check signature in the record is valid.
-func (r *Record) checkSign() bool {
-
-	for _, k := range []string{"pubkey", "sign", "target"} {
-		if _, exist := r.contents[k]; !exist {
-			return false
-		}
-	}
-	ts := strings.Split(r.contents["target"], ",")
-	targets := make([]string, len(ts))
-	for i, t := range ts {
-		if _, exist := r.contents[t]; !exist {
-			return false
-		}
-		targets[i] = t + ":" + r.contents[t]
-	}
-	md := util.MD5digest(strings.Join(targets, "<>"))
-	return util.Verify(md, r.contents["sign"], r.contents["pubkey"])
 }
 
 //Meets checks the record meets conditions of args
@@ -450,29 +432,6 @@ func (r *Record) MakeAttachLink(sakuHost string) string {
 	url := fmt.Sprintf("http://%s/thread.cgi/%s/%s/%d.%s",
 		sakuHost, r.Datfile, r.ID, r.Stamp, r.GetBodyValue("suffix", cfg.SuffixTXT))
 	return "<br><br>[Attached]<br>" + url
-}
-
-//BodyString retuns bodystr not including attach field, and shorten pubkey.
-func (r *Record) BodyString() string {
-	buf := []string{
-		strconv.FormatInt(r.Stamp, 10),
-		r.ID,
-	}
-	for _, k := range r.keyOrder {
-		switch k {
-		case "attach":
-			buf = append(buf, "attach:1")
-		case "sign":
-		case "pubkey":
-			if r.checkSign() {
-				shortKey := util.CutKey(r.contents["pubkey"])
-				buf = append(buf, "pubkey:"+shortKey)
-			}
-		default:
-			buf = append(buf, k+":"+r.contents[k])
-		}
-	}
-	return strings.Join(buf, "<>")
 }
 
 //GetData gets records from node n and checks its is same as stamp and id in args.

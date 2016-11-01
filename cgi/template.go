@@ -29,7 +29,6 @@
 package cgi
 
 import (
-	"bytes"
 	"html/template"
 	htmlTemplate "html/template"
 	"io"
@@ -149,13 +148,6 @@ func (t *Htemplate) RenderTemplate(file string, st interface{}, wr io.Writer) {
 	if err := t.Template.ExecuteTemplate(wr, file, st); err != nil {
 		log.Println(err)
 	}
-}
-
-//ExecuteTemplate executes template and returns it as string.
-func (t *Htemplate) ExecuteTemplate(file string, st interface{}) string {
-	var doc bytes.Buffer
-	t.RenderTemplate(file, st, &doc)
-	return doc.String()
 }
 
 //RenderTemplate executes rss template and write to wr.

@@ -251,6 +251,7 @@ func (c *Cache) Exists() bool {
 
 //Gettitle returns title part if *_*.
 //returns ca.datfile if not.
+//used in templates
 func (c *Cache) Gettitle() string {
 	if strings.HasPrefix(c.Datfile, "thread_") {
 		return util.FileDecode(c.Datfile)
@@ -260,6 +261,7 @@ func (c *Cache) Gettitle() string {
 
 //GetContents returns recstrs of cache.
 //len(recstrs) is <=2.
+//used in templates
 func (c *Cache) GetContents() []string {
 	m, err := record.FromRecordDB(c.Datfile, record.Alive)
 	if err != nil {

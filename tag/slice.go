@@ -28,11 +28,7 @@
 
 package tag
 
-import (
-	"strings"
-
-	"github.com/shingetsu-gou/shingetsu-gou/util"
-)
+import "strings"
 
 //Slice is a slice of *Tag.
 type Slice []*Tag
@@ -73,30 +69,4 @@ func (t Slice) GetTagstrSlice() []string {
 //String concatenates and returns tagstr of tags.
 func (t Slice) String() string {
 	return strings.Join(t.GetTagstrSlice(), " ")
-}
-
-//checkAppend append tagstr=val tag if tagList doesn't have its tag.
-func (t Slice) checkAppend(val string) Slice {
-	if !IsOK(val) || util.HasString(t.GetTagstrSlice(), val) {
-		return t
-	}
-	return append(t, &Tag{val, 1})
-}
-
-//HasTagstr return true if one of tags has tagstr
-func (t Slice) HasTagstr(tagstr string) bool {
-	for _, v := range t {
-		if v.Tagstr == tagstr {
-			return true
-		}
-	}
-	return false
-}
-
-//AddString add tagstr=vals tag
-func (t Slice) AddString(vals []string) Slice {
-	for _, val := range vals {
-		t = t.checkAppend(val)
-	}
-	return t
 }

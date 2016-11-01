@@ -128,13 +128,6 @@ func AddTX(tx *bolt.Tx, thread string, tag []string) error {
 	return nil
 }
 
-//AddTags saves tag slice..
-func AddTags(thread string, tag tag.Slice) {
-	if err := Add(thread, tag.GetTagstrSlice()); err != nil {
-		log.Print(err)
-	}
-}
-
 //Set remove all tags and saves tag strings.
 func Set(thread string, tag []string) {
 	err := db.DB.Update(func(tx *bolt.Tx) error {
@@ -156,9 +149,4 @@ func Set(thread string, tag []string) {
 	if err != nil {
 		log.Print(err)
 	}
-}
-
-//SetTags remove all tags and saves tag slice.
-func SetTags(thread string, tag tag.Slice) {
-	Set(thread, tag.GetTagstrSlice())
 }

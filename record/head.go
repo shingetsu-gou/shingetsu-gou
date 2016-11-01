@@ -67,21 +67,6 @@ func (u *Head) Exists() bool {
 	return r
 }
 
-//Removed return true if record is removed (i.e. exists.in removed path)
-func (u *Head) Removed() bool {
-	var d *DB
-	err := db.DB.View(func(tx *bolt.Tx) error {
-		var err error
-		d, err = GetFromDB(tx, u)
-		return err
-	})
-	if err != nil {
-		log.Print(err)
-		return false
-	}
-	return d.Deleted
-}
-
 //Remove moves the record file  to remove path
 func (u *Head) Remove() error {
 	var d *DB

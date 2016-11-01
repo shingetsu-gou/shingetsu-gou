@@ -171,6 +171,7 @@ func Verify(mesg, testsig, publicKey string) bool {
 }
 
 //CutKey cuts key to 11words.
+//used in a func which is used in templates.
 func CutKey(key string) string {
 	digest := md5.Sum([]byte(key))
 	k := base64.StdEncoding.EncodeToString(digest[:])[:11]
