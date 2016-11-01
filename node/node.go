@@ -45,23 +45,6 @@ import (
 	"github.com/shingetsu-gou/shingetsu-gou/util"
 )
 
-var defaultInitNode = []string{
-	"node.shingetsu.info:8000/server.cgi",
-}
-
-var nodeAllow *util.RegexpList
-var nodeDeny *util.RegexpList
-
-//InitNode stores initial nodes.
-var InitNode *util.ConfList
-
-//Setup setups node related vars.
-func Setup() {
-	nodeAllow = util.NewRegexpList(cfg.NodeAllowFile)
-	nodeDeny = util.NewRegexpList(cfg.NodeDenyFile)
-	InitNode = util.NewConfList(cfg.InitnodeList, defaultInitNode)
-}
-
 //Node represents node info.
 type Node struct {
 	Nodestr string
@@ -202,6 +185,9 @@ func (n *Node) Ping() (string, error) {
 
 //IsAllowed returns fase if n is not allowed and denied.
 func (n *Node) IsAllowed() bool {
+	nodeAllow := util.NewRegexpList(cfg.NodeAllowFile)
+	nodeDeny := util.NewRegexpList(cfg.NodeDenyFile)
+
 	if !nodeAllow.Check(n.Nodestr) && nodeDeny.Check(n.Nodestr) {
 		return false
 	}

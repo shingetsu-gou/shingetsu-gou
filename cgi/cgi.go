@@ -273,7 +273,7 @@ func (c *CGI) Footer(menubar *Menubar) {
 		menubar,
 		cfg.Version,
 	}
-	TmpH.RenderTemplate("footer", g, c.WR)
+	RenderTemplate("footer", g, c.WR)
 }
 
 //RFC822Time convers stamp to "2006-01-02 15:04:05"
@@ -339,7 +339,7 @@ func (c *CGI) Header(title, rss string, cookie []*http.Cookie, denyRobot bool) {
 			http.SetCookie(c.WR, co)
 		}
 	}
-	TmpH.RenderTemplate("header", h, c.WR)
+	RenderTemplate("header", h, c.WR)
 }
 
 //ResAnchor returns a href  string with url.
@@ -447,7 +447,7 @@ func (c *CGI) RemoveFileForm(ca *thread.Cache, title string) {
 		title,
 		*c.Defaults(),
 	}
-	TmpH.RenderTemplate("remove_file_form", s, c.WR)
+	RenderTemplate("remove_file_form", s, c.WR)
 }
 
 //printJump render jump (redirect)page.
@@ -457,7 +457,7 @@ func (c *CGI) printJump(next string) {
 	}{
 		template.HTML(next),
 	}
-	TmpH.RenderTemplate("jump", s, c.WR)
+	RenderTemplate("jump", s, c.WR)
 }
 
 //Print302 renders jump page(meaning found and redirect)
@@ -514,7 +514,7 @@ func (c *CGI) PrintIndexList(cl []*thread.Cache, target string, footer bool, sea
 		*c.Defaults(),
 		*NewListItem(cl, true, target, searchNewFile, filter, tagg),
 	}
-	TmpH.RenderTemplate("index_list", s, c.WR)
+	RenderTemplate("index_list", s, c.WR)
 	if footer {
 		c.PrintNewElementForm()
 		c.Footer(nil)
@@ -537,7 +537,7 @@ func (c *CGI) PrintNewElementForm() {
 		titleLimit,
 		*c.Defaults(),
 	}
-	TmpH.RenderTemplate("new_element_form", s, c.WR)
+	RenderTemplate("new_element_form", s, c.WR)
 }
 
 //IsBot returns true if client is bot.

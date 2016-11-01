@@ -83,7 +83,7 @@ func doNode(w http.ResponseWriter, r *http.Request) {
 	if manager.ListLen() > 0 {
 		fmt.Fprintln(w, manager.GetNodestrSliceInList()[0])
 	} else {
-		fmt.Fprintln(w, node.InitNode.GetData()[0])
+		fmt.Fprintln(w, cfg.InitNode.GetData()[0])
 	}
 }
 

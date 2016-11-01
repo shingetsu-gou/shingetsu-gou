@@ -36,10 +36,8 @@ import (
 	"net"
 
 	"github.com/shingetsu-gou/shingetsu-gou/cfg"
-	"github.com/shingetsu-gou/shingetsu-gou/cgi"
 	"github.com/shingetsu-gou/shingetsu-gou/db"
 	"github.com/shingetsu-gou/shingetsu-gou/gou"
-	"github.com/shingetsu-gou/shingetsu-gou/node"
 )
 
 var listener net.Listener
@@ -49,8 +47,6 @@ var ch chan error
 func Run(path string) {
 	cfg.SetAndroid(path)
 	cfg.Parse()
-	cgi.Setup()
-	node.Setup()
 	gou.SetupDirectories()
 	gou.SetLogger(true, false)
 	log.Println("********************starting Gou", cfg.Version, "...******************")

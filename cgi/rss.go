@@ -130,7 +130,7 @@ func (r *RSS) MakeRSS1(wr io.Writer) {
 		c.Content = strings.Replace(c.content, "]]", "&#93;&#93;>", -1)
 	}
 	sort.Sort(sort.Reverse(r))
-	TmpT.RenderTemplate("rss1", *r, wr)
+	RenderRSS(*r, wr)
 }
 
 //W3cdate returns RSS formated date string.

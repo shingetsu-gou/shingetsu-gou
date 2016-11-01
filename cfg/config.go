@@ -37,6 +37,7 @@ import (
 	"path/filepath"
 	"time"
 
+	"github.com/shingetsu-gou/shingetsu-gou/util"
 	"gopkg.in/ini.v1"
 )
 
@@ -66,6 +67,14 @@ const (
 var (
 	ErrSpam = errors.New("this is spam")
 	ErrGet  = errors.New("cannot get data")
+)
+
+var (
+	defaultInitNode = []string{
+		"node.shingetsu.info:8000/server.cgi",
+	}
+	//InitNode is initiali nodes.
+	InitNode *util.ConfList
 )
 
 //cwd represents current working dir.
@@ -191,6 +200,7 @@ func Parse() {
 		}
 	}
 	initVariables(i)
+	InitNode = util.NewConfList(InitnodeList, defaultInitNode)
 }
 
 //initVariables initializes some global and map vars.

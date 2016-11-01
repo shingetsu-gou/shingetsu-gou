@@ -42,11 +42,12 @@ import (
 	"github.com/shingetsu-gou/shingetsu-gou/util"
 )
 
-//TmpH is template for html.
-var TmpH *Htemplate
-
-//TmpT is template for text(rss).
-var TmpT *Ttemplate
+var (
+	//tmpH is template for html.
+	tmpH *Htemplate
+	//tmpT is template for text(rss).
+	tmpT *Ttemplate
+)
 
 var funcMap = map[string]interface{}{
 	"add":          func(a, b int) int { return a + b },
@@ -66,12 +67,6 @@ var funcMap = map[string]interface{}{
 //Ttemplate is for rendering text rss template.
 type Ttemplate struct {
 	*textTemplate.Template
-}
-
-//Setup setups template vars.
-func Setup() {
-	TmpH = newHtemplate(cfg.TemplateDir)
-	TmpT = newTtemplate(cfg.TemplateDir)
 }
 
 //newTtemplate adds funcmap to template var and parse files.
@@ -144,15 +139,21 @@ func newHtemplate(templateDir string) *Htemplate {
 }
 
 //RenderTemplate executes template and write to wr.
-func (t *Htemplate) RenderTemplate(file string, st interface{}, wr io.Writer) {
-	if err := t.Template.ExecuteTemplate(wr, file, st); err != nil {
+func RenderTemplate(file string, st interface{}, wr io.Writer) {
+	if tmpH == nil {
+		tmpH = newHtemplate(cfg.TemplateDir)
+	}
+	if err := tmpH.ExecuteTemplate(wr, file, st); err != nil {
 		log.Println(err)
 	}
 }
 
-//RenderTemplate executes rss template and write to wr.
-func (t *Ttemplate) RenderTemplate(file string, st interface{}, wr io.Writer) {
-	if err := t.ExecuteTemplate(wr, file, st); err != nil {
+//RenderRSS executes rss template and write to wr.
+func RenderRSS(st interface{}, wr io.Writer) {
+	if tmpT == nil {
+		tmpT = newTtemplate(cfg.TemplateDir)
+	}
+	if err := tmpT.ExecuteTemplate(wr, "rss1", st); err != nil {
 		log.Println(err)
 	}
 }

@@ -55,7 +55,7 @@ func cron() {
 		getall := true
 		for {
 			log.Println("short cycle cron started")
-			ns := node.MustNew(node.InitNode.GetData())
+			ns := node.MustNew(cfg.InitNode.GetData())
 			if len(ns) == 0 {
 				log.Fatal("no init nodes")
 			}

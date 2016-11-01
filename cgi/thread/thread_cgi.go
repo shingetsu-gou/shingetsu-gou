@@ -228,7 +228,7 @@ func (t *threadCGI) printPageNavi(path string, page int, ca *thread.Cache, id st
 		cfg.ThreadPageSize,
 		pages,
 	}
-	cgi.TmpH.RenderTemplate("page_navi", s, t.WR)
+	cgi.RenderTemplate("page_navi", s, t.WR)
 }
 
 //printTag renders thread_tags.txt , part for displayng tags.
@@ -246,7 +246,7 @@ func (t *threadCGI) printTag(ca *thread.Cache) {
 		"changes",
 		*t.Defaults(),
 	}
-	cgi.TmpH.RenderTemplate("thread_tags", s, t.WR)
+	cgi.RenderTemplate("thread_tags", s, t.WR)
 }
 
 //printThreadHead renders head part of thread page with cookie.
@@ -305,7 +305,7 @@ func (t *threadCGI) printThreadTop(path, id string, nPage int, ca *thread.Cache)
 		template.HTML(resAnchor),
 		*t.Defaults(),
 	}
-	cgi.TmpH.RenderTemplate("thread_top", s, t.WR)
+	cgi.RenderTemplate("thread_top", s, t.WR)
 }
 
 //printThreadBody renders body(records list) part of thread page with paging.
@@ -371,7 +371,7 @@ func (t *threadCGI) printThread(path, id string, nPage int) {
 		ca,
 		t.M,
 	}
-	cgi.TmpH.RenderTemplate("thread_bottom", ss, t.WR)
+	cgi.RenderTemplate("thread_bottom", ss, t.WR)
 
 	if ca.HasRecord() {
 		t.printPageNavi(path, nPage, ca, id)
@@ -460,7 +460,7 @@ func (t *threadCGI) printRecord(ca *thread.Cache, rec *record.Record) {
 		resAnchor,
 		*t.Defaults(),
 	}
-	cgi.TmpH.RenderTemplate("record", s, t.WR)
+	cgi.RenderTemplate("record", s, t.WR)
 }
 
 //printPostForm renders post_form.txt,page for posting attached file.
@@ -480,7 +480,7 @@ func (t *threadCGI) printPostForm(ca *thread.Cache) {
 		cfg.RecordLimit * 3 >> 2,
 		*t.Defaults(),
 	}
-	cgi.TmpH.RenderTemplate("post_form", s, t.WR)
+	cgi.RenderTemplate("post_form", s, t.WR)
 }
 
 //renderAttach render the content of attach file with content-type=typ.

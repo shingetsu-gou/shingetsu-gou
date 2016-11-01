@@ -39,10 +39,8 @@ import (
 	"syscall"
 
 	"github.com/shingetsu-gou/shingetsu-gou/cfg"
-	"github.com/shingetsu-gou/shingetsu-gou/cgi"
 	"github.com/shingetsu-gou/shingetsu-gou/db"
 	"github.com/shingetsu-gou/shingetsu-gou/gou"
-	"github.com/shingetsu-gou/shingetsu-gou/node"
 )
 
 func main() {
@@ -58,8 +56,6 @@ func main() {
 	flag.BoolVar(&isSilent, "silent", false, "suppress logs")
 	flag.Parse()
 	cfg.Parse()
-	cgi.Setup()
-	node.Setup()
 	gou.SetupDirectories()
 	gou.SetLogger(printLog, isSilent)
 	log.Println("********************starting Gou", cfg.Version, "...******************")

@@ -46,7 +46,7 @@ import (
 	"github.com/shingetsu-gou/shingetsu-gou/util"
 )
 
-var cachedRule = util.NewRegexpList(cfg.SpamList)
+var cachedRule *util.RegexpList
 
 //DB represents one record in db.
 type DB struct {
@@ -421,6 +421,9 @@ func (r *Record) Meets(begin, end int64) bool {
 
 //IsSpam returns true if Recstr is listed in spam.txt
 func (r *Record) IsSpam() bool {
+	if cachedRule == nil {
+		cachedRule = util.NewRegexpList(cfg.SpamList)
+	}
 	return cachedRule.Check(r.Recstr())
 }
 

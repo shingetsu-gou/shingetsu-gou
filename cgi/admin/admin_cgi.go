@@ -166,7 +166,7 @@ func printStatus(w http.ResponseWriter, r *http.Request) {
 		a.M,
 	}
 	a.Header(a.M["status"], "", nil, true)
-	cgi.TmpH.RenderTemplate("status", d, a.WR)
+	cgi.RenderTemplate("status", d, a.WR)
 	a.Footer(nil)
 }
 
@@ -202,7 +202,7 @@ func printEdittag(w http.ResponseWriter, r *http.Request) {
 		user.GetByThread(ca.Datfile),
 	}
 	a.Header(fmt.Sprintf("%s: %s", a.M["edit_tag"], strTitle), "", nil, true)
-	cgi.TmpH.RenderTemplate("edit_tag", d, a.WR)
+	cgi.RenderTemplate("edit_tag", d, a.WR)
 	a.Footer(nil)
 }
 
@@ -307,7 +307,7 @@ func (a *adminCGI) printDeleteRecord(rmFiles []string, records []string) {
 		sid,
 	}
 	a.Header(a.M["del_record"], "", nil, true)
-	cgi.TmpH.RenderTemplate("delete_record", d, a.WR)
+	cgi.RenderTemplate("delete_record", d, a.WR)
 	a.Footer(nil)
 }
 
@@ -381,7 +381,7 @@ func (a *adminCGI) printDeleteFile(files []string) {
 		sid,
 	}
 	a.Header(a.M["del_file"], "", nil, true)
-	cgi.TmpH.RenderTemplate("delete_file", d, a.WR)
+	cgi.RenderTemplate("delete_file", d, a.WR)
 	a.Footer(nil)
 }
 
@@ -412,7 +412,7 @@ func (a *adminCGI) printSearchForm(query string) {
 		cfg.AdminURL,
 		a.M,
 	}
-	cgi.TmpH.RenderTemplate("search_form", d, a.WR)
+	cgi.RenderTemplate("search_form", d, a.WR)
 }
 
 //printSearchResult renders cachelist that its datfile matches query.

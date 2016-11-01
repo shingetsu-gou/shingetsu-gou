@@ -124,11 +124,8 @@ func (r *RegexpList) Check(target string) bool {
 	r.update()
 	r.mutex.RLock()
 	defer r.mutex.RUnlock()
-	log.Println(target)
 	for _, re := range r.regs {
-		log.Println(re.String())
 		if re.MatchString(target) {
-			log.Println("true")
 			return true
 		}
 	}

@@ -270,7 +270,7 @@ func PrintTitle(w http.ResponseWriter, r *http.Request) {
 		*cgi.NewListItem(outputCachelist, false, "changes", false, g.Filter, g.Tag),
 		*g.Defaults(),
 	}
-	cgi.TmpH.RenderTemplate("top", s, g.WR)
+	cgi.RenderTemplate("top", s, g.WR)
 	g.PrintNewElementForm()
 	g.Footer(nil)
 }

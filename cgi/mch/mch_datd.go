@@ -326,7 +326,7 @@ func (m *mchCGI) postComment(threadKey, name, mail, body, passwd, tag string) er
 func (m *mchCGI) errorResp(msg string, info map[string]string) {
 	m.WR.Header().Set("Content-Type", "text/html; charset=Shift_JIS")
 	info["message"] = msg
-	cgi.TmpH.RenderTemplate("2ch_error", info, m.WR)
+	cgi.RenderTemplate("2ch_error", info, m.WR)
 }
 
 //getCP932 returns form value of key with cp932 code.
