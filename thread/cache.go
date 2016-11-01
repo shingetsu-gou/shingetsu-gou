@@ -187,6 +187,7 @@ func (c *Cache) CheckData(tx *bolt.Tx, res string, stamp int64,
 		return cfg.ErrGet
 	}
 	deleted := false
+	log.Println(r.Recstr(), r.IsSpam())
 	if len(r.Recstr()) > cfg.RecordLimit<<10 || r.IsSpam() {
 		log.Printf("warning:%s/%s:too large or spam record", r.Datfile, r.Idstr())
 		deleted = true

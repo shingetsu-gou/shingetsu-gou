@@ -137,6 +137,11 @@ func Get(datfile string, def node.Slice) node.Slice {
 	return node.NewSlice(str)
 }
 
+//GetNodestrSliceInList returns Nodestr slice of nodes in list.
+func GetNodestrSliceInList() []string {
+	return GetNodestrSliceInTable(list)
+}
+
 //GetNodestrSliceInTable returns Nodestr slice of nodes associated datfile thread.
 func GetNodestrSliceInTable(datfile string) []string {
 	var r []string

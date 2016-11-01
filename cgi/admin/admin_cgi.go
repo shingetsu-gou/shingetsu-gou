@@ -153,7 +153,7 @@ func printStatus(w http.ResponseWriter, r *http.Request) {
 	}
 	ns := map[string][]string{
 		"known_nodes":  manager.GetNodestrSlice(),
-		"linked_nodes": manager.GetNodestrSliceInTable(""),
+		"linked_nodes": manager.GetNodestrSliceInList(),
 	}
 
 	d := struct {

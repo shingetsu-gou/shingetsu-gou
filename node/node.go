@@ -49,11 +49,18 @@ var defaultInitNode = []string{
 	"node.shingetsu.info:8000/server.cgi",
 }
 
-var nodeAllow = util.NewRegexpList(cfg.NodeAllowFile)
-var nodeDeny = util.NewRegexpList(cfg.NodeDenyFile)
+var nodeAllow *util.RegexpList
+var nodeDeny *util.RegexpList
 
 //InitNode stores initial nodes.
-var InitNode = util.NewConfList(cfg.InitnodeList, defaultInitNode)
+var InitNode *util.ConfList
+
+//Setup setups node related vars.
+func Setup() {
+	nodeAllow = util.NewRegexpList(cfg.NodeAllowFile)
+	nodeDeny = util.NewRegexpList(cfg.NodeDenyFile)
+	InitNode = util.NewConfList(cfg.InitnodeList, defaultInitNode)
+}
 
 //Node represents node info.
 type Node struct {

@@ -81,7 +81,7 @@ func doPing(w http.ResponseWriter, r *http.Request) {
 //doNode returns one of nodelist. if nodelist.len=0 returns one of initNode.
 func doNode(w http.ResponseWriter, r *http.Request) {
 	if manager.ListLen() > 0 {
-		fmt.Fprintln(w, manager.GetNodestrSliceInTable("")[0])
+		fmt.Fprintln(w, manager.GetNodestrSliceInList()[0])
 	} else {
 		fmt.Fprintln(w, node.InitNode.GetData()[0])
 	}

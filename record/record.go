@@ -460,6 +460,7 @@ func (r *Record) CheckData(begin, end int64) error {
 	if !r.Meets(begin, end) {
 		return cfg.ErrGet
 	}
+	log.Println(r.Recstr(), r.IsSpam())
 	if len(r.Recstr()) > cfg.RecordLimit<<10 || r.IsSpam() {
 		log.Printf("warning:%s/%s:too large or spam record", r.Datfile, r.Idstr())
 		errr := r.Remove()

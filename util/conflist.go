@@ -87,6 +87,7 @@ func (r *ConfList) update() bool {
 	}
 	r.mtime = &mtime
 	r.data = r.data[:0]
+
 	err = EachLine(r.path, func(line string, i int) error {
 		if line != "" && !strings.HasPrefix(line, "#") {
 			r.data = append(r.data, line)
@@ -123,8 +124,11 @@ func (r *RegexpList) Check(target string) bool {
 	r.update()
 	r.mutex.RLock()
 	defer r.mutex.RUnlock()
+	log.Println(target)
 	for _, re := range r.regs {
+		log.Println(re.String())
 		if re.MatchString(target) {
+			log.Println("true")
 			return true
 		}
 	}

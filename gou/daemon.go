@@ -54,7 +54,7 @@ import (
 )
 
 //StartDaemon setups saves pid, start cron job and a http server.
-func StartDaemon() {
+func StartDaemon() (net.Listener, chan error) {
 	p := os.Getpid()
 	err := ioutil.WriteFile(cfg.PID(), []byte(strconv.Itoa(p)), 0666)
 	if err != nil {
@@ -92,7 +92,11 @@ func StartDaemon() {
 	}
 	sm.RegistCompressHandler("/", handleRoot())
 	fmt.Println("started daemon and http server...")
-	log.Fatal(s.Serve(limitListener))
+	ch := make(chan error)
+	go func() {
+		ch <- s.Serve(limitListener)
+	}()
+	return limitListener, ch
 }
 
 //handleRoot return handler that handles url not defined other handlers.
