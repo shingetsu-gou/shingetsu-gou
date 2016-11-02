@@ -29,6 +29,7 @@
 package cgi
 
 import (
+	"errors"
 	"html"
 	"io/ioutil"
 	"log"
@@ -45,7 +46,7 @@ import (
 type Message map[string]string
 
 //newMessage reads from the file excpet #comment and stores them with url unescaping value.
-func newMessage(filedir, fname string) Message {
+func newMessage(filedir, fname string) (Message, error) {
 	var err error
 	m := make(map[string]string)
 	var dat []byte
@@ -64,7 +65,9 @@ func newMessage(filedir, fname string) Message {
 		}
 	}
 	if dat == nil {
-		log.Fatal("message file was not found")
+		err := errors.New("message file was not found")
+		log.Fatal(err)
+		return nil, err
 	}
 
 	re := regexp.MustCompile(`^\s*#`)
@@ -80,7 +83,7 @@ func newMessage(filedir, fname string) Message {
 		buf[1] = html.UnescapeString(buf[1])
 		m[buf[0]] = buf[1]
 	}
-	return m
+	return m, nil
 }
 
 //SearchMessage parse Accept-Language header ,selects most-weighted(biggest q)
@@ -89,6 +92,9 @@ func SearchMessage(acceptLanguage, filedir string) Message {
 	const defaultLanguage = "en" // Language code (see RFC3066)
 
 	var lang []string
+	if strings.HasPrefix(acceptLanguage, "ja-") {
+		acceptLanguage = "ja"
+	}
 	if acceptLanguage != "" {
 		tags, _, err := language.ParseAcceptLanguage(acceptLanguage)
 		if err != nil {
@@ -103,7 +109,7 @@ func SearchMessage(acceptLanguage, filedir string) Message {
 	for _, l := range lang {
 		slang := strings.Split(l, "-")[0]
 		for _, j := range []string{l, slang} {
-			if m := newMessage(filedir, "message-"+j+".txt"); m != nil {
+			if m, err := newMessage(filedir, "message-"+j+".txt"); err == nil {
 				return m
 			}
 		}

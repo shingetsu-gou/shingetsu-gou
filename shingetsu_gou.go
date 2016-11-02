@@ -28,7 +28,7 @@
  * POSSIBILITY OF SUCH DAMAGE.
  */
 
-package gou
+package shingetsu
 
 import (
 	"log"
@@ -43,14 +43,24 @@ import (
 var listener net.Listener
 var ch chan error
 
-//Run setups params and start daemon for android.
-func Run(path string) {
-	cfg.SetAndroid(path)
+//ExpandFiles expands files in files dir.
+func ExpandFiles(rpath string) {
+	cfg.SetAndroid(rpath)
 	cfg.Parse()
 	gou.SetupDirectories()
 	gou.SetLogger(true, false)
 	log.Println("********************starting Gou", cfg.Version, "...******************")
 	gou.ExpandAssets()
+}
+
+//Port returns port number.
+func Port() int {
+	return cfg.DefaultPort
+}
+
+//Run setups params and start daemon for android.
+func Run(rpath string) {
+	ExpandFiles(rpath)
 	db.Setup()
 	listener, ch = gou.StartDaemon()
 }
