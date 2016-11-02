@@ -60,7 +60,7 @@ func Len(thread string) int {
 //Has returns true if thread has the tag.
 func Has(thread string, tag ...string) bool {
 	rr := false
-	db.DB.View(func(tx *bolt.Tx) error {
+	err := db.DB.View(func(tx *bolt.Tx) error {
 		for _, t := range tag {
 			if db.HasVal(tx, "usertag", []byte(thread), t) {
 				rr = true
@@ -69,6 +69,9 @@ func Has(thread string, tag ...string) bool {
 		}
 		return nil
 	})
+	if err != nil {
+		log.Println(err)
+	}
 	return rr
 }
 
@@ -109,10 +112,13 @@ func GetByThread(thread string) tag.Slice {
 }
 
 //Add saves tag strings.
-func Add(thread string, tag []string) error {
-	return db.DB.Update(func(tx *bolt.Tx) error {
+func Add(thread string, tag []string) {
+	err := db.DB.Update(func(tx *bolt.Tx) error {
 		return AddTX(tx, thread, tag)
 	})
+	if err != nil {
+		log.Println(err)
+	}
 }
 
 //AddTX saves tag strings.

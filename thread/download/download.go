@@ -226,7 +226,7 @@ func getWithRange(n *node.Node, c *thread.Cache, dm *Manager) bool {
 			dm.Finished(n, false)
 			return false
 		}
-		db.DB.Update(func(tx *bolt.Tx) error {
+		err = db.DB.Update(func(tx *bolt.Tx) error {
 			for _, res := range ress {
 				errf := c.CheckData(tx, res, -1, "", from, to)
 				if errf == nil {
@@ -235,6 +235,9 @@ func getWithRange(n *node.Node, c *thread.Cache, dm *Manager) bool {
 			}
 			return nil
 		})
+		if err != nil {
+			log.Println(err)
+		}
 		dm.Finished(n, true)
 		log.Println(c.Datfile, okcount, "records were saved from", n.Nodestr)
 		got = okcount > 0

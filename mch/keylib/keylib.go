@@ -68,7 +68,7 @@ func getTime(thread string) (int64, error) {
 func Load() {
 	allCaches := thread.AllCaches()
 	allRecs := recentlist.GetRecords()
-	db.DB.Update(func(tx *bolt.Tx) error {
+	err := db.DB.Update(func(tx *bolt.Tx) error {
 		for _, c := range allCaches {
 			setFromCache(tx, c)
 		}
@@ -78,6 +78,9 @@ func Load() {
 		}
 		return nil
 	})
+	if err != nil {
+		log.Println(err)
+	}
 }
 
 //setEntry stores stamp/value.
@@ -125,10 +128,13 @@ func GetDatkey(filekey string) (int64, error) {
 		return v, nil
 	}
 	c := thread.NewCache(filekey)
-	db.DB.Update(func(tx *bolt.Tx) error {
+	err = db.DB.Update(func(tx *bolt.Tx) error {
 		setFromCache(tx, c)
 		return nil
 	})
+	if err == nil {
+		log.Println(err)
+	}
 	return getTime(filekey)
 }
 

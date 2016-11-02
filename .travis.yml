@@ -9,7 +9,6 @@ env:
   - REPO_DIR: github.com/shingetsu-gou/shingetsu-gou
 
 before_install:
-- sudo apt-get -qq update
 - go get -u github.com/axw/gocov/gocov
 - go get -u github.com/alecthomas/gometalinter
 - go get -u github.com/mattn/goveralls

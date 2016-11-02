@@ -14,7 +14,12 @@ func main() {
 	if err != nil {
 		log.Fatal(err)
 	}
-	defer db.Close()
+	defer func() {
+		errr := db.Close()
+		if errr != nil {
+			log.Println(err)
+		}
+	}()
 
 	err = db.View(func(tx *bolt.Tx) error {
 		// Assume bucket exists and has keys
@@ -22,15 +27,21 @@ func main() {
 		if b == nil {
 			return errors.New("no bucket")
 		}
-		b.ForEach(func(k, v []byte) error {
+		errr := b.ForEach(func(k, v []byte) error {
 			fmt.Printf("key=%s, value=%s\n", k, v)
 			return nil
 		})
+		if errr != nil {
+			log.Println(errr)
+		}
 		fmt.Println("")
-		b.ForEach(func(k, v []byte) error {
+		errr = b.ForEach(func(k, v []byte) error {
 			fmt.Printf("key=%b, value=%b\n", k, v)
 			return nil
 		})
+		if errr != nil {
+			log.Println(errr)
+		}
 		return nil
 	})
 	log.Println(err)

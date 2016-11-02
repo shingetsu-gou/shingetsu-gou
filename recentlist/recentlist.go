@@ -119,10 +119,13 @@ func appendHead(tx *bolt.Tx, rec *record.Head) {
 
 //Append add a infos generated from the record.
 func Append(rec *record.Head) {
-	db.DB.Update(func(tx *bolt.Tx) error {
+	err := db.DB.Update(func(tx *bolt.Tx) error {
 		appendHead(tx, rec)
 		return nil
 	})
+	if err != nil {
+		log.Println(err)
+	}
 }
 
 //find finds records and returns index. returns -1 if not found.
@@ -208,10 +211,10 @@ func get(begin int64, wg *sync.WaitGroup, n *node.Node) {
 		log.Println(err)
 		return
 	}
-	db.DB.Update(func(tx *bolt.Tx) error {
+	err = db.DB.Update(func(tx *bolt.Tx) error {
 		for _, line := range res {
-			rec, err := record.Make(line)
-			if err != nil {
+			rec, errr := record.Make(line)
+			if errr != nil {
 				continue
 			}
 			appendHead(tx, rec.Head)
@@ -223,6 +226,9 @@ func get(begin int64, wg *sync.WaitGroup, n *node.Node) {
 		}
 		return nil
 	})
+	if err != nil {
+		log.Println(err)
+	}
 	log.Println("added", len(res), "recent records from", n.Nodestr)
 }
 

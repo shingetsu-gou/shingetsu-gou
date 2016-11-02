@@ -192,10 +192,13 @@ func appendable(datfile string, n *node.Node) bool {
 
 //AppendToTable add node n to table if it is allowd and list doesn't have it.
 func AppendToTable(datfile string, n *node.Node) {
-	db.DB.Update(func(tx *bolt.Tx) error {
+	err := db.DB.Update(func(tx *bolt.Tx) error {
 		AppendToTableTX(tx, datfile, n)
 		return nil
 	})
+	if err != nil {
+		log.Println(err)
+	}
 }
 
 //AppendToTableTX add node n to table if it is allowd and list doesn't have it.
@@ -236,20 +239,26 @@ func ReplaceNodeInList(n *node.Node) *node.Node {
 		RemoveFromList(old)
 		old.Bye()
 	}
-	db.DB.Update(func(tx *bolt.Tx) error {
+	err := db.DB.Update(func(tx *bolt.Tx) error {
 		appendToList(tx, n)
 		return nil
 	})
+	if err != nil {
+		log.Println(err)
+	}
 	return old
 }
 
 //hasNodeInTable returns true if nodelist has n.
 func hasNodeInTable(datfile string, n *node.Node) bool {
 	var r bool
-	db.DB.View(func(tx *bolt.Tx) error {
+	err := db.DB.View(func(tx *bolt.Tx) error {
 		r = db.HasVal(tx, "lookupT", []byte(datfile), n.Nodestr)
 		return nil
 	})
+	if err != nil {
+		log.Println(err)
+	}
 	return r
 }
 

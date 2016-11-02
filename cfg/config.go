@@ -203,9 +203,7 @@ func Parse() {
 	InitNode = util.NewConfList(InitnodeList, defaultInitNode)
 }
 
-//initVariables initializes some global and map vars.
-func initVariables(i *ini.File) {
-	DefaultPort = getIntValue(i, "Network", "port", 8000)
+func networkMode(i *ini.File) {
 	networkModeStr := getStringValue(i, "Network", "mode", "port_opened") //port_opened,upnp,relay
 	switch networkModeStr {
 	case "port_opened":
@@ -215,7 +213,12 @@ func initVariables(i *ini.File) {
 	default:
 		log.Fatal("cannot understand mode", networkModeStr)
 	}
+}
 
+//initVariables initializes some global and map vars.
+func initVariables(i *ini.File) {
+	DefaultPort = getIntValue(i, "Network", "port", 8000)
+	networkMode(i)
 	if !android {
 		Docroot = getPathValue(i, "Path", "docroot", "./www")                                     //path from cwd
 		RunDir = getRelativePathValue(i, "Path", "run_dir", "../run", Docroot)                    //path from docroot

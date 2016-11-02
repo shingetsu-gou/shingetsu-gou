@@ -93,10 +93,13 @@ func AddString(tx *bolt.Tx, datfile string, vals []string) {
 //HasTagstr return true if one of tags has tagstr
 func HasTagstr(datfile string, tagstr string) bool {
 	var r bool
-	db.DB.View(func(tx *bolt.Tx) error {
+	err := db.DB.View(func(tx *bolt.Tx) error {
 		r = db.HasVal(tx, "sugtag", []byte(datfile), tagstr)
 		return nil
 	})
+	if err != nil {
+		log.Println(err)
+	}
 	return r
 }
 

@@ -115,7 +115,7 @@ func (c *Cache) Velocity() int {
 			cnt++
 		}
 	}
-	return int(cnt)
+	return cnt
 }
 
 //Size returns sum of body char length of records in the cache.
@@ -160,10 +160,13 @@ func (c *Cache) subscribe(tx *bolt.Tx) {
 
 //Subscribe add the thread to thread db.
 func (c *Cache) Subscribe() {
-	db.DB.Update(func(tx *bolt.Tx) error {
+	err := db.DB.Update(func(tx *bolt.Tx) error {
 		c.subscribe(tx)
 		return nil
 	})
+	if err != nil {
+		log.Println(err)
+	}
 }
 
 //CheckData makes a record from res and checks its records meets condisions of args.
@@ -191,7 +194,10 @@ func (c *Cache) CheckData(tx *bolt.Tx, res string, stamp int64,
 		log.Printf("warning:%s/%s:too large or spam record", r.Datfile, r.Idstr())
 		deleted = true
 	}
-	r.SyncTX(tx, deleted)
+	err = r.SyncTX(tx, deleted)
+	if err != nil {
+		return err
+	}
 	if deleted {
 		return cfg.ErrSpam
 	}
@@ -282,7 +288,7 @@ func (c *Cache) GetContents() []string {
 //(heavymoon)
 func CreateAllCachedirs() {
 	recs := recentlist.GetRecords()
-	db.DB.Update(func(tx *bolt.Tx) error {
+	err := db.DB.Update(func(tx *bolt.Tx) error {
 		for _, rh := range recs {
 			ca := NewCache(rh.Datfile)
 			if !ca.Exists() {
@@ -291,6 +297,9 @@ func CreateAllCachedirs() {
 		}
 		return nil
 	})
+	if err != nil {
+		log.Println(err)
+	}
 }
 
 //RecentStamp  returns time of getting by /recent.

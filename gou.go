@@ -67,8 +67,12 @@ func main() {
 	go func() {
 		for range c {
 			fmt.Println("exiting...")
-			listener.Close()
-			db.DB.Close()
+			if err := listener.Close(); err != nil {
+				log.Println(err)
+			}
+			if err := db.DB.Close(); err != nil {
+				log.Println(err)
+			}
 		}
 	}()
 	log.Println(<-ch)
