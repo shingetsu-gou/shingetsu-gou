@@ -54,7 +54,6 @@ Yeah, the sun and moon are in conjunction during the new moon(shingetsu:新月, 
 ## Requirements
 
 * git
-* gcc(for compiling mattn/go-sqlite3)
 * go 1.7
 
 are required to compile.
