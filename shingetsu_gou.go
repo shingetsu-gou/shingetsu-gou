@@ -32,6 +32,7 @@ package shingetsu
 
 import (
 	"log"
+	"time"
 
 	"net"
 
@@ -59,7 +60,9 @@ func Port() int {
 }
 
 //Run setups params and start daemon for android.
-func Run(rpath string) {
+func Run(rpath string, location string, timeoffset int) {
+	loc := time.FixedZone(location, timeoffset)
+	time.Local = loc
 	ExpandFiles(rpath)
 	db.Setup()
 	listener, ch = gou.StartDaemon()
