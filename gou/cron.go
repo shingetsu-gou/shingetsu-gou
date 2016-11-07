@@ -55,7 +55,7 @@ func cron() {
 		getall := true
 		for {
 			log.Println("short cycle cron started")
-			go myself.ResetPort()
+			myself.ResetPort()
 			ns := node.MustNew(cfg.InitNode.GetData())
 			if len(ns) == 0 {
 				log.Fatal("no init nodes")
