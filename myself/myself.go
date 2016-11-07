@@ -72,11 +72,13 @@ func useUPnP() bool {
 		log.Println(err)
 		return false
 	}
+	log.Println("openning port by upnp...")
 	ma, err := nt.LoopPortMapping("tcp", cfg.DefaultPort, "shingetsu-gou", 10*time.Minute)
 	if err != nil {
 		log.Println(err)
 		return false
 	}
+	log.Println("openned port by upnp.")
 	externalPort = ma.ExternalPort
 	return true
 }

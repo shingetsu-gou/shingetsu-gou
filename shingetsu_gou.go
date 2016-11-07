@@ -61,8 +61,7 @@ func Port() int {
 
 //Run setups params and start daemon for android.
 func Run(rpath string, location string, timeoffset int) {
-	loc := time.FixedZone(location, timeoffset)
-	time.Local = loc
+	time.Local = time.FixedZone(location, timeoffset)
 	ExpandFiles(rpath)
 	db.Setup()
 	listener, ch = gou.StartDaemon()

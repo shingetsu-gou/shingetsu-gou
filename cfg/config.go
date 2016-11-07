@@ -211,7 +211,8 @@ func networkMode(i *ini.File) {
 	case "upnp":
 		NetworkMode = UPnP
 	default:
-		log.Fatal("cannot understand mode", networkModeStr)
+		log.Println("cannot understand mode", networkModeStr)
+		NetworkMode = Normal
 	}
 }
 
