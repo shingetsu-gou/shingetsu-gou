@@ -45,7 +45,8 @@ var listener net.Listener
 var ch chan error
 
 //ExpandFiles expands files in files dir.
-func ExpandFiles(rpath string) {
+func ExpandFiles(rpath string,location string,timeoffset int) {
+	time.Local = time.FixedZone(location, timeoffset)
 	cfg.SetAndroid(rpath)
 	cfg.Parse()
 	gou.SetupDirectories()
@@ -60,9 +61,8 @@ func Port() int {
 }
 
 //Run setups params and start daemon for android.
-func Run(rpath string, location string, timeoffset int) {
-	time.Local = time.FixedZone(location, timeoffset)
-	ExpandFiles(rpath)
+//You must call ExpandFiles beforehand.
+func Run() {
 	db.Setup()
 	listener, ch = gou.StartDaemon()
 }
