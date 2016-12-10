@@ -29,6 +29,7 @@ func main() {
 		}
 		errr := b.ForEach(func(k, v []byte) error {
 			fmt.Printf("key=%s, value=%s\n", k, v)
+			fmt.Printf("key=%02x, value=%x\n", k, v)
 			return nil
 		})
 		if errr != nil {

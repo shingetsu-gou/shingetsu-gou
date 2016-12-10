@@ -168,7 +168,7 @@ func (m *mchCGI) boardApp() {
 	msg := cgi.SearchMessage(l, cfg.FileDir)
 	m.WR.Header().Set("Content-Type", "text/html; charset=Shift_JIS")
 	board := util.Escape(util.GetBoard(m.Path()))
-	text := ""
+	var text string
 	if board != "" {
 		text = fmt.Sprintf("%s - %s - %s", msg["logo"], msg["description"], board)
 	} else {
@@ -352,7 +352,7 @@ func (m *mchCGI) getCommentData() map[string]string {
 //checkInfo checks posted info and returs thread name.
 //if ok.
 func (m *mchCGI) checkInfo(info map[string]string) string {
-	key := ""
+	var key string
 	if info["subject"] != "" {
 		key = util.FileEncode("thread", info["subject"])
 	} else {

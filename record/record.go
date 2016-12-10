@@ -60,19 +60,11 @@ func (d *DB) Del(tx *bolt.Tx) {
 	if err := db.Del(tx, "record", d.Head.ToKey()); err != nil {
 		log.Println(err)
 	}
-	err := db.DelMap(tx, "recordS", db.ToKey(d.Stamp), string(d.Head.ToKey()))
-	if err != nil {
-		log.Println(err)
-	}
 }
 
 //Put puts this one to db.
 func (d *DB) Put(tx *bolt.Tx) error {
-	err := db.Put(tx, "record", d.Head.ToKey(), d)
-	if err != nil {
-		return err
-	}
-	return db.PutMap(tx, "recordS", db.ToKey(d.Stamp), string(d.Head.ToKey()))
+	return db.Put(tx, "record", d.Head.ToKey(), d)
 }
 
 //GetFromDB gets DB db.

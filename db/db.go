@@ -54,9 +54,7 @@ sugtag Thread json(map[tags]struct{})
 usertag Thread json(map[tags]struct{})
 usertagTag Tag json(map[threads]struct{})
 recent thread:stamp:hash json(Datfile,Stamp.ID)
-recentS stamp json(map[thread,stamp.hash]struct{})
 record thread:stamp:hash json(Datfile,Stamp.ID,Body,Deleted)
-recordS stamp json(map[thread,stamp.hash]struct{})
 
 
 var tables = []string{

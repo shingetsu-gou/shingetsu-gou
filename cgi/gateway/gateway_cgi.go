@@ -372,8 +372,7 @@ func (g *gatewayCGI) appendRSS(rsss *cgi.RSS, ca *thread.Cache) {
 			content += fmt.Sprintf("\n    <p><a href=\"http://%s%s%s%s/%s/%d.%s\">%d.%s</a></p>",
 				g.Host(), cfg.ThreadURL, "/", ca.Datfile, r.ID, r.Stamp, suffix, r.Stamp, suffix)
 		}
-		permpath := path[1:]
-		permpath = fmt.Sprintf("%s/%s", path[1:], r.ID[:8])
+		permpath := fmt.Sprintf("%s/%s", path[1:], r.ID[:8])
 		rsss.Append(permpath, title, cgi.RSSTextFormat(r.GetBodyValue("name", "")), desc, content, user.GetStrings(ca.Datfile), r.Stamp, false)
 	}
 }

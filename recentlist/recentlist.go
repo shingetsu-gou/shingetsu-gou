@@ -36,7 +36,6 @@ import (
 	"sync"
 	"time"
 
-	"encoding/binary"
 	"encoding/json"
 
 	"github.com/boltdb/bolt"
@@ -111,10 +110,6 @@ func appendHead(tx *bolt.Tx, rec *record.Head) {
 	if err != nil {
 		log.Print(err)
 	}
-	err = db.PutMap(tx, "recentS", db.ToKey(rec.Stamp), string(k))
-	if err != nil {
-		log.Print(err)
-	}
 }
 
 //Append add a infos generated from the record.
@@ -146,28 +141,23 @@ func find(rec *record.Head) bool {
 
 //RemoveOlds remove old records..
 func RemoveOlds() {
-	if defaultUpdateRange <= 0 {
+	if cfg.RecentRange <= 0 {
 		return
 	}
-	t := time.Now().Unix() - int64(defaultUpdateRange)
-	b := make([]byte, 8)
-	binary.BigEndian.PutUint64(b, uint64(t))
+	t := time.Now().Unix() - cfg.RecentRange
 	err := db.DB.Update(func(tx *bolt.Tx) error {
-		ba := tx.Bucket([]byte("recentS"))
+		ba := tx.Bucket([]byte("recent"))
 		if ba == nil {
 			return errors.New("bucket is not found")
 		}
 		c := ba.Cursor()
-		c.Seek(b)
-		for k, v := c.Prev(); k != nil; k, v = c.Prev() {
-			var m map[string]struct{}
+		for k, v := c.First(); k != nil; k, v = c.Next() {
+			var m record.Head
 			if err := json.Unmarshal(v, &m); err != nil {
 				return err
 			}
-			for k := range m {
-				if err := db.Del(tx, "recent", []byte(k)); err != nil {
-					log.Println(err)
-				}
+			if m.Stamp > t {
+				continue
 			}
 			if err := c.Delete(); err != nil {
 				log.Println(err)
