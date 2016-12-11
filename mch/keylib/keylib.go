@@ -43,23 +43,17 @@ import (
 	"github.com/shingetsu-gou/shingetsu-gou/util"
 )
 
-func getThread(stamp int64) (string, error) {
+func getThread(tx *bolt.Tx, stamp int64) (string, error) {
 	var thread string
 	k := db.MustTob(stamp)
-	err := db.DB.View(func(tx *bolt.Tx) error {
-		_, err := db.Get(tx, "keylibST", k, &thread)
-		return err
-	})
+	_, err := db.Get(tx, "keylibST", k, &thread)
 	return thread, err
 }
 
-func getTime(thread string) (int64, error) {
+func getTime(tx *bolt.Tx, thread string) (int64, error) {
 	var stamp int64
 	k := db.MustTob(thread)
-	err := db.DB.View(func(tx *bolt.Tx) error {
-		_, err := db.Get(tx, "keylibTS", k, &stamp)
-		return err
-	})
+	_, err := db.Get(tx, "keylibTS", k, &stamp)
 	return stamp, err
 }
 
@@ -89,33 +83,36 @@ func setEntry(tx *bolt.Tx, stamp int64, filekey string) {
 	fb := db.MustTob(filekey)
 	err := db.Put(tx, "keylibST", sb, fb)
 	if err != nil {
-		log.Print(err)
+		panic(err)
 	}
 	err = db.Put(tx, "keylibTS", fb, sb)
 	if err != nil {
-		log.Print(err)
+		panic(err)
 	}
 }
 
 //setFromCache adds cache.datfile/timestamp pair if not exists.
 func setFromCache(tx *bolt.Tx, ca *thread.Cache) {
-	_, err := getTime(ca.Datfile)
+	_, err := getTime(tx, ca.Datfile)
 	if err == nil {
 		return
 	}
 	var firstStamp int64
-	if !ca.HasRecord() {
+	rec := ca.LoadRecords(record.Alive)
+	switch {
+	case !ca.HasRecord():
 		firstStamp = ca.RecentStamp()
-	} else {
-		if rec := ca.LoadRecords(record.Alive); len(rec) > 0 {
-			firstStamp = rec[rec.Keys()[0]].Stamp
-		}
-	}
-	if firstStamp == 0 {
+	case len(rec) > 0:
+		firstStamp = rec[rec.Keys()[0]].Stamp
+	default:
 		firstStamp = time.Now().Add(-24 * time.Hour).Unix()
 	}
-	for err = nil; err != nil; firstStamp++ {
-		_, err = getThread(firstStamp)
+	for {
+		_, err = getThread(tx, firstStamp)
+		if err != nil {
+			break
+		}
+		firstStamp++
 	}
 	setEntry(tx, firstStamp, ca.Datfile)
 }
@@ -123,24 +120,29 @@ func setFromCache(tx *bolt.Tx, ca *thread.Cache) {
 //GetDatkey returns stamp from filekey.
 //if not found, tries to read from cache.
 func GetDatkey(filekey string) (int64, error) {
-	v, err := getTime(filekey)
-	if err == nil {
-		return v, nil
-	}
-	c := thread.NewCache(filekey)
-	err = db.DB.Update(func(tx *bolt.Tx) error {
+	var v int64
+	err := db.DB.Update(func(tx *bolt.Tx) error {
+		var errr error
+		v, errr = getTime(tx, filekey)
+		if errr == nil {
+			return nil
+		}
+		c := thread.NewCache(filekey)
 		setFromCache(tx, c)
-		return nil
+		v, errr = getTime(tx, filekey)
+		return errr
 	})
-	if err == nil {
-		log.Println(err)
-	}
-	return getTime(filekey)
+	return v, err
 }
 
 //GetFilekey returns value from datkey(stamp).
 func GetFilekey(nDatkey int64) string {
-	v, err := getThread(nDatkey)
+	var v string
+	err := db.DB.View(func(tx *bolt.Tx) error {
+		var errr error
+		v, errr = getThread(tx, nDatkey)
+		return errr
+	})
 	if err == nil {
 		return v
 	}
