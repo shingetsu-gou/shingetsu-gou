@@ -98,7 +98,7 @@ func (n *Node) urlopen(url string, timeout time.Duration, fn func(string) error)
 			if errr != nil {
 				return nil, errr
 			}
-			errr = con.SetDeadline(time.Now().Add(20 * time.Minute))
+			errr = con.SetDeadline(time.Now().Add(time.Minute))
 			return con, errr
 		},
 	}
@@ -140,7 +140,7 @@ func (n *Node) Toxstring() string {
 
 //Talk talks with n with the message and returns data.
 func (n *Node) Talk(message string, fn func(string) error) ([]string, error) {
-	const defaultTimeout = time.Minute // Seconds; Timeout for TCP
+	const defaultTimeout = 15 * time.Second // Seconds; Timeout for TCP
 	var res []string
 	if fn == nil {
 		fn = func(line string) error {
@@ -270,16 +270,7 @@ func (n *Node) GetherNodes() []*Node {
 				mutex.Unlock()
 			}(nn)
 		}
-		done := make(chan struct{})
-		go func() {
-			wg.Wait()
-			done <- struct{}{}
-		}()
-		select {
-		case <-done:
-		case <-time.After(5 * time.Second):
-		}
-
+		wg.Wait()
 		log.Println("iteration", i, ",# of nodes:", len(ns))
 	}
 	nss := make([]*Node, len(ns))

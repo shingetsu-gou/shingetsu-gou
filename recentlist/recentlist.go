@@ -175,7 +175,7 @@ func RemoveOlds() {
 //also source nodes are stored into lookuptable.
 //also tags which Recentlist doen't have in sugtagtable are truncated
 func Getall(all bool) {
-	const searchNodes = 5
+	const searchNodes = 100
 
 	var begin int64
 	if cfg.RecentRange > 0 && !all {

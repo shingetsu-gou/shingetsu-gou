@@ -65,10 +65,11 @@ func cron() {
 					manager.AppendToList(i)
 				}
 			}
-			doSync(getall)
 			nodes := ns[0].GetherNodes()
+			doSync(getall)
 
-			go manager.Initialize(nodes)
+			manager.Initialize(nodes)
+			doSync(getall)
 			keylib.Load()
 			log.Println("short cycle cron finished")
 			getall = false

@@ -44,8 +44,8 @@ import (
 )
 
 const (
-	defaultNodes = 5 // Nodes keeping in node list
-	shareNodes   = 5 // Nodes having the
+	defaultNodes = 100 // Nodes keeping in node list
+	shareNodes   = 100 // Nodes having the
 )
 
 //thread name for list
