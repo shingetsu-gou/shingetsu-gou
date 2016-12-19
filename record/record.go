@@ -97,21 +97,21 @@ func GetFromDBs(tx *bolt.Tx, datfile string) ([]*DB, error) {
 }
 
 //ForEach do eachDo for each k/v to "record" db.
-func ForEach(tx *bolt.Tx, cond func([]byte, int) bool, eachDo func(*DB) error) error {
+func ForEach(tx *bolt.Tx, eachDo func(*DB) error) error {
 	b := tx.Bucket([]byte("record"))
 	if b == nil {
 		return errors.New("bucket not found record")
 	}
 	c := b.Cursor()
 	d := DB{}
-	i := 0
-	for k, v := c.First(); k != nil && cond(k, i); k, v = c.Next() {
+	for k, v := c.First(); k != nil; k, v = c.Next() {
 		if errr := json.Unmarshal(v, &d); errr != nil {
 			return errr
 		}
 		if errr := eachDo(&d); errr != nil {
 			return errr
 		}
+
 	}
 	return nil
 }

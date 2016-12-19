@@ -29,11 +29,8 @@
 package thread
 
 import (
-	"bytes"
 	"log"
 	"time"
-
-	"encoding/binary"
 
 	"regexp"
 
@@ -89,9 +86,6 @@ func Search(q string) Caches {
 	var cnt []string
 	err = db.DB.View(func(tx *bolt.Tx) error {
 		return record.ForEach(tx,
-			func(k []byte, i int) bool {
-				return true
-			},
 			func(d *record.DB) error {
 				if reg.Match([]byte(d.Body)) {
 					cnt = append(cnt, d.Datfile)
@@ -113,14 +107,12 @@ func Search(q string) Caches {
 //CleanRecords remove old or duplicates records for each Caches.
 func CleanRecords() {
 	err := db.DB.Update(func(tx *bolt.Tx) error {
-		return record.ForEach(tx,
-			func(k []byte, i int) bool {
-				return int64(i) < int64(Len())-cfg.SaveRecord
-			},
-			func(d *record.DB) error {
-				d.Del(tx)
-				return nil
-			})
+		return record.ForEach(tx, func(rec *record.DB) error {
+			if rec.Head.Stamp < time.Now().Unix()-cfg.SaveRecord {
+				rec.Del(tx)
+			}
+			return nil
+		})
 	})
 	if err != nil {
 		log.Println(err)
@@ -129,19 +121,15 @@ func CleanRecords() {
 
 //RemoveRemoved removes files in removed dir if old.
 func RemoveRemoved() {
-	if cfg.SaveRemoved > 0 {
+	if cfg.SaveRemoved <= 0 {
 		return
 	}
-	min := time.Now().Unix() - cfg.SaveRemoved
-	bmin := make([]byte, 8)
-	binary.BigEndian.PutUint64(bmin, uint64(min))
 	err := db.DB.Update(func(tx *bolt.Tx) error {
 		return record.ForEach(tx,
-			func(k []byte, i int) bool {
-				return bytes.Compare(k, bmin) < 0
-			},
-			func(d *record.DB) error {
-				d.Del(tx)
+			func(rec *record.DB) error {
+				if rec.Deleted && rec.Head.Stamp < time.Now().Unix()-cfg.SaveRemoved {
+					rec.Del(tx)
+				}
 				return nil
 			})
 	})
