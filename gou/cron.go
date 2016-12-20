@@ -48,7 +48,7 @@ var running bool
 func cron() {
 	const (
 		shortCycle = 10 * time.Minute
-		longCycle  = time.Hour
+		longCycle  = time.Minute
 	)
 
 	go func() {

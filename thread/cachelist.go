@@ -106,6 +106,9 @@ func Search(q string) Caches {
 
 //CleanRecords remove old or duplicates records for each Caches.
 func CleanRecords() {
+	if cfg.SaveRecord <= 0 {
+		return
+	}
 	err := db.DB.Update(func(tx *bolt.Tx) error {
 		return record.ForEach(tx, func(rec *record.DB) error {
 			if rec.Head.Stamp < time.Now().Unix()-cfg.SaveRecord {
