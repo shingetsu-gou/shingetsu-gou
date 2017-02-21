@@ -40,6 +40,7 @@ import (
 	"strconv"
 	"strings"
 	"time"
+	"errors"
 
 	"github.com/shingetsu-gou/shingetsu-gou/cfg"
 	"github.com/shingetsu-gou/shingetsu-gou/cgi"
@@ -251,6 +252,7 @@ func new(w http.ResponseWriter, r *http.Request) (*adminCGI, error) {
 	}
 	if !a.IsAdmin() {
 		a.Print403()
+		return nil, errors.New("permission denied")
 	}
 	return &a, nil
 }
