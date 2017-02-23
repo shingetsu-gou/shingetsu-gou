@@ -66,7 +66,6 @@ func newMessage(filedir, fname string) (Message, error) {
 	}
 	if dat == nil {
 		err := errors.New("message file was not found")
-		log.Fatal(err)
 		return nil, err
 	}
 
