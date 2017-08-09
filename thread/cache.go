@@ -82,18 +82,13 @@ func (c *Cache) Stamp() int64 {
 }
 
 //Len returns # of records in the cache.
-func (c *Cache) Len() int {
-	var r []*record.DB
-	err := db.DB.View(func(tx *bolt.Tx) error {
-		var err error
-		r, err = record.GetFromDBs(tx, c.Datfile)
-		return err
-	})
+func (c *Cache) Len(kind int) int {
+	m, err := record.FromRecordDB(c.Datfile, kind)
 	if err != nil {
 		log.Print(err)
 		return 0
 	}
-	return len(r)
+	return len(m)
 }
 
 //Velocity returns number of records in one days in the cache.
@@ -120,7 +115,7 @@ func (c *Cache) Velocity() int {
 
 //Size returns sum of body char length of records in the cache.
 func (c *Cache) Size() int64 {
-	if c.Len() == 0 {
+	if c.Len(record.All) == 0 {
 		return 0
 	}
 	var r []*record.DB

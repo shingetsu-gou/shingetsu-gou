@@ -123,7 +123,7 @@ func printStatus(w http.ResponseWriter, r *http.Request) {
 	records := 0
 	var size int64
 	for _, ca := range thread.AllCaches() {
-		records += ca.Len()
+		records += ca.Len(record.All)
 		size += ca.Size()
 	}
 

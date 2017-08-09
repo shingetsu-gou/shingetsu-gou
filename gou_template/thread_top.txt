@@ -19,7 +19,7 @@
 {{ if .Lastrec }}
   {{.ResAnchor}}{{.Message.last_article}}</a>
 {{ else}}
-  {{ if .Cache.Len}}
+  {{ if .Cache.Len 1 }}
     <a href="#bottom">{{.Message.bottom_of_page}}</a>
   {{ end }}
 {{ end }}

@@ -397,7 +397,7 @@ func (g *gatewayCGI) makeOneRow(c string, ca *thread.Cache, p, title string) str
 	case "title":
 		return title
 	case "records":
-		return strconv.Itoa(ca.Len())
+		return strconv.Itoa(ca.Len(record.Alive))
 	case "size":
 		return strconv.FormatInt(ca.Size(), 10)
 	case "tag":

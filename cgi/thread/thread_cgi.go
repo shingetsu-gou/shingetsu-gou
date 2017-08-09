@@ -198,7 +198,7 @@ func (t *threadCGI) setCookie(ca *thread.Cache, access string) []*http.Cookie {
 
 //printPageNavi renders page_navi.txt, part for paging.
 func (t *threadCGI) printPageNavi(path string, page int, ca *thread.Cache, id string) {
-	len := ca.Len()
+	len := ca.Len(record.Alive)
 	first := len / cfg.ThreadPageSize
 	if len%cfg.ThreadPageSize == 0 {
 		first++
