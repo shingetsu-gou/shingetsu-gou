@@ -11,7 +11,7 @@
   <span class="stamp" id="s{{.Cache.RecentStamp}}">{{localtime .Cache.RecentStamp}}</span>
 
 <a href="{{$root.ThreadCGI}}/{{strEncode .Title}}{{$root.StrOpts}}">{{.Title}}</a>
-({{.Cache.Len}}/{{toInt .Cache.Size|toMB|printf "%.1f"}}{{$root.Message.mb}})
+({{.Cache.Len 1}}/{{toInt .Cache.Size|toMB|printf "%.1f"}}{{$root.Message.mb}})
 {{ if .Tags}}
   <span class="tags">
   {{ range $tag:=.Tags }}

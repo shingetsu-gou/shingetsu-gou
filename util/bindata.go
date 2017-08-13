@@ -153,7 +153,7 @@ func www00defaultCss() (*asset, error) {
 		return nil, err
 	}
 
-	info := bindataFileInfo{name: "www/00default.css", size: 1328, mode: os.FileMode(420), modTime: time.Unix(1473737201, 0)}
+	info := bindataFileInfo{name: "www/00default.css", size: 1328, mode: os.FileMode(420), modTime: time.Unix(1502257508, 0)}
 	a := &asset{bytes: bytes, info: info}
 	return a, nil
 }
@@ -173,7 +173,7 @@ func www00initializeJs() (*asset, error) {
 		return nil, err
 	}
 
-	info := bindataFileInfo{name: "www/00initialize.js", size: 2257, mode: os.FileMode(420), modTime: time.Unix(1473737201, 0)}
+	info := bindataFileInfo{name: "www/00initialize.js", size: 2257, mode: os.FileMode(420), modTime: time.Unix(1448763309, 0)}
 	a := &asset{bytes: bytes, info: info}
 	return a, nil
 }
@@ -193,7 +193,7 @@ func www20jumpJs() (*asset, error) {
 		return nil, err
 	}
 
-	info := bindataFileInfo{name: "www/20jump.js", size: 1876, mode: os.FileMode(420), modTime: time.Unix(1473737201, 0)}
+	info := bindataFileInfo{name: "www/20jump.js", size: 1876, mode: os.FileMode(420), modTime: time.Unix(1448763309, 0)}
 	a := &asset{bytes: bytes, info: info}
 	return a, nil
 }
@@ -213,7 +213,7 @@ func www20lazyimgJs() (*asset, error) {
 		return nil, err
 	}
 
-	info := bindataFileInfo{name: "www/20lazyimg.js", size: 612, mode: os.FileMode(420), modTime: time.Unix(1473737201, 0)}
+	info := bindataFileInfo{name: "www/20lazyimg.js", size: 612, mode: os.FileMode(420), modTime: time.Unix(1448763309, 0)}
 	a := &asset{bytes: bytes, info: info}
 	return a, nil
 }
@@ -233,7 +233,7 @@ func www20localtimeJs() (*asset, error) {
 		return nil, err
 	}
 
-	info := bindataFileInfo{name: "www/20localtime.js", size: 927, mode: os.FileMode(420), modTime: time.Unix(1473737201, 0)}
+	info := bindataFileInfo{name: "www/20localtime.js", size: 927, mode: os.FileMode(420), modTime: time.Unix(1448763309, 0)}
 	a := &asset{bytes: bytes, info: info}
 	return a, nil
 }
@@ -253,7 +253,7 @@ func www20popupJs() (*asset, error) {
 		return nil, err
 	}
 
-	info := bindataFileInfo{name: "www/20popup.js", size: 4287, mode: os.FileMode(420), modTime: time.Unix(1473737201, 0)}
+	info := bindataFileInfo{name: "www/20popup.js", size: 4287, mode: os.FileMode(420), modTime: time.Unix(1448763309, 0)}
 	a := &asset{bytes: bytes, info: info}
 	return a, nil
 }
@@ -273,7 +273,7 @@ func www20responceJs() (*asset, error) {
 		return nil, err
 	}
 
-	info := bindataFileInfo{name: "www/20responce.js", size: 1810, mode: os.FileMode(420), modTime: time.Unix(1473737201, 0)}
+	info := bindataFileInfo{name: "www/20responce.js", size: 1810, mode: os.FileMode(420), modTime: time.Unix(1448763309, 0)}
 	a := &asset{bytes: bytes, info: info}
 	return a, nil
 }
@@ -293,7 +293,7 @@ func www20tageditJs() (*asset, error) {
 		return nil, err
 	}
 
-	info := bindataFileInfo{name: "www/20tagedit.js", size: 2241, mode: os.FileMode(420), modTime: time.Unix(1473737201, 0)}
+	info := bindataFileInfo{name: "www/20tagedit.js", size: 2241, mode: os.FileMode(420), modTime: time.Unix(1448763309, 0)}
 	a := &asset{bytes: bytes, info: info}
 	return a, nil
 }
@@ -313,7 +313,7 @@ func www20textareaJs() (*asset, error) {
 		return nil, err
 	}
 
-	info := bindataFileInfo{name: "www/20textarea.js", size: 4778, mode: os.FileMode(420), modTime: time.Unix(1473737201, 0)}
+	info := bindataFileInfo{name: "www/20textarea.js", size: 4778, mode: os.FileMode(420), modTime: time.Unix(1448763309, 0)}
 	a := &asset{bytes: bytes, info: info}
 	return a, nil
 }
@@ -333,7 +333,7 @@ func www21resanchorJs() (*asset, error) {
 		return nil, err
 	}
 
-	info := bindataFileInfo{name: "www/21resanchor.js", size: 7246, mode: os.FileMode(420), modTime: time.Unix(1473737201, 0)}
+	info := bindataFileInfo{name: "www/21resanchor.js", size: 7246, mode: os.FileMode(420), modTime: time.Unix(1448763309, 0)}
 	a := &asset{bytes: bytes, info: info}
 	return a, nil
 }
@@ -353,7 +353,7 @@ func www40recformJs() (*asset, error) {
 		return nil, err
 	}
 
-	info := bindataFileInfo{name: "www/40recform.js", size: 2844, mode: os.FileMode(420), modTime: time.Unix(1473737201, 0)}
+	info := bindataFileInfo{name: "www/40recform.js", size: 2844, mode: os.FileMode(420), modTime: time.Unix(1448763309, 0)}
 	a := &asset{bytes: bytes, info: info}
 	return a, nil
 }
@@ -373,7 +373,7 @@ func www41postadvancedJs() (*asset, error) {
 		return nil, err
 	}
 
-	info := bindataFileInfo{name: "www/41postadvanced.js", size: 1329, mode: os.FileMode(420), modTime: time.Unix(1473737201, 0)}
+	info := bindataFileInfo{name: "www/41postadvanced.js", size: 1329, mode: os.FileMode(420), modTime: time.Unix(1448763309, 0)}
 	a := &asset{bytes: bytes, info: info}
 	return a, nil
 }
@@ -393,7 +393,7 @@ func wwwArazuki_sakuPng() (*asset, error) {
 		return nil, err
 	}
 
-	info := bindataFileInfo{name: "www/arazuki_saku.png", size: 64530, mode: os.FileMode(420), modTime: time.Unix(1473737201, 0)}
+	info := bindataFileInfo{name: "www/arazuki_saku.png", size: 64530, mode: os.FileMode(420), modTime: time.Unix(1448763309, 0)}
 	a := &asset{bytes: bytes, info: info}
 	return a, nil
 }
@@ -413,7 +413,7 @@ func wwwBootstrapCssBootstrapMinCss() (*asset, error) {
 		return nil, err
 	}
 
-	info := bindataFileInfo{name: "www/bootstrap/css/bootstrap.min.css", size: 99961, mode: os.FileMode(420), modTime: time.Unix(1473737201, 0)}
+	info := bindataFileInfo{name: "www/bootstrap/css/bootstrap.min.css", size: 99961, mode: os.FileMode(420), modTime: time.Unix(1448763309, 0)}
 	a := &asset{bytes: bytes, info: info}
 	return a, nil
 }
@@ -433,7 +433,7 @@ func wwwBootstrapFontsGlyphiconsHalflingsRegularEot() (*asset, error) {
 		return nil, err
 	}
 
-	info := bindataFileInfo{name: "www/bootstrap/fonts/glyphicons-halflings-regular.eot", size: 20335, mode: os.FileMode(420), modTime: time.Unix(1473737201, 0)}
+	info := bindataFileInfo{name: "www/bootstrap/fonts/glyphicons-halflings-regular.eot", size: 20335, mode: os.FileMode(420), modTime: time.Unix(1448763309, 0)}
 	a := &asset{bytes: bytes, info: info}
 	return a, nil
 }
@@ -453,7 +453,7 @@ func wwwBootstrapFontsGlyphiconsHalflingsRegularSvg() (*asset, error) {
 		return nil, err
 	}
 
-	info := bindataFileInfo{name: "www/bootstrap/fonts/glyphicons-halflings-regular.svg", size: 62927, mode: os.FileMode(420), modTime: time.Unix(1473737201, 0)}
+	info := bindataFileInfo{name: "www/bootstrap/fonts/glyphicons-halflings-regular.svg", size: 62927, mode: os.FileMode(420), modTime: time.Unix(1448763309, 0)}
 	a := &asset{bytes: bytes, info: info}
 	return a, nil
 }
@@ -473,7 +473,7 @@ func wwwBootstrapFontsGlyphiconsHalflingsRegularTtf() (*asset, error) {
 		return nil, err
 	}
 
-	info := bindataFileInfo{name: "www/bootstrap/fonts/glyphicons-halflings-regular.ttf", size: 41280, mode: os.FileMode(420), modTime: time.Unix(1473737201, 0)}
+	info := bindataFileInfo{name: "www/bootstrap/fonts/glyphicons-halflings-regular.ttf", size: 41280, mode: os.FileMode(420), modTime: time.Unix(1448763309, 0)}
 	a := &asset{bytes: bytes, info: info}
 	return a, nil
 }
@@ -493,7 +493,7 @@ func wwwBootstrapFontsGlyphiconsHalflingsRegularWoff() (*asset, error) {
 		return nil, err
 	}
 
-	info := bindataFileInfo{name: "www/bootstrap/fonts/glyphicons-halflings-regular.woff", size: 23320, mode: os.FileMode(420), modTime: time.Unix(1473737201, 0)}
+	info := bindataFileInfo{name: "www/bootstrap/fonts/glyphicons-halflings-regular.woff", size: 23320, mode: os.FileMode(420), modTime: time.Unix(1448763309, 0)}
 	a := &asset{bytes: bytes, info: info}
 	return a, nil
 }
@@ -513,7 +513,7 @@ func wwwBootstrapJsBootstrapMinJs() (*asset, error) {
 		return nil, err
 	}
 
-	info := bindataFileInfo{name: "www/bootstrap/js/bootstrap.min.js", size: 29110, mode: os.FileMode(420), modTime: time.Unix(1473737201, 0)}
+	info := bindataFileInfo{name: "www/bootstrap/js/bootstrap.min.js", size: 29110, mode: os.FileMode(420), modTime: time.Unix(1448763309, 0)}
 	a := &asset{bytes: bytes, info: info}
 	return a, nil
 }
@@ -533,7 +533,7 @@ func wwwEmojiJson() (*asset, error) {
 		return nil, err
 	}
 
-	info := bindataFileInfo{name: "www/emoji.json", size: 311889, mode: os.FileMode(420), modTime: time.Unix(1473737201, 0)}
+	info := bindataFileInfo{name: "www/emoji.json", size: 311889, mode: os.FileMode(420), modTime: time.Unix(1448763309, 0)}
 	a := &asset{bytes: bytes, info: info}
 	return a, nil
 }
@@ -553,7 +553,7 @@ func wwwExtensions20imgpopupJs() (*asset, error) {
 		return nil, err
 	}
 
-	info := bindataFileInfo{name: "www/extensions/20imgpopup.js", size: 1323, mode: os.FileMode(420), modTime: time.Unix(1473737201, 0)}
+	info := bindataFileInfo{name: "www/extensions/20imgpopup.js", size: 1323, mode: os.FileMode(420), modTime: time.Unix(1448763309, 0)}
 	a := &asset{bytes: bytes, info: info}
 	return a, nil
 }
@@ -573,7 +573,7 @@ func wwwExtensions20imgspoilerJs() (*asset, error) {
 		return nil, err
 	}
 
-	info := bindataFileInfo{name: "www/extensions/20imgspoiler.js", size: 443, mode: os.FileMode(420), modTime: time.Unix(1473737201, 0)}
+	info := bindataFileInfo{name: "www/extensions/20imgspoiler.js", size: 443, mode: os.FileMode(420), modTime: time.Unix(1448763309, 0)}
 	a := &asset{bytes: bytes, info: info}
 	return a, nil
 }
@@ -593,7 +593,7 @@ func wwwExtensions20localtimeJs() (*asset, error) {
 		return nil, err
 	}
 
-	info := bindataFileInfo{name: "www/extensions/20localtime.js", size: 1444, mode: os.FileMode(420), modTime: time.Unix(1473737201, 0)}
+	info := bindataFileInfo{name: "www/extensions/20localtime.js", size: 1444, mode: os.FileMode(420), modTime: time.Unix(1448763309, 0)}
 	a := &asset{bytes: bytes, info: info}
 	return a, nil
 }
@@ -613,7 +613,7 @@ func wwwExtensions30addlinksJs() (*asset, error) {
 		return nil, err
 	}
 
-	info := bindataFileInfo{name: "www/extensions/30addlinks.js", size: 4465, mode: os.FileMode(420), modTime: time.Unix(1473737201, 0)}
+	info := bindataFileInfo{name: "www/extensions/30addlinks.js", size: 4465, mode: os.FileMode(420), modTime: time.Unix(1448763309, 0)}
 	a := &asset{bytes: bytes, info: info}
 	return a, nil
 }
@@ -633,7 +633,7 @@ func wwwExtensions30adminJs() (*asset, error) {
 		return nil, err
 	}
 
-	info := bindataFileInfo{name: "www/extensions/30admin.js", size: 782, mode: os.FileMode(420), modTime: time.Unix(1473737201, 0)}
+	info := bindataFileInfo{name: "www/extensions/30admin.js", size: 782, mode: os.FileMode(420), modTime: time.Unix(1448763309, 0)}
 	a := &asset{bytes: bytes, info: info}
 	return a, nil
 }
@@ -653,7 +653,7 @@ func wwwExtensions30filenameJs() (*asset, error) {
 		return nil, err
 	}
 
-	info := bindataFileInfo{name: "www/extensions/30filename.js", size: 641, mode: os.FileMode(420), modTime: time.Unix(1473737201, 0)}
+	info := bindataFileInfo{name: "www/extensions/30filename.js", size: 641, mode: os.FileMode(420), modTime: time.Unix(1448763309, 0)}
 	a := &asset{bytes: bytes, info: info}
 	return a, nil
 }
@@ -673,7 +673,7 @@ func wwwExtensions30filterlinkJs() (*asset, error) {
 		return nil, err
 	}
 
-	info := bindataFileInfo{name: "www/extensions/30filterlink.js", size: 2181, mode: os.FileMode(420), modTime: time.Unix(1473737201, 0)}
+	info := bindataFileInfo{name: "www/extensions/30filterlink.js", size: 2181, mode: os.FileMode(420), modTime: time.Unix(1448763309, 0)}
 	a := &asset{bytes: bytes, info: info}
 	return a, nil
 }
@@ -693,7 +693,7 @@ func wwwExtensions30idresJs() (*asset, error) {
 		return nil, err
 	}
 
-	info := bindataFileInfo{name: "www/extensions/30idres.js", size: 7398, mode: os.FileMode(420), modTime: time.Unix(1473737201, 0)}
+	info := bindataFileInfo{name: "www/extensions/30idres.js", size: 7398, mode: os.FileMode(420), modTime: time.Unix(1448763309, 0)}
 	a := &asset{bytes: bytes, info: info}
 	return a, nil
 }
@@ -713,7 +713,7 @@ func wwwExtensions30ytplayerJs() (*asset, error) {
 		return nil, err
 	}
 
-	info := bindataFileInfo{name: "www/extensions/30ytplayer.js", size: 9299, mode: os.FileMode(420), modTime: time.Unix(1473737201, 0)}
+	info := bindataFileInfo{name: "www/extensions/30ytplayer.js", size: 9299, mode: os.FileMode(420), modTime: time.Unix(1448763309, 0)}
 	a := &asset{bytes: bytes, info: info}
 	return a, nil
 }
@@ -733,7 +733,7 @@ func wwwExtensions40incfilterJs() (*asset, error) {
 		return nil, err
 	}
 
-	info := bindataFileInfo{name: "www/extensions/40incfilter.js", size: 1964, mode: os.FileMode(420), modTime: time.Unix(1473737201, 0)}
+	info := bindataFileInfo{name: "www/extensions/40incfilter.js", size: 1964, mode: os.FileMode(420), modTime: time.Unix(1448763309, 0)}
 	a := &asset{bytes: bytes, info: info}
 	return a, nil
 }
@@ -753,7 +753,7 @@ func wwwExtensions40textareaJs() (*asset, error) {
 		return nil, err
 	}
 
-	info := bindataFileInfo{name: "www/extensions/40textarea.js", size: 3269, mode: os.FileMode(420), modTime: time.Unix(1473737201, 0)}
+	info := bindataFileInfo{name: "www/extensions/40textarea.js", size: 3269, mode: os.FileMode(420), modTime: time.Unix(1448763309, 0)}
 	a := &asset{bytes: bytes, info: info}
 	return a, nil
 }
@@ -773,7 +773,7 @@ func wwwExtensionsReadme() (*asset, error) {
 		return nil, err
 	}
 
-	info := bindataFileInfo{name: "www/extensions/README", size: 124, mode: os.FileMode(420), modTime: time.Unix(1473737201, 0)}
+	info := bindataFileInfo{name: "www/extensions/README", size: 124, mode: os.FileMode(420), modTime: time.Unix(1448763309, 0)}
 	a := &asset{bytes: bytes, info: info}
 	return a, nil
 }
@@ -793,7 +793,7 @@ func wwwFaviconIco() (*asset, error) {
 		return nil, err
 	}
 
-	info := bindataFileInfo{name: "www/favicon.ico", size: 1406, mode: os.FileMode(420), modTime: time.Unix(1473737201, 0)}
+	info := bindataFileInfo{name: "www/favicon.ico", size: 1406, mode: os.FileMode(420), modTime: time.Unix(1448763309, 0)}
 	a := &asset{bytes: bytes, info: info}
 	return a, nil
 }
@@ -813,7 +813,7 @@ func wwwGouPng() (*asset, error) {
 		return nil, err
 	}
 
-	info := bindataFileInfo{name: "www/gou.png", size: 24052, mode: os.FileMode(420), modTime: time.Unix(1477966440, 0)}
+	info := bindataFileInfo{name: "www/gou.png", size: 24052, mode: os.FileMode(420), modTime: time.Unix(1491401929, 0)}
 	a := &asset{bytes: bytes, info: info}
 	return a, nil
 }
@@ -833,7 +833,7 @@ func wwwJqueryMitLicenseTxt() (*asset, error) {
 		return nil, err
 	}
 
-	info := bindataFileInfo{name: "www/jquery/MIT-LICENSE.txt", size: 1099, mode: os.FileMode(420), modTime: time.Unix(1473737201, 0)}
+	info := bindataFileInfo{name: "www/jquery/MIT-LICENSE.txt", size: 1099, mode: os.FileMode(420), modTime: time.Unix(1448763309, 0)}
 	a := &asset{bytes: bytes, info: info}
 	return a, nil
 }
@@ -853,7 +853,7 @@ func wwwJqueryJqueryLazyMinJs() (*asset, error) {
 		return nil, err
 	}
 
-	info := bindataFileInfo{name: "www/jquery/jquery.lazy.min.js", size: 2763, mode: os.FileMode(420), modTime: time.Unix(1473737201, 0)}
+	info := bindataFileInfo{name: "www/jquery/jquery.lazy.min.js", size: 2763, mode: os.FileMode(420), modTime: time.Unix(1448763309, 0)}
 	a := &asset{bytes: bytes, info: info}
 	return a, nil
 }
@@ -873,7 +873,7 @@ func wwwJqueryJqueryMinJs() (*asset, error) {
 		return nil, err
 	}
 
-	info := bindataFileInfo{name: "www/jquery/jquery.min.js", size: 84245, mode: os.FileMode(420), modTime: time.Unix(1473737201, 0)}
+	info := bindataFileInfo{name: "www/jquery/jquery.min.js", size: 84245, mode: os.FileMode(420), modTime: time.Unix(1448763309, 0)}
 	a := &asset{bytes: bytes, info: info}
 	return a, nil
 }
@@ -893,7 +893,7 @@ func wwwJquerySpoilerAuthorsTxt() (*asset, error) {
 		return nil, err
 	}
 
-	info := bindataFileInfo{name: "www/jquery/spoiler/authors.txt", size: 226, mode: os.FileMode(420), modTime: time.Unix(1473737201, 0)}
+	info := bindataFileInfo{name: "www/jquery/spoiler/authors.txt", size: 226, mode: os.FileMode(420), modTime: time.Unix(1448763309, 0)}
 	a := &asset{bytes: bytes, info: info}
 	return a, nil
 }
@@ -913,7 +913,7 @@ func wwwJquerySpoilerSpoilerMinJs() (*asset, error) {
 		return nil, err
 	}
 
-	info := bindataFileInfo{name: "www/jquery/spoiler/spoiler.min.js", size: 2333, mode: os.FileMode(420), modTime: time.Unix(1473737201, 0)}
+	info := bindataFileInfo{name: "www/jquery/spoiler/spoiler.min.js", size: 2333, mode: os.FileMode(420), modTime: time.Unix(1448763309, 0)}
 	a := &asset{bytes: bytes, info: info}
 	return a, nil
 }
@@ -933,7 +933,7 @@ func wwwRss1Xsl() (*asset, error) {
 		return nil, err
 	}
 
-	info := bindataFileInfo{name: "www/rss1.xsl", size: 1342, mode: os.FileMode(420), modTime: time.Unix(1473737201, 0)}
+	info := bindataFileInfo{name: "www/rss1.xsl", size: 1342, mode: os.FileMode(420), modTime: time.Unix(1448763309, 0)}
 	a := &asset{bytes: bytes, info: info}
 	return a, nil
 }
@@ -953,7 +953,7 @@ func wwwXGif() (*asset, error) {
 		return nil, err
 	}
 
-	info := bindataFileInfo{name: "www/x.gif", size: 43, mode: os.FileMode(420), modTime: time.Unix(1473737201, 0)}
+	info := bindataFileInfo{name: "www/x.gif", size: 43, mode: os.FileMode(420), modTime: time.Unix(1448763309, 0)}
 	a := &asset{bytes: bytes, info: info}
 	return a, nil
 }
@@ -973,7 +973,7 @@ func fileInitnodeTxt() (*asset, error) {
 		return nil, err
 	}
 
-	info := bindataFileInfo{name: "file/initnode.txt", size: 178, mode: os.FileMode(420), modTime: time.Unix(1473737201, 0)}
+	info := bindataFileInfo{name: "file/initnode.txt", size: 178, mode: os.FileMode(420), modTime: time.Unix(1470851975, 0)}
 	a := &asset{bytes: bytes, info: info}
 	return a, nil
 }
@@ -993,7 +993,7 @@ func fileMessageEnTxt() (*asset, error) {
 		return nil, err
 	}
 
-	info := bindataFileInfo{name: "file/message-en.txt", size: 2813, mode: os.FileMode(420), modTime: time.Unix(1474426118, 0)}
+	info := bindataFileInfo{name: "file/message-en.txt", size: 2813, mode: os.FileMode(420), modTime: time.Unix(1491401929, 0)}
 	a := &asset{bytes: bytes, info: info}
 	return a, nil
 }
@@ -1013,7 +1013,7 @@ func fileMessageJaTxt() (*asset, error) {
 		return nil, err
 	}
 
-	info := bindataFileInfo{name: "file/message-ja.txt", size: 3938, mode: os.FileMode(420), modTime: time.Unix(1474426130, 0)}
+	info := bindataFileInfo{name: "file/message-ja.txt", size: 3938, mode: os.FileMode(420), modTime: time.Unix(1502257508, 0)}
 	a := &asset{bytes: bytes, info: info}
 	return a, nil
 }
@@ -1033,7 +1033,7 @@ func fileMotdTxt() (*asset, error) {
 		return nil, err
 	}
 
-	info := bindataFileInfo{name: "file/motd.txt", size: 1662, mode: os.FileMode(420), modTime: time.Unix(1473737201, 0)}
+	info := bindataFileInfo{name: "file/motd.txt", size: 1662, mode: os.FileMode(420), modTime: time.Unix(1448763309, 0)}
 	a := &asset{bytes: bytes, info: info}
 	return a, nil
 }
@@ -1053,7 +1053,7 @@ func fileNode_allowTxt() (*asset, error) {
 		return nil, err
 	}
 
-	info := bindataFileInfo{name: "file/node_allow.txt", size: 262, mode: os.FileMode(420), modTime: time.Unix(1473737201, 0)}
+	info := bindataFileInfo{name: "file/node_allow.txt", size: 262, mode: os.FileMode(420), modTime: time.Unix(1448763309, 0)}
 	a := &asset{bytes: bytes, info: info}
 	return a, nil
 }
@@ -1073,7 +1073,7 @@ func fileNode_denyTxt() (*asset, error) {
 		return nil, err
 	}
 
-	info := bindataFileInfo{name: "file/node_deny.txt", size: 303, mode: os.FileMode(420), modTime: time.Unix(1473737201, 0)}
+	info := bindataFileInfo{name: "file/node_deny.txt", size: 303, mode: os.FileMode(420), modTime: time.Unix(1448763309, 0)}
 	a := &asset{bytes: bytes, info: info}
 	return a, nil
 }
@@ -1093,7 +1093,7 @@ func fileSakuIni() (*asset, error) {
 		return nil, err
 	}
 
-	info := bindataFileInfo{name: "file/saku.ini", size: 200, mode: os.FileMode(420), modTime: time.Unix(1478486277, 0)}
+	info := bindataFileInfo{name: "file/saku.ini", size: 200, mode: os.FileMode(420), modTime: time.Unix(1502257508, 0)}
 	a := &asset{bytes: bytes, info: info}
 	return a, nil
 }
@@ -1113,7 +1113,7 @@ func fileSpamTxt() (*asset, error) {
 		return nil, err
 	}
 
-	info := bindataFileInfo{name: "file/spam.txt", size: 672, mode: os.FileMode(420), modTime: time.Unix(1477981573, 0)}
+	info := bindataFileInfo{name: "file/spam.txt", size: 672, mode: os.FileMode(420), modTime: time.Unix(1491401929, 0)}
 	a := &asset{bytes: bytes, info: info}
 	return a, nil
 }
@@ -1133,7 +1133,7 @@ func gou_template2ch_errorTxt() (*asset, error) {
 		return nil, err
 	}
 
-	info := bindataFileInfo{name: "gou_template/2ch_error.txt", size: 493, mode: os.FileMode(420), modTime: time.Unix(1473737201, 0)}
+	info := bindataFileInfo{name: "gou_template/2ch_error.txt", size: 493, mode: os.FileMode(420), modTime: time.Unix(1448763309, 0)}
 	a := &asset{bytes: bytes, info: info}
 	return a, nil
 }
@@ -1153,7 +1153,7 @@ func gou_templateDelete_fileTxt() (*asset, error) {
 		return nil, err
 	}
 
-	info := bindataFileInfo{name: "gou_template/delete_file.txt", size: 822, mode: os.FileMode(420), modTime: time.Unix(1473737201, 0)}
+	info := bindataFileInfo{name: "gou_template/delete_file.txt", size: 822, mode: os.FileMode(420), modTime: time.Unix(1448763309, 0)}
 	a := &asset{bytes: bytes, info: info}
 	return a, nil
 }
@@ -1173,7 +1173,7 @@ func gou_templateDelete_recordTxt() (*asset, error) {
 		return nil, err
 	}
 
-	info := bindataFileInfo{name: "gou_template/delete_record.txt", size: 1779, mode: os.FileMode(420), modTime: time.Unix(1473737201, 0)}
+	info := bindataFileInfo{name: "gou_template/delete_record.txt", size: 1779, mode: os.FileMode(420), modTime: time.Unix(1448763309, 0)}
 	a := &asset{bytes: bytes, info: info}
 	return a, nil
 }
@@ -1193,7 +1193,7 @@ func gou_templateEdit_tagTxt() (*asset, error) {
 		return nil, err
 	}
 
-	info := bindataFileInfo{name: "gou_template/edit_tag.txt", size: 942, mode: os.FileMode(420), modTime: time.Unix(1477825761, 0)}
+	info := bindataFileInfo{name: "gou_template/edit_tag.txt", size: 942, mode: os.FileMode(420), modTime: time.Unix(1491401929, 0)}
 	a := &asset{bytes: bytes, info: info}
 	return a, nil
 }
@@ -1213,7 +1213,7 @@ func gou_templateFooterTxt() (*asset, error) {
 		return nil, err
 	}
 
-	info := bindataFileInfo{name: "gou_template/footer.txt", size: 419, mode: os.FileMode(420), modTime: time.Unix(1473737201, 0)}
+	info := bindataFileInfo{name: "gou_template/footer.txt", size: 419, mode: os.FileMode(420), modTime: time.Unix(1448763309, 0)}
 	a := &asset{bytes: bytes, info: info}
 	return a, nil
 }
@@ -1233,7 +1233,7 @@ func gou_templateHeaderTxt() (*asset, error) {
 		return nil, err
 	}
 
-	info := bindataFileInfo{name: "gou_template/header.txt", size: 1965, mode: os.FileMode(420), modTime: time.Unix(1473737201, 0)}
+	info := bindataFileInfo{name: "gou_template/header.txt", size: 1965, mode: os.FileMode(420), modTime: time.Unix(1487517069, 0)}
 	a := &asset{bytes: bytes, info: info}
 	return a, nil
 }
@@ -1253,7 +1253,7 @@ func gou_templateIndex_listTxt() (*asset, error) {
 		return nil, err
 	}
 
-	info := bindataFileInfo{name: "gou_template/index_list.txt", size: 1756, mode: os.FileMode(420), modTime: time.Unix(1477564016, 0)}
+	info := bindataFileInfo{name: "gou_template/index_list.txt", size: 1756, mode: os.FileMode(420), modTime: time.Unix(1491401929, 0)}
 	a := &asset{bytes: bytes, info: info}
 	return a, nil
 }
@@ -1273,12 +1273,12 @@ func gou_templateJumpTxt() (*asset, error) {
 		return nil, err
 	}
 
-	info := bindataFileInfo{name: "gou_template/jump.txt", size: 252, mode: os.FileMode(420), modTime: time.Unix(1473737201, 0)}
+	info := bindataFileInfo{name: "gou_template/jump.txt", size: 252, mode: os.FileMode(420), modTime: time.Unix(1448763309, 0)}
 	a := &asset{bytes: bytes, info: info}
 	return a, nil
 }
 
-var _gou_templateList_itemTxt = []byte("\x1f\x8b\x08\x00\x00\x09\x6e\x88\x00\xff\xbc\x93\x51\x6f\xd3\x30\x10\xc7\xdf\xf3\x29\x4e\xd6\x90\xb6\x49\x4b\xb6\x09\x5e\xaa\x24\x08\xca\x54\x55\x62\x02\xad\x7d\x47\xd7\xe4\x92\x98\x25\x76\x64\x5f\x07\x25\xf3\x77\x47\x76\xd2\x85\x51\x9e\x79\xb2\x7c\x77\xfe\xdf\xff\x77\x97\x0c\x43\x72\x19\xc1\x52\xf7\x07\x23\xeb\x86\xe1\xbc\xb8\x80\xdb\xeb\xeb\x77\x57\xb7\xd7\x37\x6f\xc1\x36\x52\xad\xee\xb6\x76\x0f\x5f\x8d\xfe\x4e\x05\xc7\x11\x5c\x26\xce\x45\xc3\x50\x52\x25\x15\x81\x68\xa5\xe5\x6f\x92\xa9\x13\x21\x7c\x66\xb4\xe6\x45\x16\x87\x0b\x18\x54\x35\xc1\x59\x81\x45\x43\x8b\x2c\x5e\xfa\xd3\x82\x73\x51\xda\xca\xdc\x17\xc8\x0a\x50\x95\x10\x5e\xc5\x6b\xfb\xa1\xec\xa4\x9a\x6e\x0f\xd4\xe9\x27\xf2\xc5\x00\xa9\x54\xfd\x9e\x81\x0f\x3d\x65\xa2\x68\xa8\x78\xdc\xe9\x9f\x02\x14\x76\x94\x89\x4a\xb6\x24\xe0\x09\xdb\x3d\x65\x62\x18\xc6\x2e\xf1\x27\x64\x9f\x70\x4e\x80\xe5\x43\x4b\x99\x28\xa5\xed\x5b\x3c\x2c\xa4\x6a\xa5\xa2\xab\x5d\xab\x8b\x47\x01\x49\xf0\x41\xaa\x9c\x3a\xd9\x1e\x15\x14\x2d\x5a\x9b\x09\xcb\xd8\xf5\x02\x64\x99\x09\xfb\x22\xfc\x40\x05\x29\xde\xf8\x94\x73\x22\x1f\x86\x56\x17\xd8\xb2\xec\x08\xfe\x55\x91\x26\x5e\x31\x8f\xa2\x14\xa1\x31\x54\x79\x8b\x23\xe0\xb6\x31\x84\xe5\x72\xb5\x76\x2e\x19\x06\xcb\xe6\x4e\x15\xba\x24\x88\xb7\x92\xbd\xf1\x63\xdd\x86\xcd\x97\x9e\xed\xd8\xec\x98\x4c\x13\xcc\xa3\xf3\x17\x53\x9f\x49\x05\x15\xd6\x6b\xc5\x47\x1f\x1b\xf9\x8b\x9e\x59\xdf\x7f\x7c\xee\x8d\x54\x5c\x81\x78\x13\xdf\x54\x62\x56\xbe\x27\x6b\xb1\xa6\xb8\xdb\x39\x77\x31\xad\x23\xde\x62\x6d\x4f\x47\xc1\x58\x5b\x91\x47\x00\xf3\x56\x19\xeb\x45\x16\xca\xc7\xd1\x01\x9c\x20\xae\x90\xe9\x07\x1e\x8e\x8c\x13\x37\x9a\x9a\xd8\xb9\xf7\x8c\x75\xf6\x27\xb8\x57\x0c\x7a\x6c\xfc\xda\xe6\xce\x1e\xfc\x55\x32\xd0\x07\x2f\xf3\xe2\xa6\x39\xcf\xb1\x89\x67\xb3\xaf\x79\x44\x7a\xbd\xdb\x31\x2c\xf2\xe8\x6f\xa2\xe9\x41\xf8\x4c\xff\x2b\xd0\x6c\xfd\x14\x26\x4d\xc6\x3f\x86\x54\x19\xd0\xc6\xf3\x77\x00\x00\x00\xff\xff\xbc\xdc\x63\x39\xbe\x03\x00\x00")
+var _gou_templateList_itemTxt = []byte("\x1f\x8b\x08\x00\x00\x09\x6e\x88\x00\xff\xbc\x93\x51\x6f\xd3\x30\x10\xc7\xdf\xf3\x29\x4e\xd6\x90\xb6\x49\x4b\xb6\x09\x5e\xaa\x24\x08\xca\x54\x55\x62\x02\xad\x7d\x47\xd7\xe4\x92\x98\x25\x76\x64\x5f\x07\x25\xf3\x77\x47\x76\xd2\x85\x51\x9e\x79\xb2\x7c\x77\xfe\xdf\xff\x77\x97\x0c\x43\x72\x19\xc1\x52\xf7\x07\x23\xeb\x86\xe1\xbc\xb8\x80\xdb\xeb\xeb\x77\x57\xb7\xd7\x37\x6f\xc1\x36\x52\xad\xee\xb6\x76\x0f\x5f\x8d\xfe\x4e\x05\xc7\x11\x5c\x26\xce\x45\xc3\x50\x52\x25\x15\x81\x68\xa5\xe5\x6f\x92\xa9\x13\x21\x7c\x66\xb4\xe6\x45\x16\x87\x0b\x18\x54\x35\xc1\x59\x81\x45\x43\x8b\x2c\x5e\xfa\xd3\x82\x73\x51\xda\xca\xdc\x17\xc8\x0a\x50\x95\x10\x5e\xc5\x6b\xfb\xa1\xec\xa4\x9a\x6e\x0f\xd4\xe9\x27\xf2\xc5\x00\xa9\x54\xfd\x9e\x81\x0f\x3d\x65\xa2\x68\xa8\x78\xdc\xe9\x9f\x02\x14\x76\x94\x89\x4a\xb6\x24\xe0\x09\xdb\x3d\x65\x62\x18\xc6\x2e\xf1\x27\x64\x9f\x70\x4e\x80\xe5\x43\x4b\x99\x28\xa5\xed\x5b\x3c\x2c\xa4\x6a\xa5\xa2\xab\x5d\xab\x8b\x47\x01\x49\xf0\x41\xaa\x9c\x3a\xd9\x1e\x15\x14\x2d\x5a\x9b\x09\xcb\xd8\xf5\x02\x64\x99\x09\xfb\x22\xfc\x40\x05\x29\xde\xf8\x94\x73\x22\x1f\x86\x56\x17\xd8\xb2\xec\x08\xfe\x55\x91\x26\x5e\x31\x8f\xa2\x14\xa1\x31\x54\x79\x8b\x23\xe0\xb6\x31\x84\xe5\x72\xb5\x76\x2e\x19\x06\xcb\xe6\x4e\x15\xba\x24\x88\xb7\x92\xbd\xf1\x63\xdd\x86\xcd\x97\x9e\xed\xd8\xec\x98\x4c\x13\xcc\xa3\xf3\x17\x53\x9f\x49\xc1\x4d\xd0\x61\xbd\x56\x7c\x74\xb2\x91\xbf\xe8\x99\xf5\xfd\xc7\xe7\xde\x48\xc5\x15\x88\x37\xf1\x4d\x25\x66\xed\x7b\xb2\x16\x6b\x8a\xbb\x9d\x73\x17\xd3\x42\xe2\x2d\xd6\xf6\x74\x18\x8c\xb5\x15\x79\x04\x30\xef\x95\xb1\x5e\x64\xa1\x7c\x1c\x1e\xc0\x09\xe4\x0a\x99\x7e\xe0\xe1\x48\x39\x91\xa3\xa9\x89\x9d\x7b\xcf\x58\x67\x7f\xa2\x7b\xc5\xa0\xc7\xc6\x2f\x6e\xee\xec\xd1\x5f\x25\x03\x7f\xf0\x32\xaf\x6e\x9a\xf4\x1c\x9b\x78\x36\xfb\x9a\x47\xa4\xd7\xdb\x1d\xc3\x22\x8f\xfe\x26\x9a\x1e\x84\x0f\xf5\xbf\x02\xcd\xd6\x4f\x61\xd2\x64\xfc\x67\x48\x95\x01\x6d\x3c\x7f\x07\x00\x00\xff\xff\xdf\x5e\x85\x2d\xc0\x03\x00\x00")
 
 func gou_templateList_itemTxtBytes() ([]byte, error) {
 	return bindataRead(
@@ -1293,7 +1293,7 @@ func gou_templateList_itemTxt() (*asset, error) {
 		return nil, err
 	}
 
-	info := bindataFileInfo{name: "gou_template/list_item.txt", size: 958, mode: os.FileMode(420), modTime: time.Unix(1477564016, 0)}
+	info := bindataFileInfo{name: "gou_template/list_item.txt", size: 960, mode: os.FileMode(420), modTime: time.Unix(1502260411, 0)}
 	a := &asset{bytes: bytes, info: info}
 	return a, nil
 }
@@ -1313,7 +1313,7 @@ func gou_templateMenubarTxt() (*asset, error) {
 		return nil, err
 	}
 
-	info := bindataFileInfo{name: "gou_template/menubar.txt", size: 753, mode: os.FileMode(420), modTime: time.Unix(1477564016, 0)}
+	info := bindataFileInfo{name: "gou_template/menubar.txt", size: 753, mode: os.FileMode(420), modTime: time.Unix(1491401929, 0)}
 	a := &asset{bytes: bytes, info: info}
 	return a, nil
 }
@@ -1333,7 +1333,7 @@ func gou_templateNew_element_formTxt() (*asset, error) {
 		return nil, err
 	}
 
-	info := bindataFileInfo{name: "gou_template/new_element_form.txt", size: 1301, mode: os.FileMode(420), modTime: time.Unix(1477564016, 0)}
+	info := bindataFileInfo{name: "gou_template/new_element_form.txt", size: 1301, mode: os.FileMode(420), modTime: time.Unix(1491401929, 0)}
 	a := &asset{bytes: bytes, info: info}
 	return a, nil
 }
@@ -1353,7 +1353,7 @@ func gou_templatePage_naviTxt() (*asset, error) {
 		return nil, err
 	}
 
-	info := bindataFileInfo{name: "gou_template/page_navi.txt", size: 937, mode: os.FileMode(420), modTime: time.Unix(1473737201, 0)}
+	info := bindataFileInfo{name: "gou_template/page_navi.txt", size: 937, mode: os.FileMode(420), modTime: time.Unix(1448763309, 0)}
 	a := &asset{bytes: bytes, info: info}
 	return a, nil
 }
@@ -1373,7 +1373,7 @@ func gou_templatePost_formTxt() (*asset, error) {
 		return nil, err
 	}
 
-	info := bindataFileInfo{name: "gou_template/post_form.txt", size: 3152, mode: os.FileMode(420), modTime: time.Unix(1473737201, 0)}
+	info := bindataFileInfo{name: "gou_template/post_form.txt", size: 3152, mode: os.FileMode(420), modTime: time.Unix(1448763309, 0)}
 	a := &asset{bytes: bytes, info: info}
 	return a, nil
 }
@@ -1393,7 +1393,7 @@ func gou_templateRecordTxt() (*asset, error) {
 		return nil, err
 	}
 
-	info := bindataFileInfo{name: "gou_template/record.txt", size: 2034, mode: os.FileMode(420), modTime: time.Unix(1474426227, 0)}
+	info := bindataFileInfo{name: "gou_template/record.txt", size: 2034, mode: os.FileMode(420), modTime: time.Unix(1491401929, 0)}
 	a := &asset{bytes: bytes, info: info}
 	return a, nil
 }
@@ -1413,7 +1413,7 @@ func gou_templateRemove_file_formTxt() (*asset, error) {
 		return nil, err
 	}
 
-	info := bindataFileInfo{name: "gou_template/remove_file_form.txt", size: 554, mode: os.FileMode(420), modTime: time.Unix(1473737201, 0)}
+	info := bindataFileInfo{name: "gou_template/remove_file_form.txt", size: 554, mode: os.FileMode(420), modTime: time.Unix(1487517069, 0)}
 	a := &asset{bytes: bytes, info: info}
 	return a, nil
 }
@@ -1433,7 +1433,7 @@ func gou_templateRss1Txt() (*asset, error) {
 		return nil, err
 	}
 
-	info := bindataFileInfo{name: "gou_template/rss1.txt", size: 1268, mode: os.FileMode(420), modTime: time.Unix(1473737201, 0)}
+	info := bindataFileInfo{name: "gou_template/rss1.txt", size: 1268, mode: os.FileMode(420), modTime: time.Unix(1448763309, 0)}
 	a := &asset{bytes: bytes, info: info}
 	return a, nil
 }
@@ -1453,7 +1453,7 @@ func gou_templateSearch_formTxt() (*asset, error) {
 		return nil, err
 	}
 
-	info := bindataFileInfo{name: "gou_template/search_form.txt", size: 277, mode: os.FileMode(420), modTime: time.Unix(1473737201, 0)}
+	info := bindataFileInfo{name: "gou_template/search_form.txt", size: 277, mode: os.FileMode(420), modTime: time.Unix(1448763309, 0)}
 	a := &asset{bytes: bytes, info: info}
 	return a, nil
 }
@@ -1473,7 +1473,7 @@ func gou_templateStatusTxt() (*asset, error) {
 		return nil, err
 	}
 
-	info := bindataFileInfo{name: "gou_template/status.txt", size: 409, mode: os.FileMode(420), modTime: time.Unix(1473737201, 0)}
+	info := bindataFileInfo{name: "gou_template/status.txt", size: 409, mode: os.FileMode(420), modTime: time.Unix(1448763309, 0)}
 	a := &asset{bytes: bytes, info: info}
 	return a, nil
 }
@@ -1493,7 +1493,7 @@ func gou_templateThread_bottomTxt() (*asset, error) {
 		return nil, err
 	}
 
-	info := bindataFileInfo{name: "gou_template/thread_bottom.txt", size: 264, mode: os.FileMode(420), modTime: time.Unix(1473737201, 0)}
+	info := bindataFileInfo{name: "gou_template/thread_bottom.txt", size: 264, mode: os.FileMode(420), modTime: time.Unix(1487517069, 0)}
 	a := &asset{bytes: bytes, info: info}
 	return a, nil
 }
@@ -1513,12 +1513,12 @@ func gou_templateThread_tagsTxt() (*asset, error) {
 		return nil, err
 	}
 
-	info := bindataFileInfo{name: "gou_template/thread_tags.txt", size: 410, mode: os.FileMode(420), modTime: time.Unix(1473737201, 0)}
+	info := bindataFileInfo{name: "gou_template/thread_tags.txt", size: 410, mode: os.FileMode(420), modTime: time.Unix(1448763309, 0)}
 	a := &asset{bytes: bytes, info: info}
 	return a, nil
 }
 
-var _gou_templateThread_topTxt = []byte("\x1f\x8b\x08\x00\x00\x09\x6e\x88\x00\xff\x74\x92\x4f\x6b\xdc\x30\x10\xc5\xef\xfe\x14\x83\x7a\xd9\x0d\xd4\xde\x86\xf6\x66\x1b\xc2\x36\x0d\x81\x14\x42\xc9\xdd\x68\xa5\xf1\x4a\xad\x3d\x32\xd2\x6c\xc2\x22\xf4\xdd\x8b\xff\xc4\x49\x48\x72\x1b\xc6\x33\x6f\xde\xef\x59\x31\x16\x17\x19\xec\xdd\x70\xf6\xf6\x68\x18\x36\x6a\x0b\x97\xbb\xdd\x8f\xaf\x97\xbb\x6f\xdf\x21\x18\x4b\x37\xd7\x0f\xe1\x04\xf7\xde\xfd\x45\xc5\x79\x06\x17\x45\x4a\x59\x8c\x1a\x5b\x4b\x08\x82\x8d\x47\xa9\x1b\x76\x83\x98\xfa\x60\x5b\x90\xa4\x61\xe3\x3c\xe4\xb7\xe1\x97\xb7\x48\x7a\xac\xae\x74\x6f\x69\x0b\x9b\x0e\x21\xdf\x4b\x65\x30\xbf\x43\x82\xdd\x16\x52\xca\x00\xca\xd6\xf9\x1e\x7a\x64\xe3\x74\x25\x8e\xc8\x02\xa4\x62\xeb\xa8\x12\x31\xe6\x0f\xd3\x91\xfd\xcd\x6d\x4a\x45\x8c\x81\xfd\x35\x29\xa7\x11\xf2\x7b\xc9\x26\x25\x51\x97\x43\x9d\x01\x00\x94\x96\x86\x13\x03\x9f\x07\xac\x84\xb1\x5a\x23\x09\x20\xd9\x63\x25\x02\x4a\xaf\x4c\x43\xf8\xd4\xb4\xb6\x43\x01\x8f\xb2\x3b\x61\x25\xce\x18\x04\x14\x1f\xac\x87\xd3\xa1\xb7\xbc\xce\xc5\x98\xff\xc6\x10\xe4\x11\xf3\x70\x26\xd5\xb4\xde\xf5\x0d\x21\x3f\x39\xff\x2f\x25\x01\xaa\x93\x21\x54\xe2\xc0\xb4\xc8\x95\xc5\x50\x97\xc5\xc8\x55\x8f\xb9\x8c\x31\xac\x09\x3d\xe7\xf1\x11\xfc\xe0\xc2\x5b\xfa\x69\x72\x86\x17\x93\xf0\x00\x76\x9c\x93\x47\x24\xf9\x68\xe7\xde\xe7\xe0\xaa\xd7\x2b\x84\xd7\xd8\x3d\xdb\xfb\x7c\xe3\x4d\x3e\x31\x2e\xbf\xeb\xa7\xe4\xf1\xc3\xc8\x5a\xcc\x44\x5d\xc0\x05\xe0\x9d\xa3\x77\xc0\x77\x32\xb0\x47\x35\xcf\xc7\x98\xff\xc1\x70\x45\xca\x38\x9f\xd2\xab\x64\x3b\x19\xb8\x91\x9e\xad\x1a\x0f\x95\x85\x5c\x0f\x2d\x7b\x93\xd6\xfa\x7c\xa6\x26\x40\x29\xc1\x78\x6c\x2b\xf1\xe5\xe0\x98\x5d\x2f\xea\x57\x92\x73\xab\x71\x6d\x33\xda\x5b\x44\x27\xa9\x17\x83\x6b\x85\xa4\x53\xca\xfe\x07\x00\x00\xff\xff\x6c\xc1\x3d\x70\x15\x03\x00\x00")
+var _gou_templateThread_topTxt = []byte("\x1f\x8b\x08\x00\x00\x09\x6e\x88\x00\xff\x74\x92\x4f\x6b\xdc\x3c\x10\xc6\xef\xfe\x14\x83\xde\xcb\x6e\xe0\xb5\x37\xa1\xbd\xd9\x86\xb0\x4d\x43\x20\x85\x50\x72\x37\x5a\x69\xbc\x52\x6b\x8f\x8c\x34\x9b\xb0\x08\x7d\xf7\xe2\x3f\x71\x12\x92\xdc\x86\xf1\xcc\x33\xcf\xef\xb1\x62\x2c\x2e\x32\xd8\xbb\xe1\xec\xed\xd1\x30\x6c\xd4\x16\xae\x76\xbb\xef\xff\x5f\xed\x2e\xbf\x41\x30\x96\x6e\x6f\x1e\xc3\x09\x1e\xbc\xfb\x83\x8a\xf3\x0c\x2e\x8a\x94\xb2\x18\x35\xb6\x96\x10\x04\x1b\x8f\x52\x37\xec\x06\x31\xf5\xc1\xb6\x20\x49\xc3\xc6\x79\xc8\xef\xc2\x4f\x6f\x91\xf4\x58\x5d\xeb\xde\xd2\x16\x36\x1d\x42\xbe\x97\xca\x60\x7e\x8f\x04\xbb\x2d\xa4\x94\x01\x94\xad\xf3\x3d\xf4\xc8\xc6\xe9\x4a\x1c\x91\x05\x48\xc5\xd6\x51\x25\x62\xcc\x1f\xa7\x23\xfb\xdb\xbb\x94\x8a\x18\x03\xfb\x1b\x52\x4e\x23\xe4\x0f\x92\x4d\x4a\xa2\x2e\x87\x3a\x03\x00\x28\x2d\x0d\x27\x06\x3e\x0f\x58\x09\x63\xb5\x46\x12\x40\xb2\xc7\x4a\x04\x94\x5e\x99\x86\xf0\xb9\x69\x6d\x87\x02\x9e\x64\x77\xc2\x4a\x9c\x31\x08\x28\x3e\x59\x0f\xa7\x43\x6f\x79\x9d\x8b\x31\xff\x85\x21\xc8\x23\xe6\xe1\x4c\xaa\x69\xbd\xeb\x1b\x42\x7e\x76\xfe\x6f\x4a\x02\x54\x27\x43\xa8\xc4\x81\x69\x91\x2b\x8b\xa1\x2e\x8b\x91\xab\x1e\x73\x19\x63\x58\x13\x7a\xc9\xe3\x33\xf8\xc1\x85\xf7\xf4\xd3\xe4\x0c\x2f\x26\xe1\x01\xec\x38\x27\x8f\x48\xf2\xc9\xce\xbd\xaf\xc1\x55\xaf\x57\x08\xaf\xb1\x7b\xb1\xf7\xf5\xc6\xbb\x7c\x62\x5c\x7e\xd7\x0f\xc9\xe3\x87\x91\xb5\x98\x89\xba\x80\x0b\xc0\x07\x47\x1f\x80\xef\x65\x60\x8f\x6a\x9e\x8f\x31\xff\x8d\xe1\x9a\x94\x71\x3e\xa5\x37\xc9\x76\x32\x70\x23\x3d\x5b\x35\x1e\x2a\x0b\xb9\x1e\x5a\xf6\x26\xad\xd7\xe7\x73\x39\xeb\x01\x94\x12\x8c\xc7\xb6\x12\xff\x1d\x1c\xb3\xeb\x45\xfd\x46\x75\x6e\x35\xae\x6d\x46\x87\x8b\xee\xa4\xf6\xea\x71\xad\x90\x74\x4a\xd9\xbf\x00\x00\x00\xff\xff\x10\x9f\x22\x9f\x18\x03\x00\x00")
 
 func gou_templateThread_topTxtBytes() ([]byte, error) {
 	return bindataRead(
@@ -1533,7 +1533,7 @@ func gou_templateThread_topTxt() (*asset, error) {
 		return nil, err
 	}
 
-	info := bindataFileInfo{name: "gou_template/thread_top.txt", size: 789, mode: os.FileMode(420), modTime: time.Unix(1473737201, 0)}
+	info := bindataFileInfo{name: "gou_template/thread_top.txt", size: 792, mode: os.FileMode(420), modTime: time.Unix(1502260411, 0)}
 	a := &asset{bytes: bytes, info: info}
 	return a, nil
 }
@@ -1553,7 +1553,7 @@ func gou_templateTopTxt() (*asset, error) {
 		return nil, err
 	}
 
-	info := bindataFileInfo{name: "gou_template/top.txt", size: 1726, mode: os.FileMode(420), modTime: time.Unix(1477825761, 0)}
+	info := bindataFileInfo{name: "gou_template/top.txt", size: 1726, mode: os.FileMode(420), modTime: time.Unix(1502257508, 0)}
 	a := &asset{bytes: bytes, info: info}
 	return a, nil
 }

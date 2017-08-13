@@ -258,7 +258,7 @@ func (m *mchCGI) makeSubject(board string) ([]string, int64) {
 	cl := m.makeSubjectCachelist(board)
 	var lastStamp int64
 	for _, c := range cl {
-		if !loadFromNet && c.Len() == 0 {
+		if !loadFromNet && c.Len(record.Alive) == 0 {
 			continue
 		}
 		if lastStamp < c.Stamp() {
@@ -275,7 +275,7 @@ func (m *mchCGI) makeSubject(board string) ([]string, int64) {
 		}
 		titleStr = strings.Trim(titleStr, "\r\n")
 		subjects = append(subjects, fmt.Sprintf("%d.dat<>%s (%d)",
-			key, titleStr, c.Len()))
+			key, titleStr, c.Len(record.Alive)))
 	}
 	return subjects, lastStamp
 }
