@@ -113,6 +113,6 @@ func SearchMessage(acceptLanguage, filedir string) Message {
 			}
 		}
 	}
-	log.Fatalf("no messages are found.")
+	log.Printf("no messages are found.")
 	return nil
 }

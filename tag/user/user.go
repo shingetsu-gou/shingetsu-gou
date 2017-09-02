@@ -51,7 +51,6 @@ func Len(thread string) int {
 		return errr
 	})
 	if err != nil {
-		log.Print(err)
 		return 0
 	}
 	return len(r)
@@ -84,7 +83,6 @@ func Get() tag.Slice {
 		return err
 	})
 	if err != nil {
-		log.Print(err)
 		return nil
 	}
 	return tag.NewSlice(r)
@@ -99,7 +97,6 @@ func GetStrings(thread string) []string {
 		return err
 	})
 	if err != nil {
-		log.Print(err, thread)
 		return nil
 	}
 	return r

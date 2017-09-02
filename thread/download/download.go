@@ -247,7 +247,7 @@ func getWithRange(n *node.Node, c *thread.Cache, dm *Manager) bool {
 //GetCache checks  nodes in lookuptable have the cache.
 //if found gets records.
 func GetCache(background bool, c *thread.Cache) bool {
-	const searchDepth = 5 // Search node size
+	const searchDepth = 100 // Search node size
 	ns := manager.NodesForGet(c.Datfile, searchDepth)
 	found := false
 	var wg sync.WaitGroup

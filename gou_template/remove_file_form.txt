@@ -12,7 +12,7 @@
   <p id="status">
 {{ end }}
 {{ $mb:=toInt .CacheSize | toMB}}
-{{printf "(%s/%d/%.1f%s)" .Title .Cache.Len $mb .Message.mb}}
+{{printf "(%s/%d/%.1f%s)" .Title (.Cache.Len 0) $mb .Message.mb}}
 {{ if .IsAdmin }}
   </p></form>
 {{ else }}

@@ -2,7 +2,7 @@
  Copyright (c) 2005-2014 shinGETsu Project.
  */}}
 {{define "thread_top"}}
-{{ if and (or .IsFriend .IsAdmin) (le .Cache.Len 0) }}
+{{ if and (or .IsFriend .IsAdmin) (le (.Cache.Len 0) 0) }}
   <form method="get" action="{{.ThreadCGI}}/{{strEncode .Path}}"><p>
     <input type="hidden" name="search_new_file" value="yes" />
     <input type="submit" value="{{.Message.sync_from_network}}" class="btn" />
