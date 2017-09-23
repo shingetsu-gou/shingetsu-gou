@@ -476,7 +476,7 @@ func (g *gatewayCGI) jumpNewFile() {
 	case t == "thread":
 		tag := util.StrEncode(g.Req.FormValue("tag"))
 		search := util.StrEncode(g.Req.FormValue("search_new_file"))
-		g.Print302(cfg.ThreadURL + "/" + util.StrEncode(link) + "?tag=" + tag + "&search_new_file" + search)
+		g.Print302(cfg.ThreadURL + "/" + util.StrEncode(link) + "?tag=" + tag + "&search_new_file=" + search)
 	default:
 		g.Print404(nil, "")
 	}
